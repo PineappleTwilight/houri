@@ -513,14 +513,29 @@ class EHentai(
         it.checkValid()
     }
 
-    private fun <T : MangasPage> T.checkValid(): MangasPage =
-        if (exh && mangas.isEmpty() && exhPreferences.igneousVal().get().equals("mystery", true)) {
+    private fun <T : MangasPage> T.checkValid(): MangasPage {
+        if (!exh || mangas.isNotEmpty()) return this
+
+        val igneous = exhPreferences.igneousVal().get()
+        val memberId = exhPreferences.memberIdVal().get()
+        val passHash = exhPreferences.passHashVal().get()
+
+        // Check for missing authentication cookies
+        if (memberId.isBlank() || passHash.isBlank()) {
             throw Exception(
-                "Invalid igneous cookie, try re-logging or finding a correct one to input in the login menu",
+                "ExHentai credentials not found. Please log in via Settings → E-Hentai/ExHentai Login",
             )
-        } else {
-            this
         }
+
+        // Check for invalid igneous cookie
+        if (igneous.equals("mystery", true) || igneous.isBlank()) {
+            throw Exception(
+                "Invalid or missing igneous cookie. Please re-login or provide a valid igneous cookie in Settings → E-Hentai/ExHentai Login",
+            )
+        }
+
+        return this
+    }
 
     @Deprecated("Use the suspend API instead", replaceWith = ReplaceWith("getLatestUpdates"))
     override fun fetchLatestUpdates(page: Int): Observable<MangasPage> {
