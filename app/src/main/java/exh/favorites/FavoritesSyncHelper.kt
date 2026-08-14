@@ -323,7 +323,6 @@ class FavoritesSyncHelper(val context: Context) {
     ) {
         val removedManga = mutableListOf<Manga>()
 
-        // Apply removals
         changeSet.removed.forEachIndexed { index, it ->
             status.value = FavoritesSyncStatus.Processing.RemovingGalleryFromLocal(
                 index = index + 1,
@@ -331,7 +330,6 @@ class FavoritesSyncHelper(val context: Context) {
             )
             val url = it.getUrl()
 
-            // Consider both EX and EH sources
             listOf(
                 EXH_SOURCE_ID,
                 EH_SOURCE_ID,
@@ -345,64 +343,71 @@ class FavoritesSyncHelper(val context: Context) {
             }
         }
 
-        // Can't do too many DB OPs in one go
-        removedManga.forEach {
-            setMangaCategories.await(it.id, emptyList())
+        removedManga.chunked(BATCH_SIZE).forEach { chunk ->
+            chunk.forEach { manga ->
+                setMangaCategories.await(manga.id, emptyList())
+            }
         }
 
         val insertedMangaCategories = mutableListOf<Pair<Long, Manga>>()
         val categories = getCategories.await()
             .filterNot(Category::isSystemCategory)
 
-        // Apply additions
         throttleManager.resetThrottle()
-        changeSet.added.forEachIndexed { index, it ->
+
+        val addedEntries = changeSet.added.toList()
+        addedEntries.chunked(throttleManager.concurrency).forEach { chunk ->
             status.value = FavoritesSyncStatus.Processing.AddingGalleryToLocal(
-                index = index + 1,
+                index = insertedMangaCategories.size + 1,
                 total = changeSet.added.size,
                 isThrottling = needWarnThrottle(),
-                title = it.title,
+                title = chunk.first().title,
             )
 
-            throttleManager.throttle()
-
-            // Import using gallery adder
-            val result = galleryAdder.addGallery(
-                context = context,
-                url = "${exh.baseUrl}${it.getUrl()}",
-                fav = true,
-                forceSource = exh,
-                throttleFunc = throttleManager::throttle,
-                retry = 3,
+            val results = throttleManager.throttleAll(
+                chunk.map { entry ->
+                    suspend {
+                        galleryAdder.addGallery(
+                            context = context,
+                            url = "${exh.baseUrl}${entry.getUrl()}",
+                            fav = true,
+                            forceSource = exh,
+                            throttleFunc = throttleManager::throttle,
+                            retry = 3,
+                        ) to entry
+                    }
+                },
             )
 
-            if (result is GalleryAddEvent.Fail) {
-                if (result is GalleryAddEvent.Fail.NotFound) {
-                    logger()?.e(context.stringResource(SYMR.strings.favorites_sync_remote_not_exist, it.getUrl()))
-                    // Skip this gallery, it no longer exists
-                    return@forEachIndexed
-                }
+            for ((result, entry) in results) {
+                if (result is GalleryAddEvent.Fail) {
+                    if (result is GalleryAddEvent.Fail.NotFound) {
+                        logger()?.e(context.stringResource(SYMR.strings.favorites_sync_remote_not_exist, entry.getUrl()))
+                        continue
+                    }
 
-                val error = when (result) {
-                    is GalleryAddEvent.Fail.Error -> FavoritesSyncStatus.SyncError.GallerySyncError.GalleryAddFail(it.title, result.logMessage)
-                    is GalleryAddEvent.Fail.UnknownType -> FavoritesSyncStatus.SyncError.GallerySyncError.InvalidGalleryFail(it.title, result.galleryUrl)
-                    is GalleryAddEvent.Fail.UnknownSource -> FavoritesSyncStatus.SyncError.GallerySyncError.InvalidGalleryFail(it.title, result.galleryUrl)
-                }
+                    val error = when (result) {
+                        is GalleryAddEvent.Fail.Error -> FavoritesSyncStatus.SyncError.GallerySyncError.GalleryAddFail(entry.title, result.logMessage)
+                        is GalleryAddEvent.Fail.UnknownType -> FavoritesSyncStatus.SyncError.GallerySyncError.InvalidGalleryFail(entry.title, result.galleryUrl)
+                        is GalleryAddEvent.Fail.UnknownSource -> FavoritesSyncStatus.SyncError.GallerySyncError.InvalidGalleryFail(entry.title, result.galleryUrl)
+                    }
 
-                if (exhPreferences.exhLenientSync().get()) {
-                    errorList += error
-                } else {
-                    status.value = error
-                    throw IgnoredException(error)
+                    if (exhPreferences.exhLenientSync().get()) {
+                        errorList += error
+                    } else {
+                        status.value = error
+                        throw IgnoredException(error)
+                    }
+                } else if (result is GalleryAddEvent.Success) {
+                    insertedMangaCategories += categories[entry.category].id to result.manga
                 }
-            } else if (result is GalleryAddEvent.Success) {
-                insertedMangaCategories += categories[it.category].id to result.manga
             }
         }
 
-        // Can't do too many DB OPs in one go
-        insertedMangaCategories.forEach { (category, manga) ->
-            setMangaCategories.await(manga.id, listOf(category))
+        insertedMangaCategories.chunked(BATCH_SIZE).forEach { chunk ->
+            chunk.forEach { (category, manga) ->
+                setMangaCategories.await(manga.id, listOf(category))
+            }
         }
     }
 
@@ -413,6 +418,7 @@ class FavoritesSyncHelper(val context: Context) {
 
     companion object {
         private val THROTTLE_WARN = 1.seconds
+        private const val BATCH_SIZE = 10
     }
 }
 

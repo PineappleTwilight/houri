@@ -58,6 +58,7 @@ import exh.util.trimAll
 import exh.util.trimOrNull
 import exh.util.urlImportFetchSearchManga
 import exh.util.urlImportFetchSearchMangaSuspend
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.supervisorScope
 import kotlinx.serialization.json.Json
@@ -362,17 +363,14 @@ class EHentai(
     }
 
     suspend fun getChapterList(manga: SManga, throttleFunc: suspend () -> Unit): List<SChapter> {
-        // Pull all the way to the root gallery
-        // We can't do this with RxJava or we run into stack overflows on shit like this:
-        //   https://exhentai.org/g/1073061/f9345f1c12/
         var url = manga.url
         var doc: Document
+        val parentChain = mutableListOf<Pair<Int, String>>()
 
         while (true) {
             val gid = EHentaiSearchMetadata.galleryId(url).toInt()
-            val cachedParent = updateHelper.parentLookupTable.get(
-                gid,
-            )
+            val cachedParent = updateHelper.parentLookupTable.get(gid)
+
             if (cachedParent == null) {
                 throttleFunc()
                 doc = client.newCall(exGet(baseUrl + url)).awaitSuccess().asJsoup()
@@ -382,56 +380,68 @@ class EHentai(
                 }!!.nextElementSibling()!!.selectFirst("a")?.attr("href")
 
                 if (parentLink != null) {
+                    val parentGid = EHentaiSearchMetadata.galleryId(parentLink).toInt()
+                    val parentToken = EHentaiSearchMetadata.galleryToken(parentLink)
+
                     updateHelper.parentLookupTable.put(
                         gid,
-                        GalleryEntry(
-                            EHentaiSearchMetadata.galleryId(parentLink),
-                            EHentaiSearchMetadata.galleryToken(parentLink),
-                        ),
+                        GalleryEntry(parentGid.toString(), parentToken),
                     )
+
+                    parentChain.add(gid to url)
                     url = EHentaiSearchMetadata.normalizeUrl(parentLink)
                 } else {
                     break
                 }
             } else {
-                this@EHentai.xLogD("Parent cache hit: %s!", gid)
+                xLogD("Parent cache hit: %s!", gid)
+                parentChain.add(gid to url)
                 url = EHentaiSearchMetadata.idAndTokenToUrl(
                     cachedParent.gId,
                     cachedParent.gToken,
                 )
             }
         }
-        val newDisplay = doc.select("#gnd a")
-        // Build chapter for root gallery
-        val location = doc.location()
+
+        val location = doc?.location() ?: url
         val self = SChapter(
             url = EHentaiSearchMetadata.normalizeUrl(location),
-            name = "v1: " + doc.selectFirst("#gn")!!.text(),
+            name = "v1: " + doc?.selectFirst("#gn")?.text().orEmpty(),
             chapter_number = 1f,
-            date_upload = ZonedDateTime.parse(
-                doc.select("#gdd .gdt1").find { el ->
-                    el.text().lowercase() == "posted:"
-                }!!.nextElementSibling()!!.text(),
-                MetadataUtil.EX_DATE_FORMAT.withZone(ZoneOffset.UTC),
-            )!!.toInstant().toEpochMilli(),
+            date_upload = try {
+                ZonedDateTime.parse(
+                    doc?.select("#gdd .gdt1")?.find { el ->
+                        el.text().lowercase() == "posted:"
+                    }?.nextElementSibling()?.text().orEmpty(),
+                    MetadataUtil.EX_DATE_FORMAT.withZone(ZoneOffset.UTC),
+                )?.toInstant()?.toEpochMilli() ?: 0L
+            } catch (_: Exception) {
+                0L
+            },
             scanlator = EHentaiSearchMetadata.galleryId(location),
         )
-        // Build and append the rest of the galleries
+
+        val newDisplay = doc?.select("#gnd a") ?: emptyList()
+
         return if (DebugToggles.INCLUDE_ONLY_ROOT_WHEN_LOADING_EXH_VERSIONS.enabled) {
             listOf(self)
         } else {
             newDisplay.mapIndexed { index, newGallery ->
                 val link = newGallery.attr("href")
                 val name = newGallery.text()
-                val posted = (newGallery.nextSibling() as TextNode).text().removePrefix(", added ")
+                val posted = (newGallery.nextSibling() as? TextNode)?.text()?.removePrefix(", added ").orEmpty()
                 SChapter(
                     url = EHentaiSearchMetadata.normalizeUrl(link),
                     name = "v${index + 2}: $name",
                     chapter_number = index + 2f,
-                    date_upload = ZonedDateTime.parse(
-                        posted,
-                        MetadataUtil.EX_DATE_FORMAT.withZone(ZoneOffset.UTC),
-                    ).toInstant().toEpochMilli(),
+                    date_upload = try {
+                        ZonedDateTime.parse(
+                            posted,
+                            MetadataUtil.EX_DATE_FORMAT.withZone(ZoneOffset.UTC),
+                        ).toInstant().toEpochMilli()
+                    } catch (_: Exception) {
+                        0L
+                    },
                     scanlator = EHentaiSearchMetadata.galleryId(link),
                 )
             }.reversed() + self
@@ -633,8 +643,10 @@ class EHentai(
 
     @Suppress("DEPRECATION")
     override fun popularMangaParse(response: Response) = genericMangaParse(response)
+
     @Suppress("DEPRECATION")
     override fun searchMangaParse(response: Response) = genericMangaParse(response)
+
     @Suppress("DEPRECATION")
     override fun latestUpdatesParse(response: Response) = genericMangaParse(response)
 
@@ -899,38 +911,54 @@ class EHentai(
     suspend fun fetchFavorites(): Pair<List<ParsedManga>, List<String>> {
         val favoriteUrl = "$baseUrl/favorites.php"
         val result = mutableListOf<ParsedManga>()
-        var page = 1
-
         var favNames: List<String>? = null
 
-        do {
-            val response2 = withIOContext {
+        val firstPageResponse = withIOContext {
+            client.newCall(
+                exGet(
+                    favoriteUrl,
+                    next = 1,
+                    cacheControl = CacheControl.FORCE_NETWORK,
+                ),
+            ).await()
+        }
+        val firstDoc = firstPageResponse.asJsoup()
+        val firstParsed = extendedGenericMangaParse(firstDoc)
+        result += firstParsed.first
+
+        favNames = firstDoc.select(".fp:not(.fps)").mapNotNull {
+            it.child(2).text()
+        }
+
+        var currentPage = firstParsed.first.lastOrNull()?.manga?.url?.let {
+            EHentaiSearchMetadata.galleryId(it)
+        }?.toInt() ?: 0
+        var hasNextPage = firstParsed.second != null
+
+        while (hasNextPage) {
+            val nextPage = currentPage
+            if (nextPage <= 0) break
+
+            val response = withIOContext {
                 client.newCall(
                     exGet(
                         favoriteUrl,
-                        next = page,
+                        next = nextPage,
                         cacheControl = CacheControl.FORCE_NETWORK,
                     ),
                 ).await()
             }
-            val doc = response2.asJsoup()
-
-            // Parse favorites
+            val doc = response.asJsoup()
             val parsed = extendedGenericMangaParse(doc)
             result += parsed.first
 
-            // Parse fav names
-            if (favNames == null) {
-                favNames = doc.select(".fp:not(.fps)").mapNotNull {
-                    it.child(2).text()
-                }
-            }
-            // Next page
+            currentPage = parsed.first.lastOrNull()?.manga?.url?.let {
+                EHentaiSearchMetadata.galleryId(it)
+            }?.toInt() ?: 0
+            hasNextPage = parsed.second != null
+        }
 
-            page = parsed.first.lastOrNull()?.manga?.url?.let { EHentaiSearchMetadata.galleryId(it) }?.toInt() ?: 0
-        } while (parsed.second != null)
-
-        return Pair(result.toList(), favNames)
+        return Pair(result, favNames)
     }
 
     fun spPref() = if (exh) {
@@ -1442,7 +1470,7 @@ class EHentai(
 
         private val MATCH_YEAR_REGEX = "^\\d{4}$".toRegex()
         private val MATCH_SEEK_REGEX = "^\\d{2,4}-\\d{1,2}(-\\d{1,2})?$".toRegex()
-        private val MATCH_JUMP_REGEX = "^\\d+($|d$|w$|m$|y$|-$)".toRegex()
+        private val MATCH_JUMP_REGEX = "^\\d+($|d$|w$|m$|y$|-$)$".toRegex()
 
         private const val EH_API_BASE = "https://api.e-hentai.org/api.php"
         private val JSON = "application/json; charset=utf-8".toMediaTypeOrNull()!!
