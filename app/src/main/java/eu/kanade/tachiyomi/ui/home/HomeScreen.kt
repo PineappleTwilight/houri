@@ -3,6 +3,7 @@ package eu.kanade.tachiyomi.ui.home
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.togetherWith
@@ -121,8 +122,8 @@ object HomeScreen : Screen() {
                             }
                             AnimatedVisibility(
                                 visible = bottomNavVisible,
-                                enter = expandVertically(),
-                                exit = shrinkVertically(),
+                                enter = expandVertically(tween(200)),
+                                exit = shrinkVertically(tween(200)),
                             ) {
                                 NavigationBar {
                                     TABS

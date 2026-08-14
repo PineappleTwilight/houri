@@ -3,6 +3,7 @@ package eu.kanade.presentation.manga
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
@@ -534,13 +535,13 @@ private fun MangaScreenSmallImpl(
         },
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         floatingActionButton = {
-            val isFABVisible = remember(chapters) {
-                chapters.fastAny { !it.chapter.read } && !isAnySelected
+            val isFABVisible by remember {
+                derivedStateOf { chapters.fastAny { !it.chapter.read } && !isAnySelected }
             }
             AnimatedVisibility(
                 visible = isFABVisible,
-                enter = scaleIn() + fadeIn(),
-                exit = scaleOut() + fadeOut(),
+                enter = scaleIn(tween(200)) + fadeIn(tween(200)),
+                exit = scaleOut(tween(200)) + fadeOut(tween(200)),
             ) {
                 ExtendedFloatingActionButton(
                     text = {
@@ -997,13 +998,13 @@ private fun MangaScreenLargeImpl(
         },
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         floatingActionButton = {
-            val isFABVisible = remember(chapters) {
-                chapters.fastAny { !it.chapter.read } && !isAnySelected
+            val isFABVisible by remember {
+                derivedStateOf { chapters.fastAny { !it.chapter.read } && !isAnySelected }
             }
             AnimatedVisibility(
                 visible = isFABVisible,
-                enter = scaleIn() + fadeIn(),
-                exit = scaleOut() + fadeOut(),
+                enter = scaleIn(tween(200)) + fadeIn(tween(200)),
+                exit = scaleOut(tween(200)) + fadeOut(tween(200)),
             ) {
                 ExtendedFloatingActionButton(
                     text = {
