@@ -24,7 +24,7 @@ android {
     namespace = "eu.kanade.tachiyomi"
 
     defaultConfig {
-        applicationId = "app.kamikku"
+        applicationId = "app.houri"
 
         versionCode = 82
         versionName = "1.15.0"
