@@ -65,6 +65,7 @@ class Pururin(delegate: HttpSource, val context: Context) :
     }
 
     @Deprecated("Use the combined suspend API instead", replaceWith = ReplaceWith("getMangaUpdate"))
+    @Suppress("DEPRECATION")
     override fun fetchMangaDetails(manga: SManga): Observable<SManga> {
         return runAsObservable {
             val response = client.newCall(mangaDetailsRequest(manga)).awaitSuccess()

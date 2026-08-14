@@ -485,6 +485,7 @@ class EHentai(
         ).sortedBy(Pair<Int, String>::first).map { it.second }
     }
 
+    @Suppress("DEPRECATION")
     private fun chapterPageCall(np: String): Observable<Response> {
         return client.newCall(chapterPageRequest(np)).asObservableSuccess()
     }
@@ -496,6 +497,7 @@ class EHentai(
         return if (it.text() == ">") it.attr("href") else null
     }
 
+    @Suppress("DEPRECATION")
     override fun popularMangaRequest(page: Int) =
         // KMK -->
         if (isLangNatural()) {
@@ -571,6 +573,7 @@ class EHentai(
         }
     }
 
+    @Suppress("DEPRECATION")
     override fun searchMangaRequest(page: Int, query: String, filters: FilterList): Request {
         val toplist = ToplistOption.entries[filters.firstNotNullOfOrNull { (it as? ToplistOptions)?.state } ?: 0]
         if (toplist != ToplistOption.NONE) {
@@ -618,6 +621,7 @@ class EHentai(
         )
     }
 
+    @Suppress("DEPRECATION")
     override fun latestUpdatesRequest(page: Int) =
         // KMK -->
         if (isLangNatural()) {
@@ -627,8 +631,11 @@ class EHentai(
             exGet(baseUrl, page)
         }
 
+    @Suppress("DEPRECATION")
     override fun popularMangaParse(response: Response) = genericMangaParse(response)
+    @Suppress("DEPRECATION")
     override fun searchMangaParse(response: Response) = genericMangaParse(response)
+    @Suppress("DEPRECATION")
     override fun latestUpdatesParse(response: Response) = genericMangaParse(response)
 
     private fun exGet(
@@ -671,6 +678,7 @@ class EHentai(
      * @param manga the manga to be updated.
      */
     @Deprecated("Use the combined suspend API instead", replaceWith = ReplaceWith("getMangaUpdate"))
+    @Suppress("DEPRECATION")
     override fun fetchMangaDetails(manga: SManga): Observable<SManga> {
         return client.newCall(mangaDetailsRequest(manga))
             .asObservableWithAsyncStacktrace()
@@ -711,6 +719,7 @@ class EHentai(
             }
     }
 
+    @Suppress("DEPRECATION")
     suspend fun getMangaDetails(manga: SManga): SManga {
         val exception = Exception("Async stacktrace")
         val response = client.newCall(mangaDetailsRequest(manga)).await()
@@ -859,12 +868,14 @@ class EHentai(
         }
     }
 
+    @Suppress("DEPRECATION")
     override suspend fun getImageUrl(page: Page): String {
         val imageUrlResponse = client.newCall(imageUrlRequest(page)).awaitSuccess()
         return realImageUrlParse(imageUrlResponse, page)
     }
 
     @Deprecated("Use the suspend API instead", replaceWith = ReplaceWith("getImageUrl"))
+    @Suppress("DEPRECATION")
     override fun fetchImageUrl(page: Page): Observable<String> {
         return client.newCall(imageUrlRequest(page))
             .asObservableSuccess()
