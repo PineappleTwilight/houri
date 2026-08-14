@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import eu.kanade.tachiyomi.ui.library.LibraryItem
 import tachiyomi.domain.library.model.LibraryManga
@@ -31,19 +32,23 @@ internal fun LibraryCompactGrid(
 
         items(
             items = items,
+            key = { it.id },
             contentType = { "library_compact_grid_item" },
         ) { libraryItem ->
             val manga = libraryItem.libraryManga.manga
-            MangaCompactGridItem(
-                isSelected = manga.id in selection,
-                title = manga.title.takeIf { showTitle },
-                coverData = MangaCover(
+            val coverData = remember(manga.id) {
+                MangaCover(
                     mangaId = manga.id,
                     sourceId = manga.source,
                     isMangaFavorite = manga.favorite,
                     ogUrl = manga.thumbnailUrl,
                     lastModified = manga.coverLastModified,
-                ),
+                )
+            }
+            MangaCompactGridItem(
+                isSelected = manga.id in selection,
+                title = manga.title.takeIf { showTitle },
+                coverData = coverData,
                 coverBadgeStart = {
                     DownloadsBadge(count = libraryItem.downloadCount)
                     UnreadBadge(count = libraryItem.unreadCount)
