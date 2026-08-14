@@ -1,8 +1,6 @@
 <div align="center">
 
-<a href="https://komikku-app.github.io">
-  <img width=200px height=200px src="./.github/readme-images/app-icon.png"/>
-</a><br/>
+<br/>
  <h1 align="center"> Houri </h1>
 
 | Releases | Preview |
@@ -23,8 +21,6 @@
 
 <div align="left">
 A free and open source manga reader, forked from Komikku (itself based on TachiyomiSY & Mihon/Tachiyomi).
-
-![screenshots of app](./.github/readme-images/screens.png)
 
 <div align="left">
 
