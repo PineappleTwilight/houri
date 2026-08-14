@@ -1,6 +1,8 @@
 <div align="center">
 
 <br/>
+<img src="./.github/readme-images/houri-icon.svg" width="200" height="200" alt="Houri icon"/>
+<br/>
  <h1 align="center"> Houri </h1>
 
 | Releases | Preview |
