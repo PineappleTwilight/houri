@@ -367,7 +367,7 @@ class LibraryUpdateJob(private val context: Context, workerParams: WorkerParamet
 
         if (skippedUpdates.isNotEmpty()) {
             val skippedByReason = skippedUpdates
-                .groupBy { it.second }
+                .groupBy { it.second.orEmpty() }
                 .mapValues { it.value.size }
             notifier.showSkippedUpdatesNotification(skippedByReason)
             logcat {

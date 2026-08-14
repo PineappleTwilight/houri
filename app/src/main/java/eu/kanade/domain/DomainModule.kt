@@ -70,8 +70,10 @@ import tachiyomi.domain.history.interactor.GetHistory
 import tachiyomi.domain.history.interactor.GetNextChapters
 import tachiyomi.domain.history.interactor.GetTotalReadDuration
 import tachiyomi.domain.history.interactor.RemoveHistory
+import tachiyomi.domain.history.interactor.RemoveResettedHistory
 import tachiyomi.domain.history.interactor.UpsertHistory
 import tachiyomi.domain.history.repository.HistoryRepository
+import tachiyomi.domain.manga.interactor.DeleteNonLibraryManga
 import tachiyomi.domain.manga.interactor.FetchInterval
 import tachiyomi.domain.manga.interactor.GetDuplicateLibraryManga
 import tachiyomi.domain.manga.interactor.GetFavorites

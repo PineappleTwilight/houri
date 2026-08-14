@@ -70,7 +70,7 @@ class SuwayomiApi(private val trackId: Long) {
 
         result.map { manga ->
             TrackSearch.create(trackId).apply {
-                remote_id = manga.id
+                remote_id = manga.id.toLong()
                 title = manga.title
                 cover_url = manga.thumbnailUrl?.let { "$baseUrl/$it" } ?: ""
                 summary = manga.description.orEmpty()
