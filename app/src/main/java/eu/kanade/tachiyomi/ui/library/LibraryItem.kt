@@ -1,5 +1,6 @@
 package eu.kanade.tachiyomi.ui.library
 
+import androidx.compose.runtime.Immutable
 import tachiyomi.domain.library.model.LibraryManga
 import tachiyomi.domain.source.model.Source
 import tachiyomi.domain.source.service.SourceManager
@@ -8,6 +9,7 @@ import uy.kohesive.injekt.api.get
 
 internal const val LOCAL_SOURCE_ID_ALIAS = "local"
 
+@Immutable
 data class LibraryItem(
     val libraryManga: LibraryManga,
     val downloadCount: Long = -1,

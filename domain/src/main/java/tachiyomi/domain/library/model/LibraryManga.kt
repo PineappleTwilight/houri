@@ -1,7 +1,9 @@
 package tachiyomi.domain.library.model
 
+import androidx.compose.runtime.Immutable
 import tachiyomi.domain.manga.model.Manga
 
+@Immutable
 data class LibraryManga(
     val manga: Manga,
     val categories: List<Long>,
