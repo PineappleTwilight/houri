@@ -310,6 +310,7 @@ class GoogleDriveService(private val context: Context) {
             .setApprovalPrompt("force")
             .build()
     }
+
     @Suppress("DEPRECATION")
     internal suspend fun refreshToken() = withIOContext {
         val refreshToken = syncPreferences.googleDriveRefreshToken().get()
