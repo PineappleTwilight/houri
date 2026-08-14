@@ -5,8 +5,8 @@ import eu.kanade.domain.manga.interactor.CreateSortTag
 import eu.kanade.domain.manga.interactor.DeleteSortTag
 import eu.kanade.domain.manga.interactor.GetPagePreviews
 import eu.kanade.domain.manga.interactor.GetSortTag
+import eu.kanade.domain.manga.interactor.MergeMangaBySmartSearch
 import eu.kanade.domain.manga.interactor.ReorderSortTag
-import eu.kanade.domain.manga.interactor.SmartSearchMerge
 import eu.kanade.domain.source.interactor.CreateSourceCategory
 import eu.kanade.domain.source.interactor.DeleteSourceCategory
 import eu.kanade.domain.source.interactor.GetExhSavedSearch
@@ -71,7 +71,7 @@ import tachiyomi.domain.source.interactor.InsertSavedSearch
 import tachiyomi.domain.source.interactor.ReorderFeed
 import tachiyomi.domain.source.repository.FeedSavedSearchRepository
 import tachiyomi.domain.source.repository.SavedSearchRepository
-import tachiyomi.domain.track.interactor.IsTrackUnfollowed
+import tachiyomi.domain.track.interactor.IsTrackFollowed
 import uy.kohesive.injekt.api.InjektModule
 import uy.kohesive.injekt.api.InjektRegistrar
 import uy.kohesive.injekt.api.addFactory
@@ -101,7 +101,7 @@ class SYDomainModule : InjektModule {
         addFactory { ReorderSortTag(get(), get()) }
         addFactory { GetPagePreviews(get(), get()) }
         addFactory { SearchEngine() }
-        addFactory { IsTrackUnfollowed() }
+        addFactory { IsTrackFollowed() }
         addFactory { GetReadMangaNotInLibraryView(get()) }
 
         // Required for [MetadataSource]
@@ -129,7 +129,7 @@ class SYDomainModule : InjektModule {
         addFactory { DeleteMergeById(get()) }
         addFactory { GetMergedMangaForDownloading(get()) }
         // KMK -->
-        addFactory { SmartSearchMerge(get()) }
+        addFactory { MergeMangaBySmartSearch(get()) }
         // KMK <--
 
         addSingletonFactory<FavoritesEntryRepository> { FavoritesEntryRepositoryImpl(get()) }

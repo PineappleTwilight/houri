@@ -30,6 +30,8 @@ interface HistoryRepository {
 
     suspend fun deleteAllHistory(): Boolean
 
+    suspend fun removeResettedHistory()
+
     suspend fun upsertHistory(historyUpdate: HistoryUpdate)
 
     // SY -->

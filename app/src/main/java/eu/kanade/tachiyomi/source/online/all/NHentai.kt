@@ -67,6 +67,7 @@ class NHentai(delegate: HttpSource, val context: Context) :
     }
 
     @Deprecated("Use the combined suspend API instead", replaceWith = ReplaceWith("getMangaUpdate"))
+    @Suppress("DEPRECATION")
     override fun fetchMangaDetails(manga: SManga): Observable<SManga> {
         return runAsObservable {
             val response = client.newCall(mangaDetailsRequest(manga)).awaitSuccess()
@@ -186,6 +187,7 @@ class NHentai(delegate: HttpSource, val context: Context) :
     override suspend fun getPagePreviewList(manga: SManga, chapters: List<SChapter>, page: Int): PagePreviewPage {
         if (nhConfig == null) getNhConfig()
         val metadata = fetchOrLoadMetadata(manga.id()) {
+            @Suppress("DEPRECATION")
             client.newCall(mangaDetailsRequest(manga)).awaitSuccess()
         }
         return PagePreviewPage(

@@ -32,6 +32,7 @@ import eu.kanade.tachiyomi.util.system.toast
 import eu.kanade.tachiyomi.util.system.workManager
 import exh.log.xLogE
 import exh.source.ExhPreferences
+import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.coroutineScope
@@ -239,6 +240,7 @@ class AppUpdateDownloadJob(private val context: Context, workerParams: WorkerPar
             withContext(Dispatchers.IO) {
                 data.close()
             }
+            @OptIn(DelicateCoroutinesApi::class)
             launchUI {
                 delay(1000)
                 val hasNotification = context.notificationManager

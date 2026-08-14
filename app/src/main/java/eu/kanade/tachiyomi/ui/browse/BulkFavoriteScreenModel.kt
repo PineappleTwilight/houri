@@ -21,6 +21,7 @@ import kotlinx.collections.immutable.mutate
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.collections.immutable.toPersistentList
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -255,12 +256,12 @@ class BulkFavoriteScreenModel(
                 val fetchChaptersOnAdd = libraryPreferences.fetchChaptersOnAdd().get()
                 if (fetchMetadataOnAdd || fetchChaptersOnAdd) {
                     try {
+                        delay(1000)
                         updateMangaFromRemote(
                             source = source,
                             manga = manga,
                             fetchDetails = fetchMetadataOnAdd,
                             fetchChapters = fetchChaptersOnAdd,
-                            // FIXME (KMK): Should have throttle here
                         )
                     } catch (e: Exception) {
                         logcat(LogPriority.ERROR, e)
@@ -356,13 +357,12 @@ class BulkFavoriteScreenModel(
             val fetchChaptersOnAdd = libraryPreferences.fetchChaptersOnAdd().get()
             if (new.favorite && (fetchMetadataOnAdd || fetchChaptersOnAdd)) {
                 try {
-                    // Use `manga` instead of `new` so its title got updated with source's `getMangaDetails`
+                    delay(1000)
                     updateMangaFromRemote(
                         source = source,
                         manga = manga,
                         fetchDetails = fetchMetadataOnAdd,
                         fetchChapters = fetchChaptersOnAdd,
-                        // FIXME (KMK): Should have throttle here
                     )
                 } catch (e: Exception) {
                     logcat(LogPriority.ERROR, e)

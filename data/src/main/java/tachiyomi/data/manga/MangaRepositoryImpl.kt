@@ -2,6 +2,7 @@ package tachiyomi.data.manga
 
 import kotlinx.coroutines.flow.Flow
 import logcat.LogPriority
+import tachiyomi.core.common.util.lang.toLong
 import tachiyomi.core.common.util.system.logcat
 import tachiyomi.data.DatabaseHandler
 import tachiyomi.data.MemoColumnAdapter
@@ -210,6 +211,12 @@ class MangaRepositoryImpl(
 
     override suspend fun deleteManga(mangaId: Long) {
         handler.await { mangasQueries.deleteById(mangaId) }
+    }
+
+    override suspend fun deleteNonLibraryManga(sourceIds: List<Long>, keepReadManga: Boolean) {
+        handler.await {
+            mangasQueries.deleteNonLibraryManga(sourceIds, keepReadManga.toLong())
+        }
     }
 
     override suspend fun getReadMangaNotInLibraryView(): List<LibraryManga> {

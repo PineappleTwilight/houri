@@ -36,6 +36,56 @@ class SuwayomiApi(private val trackId: Long) {
 
     public fun sourcePreferences(): SharedPreferences = configurableSource.sourcePreferences()
 
+    suspend fun searchManga(query: String): List<TrackSearch> = withIOContext {
+        val searchQuery = $$"""
+        |query SearchManga($$query: String!) {
+        |    searchManga(query: $$query) {
+        |        nodes {
+        |            ...MangaFragment
+        |        }
+        |    }
+        |}
+        |
+        |$$MangaFragment
+        """.trimMargin()
+        val payload = buildJsonObject {
+            put("query", searchQuery)
+            putJsonObject("variables") {
+                put("query", query)
+            }
+        }
+        val result = with(json) {
+            client.newCall(
+                POST(
+                    apiUrl,
+                    body = payload.toString().toRequestBody(jsonMime),
+                ),
+            )
+                .awaitSuccess()
+                .parseAs<SearchMangaResult>()
+                .data
+                .search
+                .nodes
+        }
+
+        result.map { manga ->
+            TrackSearch.create(trackId).apply {
+                remote_id = manga.id.toLong()
+                title = manga.title
+                cover_url = manga.thumbnailUrl?.let { "$baseUrl/$it" } ?: ""
+                summary = manga.description.orEmpty()
+                tracking_url = "$baseUrl/manga/${manga.id}"
+                total_chapters = manga.chapters.totalCount.toLong()
+                publishing_status = manga.status.name
+                status = when (manga.unreadCount) {
+                    manga.chapters.totalCount -> Suwayomi.UNREAD
+                    0 -> Suwayomi.COMPLETED
+                    else -> Suwayomi.READING
+                }
+            }
+        }
+    }
+
     suspend fun getTrackSearch(mangaId: Long): TrackSearch = withIOContext {
         val query = $$"""
         |query GetManga($mangaId: Int!) {

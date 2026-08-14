@@ -15,6 +15,7 @@ import tachiyomi.core.common.util.lang.withIOContext
 class MoveExtensionRepoSettingsMigration : Migration {
     override val version: Float = 60f
 
+    @Suppress("DEPRECATION")
     override suspend fun invoke(migrationContext: MigrationContext): Boolean = withIOContext {
         val context = migrationContext.get<Application>() ?: return@withIOContext false
         val prefs = PreferenceManager.getDefaultSharedPreferences(context)

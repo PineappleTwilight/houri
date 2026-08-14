@@ -27,9 +27,14 @@ import exh.log.safeXLogTag
 import exh.metadata.metadata.EHentaiSearchMetadata
 import exh.source.ExhPreferences
 import exh.util.cancellable
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.asFlow
 import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.sync.Semaphore
 import kotlinx.serialization.json.Json
 import mihon.domain.source.interactor.UpdateMangaFromRemote
 import tachiyomi.core.common.preference.getAndSet
@@ -114,7 +119,6 @@ class EHentaiUpdateWorker(private val context: Context, workerParams: WorkerPara
 
             val raisedMeta = meta.raise<EHentaiSearchMetadata>()
 
-            // Don't update galleries too frequently
             if (raisedMeta.aged ||
                 (
                     curTime - raisedMeta.lastUpdateCheck < MIN_BACKGROUND_UPDATE_FREQ &&
@@ -134,87 +138,46 @@ class EHentaiUpdateWorker(private val context: Context, workerParams: WorkerPara
         logger()?.d("Found %s manga to update, starting updates!", allMeta.size)
         val mangaMetaToUpdateThisIter = allMeta.take(UPDATES_PER_ITERATION)
 
-        var failuresThisIteration = 0
-        var updatedThisIteration = 0
-        val updatedManga = mutableListOf<Pair<Manga, Array<Chapter>>>()
-        val modifiedThisIteration = mutableSetOf<Long>()
+        val failuresThisIteration = java.util.concurrent.atomic.AtomicInteger(0)
+        val updatedThisIteration = java.util.concurrent.atomic.AtomicInteger(0)
+        val updatedManga = java.util.concurrent.ConcurrentLinkedQueue<Pair<Manga, Array<Chapter>>>()
+        val modifiedThisIteration = java.util.concurrent.ConcurrentHashMap.newKeySet<Long>()
+
+        val updateSemaphore = Semaphore(MAX_CONCURRENT_UPDATES)
 
         try {
-            for ((index, entry) in mangaMetaToUpdateThisIter.withIndex()) {
-                val (manga, meta) = entry
-                if (failuresThisIteration > MAX_UPDATE_FAILURES) {
-                    logger()?.w("Too many update failures, aborting...")
-                    break
-                }
+            coroutineScope {
+                mangaMetaToUpdateThisIter.mapNotNull { entry ->
+                    val (manga, meta) = entry
 
-                logger()?.d(
-                    "Updating gallery (index: %s, manga.id: %s, meta.gId: %s, meta.gToken: %s, failures-so-far: %s, modifiedThisIteration.size: %s)...",
-                    index,
-                    manga.id,
-                    meta.gId,
-                    meta.gToken,
-                    failuresThisIteration,
-                    modifiedThisIteration.size,
-                )
-
-                if (manga.id in modifiedThisIteration) {
-                    // We already processed this manga!
-                    logger()?.w("Gallery already updated this iteration, skipping...")
-                    updatedThisIteration++
-                    continue
-                }
-
-                val (new, chapters) = try {
-                    updateNotifier.showProgressNotification(
-                        manga,
-                        updatedThisIteration + failuresThisIteration,
-                        mangaMetaToUpdateThisIter.size,
-                    )
-                    updateEntryAndGetChapters(manga)
-                } catch (e: GalleryNotUpdatedException) {
-                    if (e.network) {
-                        failuresThisIteration++
-
-                        logger()?.e("> Network error while updating gallery!", e)
-                        logger()?.e(
-                            "> (manga.id: %s, meta.gId: %s, meta.gToken: %s, failures-so-far: %s)",
-                            manga.id,
-                            meta.gId,
-                            meta.gToken,
-                            failuresThisIteration,
-                        )
+                    if (failuresThisIteration.get() > MAX_UPDATE_FAILURES) {
+                        logger()?.w("Too many update failures, aborting...")
+                        return@mapNotNull null
                     }
 
-                    continue
-                }
+                    if (manga.id in modifiedThisIteration) {
+                        logger()?.w("Gallery already updated this iteration, skipping...")
+                        updatedThisIteration.incrementAndGet()
+                        return@mapNotNull null
+                    }
 
-                if (chapters.isEmpty()) {
-                    logger()?.e(
-                        "No chapters found for gallery (manga.id: %s, meta.gId: %s, meta.gToken: %s, failures-so-far: %s)!",
-                        manga.id,
-                        meta.gId,
-                        meta.gToken,
-                        failuresThisIteration,
-                    )
-
-                    continue
-                }
-
-                // Find accepted root and discard others
-                val (acceptedRoot, discardedRoots, exhNew) =
-                    updateHelper.findAcceptedRootAndDiscardOthers(manga.source, chapters)
-
-                if (new.isNotEmpty() && manga.id == acceptedRoot.manga.id) {
-                    libraryPreferences.newUpdatesCount().getAndSet { it + new.size }
-                    updatedManga += acceptedRoot.manga to new.toTypedArray()
-                } else if (exhNew.isNotEmpty() && updatedManga.none { it.first.id == acceptedRoot.manga.id }) {
-                    libraryPreferences.newUpdatesCount().getAndSet { it + exhNew.size }
-                    updatedManga += acceptedRoot.manga to exhNew.toTypedArray()
-                }
-
-                modifiedThisIteration += acceptedRoot.manga.id
-                modifiedThisIteration += discardedRoots.map { it.manga.id }
-                updatedThisIteration++
+                    async(Dispatchers.IO) {
+                        updateSemaphore.acquire()
+                        try {
+                            processGalleryUpdate(
+                                manga = manga,
+                                index = mangaMetaToUpdateThisIter.indexOf(entry),
+                                totalSize = mangaMetaToUpdateThisIter.size,
+                                failuresThisIteration = failuresThisIteration,
+                                updatedThisIteration = updatedThisIteration,
+                                updatedManga = updatedManga,
+                                modifiedThisIteration = modifiedThisIteration,
+                            )
+                        } finally {
+                            updateSemaphore.release()
+                        }
+                    }
+                }.awaitAll()
             }
         } finally {
             exhPreferences.exhAutoUpdateStats().set(
@@ -222,16 +185,89 @@ class EHentaiUpdateWorker(private val context: Context, workerParams: WorkerPara
                     EHentaiUpdaterStats(
                         startTime,
                         allMeta.size,
-                        updatedThisIteration,
+                        updatedThisIteration.get(),
                     ),
                 ),
             )
 
             updateNotifier.cancelProgressNotification()
             if (updatedManga.isNotEmpty()) {
-                libraryUpdateNotifier.showUpdateNotifications(updatedManga)
+                libraryUpdateNotifier.showUpdateNotifications(updatedManga.toList())
             }
         }
+    }
+
+    private suspend fun processGalleryUpdate(
+        manga: Manga,
+        index: Int,
+        totalSize: Int,
+        failuresThisIteration: java.util.concurrent.atomic.AtomicInteger,
+        updatedThisIteration: java.util.concurrent.atomic.AtomicInteger,
+        updatedManga: java.util.concurrent.ConcurrentLinkedQueue<Pair<Manga, Array<Chapter>>>,
+        modifiedThisIteration: MutableSet<Long>,
+    ) {
+        val meta = getFlatMetadataById.await(manga.id)?.raise<EHentaiSearchMetadata>() ?: return
+
+        logger()?.d(
+            "Updating gallery (index: %s, manga.id: %s, meta.gId: %s, meta.gToken: %s, failures-so-far: %s, modifiedThisIteration.size: %s)...",
+            index,
+            manga.id,
+            meta.gId,
+            meta.gToken,
+            failuresThisIteration.get(),
+            modifiedThisIteration.size,
+        )
+
+        val (new, chapters) = try {
+            updateNotifier.showProgressNotification(
+                manga,
+                updatedThisIteration.get() + failuresThisIteration.get(),
+                totalSize,
+            )
+            updateEntryAndGetChapters(manga)
+        } catch (e: GalleryNotUpdatedException) {
+            if (e.network) {
+                failuresThisIteration.incrementAndGet()
+
+                logger()?.e("> Network error while updating gallery!", e)
+                logger()?.e(
+                    "> (manga.id: %s, meta.gId: %s, meta.gToken: %s, failures-so-far: %s)",
+                    manga.id,
+                    meta.gId,
+                    meta.gToken,
+                    failuresThisIteration.get(),
+                )
+            }
+
+            return
+        }
+
+        if (chapters.isEmpty()) {
+            logger()?.e(
+                "No chapters found for gallery (manga.id: %s, meta.gId: %s, meta.gToken: %s, failures-so-far: %s)!",
+                manga.id,
+                meta.gId,
+                meta.gToken,
+                failuresThisIteration.get(),
+            )
+
+            return
+        }
+
+        val (acceptedRoot, discardedRoots, exhNew) =
+            updateHelper.findAcceptedRootAndDiscardOthers(manga.source, chapters)
+
+        if (new.isNotEmpty() && manga.id == acceptedRoot.manga.id) {
+            libraryPreferences.newUpdatesCount().getAndSet { it + new.size }
+            updatedManga += acceptedRoot.manga to new.toTypedArray()
+        } else if (exhNew.isNotEmpty() && updatedManga.none { it.first.id == acceptedRoot.manga.id }) {
+            libraryPreferences.newUpdatesCount().getAndSet { it + exhNew.size }
+            updatedManga += acceptedRoot.manga to exhNew.toTypedArray()
+        }
+
+        modifiedThisIteration += acceptedRoot.manga.id
+        modifiedThisIteration += discardedRoots.map { it.manga.id }
+        updatedThisIteration.incrementAndGet()
     }
 
     // New, current
@@ -264,6 +300,7 @@ class EHentaiUpdateWorker(private val context: Context, workerParams: WorkerPara
 
     companion object {
         private const val MAX_UPDATE_FAILURES = 5
+        private const val MAX_CONCURRENT_UPDATES = 3
 
         private val MIN_BACKGROUND_UPDATE_FREQ = 1.days.inWholeMilliseconds
 

@@ -6,6 +6,8 @@ import eu.kanade.tachiyomi.data.track.model.TrackSearch
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.network.awaitSuccess
 import eu.kanade.tachiyomi.network.parseAs
+import eu.kanade.tachiyomi.source.online.HttpSource
+import eu.kanade.tachiyomi.source.sourcePreferences
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import logcat.LogPriority
@@ -16,6 +18,7 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import tachiyomi.core.common.util.lang.withIOContext
 import tachiyomi.core.common.util.system.logcat
+import tachiyomi.domain.source.service.SourceManager
 import uy.kohesive.injekt.injectLazy
 
 private const val READLIST_API = "/api/v1/readlists"
@@ -32,6 +35,29 @@ class KomgaApi(
     }
 
     private val json: Json by injectLazy()
+    private val sourceManager: SourceManager by injectLazy()
+
+    private val baseUrl: String by lazy {
+        val source = sourceManager.get(trackId) as? HttpSource
+        source?.baseUrl?.trimEnd('/') ?: ""
+    }
+
+    suspend fun searchManga(query: String): List<TrackSearch> = withIOContext {
+        try {
+            val url = "$baseUrl/api/v1/series?search=$query"
+            val series = with(json) {
+                client.newCall(GET(url, headers))
+                    .awaitSuccess()
+                    .parseAs<List<SeriesDto>>()
+            }
+            series.map { dto ->
+                dto.toTrack()
+            }
+        } catch (e: Exception) {
+            logcat(LogPriority.WARN, e) { "Could not search series: $query" }
+            emptyList()
+        }
+    }
 
     suspend fun getTrackSearch(url: String): TrackSearch =
         withIOContext {

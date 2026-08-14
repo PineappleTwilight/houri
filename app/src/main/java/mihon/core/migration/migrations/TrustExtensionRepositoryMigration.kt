@@ -11,6 +11,7 @@ import tachiyomi.core.common.util.system.logcat
 class TrustExtensionRepositoryMigration : Migration {
     override val version: Float = 67f
 
+    @Suppress("DEPRECATION")
     override suspend fun invoke(migrationContext: MigrationContext): Boolean = withIOContext {
         val sourcePreferences = migrationContext.get<SourcePreferences>() ?: return@withIOContext false
         val repository = migrationContext.get<ExtensionStoreRepository>() ?: return@withIOContext false
