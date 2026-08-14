@@ -3,8 +3,7 @@
 <a href="https://komikku-app.github.io">
   <img width=200px height=200px src="./.github/readme-images/app-icon.png"/>
 </a><br/>
-<a href="https://trendshift.io/repositories/13696" target="_blank"><img src="https://trendshift.io/api/badge/repositories/13696" alt="komikku-app%2Fkomikku | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
- <h1 align="center"> Komikku </h1>
+ <h1 align="center"> Houri </h1>
 
 | Releases | Preview |
 |----------|---------|
@@ -15,19 +14,15 @@
 [![Discord](https://img.shields.io/discord/1242381704459452488.svg?label=&labelColor=6A7EC2&color=7389D8&logo=discord&logoColor=FFFFFF)](https://discord.gg/85jB7V5AJR)
 [![CI](https://img.shields.io/github/actions/workflow/status/PineappleTwilight/komikku-pineapple/build_push.yml?labelColor=27303D&label=CI)](https://github.com/PineappleTwilight/komikku-pineapple/actions/workflows/build_push.yml)
 [![License: Apache-2.0](https://img.shields.io/github/license/PineappleTwilight/komikku-pineapple?labelColor=27303D&color=0877d2)](/LICENSE)
-[![Translation status](https://img.shields.io/weblate/progress/komikku-app?labelColor=27303D&color=946300)](https://hosted.weblate.org/engage/komikku-app/)
 
 ## Download
 
 [![Stable](https://img.shields.io/github/release/PineappleTwilight/komikku-pineapple.svg?maxAge=3600&label=Stable&labelColor=06599d&color=043b69)](https://github.com/PineappleTwilight/komikku-pineapple/releases/latest)
-[![Preview](https://img.shields.io/github/v/release/PineappleTwilight/komikku-pineapple-preview.svg?maxAge=3600&label=Preview&labelColor=2c2c47&color=1c1c39)](https://github.com/PineappleTwilight/komikku-pineapple-preview/releases/latest)
 
 *Requires Android 8.0 or higher.*
 
-[![Sponsor me on GitHub](https://custom-icon-badges.demolab.com/badge/-Sponsor-ea4aaa?style=for-the-badge&logo=heart&logoColor=white)](https://github.com/sponsors/cuong-tran "Sponsor me on GitHub")
-
 <div align="left">
-A free and open source manga reader which is based off TachiyomiSY & Mihon/Tachiyomi. This fork is meant to provide new & useful features while regularly take features/updates from Mihon or other forks like SY, J2K and Neko...
+A free and open source manga reader, forked from Komikku (itself based on TachiyomiSY & Mihon/Tachiyomi).
 
 ![screenshots of app](./.github/readme-images/screens.png)
 
@@ -35,35 +30,9 @@ A free and open source manga reader which is based off TachiyomiSY & Mihon/Tachi
 
 ## Features
 
-### Komikku's unique features:
-- `Suggestions` automatically showing source-website's recommendations / suggestions / related to current entry for all sources.
-- `Hidden categories` to hide yours things from *nosy* people.
-- `Auto theme color` based on each entry's cover for entry View & Reader.
-- `App custom theme` with `Color palettes` for endless color lover.
-- `Bulk-favorite` multiple entries all at once.
-- Source & Language icon on Library & various places. (Some language flags are not really accurate)
-- `Feed` now supports **all** sources, with more items (20 for now).
-- Fast browsing (for who with large library experiencing slow loading)
-- Grouped entries in Update tab (inspired by J2K).
-- Update notification with manga cover.
-- Auto `2-way sync` progress with trackers.
-- Chips for `Saved search` in source browse
-- `Panorama cover` showing wide cover in full.
-- `Merge multiple` library entries together at same time.
-- `Range-selection` for Migration.
-- Ability to `enable/disable repo`, with icon.
-- `Update Error` screen & migrating them away.
-- `to-be-updated` screen: which entries are going to be checked with smart-update?
-- `Search for sources` & Quick NSFW sources filter in Extensions, Browse & Migration screen.
-- `Feed` backup/restore/sync/re-order.
-- Long-click to add/remove single entry to/from library, everywhere.
-- Docking Read/Resume button to left/right.
-- In-app progress banner shows Library syncing / Backup restoring / Library updating progress.
-- Auto-install app update.
-- Configurable interval to refresh entries from downloaded storage.
-- Forked from SY so everything from SY.
-- Always up-to-date with Mihon & SY
-- More app themes & better UI, improvements...
+### Houri's unique features:
+- Pineapple-themed UI and branding.
+- All features from Komikku, Mihon, and TachiyomiSY.
 
 
 <details>
@@ -134,9 +103,7 @@ Pull requests are welcome. For major changes, please open an issue first to disc
 
 <details><summary>Issues</summary>
 
-[Website](https://komikku-app.github.io/)
-
-1. **Before reporting a new issue, take a look at the [FAQ](https://komikku-app.github.io/docs/faq/general), the [changelog](https://github.com/PineappleTwilight/komikku-pineapple/releases) and the already opened [issues](https://github.com/PineappleTwilight/komikku-pineapple/issues).**
+1. **Before reporting a new issue, take a look at the [changelog](https://github.com/PineappleTwilight/komikku-pineapple/releases) and the already opened [issues](https://github.com/PineappleTwilight/komikku-pineapple/issues).**
 2. If you are unsure, ask here: [![Discord](https://img.shields.io/discord/1242381704459452488.svg?label=&labelColor=6A7EC2&color=7389D8&logo=discord&logoColor=FFFFFF)](https://discord.gg/85jB7V5AJR)
 
 </details>
@@ -178,10 +145,8 @@ See [CODE_OF_CONDUCT.md](./CODE_OF_CONDUCT.md).
 Thank you to all the people who have contributed!
 
 <a href="https://github.com/PineappleTwilight/komikku-pineapple/graphs/contributors">
-    <img src="https://contrib.rocks/image?repo=PineappleTwilight/komikku-pineapple" alt="Komikku app contributors" title="Komikku app contributors" width="800"/>
+    <img src="https://contrib.rocks/image?repo=PineappleTwilight/komikku-pineapple" alt="Houri contributors" title="Houri contributors" width="800"/>
 </a>
-
-![Visitor Count](https://count.getloli.com/get/@komikku-app?theme=capoo-2)
 
 ### Disclaimer
 
