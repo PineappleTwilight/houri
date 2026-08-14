@@ -13,7 +13,7 @@ import eu.kanade.tachiyomi.source.online.HttpSource
 import exh.source.isEhBasedManga
 import tachiyomi.data.chapter.ChapterSanitizer
 import tachiyomi.domain.chapter.interactor.GetChaptersByMangaId
-import tachiyomi.domain.chapter.interactor.ShouldUpdateDbChapter
+import tachiyomi.domain.chapter.interactor.NeedsChapterUpdate
 import tachiyomi.domain.chapter.interactor.UpdateChapter
 import tachiyomi.domain.chapter.model.Chapter
 import tachiyomi.domain.chapter.model.NoChaptersException
@@ -31,7 +31,7 @@ class SyncChaptersWithSource(
     private val downloadManager: DownloadManager,
     private val downloadProvider: DownloadProvider,
     private val chapterRepository: ChapterRepository,
-    private val shouldUpdateDbChapter: ShouldUpdateDbChapter,
+    private val needsChapterUpdate: NeedsChapterUpdate,
     private val updateManga: UpdateManga,
     private val updateChapter: UpdateChapter,
     private val getChaptersByMangaId: GetChaptersByMangaId,
@@ -115,7 +115,7 @@ class SyncChaptersWithSource(
                 }
                 newChapters.add(toAddChapter)
             } else {
-                if (shouldUpdateDbChapter.await(dbChapter, chapter)) {
+                if (needsChapterUpdate.await(dbChapter, chapter)) {
                     val shouldRenameChapter = downloadProvider.isChapterDirNameChanged(dbChapter, chapter) &&
                         downloadManager.isChapterDownloaded(
                             dbChapter.name,

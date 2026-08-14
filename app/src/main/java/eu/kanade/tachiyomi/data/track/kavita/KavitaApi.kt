@@ -142,6 +142,23 @@ class KavitaApi(private val client: OkHttpClient, interceptor: KavitaInterceptor
         return 0.0
     }
 
+    suspend fun searchManga(query: String): List<TrackSearch> = withIOContext {
+        try {
+            val searchUrl = "${authClient.interceptors.firstOrNull()?.let { "" } ?: ""}/api/Series/search?queryString=$query"
+            val series = with(json) {
+                authClient.newCall(GET(searchUrl))
+                    .awaitSuccess()
+                    .parseAs<List<SeriesDto>>()
+            }
+            series.map { dto ->
+                dto.toTrack()
+            }
+        } catch (e: Exception) {
+            logcat(LogPriority.WARN, e) { "Could not search series: $query" }
+            emptyList()
+        }
+    }
+
     suspend fun getTrackSearch(url: String): TrackSearch = withIOContext {
         try {
             val seriesDto: SeriesDto = with(json) {

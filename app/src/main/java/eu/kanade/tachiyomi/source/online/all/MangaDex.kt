@@ -162,6 +162,7 @@ class MangaDex(delegate: HttpSource, val context: Context) :
     }
 
     @Deprecated("Use the suspend API instead", replaceWith = ReplaceWith("getLatestUpdates"))
+    @Suppress("DEPRECATION")
     override fun fetchLatestUpdates(page: Int): Observable<MangasPage> {
         val request = delegate.latestUpdatesRequest(page)
         val url = request.url.newBuilder()
@@ -174,6 +175,7 @@ class MangaDex(delegate: HttpSource, val context: Context) :
             }
     }
 
+    @Suppress("DEPRECATION")
     override suspend fun getLatestUpdates(page: Int): MangasPage {
         val request = delegate.latestUpdatesRequest(page)
         val url = request.url.newBuilder()

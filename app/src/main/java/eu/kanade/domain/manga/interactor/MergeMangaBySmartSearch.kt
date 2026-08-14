@@ -20,7 +20,7 @@ import tachiyomi.i18n.sy.SYMR
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
 
-class SmartSearchMerge(
+class MergeMangaBySmartSearch(
     private val getManga: GetManga = Injekt.get(),
     private val getMergedReferencesById: GetMergedReferencesById = Injekt.get(),
     private val insertMergedReference: InsertMergedReference = Injekt.get(),

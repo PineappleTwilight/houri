@@ -45,9 +45,9 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.update
 import tachiyomi.core.common.util.lang.launchIO
 import tachiyomi.core.common.util.lang.launchUI
-import tachiyomi.core.common.util.lang.toLong
 import tachiyomi.core.common.util.lang.withNonCancellableContext
-import tachiyomi.data.Database
+import tachiyomi.domain.history.interactor.RemoveResettedHistory
+import tachiyomi.domain.manga.interactor.DeleteNonLibraryManga
 import tachiyomi.domain.source.interactor.GetSourcesWithNonLibraryManga
 import tachiyomi.domain.source.model.Source
 import tachiyomi.domain.source.model.SourceWithCount
@@ -223,7 +223,8 @@ class ClearDatabaseScreen : Screen() {
 
 private class ClearDatabaseScreenModel : StateScreenModel<ClearDatabaseScreenModel.State>(State.Loading) {
     private val getSourcesWithNonLibraryManga: GetSourcesWithNonLibraryManga = Injekt.get()
-    private val database: Database = Injekt.get()
+    private val deleteNonLibraryManga: DeleteNonLibraryManga = Injekt.get()
+    private val removeResettedHistory: RemoveResettedHistory = Injekt.get()
 
     init {
         screenModelScope.launchIO {
@@ -242,8 +243,8 @@ private class ClearDatabaseScreenModel : StateScreenModel<ClearDatabaseScreenMod
 
     suspend fun removeMangaBySourceId(keepReadManga: Boolean) = withNonCancellableContext {
         val state = state.value as? State.Ready ?: return@withNonCancellableContext
-        database.mangasQueries.deleteNonLibraryManga(state.selection, keepReadManga.toLong())
-        database.historyQueries.removeResettedHistory()
+        deleteNonLibraryManga.await(state.selection, keepReadManga)
+        removeResettedHistory.await()
     }
 
     fun toggleSelection(source: Source) = mutableState.update { state ->

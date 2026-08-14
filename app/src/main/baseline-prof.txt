@@ -14108,8 +14108,8 @@ PLeu/kanade/domain/chapter/interactor/SetReadStatus$mapper$1;-><clinit>()V
 HSPLeu/kanade/domain/chapter/interactor/SetReadStatus$mapper$1;-><init>()V
 PLeu/kanade/domain/chapter/interactor/SetReadStatus$mapper$1;-><init>()V
 Leu/kanade/domain/chapter/interactor/SyncChaptersWithSource;
-HSPLeu/kanade/domain/chapter/interactor/SyncChaptersWithSource;-><init>(Leu/kanade/tachiyomi/data/download/DownloadManager;Leu/kanade/tachiyomi/data/download/DownloadProvider;Ltachiyomi/domain/chapter/repository/ChapterRepository;Ltachiyomi/domain/chapter/interactor/ShouldUpdateDbChapter;I)V
-PLeu/kanade/domain/chapter/interactor/SyncChaptersWithSource;-><init>(Leu/kanade/tachiyomi/data/download/DownloadManager;Leu/kanade/tachiyomi/data/download/DownloadProvider;Ltachiyomi/domain/chapter/repository/ChapterRepository;Ltachiyomi/domain/chapter/interactor/ShouldUpdateDbChapter;I)V
+HSPLeu/kanade/domain/chapter/interactor/SyncChaptersWithSource;-><init>(Leu/kanade/tachiyomi/data/download/DownloadManager;Leu/kanade/tachiyomi/data/download/DownloadProvider;Ltachiyomi/domain/chapter/repository/ChapterRepository;Ltachiyomi/domain/chapter/interactor/NeedsChapterUpdate;I)V
+PLeu/kanade/domain/chapter/interactor/SyncChaptersWithSource;-><init>(Leu/kanade/tachiyomi/data/download/DownloadManager;Leu/kanade/tachiyomi/data/download/DownloadProvider;Ltachiyomi/domain/chapter/repository/ChapterRepository;Ltachiyomi/domain/chapter/interactor/NeedsChapterUpdate;I)V
 Leu/kanade/domain/chapter/interactor/SyncChaptersWithSource$special$$inlined$get$5;
 HSPLeu/kanade/domain/chapter/interactor/SyncChaptersWithSource$special$$inlined$get$5;-><init>()V
 PLeu/kanade/domain/chapter/interactor/SyncChaptersWithSource$special$$inlined$get$5;-><init>()V
@@ -32703,9 +32703,9 @@ Ltachiyomi/domain/chapter/interactor/GetMergedChapterByMangaId;
 HSPLtachiyomi/domain/chapter/interactor/GetMergedChapterByMangaId;-><init>(Ltachiyomi/domain/chapter/repository/ChapterRepository;Ltachiyomi/domain/manga/interactor/GetMergedReferencesById;)V
 PLtachiyomi/domain/chapter/interactor/GetMergedChapterByMangaId;-><init>(Ltachiyomi/domain/chapter/repository/ChapterRepository;Ltachiyomi/domain/manga/interactor/GetMergedReferencesById;)V
 Ltachiyomi/domain/chapter/interactor/SetMangaDefaultChapterFlags;
-Ltachiyomi/domain/chapter/interactor/ShouldUpdateDbChapter;
-HSPLtachiyomi/domain/chapter/interactor/ShouldUpdateDbChapter;-><init>()V
-PLtachiyomi/domain/chapter/interactor/ShouldUpdateDbChapter;-><init>()V
+Ltachiyomi/domain/chapter/interactor/NeedsChapterUpdate;
+HSPLtachiyomi/domain/chapter/interactor/NeedsChapterUpdate;-><init>()V
+PLtachiyomi/domain/chapter/interactor/NeedsChapterUpdate;-><init>()V
 Ltachiyomi/domain/chapter/interactor/UpdateChapter;
 HSPLtachiyomi/domain/chapter/interactor/UpdateChapter;-><init>(Ltachiyomi/domain/chapter/repository/ChapterRepository;)V
 PLtachiyomi/domain/chapter/interactor/UpdateChapter;-><init>(Ltachiyomi/domain/chapter/repository/ChapterRepository;)V
@@ -33048,8 +33048,8 @@ Ltachiyomi/domain/track/interactor/GetTracks;
 HSPLtachiyomi/domain/track/interactor/GetTracks;-><init>(Ltachiyomi/domain/track/repository/TrackRepository;)V
 PLtachiyomi/domain/track/interactor/GetTracks;-><init>(Ltachiyomi/domain/track/repository/TrackRepository;)V
 Ltachiyomi/domain/track/interactor/GetTracksPerManga;
-HSPLtachiyomi/domain/track/interactor/GetTracksPerManga;-><init>(Ltachiyomi/domain/track/repository/TrackRepository;Ltachiyomi/domain/track/interactor/IsTrackUnfollowed;)V
-PLtachiyomi/domain/track/interactor/GetTracksPerManga;-><init>(Ltachiyomi/domain/track/repository/TrackRepository;Ltachiyomi/domain/track/interactor/IsTrackUnfollowed;)V
+HSPLtachiyomi/domain/track/interactor/GetTracksPerManga;-><init>(Ltachiyomi/domain/track/repository/TrackRepository;Ltachiyomi/domain/track/interactor/IsTrackFollowed;)V
+PLtachiyomi/domain/track/interactor/GetTracksPerManga;-><init>(Ltachiyomi/domain/track/repository/TrackRepository;Ltachiyomi/domain/track/interactor/IsTrackFollowed;)V
 Ltachiyomi/domain/track/interactor/GetTracksPerManga$subscribe$$inlined$map$1;
 HSPLtachiyomi/domain/track/interactor/GetTracksPerManga$subscribe$$inlined$map$1;-><init>(Lkotlinx/coroutines/flow/Flow;Ltachiyomi/domain/track/interactor/GetTracksPerManga;)V
 PLtachiyomi/domain/track/interactor/GetTracksPerManga$subscribe$$inlined$map$1;-><init>(Lkotlinx/coroutines/flow/Flow;Ltachiyomi/domain/track/interactor/GetTracksPerManga;)V
@@ -33066,9 +33066,9 @@ PLtachiyomi/domain/track/interactor/GetTracksPerManga$subscribe$$inlined$map$1$2
 HSPLtachiyomi/domain/track/interactor/GetTracksPerManga$subscribe$$inlined$map$1$2$1;->invokeSuspend(Ljava/lang/Object;)Ljava/lang/Object;
 PLtachiyomi/domain/track/interactor/GetTracksPerManga$subscribe$$inlined$map$1$2$1;->invokeSuspend(Ljava/lang/Object;)Ljava/lang/Object;
 Ltachiyomi/domain/track/interactor/InsertTrack;
-Ltachiyomi/domain/track/interactor/IsTrackUnfollowed;
-HSPLtachiyomi/domain/track/interactor/IsTrackUnfollowed;-><init>()V
-PLtachiyomi/domain/track/interactor/IsTrackUnfollowed;-><init>()V
+Ltachiyomi/domain/track/interactor/IsTrackFollowed;
+HSPLtachiyomi/domain/track/interactor/IsTrackFollowed;-><init>()V
+PLtachiyomi/domain/track/interactor/IsTrackFollowed;-><init>()V
 Ltachiyomi/domain/track/repository/TrackRepository;
 Ltachiyomi/domain/updates/interactor/GetUpdates;
 HSPLtachiyomi/domain/updates/interactor/GetUpdates;-><init>(Ltachiyomi/domain/updates/repository/UpdatesRepository;)V

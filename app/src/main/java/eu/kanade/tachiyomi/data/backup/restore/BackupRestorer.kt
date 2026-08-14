@@ -17,6 +17,7 @@ import eu.kanade.tachiyomi.data.backup.restore.restorers.FeedRestorer
 import eu.kanade.tachiyomi.data.backup.restore.restorers.MangaRestorer
 import eu.kanade.tachiyomi.data.backup.restore.restorers.PreferenceRestorer
 import eu.kanade.tachiyomi.data.backup.restore.restorers.SavedSearchRestorer
+import eu.kanade.tachiyomi.data.library.LibraryUpdateJob
 import eu.kanade.tachiyomi.data.notification.Notifications
 import eu.kanade.tachiyomi.util.system.createFileInCacheDir
 import kotlinx.coroutines.CoroutineScope
@@ -130,7 +131,9 @@ class BackupRestorer(
                 restoreExtensionStores(backup.backupExtensionStores)
             }
 
-            // TODO: optionally trigger online library + tracker update
+            if (options.libraryEntries) {
+                LibraryUpdateJob.startNow(context)
+            }
         }
     }
 

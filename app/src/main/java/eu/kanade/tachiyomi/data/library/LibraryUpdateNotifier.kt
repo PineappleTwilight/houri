@@ -171,6 +171,26 @@ class LibraryUpdateNotifier(
         }
     }
 
+    fun showSkippedUpdatesNotification(skipped: Map<String, Int>) {
+        if (skipped.isEmpty()) return
+
+        val totalSkipped = skipped.values.sum()
+        val summary = skipped.entries.joinToString("\n") { (reason, count) ->
+            "$reason: $count"
+        }
+
+        context.notify(
+            Notifications.ID_LIBRARY_ERROR,
+            Notifications.CHANNEL_LIBRARY_ERROR,
+        ) {
+            setContentTitle("Library update: $totalSkipped manga skipped")
+            setContentText(summary)
+            setSmallIcon(R.drawable.ic_komikku)
+            setColor(ContextCompat.getColor(context, R.color.ic_launcher))
+            setStyle(NotificationCompat.BigTextStyle().bigText(summary))
+        }
+    }
+
     /**
      * Shows the notification containing the result of the update done by the service.
      *

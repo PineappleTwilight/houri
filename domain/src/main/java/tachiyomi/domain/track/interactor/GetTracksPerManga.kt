@@ -7,7 +7,7 @@ import tachiyomi.domain.track.repository.TrackRepository
 
 class GetTracksPerManga(
     private val trackRepository: TrackRepository,
-    private val isTrackUnfollowed: IsTrackUnfollowed,
+    private val isTrackFollowed: IsTrackFollowed,
 ) {
 
     fun subscribe(): Flow<Map<Long, List<Track>>> {
@@ -15,7 +15,7 @@ class GetTracksPerManga(
             tracks.groupBy { it.mangaId }
                 // SY -->
                 .mapValues { entry ->
-                    entry.value.filterNot { isTrackUnfollowed.await(it) }
+                    entry.value.filter { isTrackFollowed.await(it) }
                 }
             // SY <--
         }

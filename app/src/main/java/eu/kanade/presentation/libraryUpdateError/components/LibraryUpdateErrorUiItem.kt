@@ -22,6 +22,7 @@ import androidx.compose.material3.SwipeToDismissBoxValue.StartToEnd
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -118,17 +119,16 @@ private fun LibraryUpdateErrorUiItem(
     val haptic = LocalHapticFeedback.current
 
     val dismissState = rememberSwipeToDismissBoxState(
-        confirmValueChange = {
-            when (it) {
-                StartToEnd -> onSwipe()
-                EndToStart -> onSwipe()
-                else -> {}
-            }
-            return@rememberSwipeToDismissBoxState true
-        },
         // Set threshold to 25% of the width
         positionalThreshold = { totalDistance -> totalDistance * 0.25f },
     )
+
+    LaunchedEffect(dismissState.currentValue) {
+        when (dismissState.currentValue) {
+            StartToEnd, EndToStart -> onSwipe()
+            else -> {}
+        }
+    }
 
     SwipeToDismissBox(
         state = dismissState,
