@@ -6,12 +6,17 @@
 - [ ] Port mihon's new decoder to the app (maybe not, highly experimental)
 - [ ] Add mangabaka tracker (port from mihon)
 - [ ] Port mihon's new reader
+- [ ] Steal pineapple icon from [good source](https://github.com/galaxygoldfish/pineapple)
 
 ## Bugfixes
-- Fix UI transition choppiness
+- [ ] Fix UI transition choppiness.
+- [ ] Turn off "Recommendations" by default.
+- [ ] Add caching to recommendations (db)
+- [ ] Evaluate and bugfix all delegated sources (possibly removing some)
 
 ## Chores
-- Replace all Komikku icons/branding with pineapple icons/branding
-- Update ancient test framework
-- Streamline gradle tasks
-- Update gradle plugins
+- [ ] Replace all Komikku icons/branding with pineapple icons/branding
+- [ ] Update ancient test framework
+- [ ] Streamline gradle tasks
+- [ ] Update gradle plugins
+- [ ] Modularize the codebase
