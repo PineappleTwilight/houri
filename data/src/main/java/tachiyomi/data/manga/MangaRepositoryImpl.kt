@@ -2,6 +2,7 @@ package tachiyomi.data.manga
 
 import kotlinx.coroutines.flow.Flow
 import logcat.LogPriority
+import tachiyomi.core.common.util.lang.toLong
 import tachiyomi.core.common.util.system.logcat
 import tachiyomi.data.DatabaseHandler
 import tachiyomi.data.MemoColumnAdapter
