@@ -21,3 +21,11 @@ local.properties
 /app/google-services.json
 *.jks
 app/standard/preview/*
+
+# OpenCode artifacts
+.omo/
+.playwright-mcp/
+AUDIT.md
+AGENTS.md
+**/AGENTS.md
+extensions-source/
