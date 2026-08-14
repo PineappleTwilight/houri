@@ -1,6 +1,12 @@
 # Komikku – AI Agent Guide
 
+**Generated:** 2026-08-07
+**Commit:** 936e25bf9
+**Branch:** master
+
 Komikku is an Android manga reader (min SDK 26, target SDK 36, JVM 17 / Kotlin) forked from **Mihon** + **TachiyomiSY**. Stack: Jetpack Compose + Material3, Voyager navigation, SQLDelight, Injekt DI. `applicationId`: `app.komikku`.
+
+**Scale:** 2244 files, 186k lines of Kotlin/Java,47 files >500 lines.
 
 ---
 
@@ -97,6 +103,23 @@ Example: `DeepLinkScreen` + `DeepLinkScreenModel` in `app/src/main/java/eu/kanad
 
 ---
 
+## App module package roots
+
+The `app/` module contains **4 competing package roots** reflecting fork heritage:
+
+| Package root | Origin | Content |
+|---|---|---|
+| `eu.kanade.tachiyomi.*` | Original Tachiyomi | UI (Activities, screens, widgets, DI, data layer services) |
+| `eu.kanade.domain.*` | Tachiyomi refactor | Domain interactors (in `app` module, not `domain`) |
+| `eu.kanade.presentation.*` | Compose migration | Compose screens, components |
+| `exh.*` | TachiyomiSY/ExHentai | SY features (search, metadata, recs, debug) |
+| `mihon.*` | Mihon upstream | Newer features (upcoming, migration) |
+| `tachiyomi.*` | Clean domain layer | Domain/data in dedicated modules |
+
+**Key insight**: Code is organized by fork origin, NOT by architectural layer. Each root contains its own mix of domain/data/presentation code.
+
+---
+
 ## Komikku-specific work
 
 - **Strings:** see [Mandatory rules – Internationalization](#mandatory-rules-for-ai-agents). Summary: Komikku → **`KMR`** / `i18n-kmk/…/base/` only.
@@ -108,11 +131,78 @@ Example: `DeepLinkScreen` + `DeepLinkScreenModel` in `app/src/main/java/eu/kanad
 
 ---
 
+## Domain module patterns
+
+The `domain/` module contains104 interactors organized by feature:
+
+**Interactor naming conventions:**
+- `Get*` – Read operations (e.g., `GetManga`, `GetLibraryManga`)
+- `Set*` – Flag/setting writes (e.g., `SetMangaChapterFlags`)
+- `Insert*` – Create/upsert entities (e.g., `InsertTrack`)
+- `Delete*` – Remove entities (e.g., `DeleteChapters`)
+- `Update*` – Update entities (e.g., `UpdateMangaNotes`)
+
+**Method conventions:**
+- `await(...)` – One-shot suspend read/write
+- `subscribe(...)` – Long-lived reactive stream (Flow)
+- `invoke(...)` / `operator fun invoke` – Single-purpose use case
+
+**Repository interfaces:** 18 repositories in `domain/.../repository/` (e.g., `MangaRepository`, `ChapterRepository`). Implementations in `data/` module.
+
+**Models:** 28 models including `Manga`, `Chapter`, `Category`, `Track`, `History`, plus update DTOs (`MangaUpdate`, `ChapterUpdate`) and view/join models (`LibraryManga`, `HistoryWithRelations`).
+
+---
+
+## Data module patterns
+
+The `data/` module uses SQLDelight with46 migrations:
+
+**Schema:** 23 tables/views across4 `.sq` files. Key tables: `mangas`, `chapters`, `categories`, `history`, `manga_sync`, `merged`, `libraryUpdateError`.
+
+**Repository implementations:** 18 `*RepositoryImpl` classes in `tachiyomi.data.*`. Pattern: `handler.await { queries.method(...) }` for single queries, `handler.subscribeTo*` for reactive flows.
+
+**Mappers:** 11 mapper objects/lambdas (e.g., `MangaMapper`, `ChapterMapper`). Map SQLDelight result types to domain models.
+
+**Column adapters:** `DateColumnAdapter`, `StringListColumnAdapter`, `UpdateStrategyColumnAdapter`, `MemoColumnAdapter` (for `JsonObject`).
+
+**Common SQL patterns:**
+- Coalesce updates: `SET col = coalesce(:param, col)` for partial updates
+- UPSERT: `INSERT ... ON CONFLICT DO UPDATE`
+- Sync-aware versioning: Triggers increment `version` only when `is_syncing = 0`
+
+---
+
 ## Extensions & sources
 
 - Catalog sources: installable APK extensions (not in this repo).
 - In-repo: delegated sources and metadata in `exh/` (E-Hentai, NHentai, MangaDex, `exh/recs/`).
 - `source-api`: `eu.kanade.tachiyomi.source.*` — avoid breaking extension ABI.
+
+---
+
+## exh module (E-Hentai/ExHentai)
+
+The `exh/` module within `app/` provides multi-source integration:
+
+**Source implementations:**
+- `EHentai.kt` (1463 lines) – Core E-Hentai/ExHentai source with HTML parsing, favorites, auth
+- Delegated sources: NHentai, 8Muses, Pururin, LANraragi
+- MangaDex integration: Full API client stack with OAuth auth
+
+**Metadata system:**
+- Two-tier model: `FlatMetadata` (DB) → `RaisedSearchMetadata` (runtime)
+- Per-source metadata classes: `EHentaiSearchMetadata`, `MangaDexSearchMetadata`, etc.
+- UI: Per-source `*DescriptionAdapter` composables
+
+**Recommendation system:**
+- `RecommendationPagingSource` base class with6 implementations
+- Sources: AniList (GraphQL), MAL (Jikan v4), MangaUpdates, MangaDex, Comick
+- Batch search: `RecommendationSearchHelper` processes entire library
+
+**Key patterns:**
+- Fork markers: `// KMK -->` for Komikku additions
+- DI: Injekt with `injectLazy()`, `ExhPreferences`
+- URL import: `GalleryAdder.pickSource()` → `matchesUri()` → `mapUrlToMangaUrl()`
 
 ---
 
@@ -145,6 +235,65 @@ JDK **17**.
 
 ---
 
+## Version catalogs
+
+The project uses5 separate version catalogs:
+
+| Catalog | File | Purpose |
+|---------|------|---------|
+| `libs` | `gradle/libs.versions.toml` | Main dependencies |
+| `kotlinx` | `gradle/kotlinx.versions.toml` | KotlinX libraries |
+| `androidx` | `gradle/androidx.versions.toml` | AndroidX libraries |
+| `compose` | `gradle/compose.versions.toml` | Compose BOM & components |
+| `sylibs` | `gradle/sy.versions.toml` | TachiyomiSY-specific deps |
+
+Accessed via `settings.gradle.kts`'s `versionCatalogs { create("name") { from(files(...)) } }` and `TYPESAFE_PROJECT_ACCESSORS` feature preview.
+
+---
+
+## Build types
+
+6 build types defined in `app/build.gradle.kts`:
+
+| Build Type | Application ID Suffix | Minify | Signing | Special Behavior |
+|---|---|---|---|---|
+| `debug` | `.dev` | No | Debug key | Pseudo-locales enabled |
+| `release` | (none) | Configurable | **Not signed at build time** | Build time from last Git commit |
+| `releaseTest` | `.rt` | No (overrides release) | Falls back to release | Testing without minification |
+| `foss` | `.foss` | Inherits release | Inherits release | FOSS variant |
+| `preview` | `.beta` | Inherits release | **Uses debug key** | VersionName uses commit count |
+| `benchmark` | `.benchmark` | Inherits release | **Uses debug key** | Profileable, not debuggable |
+
+**Non-standard patterns:**
+- `preview` and `benchmark` variants **use the debug signing config** even though they inherit from release
+- `releaseTest` disables minification despite inheriting from release
+- `foss` is a fully separate variant -- no telemetry
+- All custom variants use `commonMatchingFallbacks` to fall back to `release`
+
+**Signing:** There is NO `signingConfigs` block in `app/build.gradle.kts`. Signing is done entirely in CI via the `r0adkll/sign-android-release` action.
+
+---
+
+## CI/CD pipelines
+
+10 GitHub Actions workflows:
+
+| Workflow | Trigger | Build Variant | Signs? | Publishes? |
+|---|---|---|---|---|
+| `build_push.yml` | Push to `master` | `preview` | Yes | Artifact upload |
+| `build_pull_request.yml` | PRs (path-filtered) | `preview` | Conditional (same-repo only) | Artifact upload |
+| `build_preview.yml` | Manual dispatch | `preview` | Yes | Creates GitHub Release (prerelease, draft) |
+| `build_release.yml` | Tag push `v*` | `release` | Yes | Creates GitHub Release (stable, draft) |
+| `build_benchmark.yml` | Manual dispatch | `benchmark` | Yes | Artifact upload (30-day retention) |
+
+**Non-standard CI patterns:**
+- PR workflow path filtering is sophisticated: ignores translated `strings.xml`/`plurals.xml` in non-base locales (Weblate-owned)
+- Cross-repo secret handling: PRs from forks skip `google-services.json`/`client_secrets.json` writes and signing
+- All action versions are pinned by SHA (supply-chain security best practice)
+- Java version mismatch: CI uses JDK 21 (`.github/.java-version`), but `AndroidConfig.kt` targets JVM 17
+
+---
+
 ## Fork-origin markers
 
 Preserve inline blocks when editing:
@@ -163,6 +312,16 @@ Package roots: `eu.kanade.tachiyomi.*` (legacy UI), `tachiyomi.*` (domain/data),
 
 - Unit tests: `domain/src/test/`; app: `app/src/test/.../MigratorTest.kt`. No broad UI test suite.
 
+**Test frameworks:** JUnit Jupiter6.0.3, Kotest assertions6.2.1, MockK1.14.11, kotlinx.coroutines.test.
+
+**Test patterns:**
+- Use `@Execution(ExecutionMode.CONCURRENT)` for parallel test execution
+- Use Kotest `shouldBe` for assertions (preferred over JUnit assertions)
+- Use MockK `mockk()` / `coEvery` / `coVerify` for mocking
+- Test data: construct inline using domain model `.create().copy(...)` pattern
+
+**Test coverage:** Domain layer has52 unit tests across7 files. App, data, presentation, and core modules have minimal or zero test coverage.
+
 ---
 
 ## Conventions
@@ -179,6 +338,8 @@ Package roots: `eu.kanade.tachiyomi.*` (legacy UI), `tachiyomi.*` (domain/data),
 - `MainActivity.kt` – Voyager host
 - `app/src/main/java/eu/kanade/tachiyomi/di/AppModule.kt` – core DI
 - `app/src/main/java/eu/kanade/domain/DomainModule.kt` – domain interactors
+- `app/src/main/java/eu/kanade/domain/KMKDomainModule.kt` – Komikku-specific domain
+- `app/src/main/java/eu/kanade/domain/SYDomainModule.kt` – TachiyomiSY domain
 - `buildSrc/.../BuildConfig.kt`, `AndroidConfig.kt` – flags, SDK versions
 - `app/build.gradle.kts`, `settings.gradle.kts`
 

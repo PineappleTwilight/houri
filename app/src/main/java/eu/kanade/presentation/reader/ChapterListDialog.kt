@@ -118,7 +118,7 @@ fun ChapterListDialog(
                     downloadProgressProvider = { progress },
                     chapterSwipeStartAction = LibraryPreferences.ChapterSwipeAction.ToggleBookmark,
                     chapterSwipeEndAction = LibraryPreferences.ChapterSwipeAction.ToggleBookmark,
-                    onLongClick = { /*TODO*/ },
+                    onLongClick = { onBookmark(chapterItem.chapter) },
                     onClick = { onClickChapter(chapterItem.chapter) },
                     // KMK -->
                     onDownloadClick = if (onDownloadAction != null) {

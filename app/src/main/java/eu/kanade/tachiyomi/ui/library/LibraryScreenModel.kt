@@ -16,7 +16,7 @@ import eu.kanade.core.preference.asState
 import eu.kanade.core.util.fastFilterNot
 import eu.kanade.domain.base.BasePreferences
 import eu.kanade.domain.chapter.interactor.SetReadStatus
-import eu.kanade.domain.manga.interactor.SmartSearchMerge
+import eu.kanade.domain.manga.interactor.MergeMangaBySmartSearch
 import eu.kanade.domain.manga.interactor.UpdateManga
 import eu.kanade.domain.source.service.SourcePreferences
 import eu.kanade.domain.sync.SyncPreferences
@@ -160,7 +160,7 @@ class LibraryScreenModel(
     syncPreferences: SyncPreferences = Injekt.get(),
     // SY <--
     // KMK -->
-    private val smartSearchMerge: SmartSearchMerge = Injekt.get(),
+    private val mergeMangaBySmartSearch: MergeMangaBySmartSearch = Injekt.get(),
     // KMK <--
 ) : StateScreenModel<LibraryScreenModel.State>(State()) {
 
@@ -452,15 +452,20 @@ class LibraryScreenModel(
         val filterLewd = preferences.filterLewd
         // SY <--
 
+        // Pre-fetch merged manga data to avoid N+1 queries
+        val mergedMangaCache = mutableMapOf<Long, List<Manga>>()
+        filter { it.libraryManga.manga.source == MERGED_SOURCE_ID }.forEach { item ->
+            mergedMangaCache[item.libraryManga.manga.id] = getMergedMangaById.await(item.libraryManga.manga.id)
+        }
+
         val filterFnDownloaded: suspend (LibraryItem) -> Boolean = {
             applyFilter(filterDownloaded) {
                 it.libraryManga.manga.isLocal() ||
                     it.downloadCount > 0 ||
                     // KMK -->
                     if (it.libraryManga.manga.source == MERGED_SOURCE_ID) {
-                        // FIXME: Calling await in filter could lead to N+1 performance issues.
-                        //  Should include all the merged references in library query instead.
-                        getMergedMangaById.await(it.libraryManga.manga.id)
+                        mergedMangaCache[it.libraryManga.manga.id]
+                            .orEmpty()
                             .sumOf { manga -> downloadManager.getDownloadCount(manga) } > 0
                     } else {
                         // KMK <--
@@ -781,6 +786,14 @@ class LibraryScreenModel(
             getLibraryItemPreferencesFlow(),
             downloadCache.changes,
         ) { libraryManga, preferences, _ ->
+            // Pre-fetch merged manga data to avoid N+1 queries
+            val mergedMangaCache = mutableMapOf<Long, List<Manga>>()
+            libraryManga.filter { it.manga.source == MERGED_SOURCE_ID }.forEach { manga ->
+                mergedMangaCache[manga.manga.id] = runBlocking {
+                    getMergedMangaById.await(manga.manga.id)
+                }
+            }
+
             libraryManga.map { manga ->
                 // Display mode based on user preference: take it from global library setting or category
                 // KMK -->
@@ -791,10 +804,10 @@ class LibraryScreenModel(
                     downloadCount = if (preferences.downloadBadge) {
                         // SY -->
                         if (manga.manga.source == MERGED_SOURCE_ID) {
-                            // FIXME: N+1 performance issues.
-                            //  Should include all the merged references in library query instead.
-                            getMergedMangaById.await(manga.manga.id)
-                                .sumOf { downloadManager.getDownloadCount(it) }.toLong()
+                            mergedMangaCache[manga.manga.id]
+                                .orEmpty()
+                                .sumOf { downloadManager.getDownloadCount(it) }
+                                .toLong()
                         } else {
                             // SY <--
                             downloadManager.getDownloadCount(manga.manga).toLong()
@@ -1655,7 +1668,7 @@ class LibraryScreenModel(
 
         var mergingMangaId = toMergeMangas.first().id
         for (manga in toMergeMangas.drop(1)) {
-            mergingMangaId = smartSearchMerge.smartSearchMerge(manga, mergingMangaId).id
+            mergingMangaId = mergeMangaBySmartSearch.smartSearchMerge(manga, mergingMangaId).id
         }
         return mergingMangaId
     }

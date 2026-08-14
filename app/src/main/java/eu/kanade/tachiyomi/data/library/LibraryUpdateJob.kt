@@ -366,7 +366,10 @@ class LibraryUpdateJob(private val context: Context, workerParams: WorkerParamet
         notifier.showQueueSizeWarningNotificationIfNeeded(mangaToUpdate)
 
         if (skippedUpdates.isNotEmpty()) {
-            // TODO: surface skipped reasons to user?
+            val skippedByReason = skippedUpdates
+                .groupBy { it.second }
+                .mapValues { it.value.size }
+            notifier.showSkippedUpdatesNotification(skippedByReason)
             logcat {
                 skippedUpdates
                     .groupBy { it.second }

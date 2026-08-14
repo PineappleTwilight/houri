@@ -212,6 +212,12 @@ class MangaRepositoryImpl(
         handler.await { mangasQueries.deleteById(mangaId) }
     }
 
+    override suspend fun deleteNonLibraryManga(sourceIds: List<Long>, keepReadManga: Boolean) {
+        handler.await {
+            mangasQueries.deleteNonLibraryManga(sourceIds, keepReadManga.toLong())
+        }
+    }
+
     override suspend fun getReadMangaNotInLibraryView(): List<LibraryManga> {
         return handler.awaitList { libraryViewQueries.readMangaNonLibrary(MangaMapper::mapLibraryManga) }
     }

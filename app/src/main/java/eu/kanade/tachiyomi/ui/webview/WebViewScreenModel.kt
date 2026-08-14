@@ -3,7 +3,6 @@ package eu.kanade.tachiyomi.ui.webview
 import android.content.Context
 import androidx.core.net.toUri
 import cafe.adriel.voyager.core.model.StateScreenModel
-import eu.kanade.presentation.more.stats.StatsScreenState
 import eu.kanade.tachiyomi.network.NetworkHelper
 import eu.kanade.tachiyomi.source.online.HttpSource
 import eu.kanade.tachiyomi.util.system.openInBrowser
@@ -20,7 +19,11 @@ class WebViewScreenModel(
     val sourceId: Long?,
     private val sourceManager: SourceManager = Injekt.get(),
     private val network: NetworkHelper = Injekt.get(),
-) : StateScreenModel<StatsScreenState>(StatsScreenState.Loading) {
+) : StateScreenModel<WebViewScreenModel.State>(State.Loading) {
+
+    sealed interface State {
+        data object Loading : State
+    }
 
     var headers = emptyMap<String, String>()
 

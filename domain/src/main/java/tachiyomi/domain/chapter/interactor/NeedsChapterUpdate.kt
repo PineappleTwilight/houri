@@ -2,7 +2,7 @@ package tachiyomi.domain.chapter.interactor
 
 import tachiyomi.domain.chapter.model.Chapter
 
-class ShouldUpdateDbChapter {
+class NeedsChapterUpdate {
 
     fun await(dbChapter: Chapter, sourceChapter: Chapter): Boolean {
         return dbChapter.scanlator != sourceChapter.scanlator ||

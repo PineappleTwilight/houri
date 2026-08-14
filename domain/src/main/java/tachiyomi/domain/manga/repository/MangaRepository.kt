@@ -52,6 +52,8 @@ interface MangaRepository {
 
     suspend fun deleteManga(mangaId: Long)
 
+    suspend fun deleteNonLibraryManga(sourceIds: List<Long>, keepReadManga: Boolean)
+
     suspend fun getReadMangaNotInLibraryView(): List<LibraryManga>
     // SY <--
 }

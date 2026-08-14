@@ -89,3 +89,19 @@ public data class GetMangaUnreadChaptersData(
     @SerialName("chapters")
     public val entry: GetMangaUnreadChaptersEntry,
 )
+
+@Serializable
+public data class SearchMangaResult(
+    public val data: SearchMangaData,
+)
+
+@Serializable
+public data class SearchMangaData(
+    @SerialName("searchManga")
+    public val search: SearchMangaEntry,
+)
+
+@Serializable
+public data class SearchMangaEntry(
+    public val nodes: List<MangaFragment>,
+)

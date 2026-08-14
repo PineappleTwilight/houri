@@ -62,8 +62,8 @@ import tachiyomi.domain.chapter.interactor.GetBookmarkedChaptersByMangaId
 import tachiyomi.domain.chapter.interactor.GetChapter
 import tachiyomi.domain.chapter.interactor.GetChapterByUrlAndMangaId
 import tachiyomi.domain.chapter.interactor.GetChaptersByMangaId
+import tachiyomi.domain.chapter.interactor.NeedsChapterUpdate
 import tachiyomi.domain.chapter.interactor.SetMangaDefaultChapterFlags
-import tachiyomi.domain.chapter.interactor.ShouldUpdateDbChapter
 import tachiyomi.domain.chapter.interactor.UpdateChapter
 import tachiyomi.domain.chapter.repository.ChapterRepository
 import tachiyomi.domain.history.interactor.GetHistory
@@ -127,6 +127,7 @@ class DomainModule : InjektModule {
         addFactory { GetMangaWithChapters(get(), get()) }
         addFactory { GetMangaByUrlAndSourceId(get()) }
         addFactory { GetManga(get()) }
+        addFactory { DeleteNonLibraryManga(get()) }
         addFactory { GetNextChapters(get(), get(), get(), get()) }
         addFactory { GetUpcomingManga(get()) }
         addFactory { ResetViewerFlags(get()) }
@@ -166,7 +167,7 @@ class DomainModule : InjektModule {
         addFactory { GetChapterByUrlAndMangaId(get()) }
         addFactory { UpdateChapter(get()) }
         addFactory { SetReadStatus(get(), get(), get(), get(), get()) }
-        addFactory { ShouldUpdateDbChapter() }
+        addFactory { NeedsChapterUpdate() }
         addFactory { SyncChaptersWithSource(get(), get(), get(), get(), get(), get(), get(), get(), get()) }
         addFactory { GetAvailableScanlators(get()) }
         addFactory { FilterChaptersForDownload(get(), get(), get(), get()) }
@@ -176,6 +177,7 @@ class DomainModule : InjektModule {
         addFactory { UpsertHistory(get()) }
         addFactory { RemoveHistory(get()) }
         addFactory { GetTotalReadDuration(get()) }
+        addFactory { RemoveResettedHistory(get()) }
 
         addFactory { DeleteDownload(get(), get()) }
 

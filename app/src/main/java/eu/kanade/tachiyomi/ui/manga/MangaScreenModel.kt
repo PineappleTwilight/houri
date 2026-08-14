@@ -30,8 +30,8 @@ import eu.kanade.domain.chapter.interactor.GetAvailableScanlators
 import eu.kanade.domain.chapter.interactor.SetReadStatus
 import eu.kanade.domain.manga.interactor.GetExcludedScanlators
 import eu.kanade.domain.manga.interactor.GetPagePreviews
+import eu.kanade.domain.manga.interactor.MergeMangaBySmartSearch
 import eu.kanade.domain.manga.interactor.SetExcludedScanlators
-import eu.kanade.domain.manga.interactor.SmartSearchMerge
 import eu.kanade.domain.manga.interactor.UpdateManga
 import eu.kanade.domain.manga.model.PagePreview
 import eu.kanade.domain.manga.model.chaptersFiltered
@@ -199,7 +199,7 @@ class MangaScreenModel(
     private val getMergedMangaById: GetMergedMangaById = Injekt.get(),
     private val getMergedReferencesById: GetMergedReferencesById = Injekt.get(),
     // KMK -->
-    private val smartSearchMerge: SmartSearchMerge = Injekt.get(),
+    private val mergeMangaBySmartSearch: MergeMangaBySmartSearch = Injekt.get(),
     // KMK <--
     private val updateMergedSettings: UpdateMergedSettings = Injekt.get(),
     private val networkToLocalManga: NetworkToLocalManga = Injekt.get(),
@@ -753,7 +753,7 @@ class MangaScreenModel(
     }
 
     suspend fun smartSearchMerge(manga: Manga, originalMangaId: Long): Manga {
-        return smartSearchMerge.smartSearchMerge(manga, originalMangaId)
+        return mergeMangaBySmartSearch.smartSearchMerge(manga, originalMangaId)
     }
     // KMK <--
 
