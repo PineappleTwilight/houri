@@ -303,6 +303,15 @@ private fun ColumnScope.SortPage(
             },
         )
     }
+
+    // KMK -->
+    val ignoreArticles by screenModel.libraryPreferences.ignoreArticlesInSort().collectAsState()
+    CheckboxItem(
+        label = stringResource(KMR.strings.pref_ignore_articles_in_sort),
+        checked = ignoreArticles,
+        onClick = { screenModel.libraryPreferences.ignoreArticlesInSort().toggle() },
+    )
+    // KMK <--
 }
 
 private val displayModes = listOf(

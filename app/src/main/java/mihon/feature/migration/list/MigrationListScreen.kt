@@ -82,7 +82,10 @@ class MigrationListScreen(
                    with the newly migrated manga to reflect the changes properly.
                    Otherwise, just pop normally. */
                 if (mangaIds.size == 1 && navigator.items.any { it is MangaScreen }) {
-                    val mangaId = (state.items.firstOrNull()?.searchResult?.value as? MigratingManga.SearchResult.Success)?.manga?.id
+                    // Use lastMigratedTargetMangaId if available (set before item removal),
+                    // otherwise try to extract from remaining items
+                    val mangaId = state.lastMigratedTargetMangaId
+                        ?: (state.items.firstOrNull()?.searchResult?.value as? MigratingManga.SearchResult.Success)?.manga?.id
                     if (mangaId != null) {
                         val newStack = navigator.items.filter {
                             it !is MangaScreen &&

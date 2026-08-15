@@ -362,6 +362,10 @@ class MigrationListScreenModel(
             val target = (manga.searchResult.value as? SearchResult.Success)?.manga ?: return@launchIO
             migrateManga(current = manga.manga, target = target, replace = replace)
 
+            // KMK -->
+            // Store target manga ID before removal so navigation can use it
+            mutableState.update { it.copy(lastMigratedTargetMangaId = target.id) }
+            // KMK <--
             removeManga(mangaId)
         }
     }
@@ -458,6 +462,9 @@ class MigrationListScreenModel(
         val finishedCount: Int = 0,
         val migrationComplete: Boolean = false,
         val dialog: Dialog? = null,
+        // KMK -->
+        val lastMigratedTargetMangaId: Long? = null,
+        // KMK <--
     ) {
         val mangaIds: List<Long> = items.map { it.manga.id }
     }

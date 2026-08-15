@@ -57,6 +57,7 @@ import exh.source.nHentaiSourceIds
 import exh.util.cancellable
 import exh.util.isLewd
 import exh.util.nullIfBlank
+import exh.util.removeArticles
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.ImmutableSet
 import kotlinx.collections.immutable.PersistentList
@@ -637,9 +638,18 @@ class LibraryScreenModel(
         }
         // SY <--
 
+        // KMK -->
+        val ignoreArticles = libraryPreferences.ignoreArticlesInSort().get()
+        // KMK <--
         val sortAlphabetically: (LibraryItem, LibraryItem) -> Int = { manga1, manga2 ->
-            val title1 = manga1.libraryManga.manga.title.lowercase()
-            val title2 = manga2.libraryManga.manga.title.lowercase()
+            var title1 = manga1.libraryManga.manga.title.lowercase()
+            var title2 = manga2.libraryManga.manga.title.lowercase()
+            // KMK -->
+            if (ignoreArticles) {
+                title1 = title1.removeArticles()
+                title2 = title2.removeArticles()
+            }
+            // KMK <--
             title1.compareToWithCollator(title2)
         }
 

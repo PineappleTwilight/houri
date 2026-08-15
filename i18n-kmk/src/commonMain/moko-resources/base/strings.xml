@@ -183,6 +183,8 @@
     <string name="too_many_in_feed">Too many sources in your feed, cannot add more than 20</string>
     <string name="action_sort_feed">Sort feeds</string>
     <string name="sort_feed_confirmation">Would you like to sort the feeds alphabetically?</string>
+    <string name="pref_ignore_articles_in_sort">Ignore articles in sort</string>
+    <string name="pref_ignore_articles_in_sort_summary">Sort "A Sign of Affection" under S, "The Apothecary Diaries" under A</string>
     <!-- Migration -->
     <string name="current_">Current: %1$s</string>
     <string name="migrationConfigScreen_smartSearchSingleEntryTitle">Use smart search</string>
