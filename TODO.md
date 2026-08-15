@@ -14,6 +14,7 @@
 - [ ] Add caching to recommendations (db)
 - [ ] Evaluate and bugfix all delegated sources (possibly removing some)
 - [ ] Refresh manga details page when migrated (prevents having to exit the manga and view the details again for the changes to apply)
+- [ ] Improve Discord connection feature
 
 ## Chores
 - [ ] Replace all Komikku icons/branding with pineapple icons/branding
