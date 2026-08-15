@@ -17,6 +17,7 @@
 - [x] Improve Discord connection feature
 - [x] Enable EH functionality by default.
 - [x] Refresh library on title clean
+- [ ] Fix some extensions not registering
 
 ## Chores
 - [x] Replace all Komikku icons/branding with pineapple icons/branding
