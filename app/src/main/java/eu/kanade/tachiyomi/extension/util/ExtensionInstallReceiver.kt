@@ -4,6 +4,8 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.pm.PackageManager
+import android.os.Build
 import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
 import eu.kanade.tachiyomi.BuildConfig
@@ -53,19 +55,23 @@ internal class ExtensionInstallReceiver(private val listener: Listener) : Broadc
         }
 
         // KMK -->
-        // Short-circuit: skip packages that are definitely not extensions
-        // to avoid full loadExtensionFromPkgName on every app install
-        val pkgInfo = try {
-            context.packageManager.getPackageInfo(pkgName, 0)
-        } catch (_: Exception) {
-            null
-        }
-        val isExtension = pkgInfo?.reqFeatures.orEmpty().any { it.name == "tachiyomi.extension" }
-        if (!isExtension && intent.action != ACTION_EXTENSION_ADDED &&
-            intent.action != ACTION_EXTENSION_REPLACED &&
-            intent.action != ACTION_EXTENSION_REMOVED
-        ) {
-            return
+        val isCustomAction = intent.action == ACTION_EXTENSION_ADDED ||
+            intent.action == ACTION_EXTENSION_REPLACED ||
+            intent.action == ACTION_EXTENSION_REMOVED
+        if (!isCustomAction) {
+            val isExtension = try {
+                val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    PackageManager.PackageInfoFlags.of(PackageManager.GET_CONFIGURATIONS.toLong())
+                } else {
+                    @Suppress("DEPRECATION")
+                    PackageManager.GET_CONFIGURATIONS
+                }
+                val pkgInfo = context.packageManager.getPackageInfo(pkgName, flags)
+                pkgInfo.reqFeatures.orEmpty().any { it.name == "tachiyomi.extension" }
+            } catch (_: Exception) {
+                false
+            }
+            if (!isExtension) return
         }
         // KMK <--
 
