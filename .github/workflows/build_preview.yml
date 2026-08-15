@@ -116,6 +116,7 @@ jobs:
   build-app:
     runs-on: 'ubuntu-24.04'
     needs: prepare-build
+    environment: Primary
     if: github.ref == 'refs/heads/master'
     steps:
       - name: Clone Repository (${{ needs.prepare-build.outputs.VERSION_TAG }} - ${{ needs.prepare-build.outputs.TAG_NAME }})

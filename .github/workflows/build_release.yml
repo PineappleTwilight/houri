@@ -84,6 +84,7 @@ jobs:
     name: Build release app
     runs-on: 'ubuntu-24.04'
     needs: prepare-build
+    environment: Primary
     if: startsWith(github.ref, 'refs/tags/v')
     steps:
       - name: Clone Repository (${{ needs.prepare-build.outputs.VERSION_TAG }})
