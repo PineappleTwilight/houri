@@ -3,6 +3,7 @@ package eu.kanade.domain
 import tachiyomi.data.libraryUpdateError.LibraryUpdateErrorRepositoryImpl
 import tachiyomi.data.libraryUpdateError.LibraryUpdateErrorWithRelationsRepositoryImpl
 import tachiyomi.data.libraryUpdateErrorMessage.LibraryUpdateErrorMessageRepositoryImpl
+import tachiyomi.data.recommendation.RecommendationCacheRepositoryImpl
 import tachiyomi.domain.libraryUpdateError.interactor.DeleteLibraryUpdateErrors
 import tachiyomi.domain.libraryUpdateError.interactor.GetLibraryUpdateErrorWithRelations
 import tachiyomi.domain.libraryUpdateError.interactor.GetLibraryUpdateErrors
@@ -13,6 +14,10 @@ import tachiyomi.domain.libraryUpdateErrorMessage.interactor.DeleteLibraryUpdate
 import tachiyomi.domain.libraryUpdateErrorMessage.interactor.GetLibraryUpdateErrorMessages
 import tachiyomi.domain.libraryUpdateErrorMessage.interactor.InsertLibraryUpdateErrorMessages
 import tachiyomi.domain.libraryUpdateErrorMessage.repository.LibraryUpdateErrorMessageRepository
+import tachiyomi.domain.recommendation.interactor.DeleteCachedRecommendations
+import tachiyomi.domain.recommendation.interactor.GetCachedRecommendations
+import tachiyomi.domain.recommendation.interactor.InsertCachedRecommendations
+import tachiyomi.domain.recommendation.repository.RecommendationCacheRepository
 import uy.kohesive.injekt.api.InjektModule
 import uy.kohesive.injekt.api.InjektRegistrar
 import uy.kohesive.injekt.api.addFactory
@@ -36,5 +41,12 @@ class KMKDomainModule : InjektModule {
         addFactory { GetLibraryUpdateErrors(get()) }
         addFactory { DeleteLibraryUpdateErrors(get()) }
         addFactory { InsertLibraryUpdateErrors(get()) }
+
+        // KMK -->
+        addSingletonFactory<RecommendationCacheRepository> { RecommendationCacheRepositoryImpl(get()) }
+        addFactory { GetCachedRecommendations(get()) }
+        addFactory { InsertCachedRecommendations(get()) }
+        addFactory { DeleteCachedRecommendations(get()) }
+        // KMK <--
     }
 }

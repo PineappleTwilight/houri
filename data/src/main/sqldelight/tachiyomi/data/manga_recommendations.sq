@@ -1,0 +1,57 @@
+-- KMK -->
+import kotlin.Boolean;
+import kotlinx.serialization.json.JsonObject;
+
+CREATE TABLE manga_recommendations (
+    _id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    source_manga_id INTEGER NOT NULL,
+    rec_source_name TEXT NOT NULL,
+    rec_source_category_res_id INTEGER NOT NULL,
+    rec_associated_source_id INTEGER,
+    results BLOB AS JsonObject NOT NULL,
+    cached_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
+    FOREIGN KEY(source_manga_id) REFERENCES mangas (_id)
+    ON DELETE CASCADE
+);
+
+CREATE INDEX idx_manga_recommendations_source_manga_id ON manga_recommendations(source_manga_id);
+CREATE INDEX idx_manga_recommendations_cached_at ON manga_recommendations(cached_at);
+
+selectBySourceMangaId:
+SELECT *
+FROM manga_recommendations
+WHERE source_manga_id = :sourceMangaId;
+
+selectAll:
+SELECT *
+FROM manga_recommendations;
+
+insert:
+INSERT INTO manga_recommendations(
+    source_manga_id,
+    rec_source_name,
+    rec_source_category_res_id,
+    rec_associated_source_id,
+    results,
+    cached_at
+)
+VALUES (
+    :sourceMangaId,
+    :recSourceName,
+    :recSourceCategoryResId,
+    :recAssociatedSourceId,
+    :results,
+    :cachedAt
+);
+
+deleteBySourceMangaId:
+DELETE FROM manga_recommendations
+WHERE source_manga_id = :sourceMangaId;
+
+deleteAll:
+DELETE FROM manga_recommendations;
+
+deleteExpired:
+DELETE FROM manga_recommendations
+WHERE cached_at < :expiryTimestamp;
+-- KMK <--

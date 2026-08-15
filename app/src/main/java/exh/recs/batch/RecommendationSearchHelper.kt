@@ -28,17 +28,29 @@ import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.put
 import mihon.domain.manga.model.toDomainManga
 import tachiyomi.data.source.NoResultsException
 import tachiyomi.domain.library.model.LibraryManga
 import tachiyomi.domain.manga.interactor.GetLibraryManga
 import tachiyomi.domain.manga.interactor.NetworkToLocalManga
 import tachiyomi.domain.manga.model.Manga
+import tachiyomi.domain.recommendation.interactor.DeleteCachedRecommendations
+import tachiyomi.domain.recommendation.interactor.GetCachedRecommendations
+import tachiyomi.domain.recommendation.interactor.InsertCachedRecommendations
+import tachiyomi.domain.recommendation.model.CachedRecommendation
 import tachiyomi.domain.track.interactor.GetTracks
 import tachiyomi.domain.track.model.Track
 import uy.kohesive.injekt.injectLazy
 import java.io.Serializable
 import java.util.Collections
+import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
@@ -48,13 +60,21 @@ class RecommendationSearchHelper(val context: Context) {
     private val networkToLocalManga: NetworkToLocalManga by injectLazy()
     private val preferences: SourcePreferences by injectLazy()
 
-    private var wifiLock: WifiManager.WifiLock? = null
-    private var wakeLock: PowerManager.WakeLock? = null
+    // KMK -->
+    private val getCachedRecommendations: GetCachedRecommendations by injectLazy()
+    private val insertCachedRecommendations: InsertCachedRecommendations by injectLazy()
+    private val deleteCachedRecommendations: DeleteCachedRecommendations by injectLazy()
+    private val json: Json by injectLazy()
+    // KMK <--
 
     private val smartSearchEngine by lazy { SmartLibrarySearchEngine() }
 
     // KMK -->
     private val logger = ResettableLogger { safeXLogTag() }
+
+    private companion object {
+        val CACHE_TTL = 24.hours
+    }
     // KMK <--
 
     val status: MutableStateFlow<SearchStatus> = MutableStateFlow(SearchStatus.Idle)
@@ -72,6 +92,19 @@ class RecommendationSearchHelper(val context: Context) {
 
     private suspend fun beginSearch(mangaList: List<Manga>) {
         val flags = preferences.recommendationSearchFlags().get()
+
+        // KMK -->
+        // Try to load cached results first before hitting the network
+        val cachedResults = loadCachedResults(mangaList)
+        if (cachedResults != null) {
+            status.value = when {
+                cachedResults.isNotEmpty() -> SearchStatus.Finished.WithResults(cachedResults)
+                else -> SearchStatus.Finished.WithoutResults
+            }
+            return
+        }
+        // KMK <--
+
         val libraryManga = getLibraryManga.await()
         val tracks = getTracks.await()
 
@@ -172,6 +205,11 @@ class RecommendationSearchHelper(val context: Context) {
                 rankedMap.isNotEmpty() -> SearchStatus.Finished.WithResults(rankedMap)
                 else -> SearchStatus.Finished.WithoutResults
             }
+
+            // KMK -->
+            // Save results to cache after a successful search
+            saveCachedResults(mangaList, rankedMap)
+            // KMK <--
         } catch (_: CancellationException) {
         } catch (e: Exception) {
             status.value = SearchStatus.Error(e.message.orEmpty())
@@ -224,6 +262,99 @@ class RecommendationSearchHelper(val context: Context) {
             smartSearchEngine.smartSearch(libraryManga, manga.title) != null
         }
     }
+
+    // KMK -->
+    private suspend fun loadCachedResults(mangaList: List<Manga>): List<RankedSearchResults>? {
+        return try {
+            val sourceMangaIds = mangaList.map { it.id }
+            val cached = sourceMangaIds.flatMap { getCachedRecommendations.awaitBySourceMangaId(it) }
+            if (cached.isEmpty()) return null
+
+            val now = System.currentTimeMillis() / 1000
+            val expirySeconds = CACHE_TTL.inWholeSeconds
+            val allFresh = cached.all { (now - it.cachedAt) < expirySeconds }
+            if (!allFresh) {
+                sourceMangaIds.forEach { deleteCachedRecommendations.deleteBySourceMangaId(it) }
+                return null
+            }
+
+            cached.mapNotNull { it.toRankedSearchResults() }
+        } catch (e: Exception) {
+            logger()?.e("Error loading cached recommendations", e)
+            null
+        }
+    }
+
+    private suspend fun saveCachedResults(mangaList: List<Manga>, rankedMap: List<RankedSearchResults>) {
+        try {
+            val now = System.currentTimeMillis() / 1000
+            val toInsert = mutableListOf<CachedRecommendation>()
+            mangaList.forEach { sourceManga ->
+                deleteCachedRecommendations.deleteBySourceMangaId(sourceManga.id)
+                rankedMap.forEach { ranked ->
+                    val resultsJson = ranked.toJsonObject()
+                    toInsert += CachedRecommendation(
+                        id = 0L,
+                        sourceMangaId = sourceManga.id,
+                        recSourceName = ranked.recSourceName,
+                        recSourceCategoryResId = ranked.recSourceCategoryResId,
+                        recAssociatedSourceId = ranked.recAssociatedSourceId,
+                        results = resultsJson,
+                        cachedAt = now,
+                    )
+                }
+            }
+            if (toInsert.isNotEmpty()) {
+                insertCachedRecommendations.insertAll(toInsert)
+            }
+        } catch (e: Exception) {
+            logger()?.e("Error saving cached recommendations", e)
+        }
+    }
+
+    private fun RankedSearchResults.toJsonObject(): JsonObject {
+        val entries = results.entries.map { (manga, rank) ->
+            RankedResultEntry(
+                url = manga.url,
+                title = manga.title,
+                thumbnailUrl = manga.thumbnail_url,
+                rank = rank,
+            )
+        }
+        return buildJsonObject {
+            put("recSourceName", recSourceName)
+            put("recSourceCategoryResId", recSourceCategoryResId)
+            recAssociatedSourceId?.let { put("recAssociatedSourceId", it) }
+            put("results", json.encodeToString(entries))
+        }
+    }
+
+    private fun CachedRecommendation.toRankedSearchResults(): RankedSearchResults? {
+        return try {
+            val resultsJson = results["results"]?.jsonPrimitive?.content
+                ?: results.toString()
+            val entries = json.decodeFromString<List<RankedResultEntry>>(resultsJson)
+            val rankedMap = entries
+                .associate { entry ->
+                    SManga.create().apply {
+                        url = entry.url
+                        title = entry.title
+                        thumbnail_url = entry.thumbnailUrl
+                        initialized = entry.title.isNotBlank()
+                    } to entry.rank
+                }
+            RankedSearchResults(
+                recSourceName = recSourceName,
+                recSourceCategoryResId = recSourceCategoryResId,
+                recAssociatedSourceId = recAssociatedSourceId,
+                results = rankedMap,
+            )
+        } catch (e: Exception) {
+            logger()?.e("Error deserializing cached recommendation $id", e)
+            null
+        }
+    }
+    // KMK <--
 }
 
 // Contains the search results for a single source
@@ -251,3 +382,13 @@ sealed interface SearchStatus {
         data object WithoutResults : Finished
     }
 }
+
+// KMK -->
+@Serializable
+private data class RankedResultEntry(
+    val url: String,
+    val title: String,
+    val thumbnailUrl: String? = null,
+    val rank: Int,
+)
+// KMK <--

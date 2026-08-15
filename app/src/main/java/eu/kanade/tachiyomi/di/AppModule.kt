@@ -45,6 +45,7 @@ import tachiyomi.data.DatabaseHandler
 import tachiyomi.data.DateColumnAdapter
 import tachiyomi.data.History
 import tachiyomi.data.Mangas
+import tachiyomi.data.Manga_recommendations
 import tachiyomi.data.MemoColumnAdapter
 import tachiyomi.data.StringListColumnAdapter
 import tachiyomi.data.UpdateStrategyColumnAdapter
@@ -126,6 +127,11 @@ class AppModule(val app: Application) : InjektModule {
                 chaptersAdapter = Chapters.Adapter(
                     memoAdapter = MemoColumnAdapter,
                 ),
+                // KMK -->
+                manga_recommendationsAdapter = Manga_recommendations.Adapter(
+                    resultsAdapter = MemoColumnAdapter,
+                ),
+                // KMK <--
             )
         }
         addSingletonFactory<DatabaseHandler> { AndroidDatabaseHandler(get(), get()) }
