@@ -480,7 +480,7 @@ class ExtensionManager(
             // KMK -->
             // Map keys are "pkgName_signatureHash", so bare pkgName lookup always fails.
             // Fall back to finding any available extension with matching pkgName + signatureHash.
-            ?: availableExtensionMapFlow.value["${pkgName}_${signatureHash}"]
+            ?: availableExtensionMapFlow.value["${pkgName}_$signatureHash"]
             ?: availableExtensionMapFlow.value.values.find {
                 it.pkgName == pkgName && it.signatureHash == signatureHash
             }
