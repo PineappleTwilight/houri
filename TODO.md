@@ -13,6 +13,7 @@
 - [ ] Turn off "Recommendations" by default.
 - [ ] Add caching to recommendations (db)
 - [ ] Evaluate and bugfix all delegated sources (possibly removing some)
+- [ ] Refresh manga details page when migrated (prevents having to exit the manga and view the details again for the changes to apply)
 
 ## Chores
 - [ ] Replace all Komikku icons/branding with pineapple icons/branding
@@ -20,3 +21,5 @@
 - [ ] Streamline gradle tasks
 - [ ] Update gradle plugins
 - [ ] Modularize the codebase
+- [ ] Fix GitHub actions
+- [ ] Fine-tune GitHub actions
