@@ -117,15 +117,7 @@ class AndroidSourceManager(
                         // SY <--
                     }
                     extensions.forEach { extension ->
-                        // KMK -->
-                        // Extension sources are loaded from APKs via reflection. Due to JVM type
-                        // erasure, the List<Source> may contain null elements at runtime, causing
-                        // a NullPointerException when calling getClass() inside toInternalSource.
-                        @Suppress("UNCHECKED_CAST")
-                        (extension.sources as List<Source?>).mapNotNull {
-                            it?.toInternalSource(isHentaiEnabled)
-                        }.forEach {
-                        // KMK <--
+                        extension.sources.mapNotNull { it.toInternalSource(/* KMK --> */isHentaiEnabled/* KMK <-- */) }.forEach {
                             mutableMap[it.id] = it
                             registerStubSource(StubSource.from(it))
                         }

@@ -3,6 +3,7 @@
 -keep,allowoptimization class eu.kanade.**
 -keep,allowoptimization class tachiyomi.**
 -keep,allowoptimization class mihon.**
+-keep,allowoptimization class exh.**
 
 # KMK -->
 # Keep ShellInterface constructor for Shizuku reflection-based instantiation
