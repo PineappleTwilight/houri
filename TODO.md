@@ -15,6 +15,7 @@
 - [ ] Evaluate and bugfix all delegated sources (possibly removing some)
 - [ ] Refresh manga details page when migrated (prevents having to exit the manga and view the details again for the changes to apply)
 - [ ] Improve Discord connection feature
+- [ ] Enable EH functionality by default (why is a core app feature disabled by default...)
 
 ## Chores
 - [ ] Replace all Komikku icons/branding with pineapple icons/branding
