@@ -11,8 +11,10 @@ on:
       - '!**.md'
       - '!i18n-kmk/src/commonMain/moko-resources/**/strings.xml'
       - '!i18n-kmk/src/commonMain/moko-resources/**/plurals.xml'
-      - 'i18n-kmk/src/commonMain/moko-resources/base/strings.xml'
-      - 'i18n-kmk/src/commonMain/moko-resources/base/plurals.xml'
+      - '!i18n/src/commonMain/moko-resources/**/strings.xml'
+      - '!i18n/src/commonMain/moko-resources/**/plurals.xml'
+      - '!i18n-sy/src/commonMain/moko-resources/**/strings.xml'
+      - '!i18n-sy/src/commonMain/moko-resources/**/plurals.xml'
   # Dispatch or Manual triggers
   workflow_dispatch:
 
@@ -68,6 +70,9 @@ jobs:
       - name: Check code format
         run: ./gradlew spotlessCheck
 
+      - name: Compile check
+        run: ./gradlew compileDebugKotlin
+
       - name: Build app
         if: github.repository == github.event.pull_request.head.repo.full_name
         run: ./gradlew assemblePreview -Pinclude-telemetry -Penable-updater
@@ -116,12 +121,12 @@ jobs:
           echo "VERSION_TAG=$version_tag" >> $GITHUB_OUTPUT
           echo "COMMIT_COUNT=$commit_count"
           echo "COMMIT_COUNT=$commit_count" >> $GITHUB_OUTPUT
-          mv app/build/outputs/apk/preview/app-universal-preview${{ steps.signed_filename.outputs.SIGNED_TRAIL }}.apk Komikku-$version_tag-r$commit_count.apk
+          mv app/build/outputs/apk/preview/app-universal-preview${{ steps.signed_filename.outputs.SIGNED_TRAIL }}.apk Houri-$version_tag-r$commit_count.apk
 
       - name: Upload APK
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: Komikku-${{ steps.current_commit.outputs.VERSION_TAG }}-r${{ steps.current_commit.outputs.COMMIT_COUNT }}.apk
+          name: Houri-${{ steps.current_commit.outputs.VERSION_TAG }}-r${{ steps.current_commit.outputs.COMMIT_COUNT }}.apk
           path: ./*.apk
 
       - name: Upload mapping
