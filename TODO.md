@@ -24,6 +24,6 @@
 - [ ] Streamline gradle tasks
 - [ ] Update gradle plugins
 - [ ] Modularize the codebase
-- [ ] Fix GitHub actions
-- [ ] Fine-tune GitHub actions
+- [x] Fix GitHub actions
+- [x] Fine-tune GitHub actions (add compile, auto-release if version changed, etc)
 - [ ] Replace Material UI framework with more stable library
