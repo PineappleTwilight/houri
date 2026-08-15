@@ -59,7 +59,7 @@ jobs:
         if: github.repository == github.event.pull_request.head.repo.full_name
         env:
           GOOGLE_CLIENT_SECRETS_JSON: ${{ secrets.GOOGLE_CLIENT_SECRETS_JSON }}
-        run: printenv GOOGLE_CLIENT_SECRETS_JSON | base64 -d > app/src/main/assets/client_secrets.json
+        run: mkdir -p app/src/main/assets && printenv GOOGLE_CLIENT_SECRETS_JSON | base64 -d > app/src/main/assets/client_secrets.json
 
       - name: Set up gradle
         uses: gradle/actions/setup-gradle@3f131e8634966bd73d06cc69884922b02e6faf92 # v6
