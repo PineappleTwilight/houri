@@ -67,6 +67,7 @@ class ShellInterface : IShellInterface.Stub() {
 
     @SuppressLint("PrivateApi")
     override fun install(apk: AssetFileDescriptor) {
+        Log.i("ShellInterface", "[ExtInstall] Starting install, apkLength=${apk.length} userId=$userId pkg=$packageName")
         val pmInterface = Class.forName($$"android.content.pm.IPackageManager$Stub")
             .getMethod("asInterface", IBinder::class.java)
             .invoke(null, SystemServiceHelper.getSystemService("package"))
@@ -111,6 +112,7 @@ class ShellInterface : IShellInterface.Stub() {
                 Int::class.java,
             ).invoke(packageInstaller, params, packageName, userId) as Int
         }
+        Log.i("ShellInterface", "[ExtInstall] Session created id=$sessionId")
 
         val session = packageInstaller::class.java
             .getMethod("openSession", Int::class.java)
@@ -155,6 +157,7 @@ class ShellInterface : IShellInterface.Stub() {
             Intent(ACTION_INSTALL_RESULT).setPackage(packageName),
             PendingIntent.FLAG_MUTABLE,
         )
+        Log.i("ShellInterface", "[ExtInstall] PendingIntent created, committing session $sessionId")
 
         if (Build.VERSION.SDK_INT > Build.VERSION_CODES.O) {
             session::class.java.getMethod("commit", IntentSender::class.java, Boolean::class.java)
@@ -163,6 +166,7 @@ class ShellInterface : IShellInterface.Stub() {
             session::class.java.getMethod("commit", IntentSender::class.java)
                 .invoke(session, statusIntent.intentSender)
         }
+        Log.i("ShellInterface", "[ExtInstall] Session $sessionId committed successfully")
     }
 
     override fun destroy() {

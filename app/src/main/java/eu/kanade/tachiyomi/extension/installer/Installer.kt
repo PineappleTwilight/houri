@@ -10,6 +10,8 @@ import androidx.annotation.CallSuper
 import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import eu.kanade.tachiyomi.extension.ExtensionManager
 import eu.kanade.tachiyomi.extension.model.InstallStep
+import logcat.LogPriority
+import tachiyomi.core.common.util.system.logcat
 import uy.kohesive.injekt.injectLazy
 import java.util.Collections
 import kotlin.concurrent.atomics.AtomicReference
@@ -85,6 +87,7 @@ abstract class Installer(private val service: Service) {
     fun continueQueue(resultStep: InstallStep) {
         val completedEntry = waitingInstall.exchange(null)
         if (completedEntry != null) {
+            logcat(LogPriority.INFO) { "[ExtInstall] continueQueue result=$resultStep downloadId=${completedEntry.downloadId}" }
             extensionManager.updateInstallStep(completedEntry.downloadId, resultStep)
             checkQueue()
         }
@@ -118,10 +121,17 @@ abstract class Installer(private val service: Service) {
      */
     @CallSuper
     open fun onDestroy() {
+        logcat(LogPriority.WARN) { "[ExtInstall] Installer onDestroy: queue.size=${queue.size} waitingInstall=${waitingInstall.load()?.downloadId}" }
         LocalBroadcastManager.getInstance(service).unregisterReceiver(cancelReceiver)
         queue.forEach { extensionManager.updateInstallStep(it.downloadId, InstallStep.Error) }
+        // KMK -->
+        val orphaned = waitingInstall.exchange(null)
+        if (orphaned != null) {
+            logcat(LogPriority.WARN) { "[ExtInstall] Installer onDestroy: orphaning in-progress entry downloadId=${orphaned.downloadId}" }
+            extensionManager.updateInstallStep(orphaned.downloadId, InstallStep.Error)
+        }
+        // KMK <--
         queue.clear()
-        waitingInstall.store(null)
     }
 
     protected fun getActiveEntry(): Entry? = waitingInstall.load()

@@ -196,7 +196,7 @@ internal object ExtensionLoader {
     suspend fun loadExtensionFromPkgName(context: Context, pkgName: String): LoadResult {
         val extensionPackage = getExtensionInfoFromPkgName(context, pkgName)
         if (extensionPackage == null) {
-            logcat(LogPriority.ERROR) { "Extension package is not found ($pkgName)" }
+            logcat(LogPriority.WARN) { "[ExtInstall] Extension package is not found ($pkgName)" }
             return LoadResult.Error
         }
         return loadExtension(context, extensionPackage)
@@ -264,8 +264,10 @@ internal object ExtensionLoader {
         val versionName = pkgInfo.versionName
         val versionCode = PackageInfoCompat.getLongVersionCode(pkgInfo)
 
+        logcat(LogPriority.INFO) { "[ExtInstall] loadExtension $extName ($pkgName) v$versionName code=$versionCode shared=${extensionInfo.isShared}" }
+
         if (versionName.isNullOrEmpty()) {
-            logcat(LogPriority.WARN) { "Missing versionName for extension $extName" }
+            logcat(LogPriority.WARN) { "[ExtInstall] Missing versionName for extension $extName — returning Error" }
             return LoadResult.Error
         }
 
@@ -277,14 +279,14 @@ internal object ExtensionLoader {
             ?: versionName.substringBeforeLast('.').toDoubleOrNull()
         if (libVersion == null || libVersion !in SUPPORTED_LIB_VERSIONS) {
             logcat(LogPriority.WARN) {
-                "Lib version is $libVersion, while only version(s) ${SUPPORTED_LIB_VERSIONS.joinToString()} are supported"
+                "[ExtInstall] Lib version is $libVersion, while only version(s) ${SUPPORTED_LIB_VERSIONS.joinToString()} are supported — returning Error"
             }
             return LoadResult.Error
         }
 
         val signatures = getSignatures(pkgInfo)
         if (signatures.isNullOrEmpty()) {
-            logcat(LogPriority.WARN) { "Package $pkgName isn't signed" }
+            logcat(LogPriority.WARN) { "[ExtInstall] Package $pkgName isn't signed — returning Error" }
             return LoadResult.Error
         } else if (!trustExtension.isTrusted(pkgInfo, signatures)) {
             val extension = Extension.Untrusted(
@@ -302,21 +304,21 @@ internal object ExtensionLoader {
                 },
                 // KMK <--
             )
-            logcat(LogPriority.WARN) { "Extension $pkgName isn't trusted" }
+            logcat(LogPriority.WARN) { "[ExtInstall] Extension $pkgName isn't trusted" }
             return LoadResult.Untrusted(extension)
         }
 
         val isNsfw = appInfo.metaData.getInt(METADATA_CONTENT_WARNING) > 0 ||
             appInfo.metaData.getInt(METADATA_NSFW) == 1
         if (!loadNsfwSource && isNsfw) {
-            logcat(LogPriority.WARN) { "NSFW extension $pkgName not allowed" }
+            logcat(LogPriority.WARN) { "[ExtInstall] NSFW extension $pkgName not allowed — returning Error" }
             return LoadResult.Error
         }
 
         val classLoader = try {
             ChildFirstPathClassLoader(appInfo.sourceDir, null, context.classLoader)
         } catch (e: Exception) {
-            logcat(LogPriority.ERROR, e) { "Extension load error: $extName ($pkgName)" }
+            logcat(LogPriority.ERROR, e) { "[ExtInstall] Extension classloader error: $extName ($pkgName) — returning Error" }
             return LoadResult.Error
         }
 
@@ -338,10 +340,12 @@ internal object ExtensionLoader {
                         else -> throw Exception("Unknown source class type: ${obj.javaClass}")
                     }
                 } catch (e: Throwable) {
-                    logcat(LogPriority.ERROR, e) { "Extension load error: $extName ($it)" }
+                    logcat(LogPriority.ERROR, e) { "[ExtInstall] Extension source load error: $extName ($it) — returning Error" }
                     return LoadResult.Error
                 }
             }
+
+        logcat(LogPriority.INFO) { "[ExtInstall] Extension loaded successfully: $extName ($pkgName) v$versionName" }
 
         val langs = sources.map { it.lang }.toSet()
         val lang = when (langs.size) {

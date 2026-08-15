@@ -26,6 +26,7 @@ internal class ExtensionInstallReceiver(private val listener: Listener) : Broadc
     val scope = CoroutineScope(SupervisorJob())
 
     fun register(context: Context) {
+        logcat(LogPriority.INFO) { "[ExtInstall] ExtensionInstallReceiver registered" }
         ContextCompat.registerReceiver(context, this, filter, ContextCompat.RECEIVER_NOT_EXPORTED)
     }
 
@@ -45,20 +46,28 @@ internal class ExtensionInstallReceiver(private val listener: Listener) : Broadc
      */
     override fun onReceive(context: Context, intent: Intent?) {
         if (intent == null) return
+        val pkgName = getPackageNameFromIntent(intent)
+        logcat(LogPriority.INFO) { "[ExtInstall] ExtensionInstallReceiver action=${intent.action} pkg=$pkgName" }
 
         when (intent.action) {
             Intent.ACTION_PACKAGE_ADDED, ACTION_EXTENSION_ADDED -> {
-                if (isReplacing(intent)) return
+                if (isReplacing(intent)) {
+                    logcat(LogPriority.INFO) { "[ExtInstall] Skipping ADD (replacing): $pkgName" }
+                    return
+                }
 
                 scope.launch {
-                    when (val result = getExtensionFromIntent(context, intent)) {
+                    val result = getExtensionFromIntent(context, intent)
+                    logcat(LogPriority.INFO) { "[ExtInstall] loadResult for $pkgName: $result" }
+                    when (result) {
                         is LoadResult.Success -> listener.onExtensionInstalled(result.extension)
                         is LoadResult.Untrusted -> listener.onExtensionUntrusted(result.extension)
-                        else -> {}
+                        else -> logcat(LogPriority.WARN) { "[ExtInstall] Extension $pkgName not loaded (Error/null), dropping silently" }
                     }
                 }
             }
             Intent.ACTION_PACKAGE_REPLACED, ACTION_EXTENSION_REPLACED -> {
+                logcat(LogPriority.INFO) { "[ExtInstall] Package replaced: $pkgName" }
                 scope.launch {
                     when (val result = getExtensionFromIntent(context, intent)) {
                         is LoadResult.Success -> listener.onExtensionUpdated(result.extension)

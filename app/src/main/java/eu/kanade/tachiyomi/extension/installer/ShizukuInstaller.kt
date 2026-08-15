@@ -19,6 +19,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import logcat.LogPriority
+import logcat.logcat
 import mihon.app.shizuku.IShellInterface
 import mihon.app.shizuku.ShellInterface
 import rikka.shizuku.Shizuku
@@ -61,6 +62,7 @@ class ShizukuInstaller(private val service: Service) : Installer(service) {
             val status = intent.getIntExtra(PackageInstaller.EXTRA_STATUS, Int.MIN_VALUE)
             val message = intent.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE)
             val packageName = intent.getStringExtra(PackageInstaller.EXTRA_PACKAGE_NAME)
+            logcat(LogPriority.INFO) { "[ExtInstall] ShizukuReceiver status=$status pkg=$packageName msg=$message" }
 
             if (status == PackageInstaller.STATUS_SUCCESS) {
                 continueQueue(InstallStep.Installed)
@@ -111,6 +113,7 @@ class ShizukuInstaller(private val service: Service) : Installer(service) {
 
     override fun processEntry(entry: Entry) {
         super.processEntry(entry)
+        logcat(LogPriority.INFO) { "[ExtInstall] Shizuku processEntry downloadId=${entry.downloadId} uri=${entry.uri}" }
         try {
             service.contentResolver.openAssetFileDescriptor(entry.uri, "r")?.use {
                 shellInterface?.install(it)

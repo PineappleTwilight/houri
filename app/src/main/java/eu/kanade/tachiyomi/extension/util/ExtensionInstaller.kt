@@ -118,6 +118,7 @@ internal class ExtensionInstaller(
      * @param tempFile The file of the extension to install. Delete after use.
      */
     private fun installApk(downloadId: Long, tempFile: File) {
+        logcat(LogPriority.INFO) { "[ExtInstall] installApk downloadId=$downloadId installer=${extensionInstaller.get()}" }
         when (val installer = extensionInstaller.get()) {
             BasePreferences.ExtensionInstaller.LEGACY -> {
                 val intent = Intent(context, ExtensionInstallActivity::class.java)

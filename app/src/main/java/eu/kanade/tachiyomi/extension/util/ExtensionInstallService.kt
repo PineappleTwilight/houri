@@ -18,7 +18,9 @@ import eu.kanade.tachiyomi.extension.installer.ShizukuInstaller
 import eu.kanade.tachiyomi.extension.util.ExtensionInstaller.Companion.EXTRA_DOWNLOAD_ID
 import eu.kanade.tachiyomi.util.system.getSerializableExtraCompat
 import eu.kanade.tachiyomi.util.system.notificationBuilder
+import exh.log.xLogD
 import exh.log.xLogE
+import exh.log.xLogI
 import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.i18n.MR
 
@@ -59,7 +61,9 @@ class ExtensionInstallService : Service() {
         val uri = intent?.data
         val id = intent?.getLongExtra(EXTRA_DOWNLOAD_ID, -1)?.takeIf { it != -1L }
         val installerUsed = intent?.getSerializableExtraCompat<BasePreferences.ExtensionInstaller>(EXTRA_INSTALLER)
+        xLogI("[ExtInstall] onStartCommand id=$id installer=$installerUsed uri=$uri")
         if (uri == null || id == null || installerUsed == null) {
+            xLogE("[ExtInstall] onStartCommand: missing params, stopping service")
             stopSelf()
             return START_NOT_STICKY
         }

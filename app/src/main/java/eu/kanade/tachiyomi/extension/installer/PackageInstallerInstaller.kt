@@ -15,7 +15,9 @@ import eu.kanade.tachiyomi.extension.model.InstallStep
 import eu.kanade.tachiyomi.util.lang.use
 import eu.kanade.tachiyomi.util.system.getParcelableExtraCompat
 import eu.kanade.tachiyomi.util.system.getUriSize
+import exh.log.xLogD
 import exh.log.xLogE
+import exh.log.xLogI
 
 class PackageInstallerInstaller(private val service: Service) : Installer(service) {
 
@@ -23,7 +25,9 @@ class PackageInstallerInstaller(private val service: Service) : Installer(servic
 
     private val packageActionReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
-            when (intent.getIntExtra(PackageInstaller.EXTRA_STATUS, PackageInstaller.STATUS_FAILURE)) {
+            val status = intent.getIntExtra(PackageInstaller.EXTRA_STATUS, PackageInstaller.STATUS_FAILURE)
+            xLogI("[ExtInstall] packageActionReceiver status=$status sessionId=${intent.getIntExtra(PackageInstaller.EXTRA_SESSION_ID, -1)}")
+            when (status) {
                 PackageInstaller.STATUS_PENDING_USER_ACTION -> {
                     val userAction = intent.getParcelableExtraCompat<Intent>(Intent.EXTRA_INTENT)
                         ?.run {
@@ -66,13 +70,17 @@ class PackageInstallerInstaller(private val service: Service) : Installer(servic
         super.processEntry(entry)
         activeSession = null
         try {
+            val fileSize = service.getUriSize(entry.uri) ?: throw IllegalStateException()
+            xLogD("[ExtInstall] PackageInstaller processEntry downloadId=${entry.downloadId} fileSize=$fileSize")
             val installParams = PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL)
+                .apply {
+                    setSize(fileSize)
+                }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 installParams.setRequireUserAction(PackageInstaller.SessionParams.USER_ACTION_NOT_REQUIRED)
             }
             activeSession = entry to packageInstaller.createSession(installParams)
-            val fileSize = service.getUriSize(entry.uri) ?: throw IllegalStateException()
-            installParams.setSize(fileSize)
+            xLogD("[ExtInstall] PackageInstaller session created id=${activeSession!!.second}")
 
             val inputStream = service.contentResolver.openInputStream(entry.uri) ?: throw IllegalStateException()
             val session = packageInstaller.openSession(activeSession!!.second)
@@ -92,6 +100,7 @@ class PackageInstallerInstaller(private val service: Service) : Installer(servic
                 ).intentSender
                 @SuppressLint("RequestInstallPackagesPolicy")
                 session.commit(intentSender)
+                xLogD("[ExtInstall] PackageInstaller session committed id=${activeSession!!.second}")
             }
         } catch (e: Exception) {
             xLogE("Failed to install extension ${entry.downloadId} ${entry.uri}", e)

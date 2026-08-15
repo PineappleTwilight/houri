@@ -143,6 +143,7 @@ class ExtensionManager(
      */
     private fun initExtensions() {
         val extensions = ExtensionLoader.loadExtensions(context)
+        logcat(LogPriority.INFO) { "[ExtInstall] initExtensions: loaded ${extensions.size} results (${extensions.count { it is LoadResult.Success }} success, ${extensions.count { it is LoadResult.Untrusted }} untrusted, ${extensions.count { it is LoadResult.Error }} error)" }
 
         installedExtensionMapFlow.value = extensions
             .filterIsInstance<LoadResult.Success>()
