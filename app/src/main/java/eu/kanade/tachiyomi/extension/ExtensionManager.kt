@@ -247,12 +247,15 @@ class ExtensionManager(
         val installedExtensionsMap = installedExtensionMapFlow.value.toMutableMap()
         var changed = false
         for ((pkgName, extension) in installedExtensionsMap) {
+            // KMK -->
+            // Match by signatureHash + pkgName first; fallback to pkgName-only
+            // when store signing key changes (re-signing causes mismatch)
             val availableExt = availableExtensions.find {
-                // KMK -->
-                it.signatureHash == extension.signatureHash &&
-                    // KMK <--
-                    it.pkgName == pkgName
+                it.signatureHash == extension.signatureHash && it.pkgName == pkgName
+            } ?: availableExtensions.find {
+                it.pkgName == pkgName
             }
+            // KMK <--
 
             if (availableExt == null &&
                 (!extension.isObsolete || /* KMK --> */ extension.hasUpdate /* KMK <-- */)
@@ -363,9 +366,19 @@ class ExtensionManager(
 
         untrustedExtensionMapFlow.value -= extension.pkgName
 
-        ExtensionLoader.loadExtensionFromPkgName(context, extension.pkgName)
-            .let { it as? LoadResult.Success }
-            ?.let { registerNewExtension(it.extension) }
+        val result = ExtensionLoader.loadExtensionFromPkgName(context, extension.pkgName)
+        when (result) {
+            is LoadResult.Success -> registerNewExtension(result.extension)
+            // KMK -->
+            is LoadResult.Untrusted -> {
+                logcat(LogPriority.WARN) { "[ExtInstall] Extension ${extension.pkgName} still untrusted after trust — re-adding to untrusted list" }
+                untrustedExtensionMapFlow.value += result.extension
+            }
+            else -> {
+                logcat(LogPriority.ERROR) { "[ExtInstall] Extension ${extension.pkgName} failed to load after trust (result: $result) — extension lost" }
+            }
+            // KMK <--
+        }
     }
 
     /**
@@ -453,7 +466,14 @@ class ExtensionManager(
 
     private fun Extension.Installed.updateExists(availableExtension: Extension.Available? = null): Boolean {
         val availableExt = availableExtension
-            ?: availableExtensionMapFlow.value[pkgName]
+            // KMK -->
+            // Map keys are "pkgName_signatureHash", so bare pkgName lookup always fails.
+            // Fall back to finding any available extension with matching pkgName + signatureHash.
+            ?: availableExtensionMapFlow.value["${pkgName}_${signatureHash}"]
+            ?: availableExtensionMapFlow.value.values.find {
+                it.pkgName == pkgName && it.signatureHash == signatureHash
+            }
+            // KMK <--
             ?: return false
 
         return (availableExt.versionCode > versionCode || availableExt.libVersion > libVersion)

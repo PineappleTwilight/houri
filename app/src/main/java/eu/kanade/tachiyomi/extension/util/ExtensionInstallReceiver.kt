@@ -47,6 +47,28 @@ internal class ExtensionInstallReceiver(private val listener: Listener) : Broadc
     override fun onReceive(context: Context, intent: Intent?) {
         if (intent == null) return
         val pkgName = getPackageNameFromIntent(intent)
+        if (pkgName == null) {
+            logcat(LogPriority.WARN) { "[ExtInstall] ExtensionInstallReceiver: no package name in intent" }
+            return
+        }
+
+        // KMK -->
+        // Short-circuit: skip packages that are definitely not extensions
+        // to avoid full loadExtensionFromPkgName on every app install
+        val pkgInfo = try {
+            context.packageManager.getPackageInfo(pkgName, 0)
+        } catch (_: Exception) {
+            null
+        }
+        val isExtension = pkgInfo?.reqFeatures.orEmpty().any { it.name == "tachiyomi.extension" }
+        if (!isExtension && intent.action != ACTION_EXTENSION_ADDED &&
+            intent.action != ACTION_EXTENSION_REPLACED &&
+            intent.action != ACTION_EXTENSION_REMOVED
+        ) {
+            return
+        }
+        // KMK <--
+
         logcat(LogPriority.INFO) { "[ExtInstall] ExtensionInstallReceiver action=${intent.action} pkg=$pkgName" }
 
         when (intent.action) {
@@ -62,7 +84,14 @@ internal class ExtensionInstallReceiver(private val listener: Listener) : Broadc
                     when (result) {
                         is LoadResult.Success -> listener.onExtensionInstalled(result.extension)
                         is LoadResult.Untrusted -> listener.onExtensionUntrusted(result.extension)
-                        else -> logcat(LogPriority.WARN) { "[ExtInstall] Extension $pkgName not loaded (Error/null), dropping silently" }
+                        // KMK -->
+                        is LoadResult.Error -> {
+                            logcat(LogPriority.WARN) { "[ExtInstall] Extension $pkgName failed to load after install — check earlier logs for details" }
+                        }
+                        null -> {
+                            logcat(LogPriority.WARN) { "[ExtInstall] Extension $pkgName load returned null — package may not be a valid extension" }
+                        }
+                        // KMK <--
                     }
                 }
             }
@@ -72,7 +101,14 @@ internal class ExtensionInstallReceiver(private val listener: Listener) : Broadc
                     when (val result = getExtensionFromIntent(context, intent)) {
                         is LoadResult.Success -> listener.onExtensionUpdated(result.extension)
                         is LoadResult.Untrusted -> listener.onExtensionUntrusted(result.extension)
-                        else -> {}
+                        // KMK -->
+                        is LoadResult.Error -> {
+                            logcat(LogPriority.WARN) { "[ExtInstall] Extension $pkgName failed to load after update — check earlier logs for details" }
+                        }
+                        null -> {
+                            logcat(LogPriority.WARN) { "[ExtInstall] Extension $pkgName load returned null after update" }
+                        }
+                        // KMK <--
                     }
                 }
             }

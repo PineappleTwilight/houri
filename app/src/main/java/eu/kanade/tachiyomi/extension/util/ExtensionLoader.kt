@@ -48,8 +48,8 @@ internal object ExtensionLoader {
     private val getExtensionStores: GetExtensionStores by injectLazy()
     // KMK <--
 
-    private val loadNsfwSource by lazy {
-        preferences.showNsfwSource().get()
+    private fun shouldLoadNsfwSource(): Boolean {
+        return preferences.showNsfwSource().get()
     }
 
     private const val EXTENSION_FEATURE = "tachiyomi.extension"
@@ -310,7 +310,7 @@ internal object ExtensionLoader {
 
         val isNsfw = appInfo.metaData.getInt(METADATA_CONTENT_WARNING) > 0 ||
             appInfo.metaData.getInt(METADATA_NSFW) == 1
-        if (!loadNsfwSource && isNsfw) {
+        if (!shouldLoadNsfwSource() && isNsfw) {
             logcat(LogPriority.WARN) { "[ExtInstall] NSFW extension $pkgName not allowed — returning Error" }
             return LoadResult.Error
         }
@@ -322,7 +322,13 @@ internal object ExtensionLoader {
             return LoadResult.Error
         }
 
-        val sources = appInfo.metaData.getString(METADATA_SOURCE_CLASS)!!
+        val sourceClassNames = appInfo.metaData.getString(METADATA_SOURCE_CLASS)
+        if (sourceClassNames.isNullOrEmpty()) {
+            logcat(LogPriority.WARN) { "[ExtInstall] Missing $METADATA_SOURCE_CLASS metadata for extension $extName — returning Error" }
+            return LoadResult.Error
+        }
+
+        val sources = sourceClassNames
             .split(";")
             .map {
                 val sourceClass = it.trim()

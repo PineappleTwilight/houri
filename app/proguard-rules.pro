@@ -4,6 +4,14 @@
 -keep,allowoptimization class tachiyomi.**
 -keep,allowoptimization class mihon.**
 
+# KMK -->
+# Keep ShellInterface constructor for Shizuku reflection-based instantiation
+# (Shizuku server uses Class.newInstance() in a separate process)
+-keep class mihon.app.shizuku.ShellInterface {
+    <init>();
+}
+# KMK <--
+
 # Keep common dependencies used in extensions
 -keep,allowoptimization class androidx.preference.** { public protected *; }
 -keep,allowoptimization class kotlin.** { public protected *; }
