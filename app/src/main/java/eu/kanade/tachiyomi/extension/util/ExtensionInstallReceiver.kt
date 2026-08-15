@@ -4,7 +4,6 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
-import android.content.pm.PackageManager
 import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
 import eu.kanade.tachiyomi.BuildConfig
@@ -53,22 +52,6 @@ internal class ExtensionInstallReceiver(private val listener: Listener) : Broadc
             return
         }
 
-        // KMK -->
-        val isCustomAction = intent.action == ACTION_EXTENSION_ADDED ||
-            intent.action == ACTION_EXTENSION_REPLACED ||
-            intent.action == ACTION_EXTENSION_REMOVED
-        if (!isCustomAction) {
-            val isExtension = try {
-                @Suppress("DEPRECATION")
-                val pkgInfo = context.packageManager.getPackageInfo(pkgName, PackageManager.GET_CONFIGURATIONS)
-                pkgInfo.reqFeatures.orEmpty().any { it.name == "tachiyomi.extension" }
-            } catch (_: Exception) {
-                false
-            }
-            if (!isExtension) return
-        }
-        // KMK <--
-
         logcat(LogPriority.INFO) { "[ExtInstall] ExtensionInstallReceiver action=${intent.action} pkg=$pkgName" }
 
         when (intent.action) {
@@ -79,36 +62,37 @@ internal class ExtensionInstallReceiver(private val listener: Listener) : Broadc
                 }
 
                 scope.launch {
-                    val result = getExtensionFromIntent(context, intent)
+                    var result = getExtensionFromIntent(context, intent)
+                    if (result is LoadResult.Error) {
+                        logcat(LogPriority.WARN) { "[ExtInstall] First load attempt failed for $pkgName: ${(result as LoadResult.Error).reason}, retrying..." }
+                        kotlinx.coroutines.delay(RETRY_DELAY_MS)
+                        result = getExtensionFromIntent(context, intent)
+                    }
                     logcat(LogPriority.INFO) { "[ExtInstall] loadResult for $pkgName: $result" }
                     when (result) {
                         is LoadResult.Success -> listener.onExtensionInstalled(result.extension)
                         is LoadResult.Untrusted -> listener.onExtensionUntrusted(result.extension)
-                        // KMK -->
                         is LoadResult.Error -> {
-                            logcat(LogPriority.WARN) { "[ExtInstall] Extension $pkgName failed to load after install — check earlier logs for details" }
+                            logcat(LogPriority.WARN) { "[ExtInstall] Extension $pkgName failed to load after retry — reason: ${result.reason}" }
                         }
-                        null -> {
-                            logcat(LogPriority.WARN) { "[ExtInstall] Extension $pkgName load returned null — package may not be a valid extension" }
-                        }
-                        // KMK <--
                     }
                 }
             }
             Intent.ACTION_PACKAGE_REPLACED, ACTION_EXTENSION_REPLACED -> {
                 logcat(LogPriority.INFO) { "[ExtInstall] Package replaced: $pkgName" }
                 scope.launch {
-                    when (val result = getExtensionFromIntent(context, intent)) {
+                    var result = getExtensionFromIntent(context, intent)
+                    if (result is LoadResult.Error) {
+                        logcat(LogPriority.WARN) { "[ExtInstall] First load attempt failed for $pkgName update: ${(result as LoadResult.Error).reason}, retrying..." }
+                        kotlinx.coroutines.delay(RETRY_DELAY_MS)
+                        result = getExtensionFromIntent(context, intent)
+                    }
+                    when (result) {
                         is LoadResult.Success -> listener.onExtensionUpdated(result.extension)
                         is LoadResult.Untrusted -> listener.onExtensionUntrusted(result.extension)
-                        // KMK -->
                         is LoadResult.Error -> {
-                            logcat(LogPriority.WARN) { "[ExtInstall] Extension $pkgName failed to load after update — check earlier logs for details" }
+                            logcat(LogPriority.WARN) { "[ExtInstall] Extension $pkgName failed to load after update retry — reason: ${result.reason}" }
                         }
-                        null -> {
-                            logcat(LogPriority.WARN) { "[ExtInstall] Extension $pkgName load returned null after update" }
-                        }
-                        // KMK <--
                     }
                 }
             }
@@ -142,7 +126,7 @@ internal class ExtensionInstallReceiver(private val listener: Listener) : Broadc
         val pkgName = getPackageNameFromIntent(intent)
         if (pkgName == null) {
             logcat(LogPriority.WARN) { "Package name not found" }
-            return LoadResult.Error
+            return LoadResult.Error("No package name in intent")
         }
         return ExtensionLoader.loadExtensionFromPkgName(context, pkgName)
     }
@@ -168,6 +152,7 @@ internal class ExtensionInstallReceiver(private val listener: Listener) : Broadc
         private const val ACTION_EXTENSION_ADDED = "${BuildConfig.APPLICATION_ID}.ACTION_EXTENSION_ADDED"
         private const val ACTION_EXTENSION_REPLACED = "${BuildConfig.APPLICATION_ID}.ACTION_EXTENSION_REPLACED"
         private const val ACTION_EXTENSION_REMOVED = "${BuildConfig.APPLICATION_ID}.ACTION_EXTENSION_REMOVED"
+        private const val RETRY_DELAY_MS = 1000L
 
         fun notifyAdded(context: Context, pkgName: String) {
             notify(context, pkgName, ACTION_EXTENSION_ADDED)

@@ -142,12 +142,15 @@ class ExtensionManager(
      * Loads and registers the installed extensions.
      */
     private fun initExtensions() {
+        logcat(LogPriority.INFO) { "[ExtInstall] initExtensions: starting extension load" }
         val extensions = ExtensionLoader.loadExtensions(context)
         logcat(LogPriority.INFO) { "[ExtInstall] initExtensions: loaded ${extensions.size} results (${extensions.count { it is LoadResult.Success }} success, ${extensions.count { it is LoadResult.Untrusted }} untrusted, ${extensions.count { it is LoadResult.Error }} error)" }
 
-        installedExtensionMapFlow.value = extensions
+        val successMap = extensions
             .filterIsInstance<LoadResult.Success>()
             .associate { it.extension.pkgName to it.extension }
+        logcat(LogPriority.INFO) { "[ExtInstall] initExtensions: registering ${successMap.size} installed extensions: ${successMap.keys}" }
+        installedExtensionMapFlow.value = successMap
 
         untrustedExtensionMapFlow.value = extensions
             .filterIsInstance<LoadResult.Untrusted>()
@@ -155,6 +158,10 @@ class ExtensionManager(
             // SY -->
             .filterNotBlacklisted()
         // SY <--
+
+        extensions.filterIsInstance<LoadResult.Error>().forEach { error ->
+            logcat(LogPriority.WARN) { "[ExtInstall] initExtensions: load error — ${error.reason}" }
+        }
 
         _isInitialized.value = true
     }
@@ -431,22 +438,26 @@ class ExtensionManager(
     private inner class InstallationListener : ExtensionInstallReceiver.Listener {
 
         override fun onExtensionInstalled(extension: Extension.Installed) {
+            logcat(LogPriority.INFO) { "[ExtInstall] onExtensionInstalled: ${extension.name} (${extension.pkgName}) v${extension.versionName}" }
             registerNewExtension(extension.withUpdateCheck())
             updatePendingUpdatesCount()
         }
 
         override fun onExtensionUpdated(extension: Extension.Installed) {
+            logcat(LogPriority.INFO) { "[ExtInstall] onExtensionUpdated: ${extension.name} (${extension.pkgName}) v${extension.versionName}" }
             registerUpdatedExtension(extension.withUpdateCheck())
             updatePendingUpdatesCount()
         }
 
         override fun onExtensionUntrusted(extension: Extension.Untrusted) {
+            logcat(LogPriority.INFO) { "[ExtInstall] onExtensionUntrusted: ${extension.name} (${extension.pkgName}) v${extension.versionName}" }
             installedExtensionMapFlow.value -= extension.pkgName
             untrustedExtensionMapFlow.value += extension
             updatePendingUpdatesCount()
         }
 
         override fun onPackageUninstalled(pkgName: String) {
+            logcat(LogPriority.INFO) { "[ExtInstall] onPackageUninstalled: $pkgName" }
             ExtensionLoader.uninstallPrivateExtension(context, pkgName)
             unregisterExtension(pkgName)
             updatePendingUpdatesCount()

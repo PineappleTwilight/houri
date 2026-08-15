@@ -31,6 +31,7 @@ class ShizukuInstaller(private val service: Service) : Installer(service) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     private var shellInterface: IShellInterface? = null
+    private var currentEntryUri: android.net.Uri? = null
 
     private val shizukuArgs by lazy {
         Shizuku.UserServiceArgs(
@@ -65,9 +66,18 @@ class ShizukuInstaller(private val service: Service) : Installer(service) {
             logcat(LogPriority.INFO) { "[ExtInstall] ShizukuReceiver status=$status pkg=$packageName msg=$message" }
 
             if (status == PackageInstaller.STATUS_SUCCESS) {
+                currentEntryUri?.let { uri ->
+                    try {
+                        service.contentResolver.delete(uri, null, null)
+                    } catch (e: Exception) {
+                        logcat(LogPriority.WARN, e) { "[ExtInstall] Failed to delete URI after install success" }
+                    }
+                    currentEntryUri = null
+                }
                 continueQueue(InstallStep.Installed)
             } else {
                 logcat(LogPriority.ERROR) { "Failed to install extension $packageName: $message" }
+                currentEntryUri = null
                 continueQueue(InstallStep.Error)
             }
         }
@@ -115,18 +125,15 @@ class ShizukuInstaller(private val service: Service) : Installer(service) {
         super.processEntry(entry)
         logcat(LogPriority.INFO) { "[ExtInstall] Shizuku processEntry downloadId=${entry.downloadId} uri=${entry.uri}" }
         try {
+            currentEntryUri = entry.uri
             service.contentResolver.openAssetFileDescriptor(entry.uri, "r")?.use {
                 shellInterface?.install(it)
-                    // KMK -->
                     ?: throw Exception("Shell interface is not available")
-                // KMK <--
             }
-                // KMK -->
                 ?: throw Exception("Failed to open asset file descriptor")
-            // KMK <--
-            service.contentResolver.delete(entry.uri, null, null)
         } catch (e: Exception) {
             logcat(LogPriority.ERROR, e) { "Failed to install extension ${entry.downloadId} ${entry.uri}" }
+            currentEntryUri = null
             continueQueue(InstallStep.Error)
         }
     }

@@ -169,20 +169,16 @@ internal object ExtensionLoader {
 
         if (extPkgs.isEmpty()) return emptyList()
 
-        // Load each extension concurrently and wait for completion
         return runBlocking {
-            // KMK -->
             val extStores = getExtensionStores.get()
-            // KMK <--
             val deferred = extPkgs.map {
                 async {
-                    loadExtension(
-                        context,
-                        it,
-                        // KMK -->
-                        extStores,
-                        // KMK <--
-                    )
+                    try {
+                        loadExtension(context, it, extStores)
+                    } catch (e: Exception) {
+                        logcat(LogPriority.ERROR, e) { "[ExtInstall] Unexpected error loading extension ${it.packageInfo.packageName}" }
+                        LoadResult.Error("Unexpected: ${e.message}")
+                    }
                 }
             }
             deferred.awaitAll()
@@ -194,12 +190,20 @@ internal object ExtensionLoader {
      * contains the required feature flag before trying to load it.
      */
     suspend fun loadExtensionFromPkgName(context: Context, pkgName: String): LoadResult {
-        val extensionPackage = getExtensionInfoFromPkgName(context, pkgName)
-        if (extensionPackage == null) {
-            logcat(LogPriority.WARN) { "[ExtInstall] Extension package is not found ($pkgName)" }
-            return LoadResult.Error
+        var lastError: LoadResult.Error? = null
+        repeat(MAX_LOAD_RETRIES) { attempt ->
+            val extensionPackage = getExtensionInfoFromPkgName(context, pkgName)
+            if (extensionPackage == null) {
+                logcat(LogPriority.WARN) { "[ExtInstall] Extension package is not found ($pkgName), attempt ${attempt + 1}/$MAX_LOAD_RETRIES" }
+                lastError = LoadResult.Error("Package not found: $pkgName")
+                if (attempt < MAX_LOAD_RETRIES - 1) {
+                    kotlinx.coroutines.delay(RETRY_DELAY_MS)
+                }
+                return@repeat
+            }
+            return loadExtension(context, extensionPackage)
         }
-        return loadExtension(context, extensionPackage)
+        return lastError ?: LoadResult.Error("Package not found: $pkgName")
     }
 
     fun getExtensionPackageInfoFromPkgName(context: Context, pkgName: String): PackageInfo? {
@@ -268,7 +272,7 @@ internal object ExtensionLoader {
 
         if (versionName.isNullOrEmpty()) {
             logcat(LogPriority.WARN) { "[ExtInstall] Missing versionName for extension $extName — returning Error" }
-            return LoadResult.Error
+            return LoadResult.Error("Missing versionName: $pkgName")
         }
 
         // Validate lib version
@@ -281,13 +285,13 @@ internal object ExtensionLoader {
             logcat(LogPriority.WARN) {
                 "[ExtInstall] Lib version is $libVersion, while only version(s) ${SUPPORTED_LIB_VERSIONS.joinToString()} are supported — returning Error"
             }
-            return LoadResult.Error
+            return LoadResult.Error("Unsupported lib version $libVersion for $pkgName")
         }
 
         val signatures = getSignatures(pkgInfo)
         if (signatures.isNullOrEmpty()) {
             logcat(LogPriority.WARN) { "[ExtInstall] Package $pkgName isn't signed — returning Error" }
-            return LoadResult.Error
+            return LoadResult.Error("Package not signed: $pkgName")
         } else if (!trustExtension.isTrusted(pkgInfo, signatures)) {
             val extension = Extension.Untrusted(
                 extName,
@@ -312,20 +316,20 @@ internal object ExtensionLoader {
             appInfo.metaData.getInt(METADATA_NSFW) == 1
         if (!shouldLoadNsfwSource() && isNsfw) {
             logcat(LogPriority.WARN) { "[ExtInstall] NSFW extension $pkgName not allowed — returning Error" }
-            return LoadResult.Error
+            return LoadResult.Error("NSFW disabled: $pkgName")
         }
 
         val classLoader = try {
             ChildFirstPathClassLoader(appInfo.sourceDir, null, context.classLoader)
         } catch (e: Exception) {
             logcat(LogPriority.ERROR, e) { "[ExtInstall] Extension classloader error: $extName ($pkgName) — returning Error" }
-            return LoadResult.Error
+            return LoadResult.Error("Classloader error: ${e.message}")
         }
 
         val sourceClassNames = appInfo.metaData.getString(METADATA_SOURCE_CLASS)
         if (sourceClassNames.isNullOrEmpty()) {
             logcat(LogPriority.WARN) { "[ExtInstall] Missing $METADATA_SOURCE_CLASS metadata for extension $extName — returning Error" }
-            return LoadResult.Error
+            return LoadResult.Error("Missing source class metadata: $pkgName")
         }
 
         val sources = sourceClassNames
@@ -347,7 +351,7 @@ internal object ExtensionLoader {
                     }
                 } catch (e: Throwable) {
                     logcat(LogPriority.ERROR, e) { "[ExtInstall] Extension source load error: $extName ($it) — returning Error" }
-                    return LoadResult.Error
+                    return LoadResult.Error("Source class load failed: ${e.message}")
                 }
             }
 
@@ -454,4 +458,7 @@ internal object ExtensionLoader {
         val packageInfo: PackageInfo,
         val isShared: Boolean,
     )
+
+    private const val MAX_LOAD_RETRIES = 3
+    private const val RETRY_DELAY_MS = 500L
 }
