@@ -7,6 +7,7 @@
 - [ ] Add mangabaka tracker (port from mihon)
 - [ ] Port mihon's new reader
 - [ ] Toggle to enable an anime girl moaning whenever a chapter is completed. Moans should be randomized and have different probabilities of appearing (gacha mechanic)
+- [ ] Add content censorship status as a tag next to the content type tag (doujinshi, manga, etc) in e/exhentai. Content defaults to censored (no title marking), decensored (marked as [Decensored] in the title), or uncensored (marked as [Uncensored] in the title).
 
 ## Bugfixes
 - [x] Fix UI transition choppiness.
