@@ -12,16 +12,16 @@
 - [x] Fix UI transition choppiness.
 - [x] Turn off "Recommendations" by default.
 - [x] Add caching to recommendations (db)
-- [ ] Evaluate and bugfix all delegated sources (possibly removing some)
+- [x] Evaluate and bugfix all delegated sources (possibly removing some)
 - [x] Refresh manga details page when migrated (prevents having to exit the manga and view the details again for the changes to apply)
 - [x] Improve Discord connection feature
 - [x] Enable EH functionality by default.
 - [x] Refresh library on title clean
-- [ ] Fix some extensions not registering
+- [x] Fix some extensions not registering
 
 ## Chores
 - [x] Replace all Komikku icons/branding with pineapple icons/branding
-- [ ] Update ancient test framework
+- [x] Update ancient test framework
 - [ ] Streamline gradle tasks
 - [ ] Update gradle plugins
 - [ ] Modularize the codebase
