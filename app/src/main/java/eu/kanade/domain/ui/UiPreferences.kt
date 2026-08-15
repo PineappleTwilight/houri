@@ -53,7 +53,7 @@ class UiPreferences(
     fun feedTabInFront() = preferenceStore.getBoolean("latest_tab_position", false)
 
     // KMK -->
-    fun expandRelatedMangas() = preferenceStore.getBoolean("expand_related_mangas", true)
+    fun expandRelatedMangas() = preferenceStore.getBoolean("expand_related_mangas", false)
 
     fun relatedMangasInOverflow() = preferenceStore.getBoolean("related_mangas_in_overflow", false)
 

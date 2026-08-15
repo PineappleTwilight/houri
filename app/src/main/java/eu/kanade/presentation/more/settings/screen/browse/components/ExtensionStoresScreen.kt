@@ -120,7 +120,7 @@ fun ExtensionStoresScreen(
 private fun ExtensionStoresScreenPreview() {
     val state = ExtensionStoreScreenState.Success(
         stores = persistentListOf(
-            ExtensionStore("https://komikku", "Komikku", "", KOMIKKU_SIGNATURE, ExtensionStore.Contact("", ""), false, null),
+            ExtensionStore("https://houri", "Houri", "", KOMIKKU_SIGNATURE, ExtensionStore.Contact("", ""), false, null),
             ExtensionStore("https://repo", "Repo", "", REPO_SIGNATURE, ExtensionStore.Contact("", ""), false, null),
             ExtensionStore("https://other", "Other", "", "key2", ExtensionStore.Contact("", ""), true, null),
         ),

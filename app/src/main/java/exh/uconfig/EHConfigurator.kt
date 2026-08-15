@@ -158,7 +158,7 @@ class EHConfigurator(val context: Context) {
     }
 
     companion object {
-        private const val PROFILE_NAME = "Komikku"
+        private const val PROFILE_NAME = "Houri"
         private const val UCONFIG_URL = "/uconfig.php"
 
         // Always use E-H here as EXH does not have a perks page

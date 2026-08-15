@@ -190,7 +190,7 @@ private fun ExtensionStoresListItem(
 
 // KMK -->
 fun repoResId(signKey: String) = when (signKey) {
-    KOMIKKU_SIGNATURE -> R.mipmap.komikku
+    KOMIKKU_SIGNATURE -> R.mipmap.houri
     REPO_SIGNATURE -> R.mipmap.repo
     else -> R.mipmap.extension
 }
@@ -199,7 +199,7 @@ fun repoResId(signKey: String) = when (signKey) {
 @Composable
 fun ExtensionReposContentPreview() {
     val repos = persistentListOf(
-        ExtensionStore("https://komikku", "Komikku", "", KOMIKKU_SIGNATURE, ExtensionStore.Contact("", ""), false, null),
+        ExtensionStore("https://houri", "Houri", "", KOMIKKU_SIGNATURE, ExtensionStore.Contact("", ""), false, null),
         ExtensionStore("https://repo", "Repo", "", REPO_SIGNATURE, ExtensionStore.Contact("", ""), false, null),
         ExtensionStore("https://other", "Other", "", "key2", ExtensionStore.Contact("", ""), true, null),
     )

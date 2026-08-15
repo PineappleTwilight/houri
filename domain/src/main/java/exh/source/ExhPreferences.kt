@@ -19,7 +19,7 @@ class ExhPreferences(
     // KMK <--
 
     // SY -->
-    fun isHentaiEnabled() = preferenceStore.getBoolean("eh_is_hentai_enabled", false)
+    fun isHentaiEnabled() = preferenceStore.getBoolean("eh_is_hentai_enabled", true)
 
     // KMK -->
     fun ehIncognitoMode() = preferenceStore.getBoolean("eh_incognito_mode", false)
