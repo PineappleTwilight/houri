@@ -319,7 +319,7 @@ abstract class HttpSource : CatalogueSource {
      * @param manga the current manga to get related mangas.
      * @return the related mangas for the current manga, or empty if a source doesn't support related mangas.
      */
-    override suspend fun fetchRelatedMangaList(manga: SManga): List<SManga> {
+    open override suspend fun fetchRelatedMangaList(manga: SManga): List<SManga> {
         if (!isRelatedMangaListParseAvailable) return emptyList()
 
         return client.newCall(relatedMangaListRequest(manga))

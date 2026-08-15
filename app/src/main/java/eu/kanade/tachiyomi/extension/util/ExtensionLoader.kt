@@ -175,7 +175,7 @@ internal object ExtensionLoader {
                 async {
                     try {
                         loadExtension(context, it, extStores)
-                    } catch (e: Exception) {
+                    } catch (e: Throwable) {
                         logcat(LogPriority.ERROR, e) { "[ExtInstall] Unexpected error loading extension ${it.packageInfo.packageName}" }
                         LoadResult.Error("Unexpected: ${e.message}")
                     }
