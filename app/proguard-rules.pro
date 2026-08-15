@@ -10,6 +10,13 @@
 -keep class mihon.app.shizuku.ShellInterface {
     <init>();
 }
+
+# Prevent R8 full mode devirtualization on HttpSource.
+# Extensions loaded dynamically via classloader override these methods,
+# but R8 can't see their overrides and makes them final → LinkageError.
+-keep,allowobfuscation class eu.kanade.tachiyomi.source.online.HttpSource {
+    public protected <methods>;
+}
 # KMK <--
 
 # Keep common dependencies used in extensions
