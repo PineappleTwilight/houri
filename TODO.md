@@ -23,3 +23,4 @@
 - [ ] Modularize the codebase
 - [ ] Fix GitHub actions
 - [ ] Fine-tune GitHub actions
+- [ ] Replace Material UI framework with more stable library
