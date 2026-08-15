@@ -5,7 +5,6 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
-import android.os.Build
 import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
 import eu.kanade.tachiyomi.BuildConfig
@@ -60,13 +59,8 @@ internal class ExtensionInstallReceiver(private val listener: Listener) : Broadc
             intent.action == ACTION_EXTENSION_REMOVED
         if (!isCustomAction) {
             val isExtension = try {
-                val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                    PackageManager.PackageInfoFlags.of(PackageManager.GET_CONFIGURATIONS.toLong())
-                } else {
-                    @Suppress("DEPRECATION")
-                    PackageManager.GET_CONFIGURATIONS
-                }
-                val pkgInfo = context.packageManager.getPackageInfo(pkgName, flags)
+                @Suppress("DEPRECATION")
+                val pkgInfo = context.packageManager.getPackageInfo(pkgName, PackageManager.GET_CONFIGURATIONS)
                 pkgInfo.reqFeatures.orEmpty().any { it.name == "tachiyomi.extension" }
             } catch (_: Exception) {
                 false
