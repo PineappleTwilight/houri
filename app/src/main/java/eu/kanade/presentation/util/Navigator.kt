@@ -3,6 +3,7 @@ package eu.kanade.presentation.util
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.ContentTransform
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -73,15 +74,20 @@ fun DefaultNavigatorScreenTransition(
     modifier: Modifier = Modifier,
 ) {
     val duration = 200
+    val easing = FastOutSlowInEasing
     ScreenTransition(
         navigator = navigator,
         transition = {
             if (navigator.lastEvent != StackEvent.Pop) {
-                slideInHorizontally(tween(duration)) { it / 3 } + fadeIn(tween(duration)) togetherWith
-                    slideOutHorizontally(tween(duration)) { -it / 3 } + fadeOut(tween(duration))
+                slideInHorizontally(tween(duration, easing = easing)) { it / 3 } +
+                    fadeIn(tween(duration, easing = easing)) togetherWith
+                    slideOutHorizontally(tween(duration, easing = easing)) { -it / 3 } +
+                    fadeOut(tween(duration, easing = easing))
             } else {
-                slideInHorizontally(tween(duration)) { -it / 3 } + fadeIn(tween(duration)) togetherWith
-                    slideOutHorizontally(tween(duration)) { it / 3 } + fadeOut(tween(duration))
+                slideInHorizontally(tween(duration, easing = easing)) { -it / 3 } +
+                    fadeIn(tween(duration, easing = easing)) togetherWith
+                    slideOutHorizontally(tween(duration, easing = easing)) { it / 3 } +
+                    fadeOut(tween(duration, easing = easing))
             }
         },
         modifier = modifier,

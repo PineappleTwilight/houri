@@ -48,6 +48,8 @@ open class DiscordWebSocketImpl(
 
     companion object {
         private const val TAG = "DiscordWebSocket"
+        private const val MAX_RECONNECT_ATTEMPTS = 5
+        private const val RECONNECT_BASE_DELAY_MS = 1000L
 
         private val client = OkHttpClient.Builder()
             .connectTimeout(10, TimeUnit.SECONDS)
@@ -127,6 +129,7 @@ open class DiscordWebSocketImpl(
     inner class Listener : WebSocketListener() {
         private var seq: Int? = null
         private var heartbeatInterval: Long? = null
+        private var reconnectAttempts = 0
 
         var scope = CoroutineScope(coroutineContext)
 
@@ -134,7 +137,8 @@ open class DiscordWebSocketImpl(
             scope.cancel()
             scope = CoroutineScope(coroutineContext)
             scope.launch {
-                delay(heartbeatInterval!!)
+                val interval = heartbeatInterval ?: return@launch
+                delay(interval)
                 webSocket?.send("{\"op\":1, \"d\":$seq}")
             }
             if (sendIdentify) sendIdentify()
@@ -156,6 +160,7 @@ open class DiscordWebSocketImpl(
                 OpCode.DISPATCH.value -> if (map.t == "READY") {
                     connected = true
                     connectionState.value = true
+                    reconnectAttempts = 0
                 }
                 OpCode.HEARTBEAT.value -> {
                     if (scope.isActive) scope.cancel()
@@ -179,7 +184,18 @@ open class DiscordWebSocketImpl(
         override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
             Timber.tag(TAG).e("Failure : ${t.message}")
             if (t.message != "Interrupt") {
-                this@DiscordWebSocketImpl.webSocket = client.newWebSocket(request, Listener())
+                if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+                    val delayMs = RECONNECT_BASE_DELAY_MS * (1 shl reconnectAttempts)
+                    reconnectAttempts++
+                    Timber.tag(TAG).i("Reconnecting in ${delayMs}ms (attempt $reconnectAttempts)")
+                    scope.launch {
+                        delay(delayMs)
+                        this@DiscordWebSocketImpl.webSocket =
+                            client.newWebSocket(request, Listener())
+                    }
+                } else {
+                    Timber.tag(TAG).e("Max reconnect attempts reached, giving up")
+                }
             }
         }
     }

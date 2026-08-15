@@ -1062,6 +1062,8 @@ class LibraryScreenModel(
             setCustomMangaInfo.set(mangaInfo)
         }
         clearSelection()
+        // Refresh library so Manga objects are reconstructed with updated customMangaInfo
+        updateSelectedManga()
     }
 
     @OptIn(DelicateCoroutinesApi::class)
@@ -1092,6 +1094,7 @@ class LibraryScreenModel(
             setCustomMangaInfo.set(mangaInfo)
         }
         clearSelection()
+        updateSelectedManga()
     }
     // SY <--
 
