@@ -74,18 +74,18 @@ class Pururin(delegate: HttpSource, val context: Context) :
     }
 
     override suspend fun parseIntoMetadata(metadata: PururinSearchMetadata, input: Document) {
-        val selfLink = input.select("[itemprop=name]").last()!!.parent()
-        val parsedSelfLink = selfLink!!.attr("href").toUri().pathSegments
+        val selfLink = input.select("[itemprop=name]").last()?.parent() ?: return
+        val parsedSelfLink = selfLink.attr("href").toUri().pathSegments
 
         with(metadata) {
-            prId = parsedSelfLink[parsedSelfLink.lastIndex - 1].toInt()
-            prShortLink = parsedSelfLink.last()
+            prId = parsedSelfLink.getOrNull(parsedSelfLink.lastIndex - 1)?.toIntOrNull() ?: return
+            prShortLink = parsedSelfLink.lastOrNull() ?: return
 
-            val contentWrapper = input.selectFirst(".content-wrapper")
-            title = contentWrapper!!.selectFirst(".title h1")!!.text()
+            val contentWrapper = input.selectFirst(".content-wrapper") ?: return
+            title = contentWrapper.selectFirst(".title h1")?.text() ?: return
             altTitle = contentWrapper.selectFirst(".alt-title")?.text()
 
-            thumbnailUrl = "https:" + input.selectFirst(".cover-wrapper v-lazy-image")!!.attr("src")
+            thumbnailUrl = "https:" + (input.selectFirst(".cover-wrapper v-lazy-image")?.attr("src") ?: return)
 
             tags.clear()
             contentWrapper.select(".table-gallery-info > tbody > tr").forEach { ele ->
@@ -99,8 +99,8 @@ class Pururin(delegate: HttpSource, val context: Context) :
                         fileSize = split.last().removeSuffix(")").trim()
                     }
                     "ratings" -> {
-                        ratingCount = value.selectFirst("[itemprop=ratingCount]")!!.attr("content").toIntOrNull()
-                        averageRating = value.selectFirst("[itemprop=ratingValue]")!!.attr("content").toDoubleOrNull()
+                        ratingCount = value.selectFirst("[itemprop=ratingCount]")?.attr("content")?.toIntOrNull()
+                        averageRating = value.selectFirst("[itemprop=ratingValue]")?.attr("content")?.toDoubleOrNull()
                     }
                     "uploader" -> {
                         uploaderDisp = value.text()
@@ -109,10 +109,11 @@ class Pururin(delegate: HttpSource, val context: Context) :
                     else -> {
                         value.select("a").forEach { link ->
                             val searchUrl = link.attr("href").toUri()
-                            val namespace = searchUrl.pathSegments[searchUrl.pathSegments.lastIndex - 2]
+                            val pathSegments = searchUrl.pathSegments
+                            val namespace = pathSegments.getOrNull(pathSegments.lastIndex - 2) ?: return@forEach
                             tags += RaisedTag(
                                 namespace,
-                                searchUrl.lastPathSegment!!.substringBefore("."),
+                                searchUrl.lastPathSegment?.substringBefore(".") ?: return@forEach,
                                 if (namespace != PururinSearchMetadata.TAG_NAMESPACE_CATEGORY) {
                                     PururinSearchMetadata.TAG_TYPE_DEFAULT
                                 } else {

@@ -26,8 +26,8 @@ android {
     defaultConfig {
         applicationId = "app.houri"
 
-        versionCode = 95
-        versionName = "1.15.13"
+        versionCode = 96
+        versionName = "1.15.14"
 
         buildConfigField("String", "COMMIT_COUNT", "\"${getCommitCount()}\"")
         buildConfigField("String", "COMMIT_SHA", "\"${getGitSha()}\"")
