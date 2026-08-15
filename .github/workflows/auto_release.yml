@@ -1,5 +1,5 @@
 name: Auto Release
-# Auto-create a release tag when versionName changes in build.gradle.kts
+# Auto-create a release when versionName changes in build.gradle.kts
 
 on:
   push:
@@ -8,20 +8,26 @@ on:
     paths:
       - 'app/build.gradle.kts'
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: write
 
 jobs:
   check-version:
-    name: Check version and create tag
+    name: Check version
     runs-on: 'ubuntu-24.04'
-
+    outputs:
+      NEW_VERSION: ${{ steps.check.outputs.NEW_VERSION }}
+      VERSION_TAG: ${{ steps.version.outputs.TAG }}
     steps:
       - name: Clone repo
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           fetch-depth: 0
-          token: ${{ secrets.BOT_PAT }}
+          token: ${{ secrets.EXTENSIONS_PAT }}
 
       - name: Extract version from build.gradle.kts
         id: version
@@ -35,25 +41,208 @@ jobs:
           echo "TAG=$tag_name" >> $GITHUB_OUTPUT
 
       - name: Check if tag already exists
-        id: tag_check
+        id: check
         run: |
           if git rev-parse "${{ steps.version.outputs.TAG }}" >/dev/null 2>&1; then
-            echo "EXISTS=true"
-            echo "EXISTS=true" >> $GITHUB_OUTPUT
+            echo "NEW_VERSION=false"
+            echo "NEW_VERSION=false" >> $GITHUB_OUTPUT
+            echo "Tag ${{ steps.version.outputs.TAG }} already exists. Skipping."
           else
-            echo "EXISTS=false"
-            echo "EXISTS=false" >> $GITHUB_OUTPUT
+            echo "NEW_VERSION=true"
+            echo "NEW_VERSION=true" >> $GITHUB_OUTPUT
+            echo "New version detected: ${{ steps.version.outputs.TAG }}"
+
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git tag -a "${{ steps.version.outputs.TAG }}" -m "Release ${{ steps.version.outputs.TAG }}"
+            git push origin "${{ steps.version.outputs.TAG }}"
+            echo "Created and pushed tag: ${{ steps.version.outputs.TAG }}"
           fi
 
-      - name: Create and push tag
-        if: steps.tag_check.outputs.EXISTS == 'false'
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git tag -a "${{ steps.version.outputs.TAG }}" -m "Release ${{ steps.version.outputs.TAG }}"
-          git push origin "${{ steps.version.outputs.TAG }}"
-          echo "Created and pushed tag: ${{ steps.version.outputs.TAG }}"
+  prepare-build:
+    name: Prepare build metadata
+    runs-on: 'ubuntu-24.04'
+    needs: check-version
+    if: needs.check-version.outputs.NEW_VERSION == 'true'
+    outputs:
+      VERSION_TAG: ${{ steps.version.outputs.TAG }}
+      CURRENT_SHA: ${{ steps.current_commit.outputs.CURRENT_SHA }}
+      PREV_RELEASE_SHA: ${{ steps.previous_commit.outputs.PREV_RELEASE_SHA }}
+      COMMIT_LOGS: ${{ steps.commit_logs.outputs.COMMIT_LOGS }}
+      PREV_TAG_NAME: ${{ steps.previous_commit.outputs.PREV_TAG_NAME }}
+    steps:
+      - name: Clone repo
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
 
-      - name: Skip (tag already exists)
-        if: steps.tag_check.outputs.EXISTS == 'true'
-        run: echo "Tag ${{ steps.version.outputs.TAG }} already exists. Skipping."
+      - name: Version info
+        id: version
+        run: |
+          echo "TAG=${{ needs.check-version.outputs.VERSION_TAG }}"
+          echo "TAG=${{ needs.check-version.outputs.VERSION_TAG }}" >> $GITHUB_OUTPUT
+
+      - name: Get previous release
+        id: last_release
+        uses: InsonusK/get-latest-release@7a9ff16c8c6b7ead5d71c0f1cc61f2703170eade # v1.1.0
+        with:
+          myToken: ${{ github.token }}
+          exclude_types: "draft|prerelease"
+          view_top: 1
+
+      - name: Current commit
+        id: current_commit
+        run: |
+          commit_count=$(git rev-list --count HEAD)
+          current_sha=$(git rev-parse --short HEAD)
+          echo "COMMIT_COUNT=$commit_count"
+          echo "COMMIT_COUNT=$commit_count" >> $GITHUB_OUTPUT
+          echo "CURRENT_SHA=$current_sha"
+          echo "CURRENT_SHA=$current_sha" >> $GITHUB_OUTPUT
+
+      - name: Previous commit
+        id: previous_commit
+        run: |
+          commit_count_diff=$(git rev-list --count "${{ steps.last_release.outputs.tag_name }}"..HEAD)
+
+          # Fake at least 1 commit (to avoid no changes)
+          if [ "${commit_count_diff}" -eq 0 ]; then
+            commit_count_diff=1
+          fi
+
+          echo "commit_count_diff=$commit_count_diff"
+          prev_release_sha=$(git rev-parse --short HEAD~$commit_count_diff)
+          echo "PREV_RELEASE_SHA=$prev_release_sha"
+          echo "PREV_RELEASE_SHA=$prev_release_sha" >> $GITHUB_OUTPUT
+          echo "PREV_TAG_NAME=${{ steps.last_release.outputs.tag_name }}"
+          echo "PREV_TAG_NAME=${{ steps.last_release.outputs.tag_name }}" >> $GITHUB_OUTPUT
+
+      - name: Commit logs
+        id: commit_logs
+        run: |
+          echo "COMMIT_LOGS<<{delimiter}
+          $(curl -H "Accept: application/vnd.github.v3+json" \
+            "https://api.github.com/repos/${{ github.repository }}/compare/${{ steps.previous_commit.outputs.PREV_RELEASE_SHA }}...${{ steps.current_commit.outputs.CURRENT_SHA }}" \
+            | jq '[.commits[]|{message:(.commit.message | split("\n")), username:.author.login}]' \
+            | jq -r '.[]|"- \(.message | first) (@\(.username))"')
+          {delimiter}" >> $GITHUB_OUTPUT
+
+  build-app:
+    name: Build release app
+    runs-on: 'ubuntu-24.04'
+    needs: prepare-build
+    steps:
+      - name: Clone repo
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK
+        uses: actions/setup-java@1bcf9fb12cf4aa7d266a90ae39939e61372fe520 # v5.4.0
+        with:
+          java-version-file: .github/.java-version
+          distribution: temurin
+
+      - name: Write google-services.json
+        uses: DamianReeves/write-file-action@6929a9a6d1807689191dcc8bbe62b54d70a32b42 # v1.3
+        with:
+          path: app/google-services.json
+          contents: ${{ secrets.GOOGLE_SERVICES_JSON }}
+          write-mode: overwrite
+
+      - name: Write client_secrets.json
+        uses: DamianReeves/write-file-action@6929a9a6d1807689191dcc8bbe62b54d70a32b42 # v1.3
+        with:
+          path: app/src/main/assets/client_secrets.json
+          contents: ${{ secrets.GOOGLE_CLIENT_SECRETS_JSON }}
+          write-mode: overwrite
+
+      - name: Set up gradle
+        uses: gradle/actions/setup-gradle@3f131e8634966bd73d06cc69884922b02e6faf92 # v6
+
+      - name: Check code format
+        run: ./gradlew spotlessCheck
+
+      - name: Build app
+        run: ./gradlew assembleRelease -Pinclude-telemetry -Penable-updater
+
+      - name: Run unit tests
+        run: ./gradlew testReleaseUnitTest
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          path: "**/*.apk"
+          retention-days: 1
+
+      - name: Upload mapping
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: mapping-${{ github.sha }}
+          path: app/build/outputs/mapping/release
+
+  release-app:
+    name: Sign and release
+    runs-on: 'ubuntu-24.04'
+    needs:
+      - prepare-build
+      - build-app
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          merge-multiple: true
+
+      - name: Sign APK
+        uses: r0adkll/sign-android-release@f30bdd30588842ac76044ecdbd4b6d0e3e813478
+        with:
+          releaseDirectory: app/build/outputs/apk/release
+          signingKeyBase64: ${{ secrets.SIGNING_KEY }}
+          alias: ${{ secrets.ALIAS }}
+          keyStorePassword: ${{ secrets.KEY_STORE_PASSWORD }}
+          keyPassword: ${{ secrets.KEY_PASSWORD }}
+        env:
+          BUILD_TOOLS_VERSION: '35.0.1'
+
+      - name: Rename APKs
+        run: |
+          set -e
+          mv app/build/outputs/apk/release/app-universal-release-unsigned-signed.apk Houri-${{ needs.prepare-build.outputs.VERSION_TAG }}.apk
+          mv app/build/outputs/apk/release/app-arm64-v8a-release-unsigned-signed.apk Houri-arm64-v8a-${{ needs.prepare-build.outputs.VERSION_TAG }}.apk
+          mv app/build/outputs/apk/release/app-armeabi-v7a-release-unsigned-signed.apk Houri-armeabi-v7a-${{ needs.prepare-build.outputs.VERSION_TAG }}.apk
+          mv app/build/outputs/apk/release/app-x86-release-unsigned-signed.apk Houri-x86-${{ needs.prepare-build.outputs.VERSION_TAG }}.apk
+          mv app/build/outputs/apk/release/app-x86_64-release-unsigned-signed.apk Houri-x86_64-${{ needs.prepare-build.outputs.VERSION_TAG }}.apk
+
+      - name: Create release
+        uses: softprops/action-gh-release@718ea10b132b3b2eba29c1007bb80653f286566b # v3.0.1
+        with:
+          tag_name: ${{ needs.prepare-build.outputs.VERSION_TAG }}
+          name: Houri ${{ needs.prepare-build.outputs.VERSION_TAG }}
+          body: |
+            [![GitHub downloads](https://img.shields.io/github/downloads/${{ github.repository }}/${{ needs.prepare-build.outputs.VERSION_TAG }}/total?label=Downloaded&labelColor=27303D&color=0D1117&logo=github&logoColor=FFFFFF&style=flat)](https://github.com/${{ github.repository }}/releases/${{ needs.prepare-build.outputs.VERSION_TAG }})
+            #### What's Changed
+            ##### New
+
+            ##### Improve
+
+            ##### Fix
+
+            ${{ needs.prepare-build.outputs.COMMIT_LOGS }}
+
+            ##### Based on
+
+            **Full Changelog**: [${{ github.repository }}@${{ needs.prepare-build.outputs.PREV_TAG_NAME }}...${{ needs.prepare-build.outputs.VERSION_TAG }}](https://github.com/${{ github.repository }}/compare/${{ needs.prepare-build.outputs.PREV_TAG_NAME }}...${{ needs.prepare-build.outputs.VERSION_TAG }})
+
+            <!-->
+            > [!TIP]
+            >
+            > ### If you are unsure which version to download then go with `Houri-${{ needs.prepare-build.outputs.VERSION_TAG }}.apk`
+          files: |
+            Houri-${{ needs.prepare-build.outputs.VERSION_TAG }}.apk
+            Houri-arm64-v8a-${{ needs.prepare-build.outputs.VERSION_TAG }}.apk
+            Houri-armeabi-v7a-${{ needs.prepare-build.outputs.VERSION_TAG }}.apk
+            Houri-x86-${{ needs.prepare-build.outputs.VERSION_TAG }}.apk
+            Houri-x86_64-${{ needs.prepare-build.outputs.VERSION_TAG }}.apk
+          draft: true
+          prerelease: false
+          token: ${{ secrets.GITHUB_TOKEN }}
