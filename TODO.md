@@ -15,6 +15,7 @@
 - [ ] Refresh manga details page when migrated (prevents having to exit the manga and view the details again for the changes to apply)
 - [ ] Improve Discord connection feature
 - [x] Enable EH functionality by default.
+- [ ] Make clean title reload library so changes populate
 
 ## Chores
 - [x] Replace all Komikku icons/branding with pineapple icons/branding
