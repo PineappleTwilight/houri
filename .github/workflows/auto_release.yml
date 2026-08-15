@@ -19,6 +19,7 @@ jobs:
   check-version:
     name: Check version
     runs-on: 'ubuntu-24.04'
+    environment: Primary
     outputs:
       NEW_VERSION: ${{ steps.check.outputs.NEW_VERSION }}
       VERSION_TAG: ${{ steps.version.outputs.TAG }}
