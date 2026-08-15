@@ -8,7 +8,6 @@ plugins {
     id("mihon.code.lint")
     kotlin("multiplatform")
     kotlin("plugin.serialization")
-    id("com.github.ben-manes.versions")
 }
 
 kotlin {

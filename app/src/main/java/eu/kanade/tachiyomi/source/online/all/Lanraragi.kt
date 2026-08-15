@@ -210,11 +210,11 @@ class Lanraragi(delegate: HttpSource, val context: Context) :
                 }
                 var tries = 0
                 do {
-                    if (tries > /* KMK --> */ 0 /* KMK <-- */) {
+                    if (tries > 0) {
                         delay(200.milliseconds)
                     }
                     val jobDone = minionJobDone(task.job)
-                } while (!jobDone && tries++ < 3)
+                } while (!jobDone && tries++ < MAX_THUMBNAIL_POLL_RETRIES)
                 requestPreviewImage(page, cacheControl).apply {
                     if (code == 202) {
                         throw IOException("Thumbnail not ready")
@@ -227,6 +227,7 @@ class Lanraragi(delegate: HttpSource, val context: Context) :
     }
 
     companion object {
+        private const val MAX_THUMBNAIL_POLL_RETRIES = 3
         private val jsonParser = Json {
             ignoreUnknownKeys = true
         }

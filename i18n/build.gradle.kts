@@ -8,7 +8,6 @@ plugins {
     id("mihon.code.lint")
     kotlin("multiplatform")
     alias(libs.plugins.moko)
-    id("com.github.ben-manes.versions")
 }
 
 kotlin {

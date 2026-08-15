@@ -1,7 +1,6 @@
 plugins {
     id("mihon.library")
     kotlin("plugin.serialization")
-    id("com.github.ben-manes.versions")
 }
 
 android {

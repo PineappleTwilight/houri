@@ -96,6 +96,7 @@ sqldelight-dialects-sql = { module = "app.cash.sqldelight:sqlite-3-38-dialect", 
 junit-jupiter = { module = "org.junit.jupiter:junit-jupiter", version.ref = "junit" }
 junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher" }
 kotest-assertions = "io.kotest:kotest-assertions-core:6.2.1"
+kotest-assertions-nondeterministic = "io.kotest:kotest-assertions-nondeterministic:6.2.1"
 mockk = "io.mockk:mockk:1.14.11"
 
 voyager-navigator = { module = "cafe.adriel.voyager:voyager-navigator", version.ref = "voyager" }
@@ -129,5 +130,5 @@ coil = ["coil-core", "coil-gif", "coil-compose", "coil-network-okhttp"]
 shizuku = ["shizuku-api", "shizuku-provider"]
 sqldelight = ["sqldelight-android-driver", "sqldelight-coroutines", "sqldelight-android-paging"]
 voyager = ["voyager-navigator", "voyager-screenmodel", "voyager-tab-navigator", "voyager-transitions"]
-test = ["junit-jupiter", "kotest-assertions", "mockk"]
+test = ["junit-jupiter", "kotest-assertions", "kotest-assertions-nondeterministic", "mockk"]
 markdown = ["markdown-core", "markdown-coil"]

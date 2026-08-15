@@ -1,6 +1,8 @@
 package mihon.core.migration
 
 import io.kotest.assertions.nondeterministic.eventually
+import io.kotest.matchers.shouldBe
+import io.kotest.matchers.types.shouldBeInstanceOf
 import io.mockk.slot
 import io.mockk.spyk
 import io.mockk.verify
@@ -9,13 +11,10 @@ import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.newSingleThreadContext
-import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.jupiter.api.AfterAll
-import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertFalse
-import org.junit.jupiter.api.Assertions.assertInstanceOf
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -37,9 +36,9 @@ class MigratorTest {
     }
 
     @Test
-    fun initialVersion() = runBlocking {
+    fun initialVersion() = runTest {
         val strategy = migrationStrategyFactory.create(0, 1)
-        assertInstanceOf(InitialMigrationStrategy::class.java, strategy)
+        strategy.shouldBeInstanceOf<InitialMigrationStrategy>()
 
         val migrations = slot<List<Migration>>()
         val execute = strategy(listOf(Migration.of(Migration.ALWAYS) { true }, Migration.of(2f) { false }))
@@ -48,42 +47,42 @@ class MigratorTest {
 
         @Suppress("DeferredResultUnused")
         verify { migrationJobFactory.create(capture(migrations)) }
-        assertEquals(1, migrations.captured.size)
+        migrations.captured.size shouldBe 1
         eventually(2.seconds) { verify { migrationCompletedListener() } }
     }
 
     @Test
-    fun sameVersion() = runBlocking {
+    fun sameVersion() = runTest {
         val strategy = migrationStrategyFactory.create(1, 1)
-        assertInstanceOf(NoopMigrationStrategy::class.java, strategy)
+        strategy.shouldBeInstanceOf<NoopMigrationStrategy>()
 
         val execute = strategy(listOf(Migration.of(Migration.ALWAYS) { true }, Migration.of(2f) { false }))
 
         val result = execute.await()
-        assertFalse(result)
+        result shouldBe false
 
         @Suppress("DeferredResultUnused")
         verify(exactly = 0) { migrationJobFactory.create(any()) }
     }
 
     @Test
-    fun noMigrations() = runBlocking {
+    fun noMigrations() = runTest {
         val strategy = migrationStrategyFactory.create(1, 2)
-        assertInstanceOf(VersionRangeMigrationStrategy::class.java, strategy)
+        strategy.shouldBeInstanceOf<VersionRangeMigrationStrategy>()
 
         val execute = strategy(emptyList())
 
         val result = execute.await()
-        assertFalse(result)
+        result shouldBe false
 
         @Suppress("DeferredResultUnused")
         verify(exactly = 0) { migrationJobFactory.create(any()) }
     }
 
     @Test
-    fun smallMigration() = runBlocking {
+    fun smallMigration() = runTest {
         val strategy = migrationStrategyFactory.create(1, 2)
-        assertInstanceOf(VersionRangeMigrationStrategy::class.java, strategy)
+        strategy.shouldBeInstanceOf<VersionRangeMigrationStrategy>()
 
         val migrations = slot<List<Migration>>()
         val execute = strategy(listOf(Migration.of(Migration.ALWAYS) { true }, Migration.of(2f) { true }))
@@ -92,12 +91,12 @@ class MigratorTest {
 
         @Suppress("DeferredResultUnused")
         verify { migrationJobFactory.create(capture(migrations)) }
-        assertEquals(2, migrations.captured.size)
+        migrations.captured.size shouldBe 2
         eventually(2.seconds) { verify { migrationCompletedListener() } }
     }
 
     @Test
-    fun largeMigration() = runBlocking {
+    fun largeMigration() = runTest {
         val input = listOf(
             Migration.of(Migration.ALWAYS) { true },
             Migration.of(2f) { true },
@@ -112,7 +111,7 @@ class MigratorTest {
         )
 
         val strategy = migrationStrategyFactory.create(1, 10)
-        assertInstanceOf(VersionRangeMigrationStrategy::class.java, strategy)
+        strategy.shouldBeInstanceOf<VersionRangeMigrationStrategy>()
 
         val migrations = slot<List<Migration>>()
         val execute = strategy(input)
@@ -121,14 +120,14 @@ class MigratorTest {
 
         @Suppress("DeferredResultUnused")
         verify { migrationJobFactory.create(capture(migrations)) }
-        assertEquals(10, migrations.captured.size)
+        migrations.captured.size shouldBe 10
         eventually(2.seconds) { verify { migrationCompletedListener() } }
     }
 
     @Test
-    fun withinRangeMigration() = runBlocking {
+    fun withinRangeMigration() = runTest {
         val strategy = migrationStrategyFactory.create(1, 2)
-        assertInstanceOf(VersionRangeMigrationStrategy::class.java, strategy)
+        strategy.shouldBeInstanceOf<VersionRangeMigrationStrategy>()
 
         val migrations = slot<List<Migration>>()
         val execute = strategy(
@@ -143,7 +142,7 @@ class MigratorTest {
 
         @Suppress("DeferredResultUnused")
         verify { migrationJobFactory.create(capture(migrations)) }
-        assertEquals(2, migrations.captured.size)
+        migrations.captured.size shouldBe 2
         eventually(2.seconds) { verify { migrationCompletedListener() } }
     }
 
