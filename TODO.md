@@ -20,6 +20,7 @@
 - [x] Enable EH functionality by default.
 - [x] Refresh library on title clean
 - [x] Fix some extensions not registering
+- [ ] Fix mass migration crashes (needs more investigation to determine if this was one-off)
 
 ## Chores
 - [x] Replace all Komikku icons/branding with pineapple icons/branding
