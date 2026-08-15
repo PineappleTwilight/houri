@@ -1,0 +1,58 @@
+name: Auto Release
+# Auto-create a release tag when versionName changes in build.gradle.kts
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - 'app/build.gradle.kts'
+
+permissions:
+  contents: write
+
+jobs:
+  check-version:
+    name: Check version and create tag
+    runs-on: 'ubuntu-24.04'
+
+    steps:
+      - name: Clone repo
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+
+      - name: Extract version from build.gradle.kts
+        id: version
+        run: |
+          version_name=$(grep -oP 'versionName\s*=\s*"\K[^"]+' app/build.gradle.kts)
+          echo "VERSION=$version_name"
+          echo "VERSION=$version_name" >> $GITHUB_OUTPUT
+
+          tag_name="v$version_name"
+          echo "TAG=$tag_name"
+          echo "TAG=$tag_name" >> $GITHUB_OUTPUT
+
+      - name: Check if tag already exists
+        id: tag_check
+        run: |
+          if git rev-parse "${{ steps.version.outputs.TAG }}" >/dev/null 2>&1; then
+            echo "EXISTS=true"
+            echo "EXISTS=true" >> $GITHUB_OUTPUT
+          else
+            echo "EXISTS=false"
+            echo "EXISTS=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create and push tag
+        if: steps.tag_check.outputs.EXISTS == 'false'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -a "${{ steps.version.outputs.TAG }}" -m "Release ${{ steps.version.outputs.TAG }}"
+          git push origin "${{ steps.version.outputs.TAG }}"
+          echo "Created and pushed tag: ${{ steps.version.outputs.TAG }}"
+
+      - name: Skip (tag already exists)
+        if: steps.tag_check.outputs.EXISTS == 'true'
+        run: echo "Tag ${{ steps.version.outputs.TAG }} already exists. Skipping."
