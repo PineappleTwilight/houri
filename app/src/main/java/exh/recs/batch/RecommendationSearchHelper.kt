@@ -48,7 +48,6 @@ import tachiyomi.domain.recommendation.model.CachedRecommendation
 import tachiyomi.domain.track.interactor.GetTracks
 import tachiyomi.domain.track.model.Track
 import uy.kohesive.injekt.injectLazy
-import java.io.Serializable
 import java.util.Collections
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.milliseconds
@@ -71,6 +70,9 @@ class RecommendationSearchHelper(val context: Context) {
 
     // KMK -->
     private val logger = ResettableLogger { safeXLogTag() }
+
+    private var wifiLock: WifiManager.WifiLock? = null
+    private var wakeLock: PowerManager.WakeLock? = null
 
     private companion object {
         val CACHE_TTL = 24.hours
@@ -368,7 +370,7 @@ data class Results<T>(
     @StringRes val recSourceCategoryResId: Int,
     val recAssociatedSourceId: Long?,
     val results: T,
-) : Serializable
+) : java.io.Serializable
 
 sealed interface SearchStatus {
     data object Idle : SearchStatus
