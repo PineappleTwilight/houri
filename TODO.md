@@ -21,8 +21,9 @@
 - [x] Enable EH functionality by default.
 - [x] Refresh library on title clean
 - [x] Fix some extensions not registering
-- [ ] Fix mass migration crashes (needs more investigation to determine if this was one-off)
+- [ ] Fix extension crashes related to R8 stripping
 - [x] Change about page's github URL to this fork repo
+- [ ] Fix "invalid_redirect" error with MangaBaka oAuth
 
 ## Chores
 - [x] Replace all Komikku icons/branding with pineapple icons/branding
