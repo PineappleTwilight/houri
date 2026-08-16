@@ -88,6 +88,9 @@ class AndroidSourceManager(
                 // KMK <--
                 // SY <--
                 .collectLatest { (extensions, enableExhentai/* KMK --> */, isHentaiEnabled/* KMK <-- */) ->
+                    // KMK -->
+                    try {
+                    // KMK <--
                     val mutableMap = ConcurrentHashMap<Long, Source>(
                         mapOf(
                             LocalSource.ID to LocalSource(
@@ -119,7 +122,14 @@ class AndroidSourceManager(
                     // KMK -->
                     extensions.forEach { extension ->
                         extension.sources.filterIsInstance<Source>()
-                            .mapNotNull { it.toInternalSource(isHentaiEnabled) }
+                            .mapNotNull {
+                                try {
+                                    it.toInternalSource(isHentaiEnabled)
+                                } catch (e: Throwable) {
+                                    xLogD("Failed to internalize source from extension: %s", e.message)
+                                    null
+                                }
+                            }
                             .forEach {
                                 mutableMap[it.id] = it
                                 registerStubSource(StubSource.from(it))
@@ -128,6 +138,11 @@ class AndroidSourceManager(
                     // KMK <--
                     sourcesMapFlow.value = mutableMap
                     _isInitialized.value = true
+                    // KMK -->
+                    } catch (e: Throwable) {
+                        xLogD("Failed to initialize source map: %s", e.message)
+                    }
+                    // KMK <--
                 }
         }
 
@@ -151,32 +166,38 @@ class AndroidSourceManager(
         val src = this ?: return null
         // KMK <--
         // EXH -->
-        val sourceQName = src::class.qualifiedName
-        val delegate = if (sourceQName != null) {
-            // KMK -->
-            DELEGATED_SOURCES.firstOrNull { delegated ->
-                sourceQName == delegated.originalSourceQualifiedClassName ||
-                    (delegated.factory && sourceQName.startsWith(delegated.originalSourceQualifiedClassName))
-            }
-            // KMK <--
-        } else {
-            null
+        // KMK -->
+        // Use javaClass.name instead of ::class.qualifiedName — R8 strips
+        // Kotlin intrinsic null checks on classloader-loaded objects, causing
+        // getClass() NPE. javaClass is a direct JVM call that R8 cannot strip.
+        val sourceQName = src.javaClass.name
+        // KMK <--
+        val delegate = DELEGATED_SOURCES.firstOrNull { delegated ->
+            sourceQName == delegated.originalSourceQualifiedClassName ||
+                (delegated.factory && sourceQName.startsWith(delegated.originalSourceQualifiedClassName))
         }
         val newSource = if (src is HttpSource && delegate != null) {
             xLogD("Delegating source: %s -> %s!", sourceQName, delegate.newSourceClass.qualifiedName)
-            val enhancedSource = EnhancedHttpSource(
-                src,
-                delegate.newSourceClass.constructors.find { it.parameters.size == 2 }!!.call(src, context),
-            )
+            try {
+                val enhancedSource = EnhancedHttpSource(
+                    src,
+                    delegate.newSourceClass.constructors.find { it.parameters.size == 2 }!!.call(src, context),
+                )
 
-            currentDelegatedSources[enhancedSource.originalSource.id] = DelegatedSource(
-                enhancedSource.originalSource.name,
-                enhancedSource.originalSource.id,
-                enhancedSource.originalSource::class.qualifiedName ?: delegate.originalSourceQualifiedClassName,
-                (enhancedSource.enhancedSource as DelegatedHttpSource)::class,
-                delegate.factory,
-            )
-            enhancedSource
+                currentDelegatedSources[enhancedSource.originalSource.id] = DelegatedSource(
+                    enhancedSource.originalSource.name,
+                    enhancedSource.originalSource.id,
+                    // KMK -->
+                    enhancedSource.originalSource.javaClass.name,
+                    (enhancedSource.enhancedSource as DelegatedHttpSource).javaClass,
+                    // KMK <--
+                    delegate.factory,
+                )
+                enhancedSource
+            } catch (e: Throwable) {
+                xLogD("Failed to delegate source %s: %s", sourceQName, e.message)
+                src
+            }
         } else {
             src
         }

@@ -19,10 +19,30 @@
 -keepclassmembers class eu.kanade.tachiyomi.source.model.SMangaUpdate { <init>(...); }
 -keepclassmembers class eu.kanade.tachiyomi.source.model.Page { <init>(...); }
 -keepclassmembers class eu.kanade.tachiyomi.source.model.FilterList { <init>(...); }
-# Keep Kotlin intrinsics for source API classes. Extensions loaded via classloader
-# may have null elements in typed lists (JVM erasure); R8 must not strip the
-# null-check assertions that prevent getClass() NPEs.
--keep class kotlin.jvm.internal.Intrinsics { *; }
+
+# Prevent R8 devirtualization on the Source interface. Extensions loaded via
+# classloader implement Source, but R8 can't see their overrides and may
+# devirtualize calls → NPE when null checks on receivers are stripped.
+-keep,allowobfuscation interface eu.kanade.tachiyomi.source.Source { *; }
+
+# Keep EnhancedHttpSource and DelegatedHttpSource fully — R8 must not strip
+# fields, methods, or constructors on classes that wrap classloader-loaded sources.
+-keepclassmembers class exh.source.EnhancedHttpSource { *; }
+-keepclassmembers class exh.source.DelegatedHttpSource { *; }
+
+# Prevent R8 from stripping javaClass references on Source/HttpSource objects.
+# javaClass is a direct JVM call that R8 cannot optimize away, unlike
+# Kotlin's ::class property which compiles to Intrinsics.checkNotNull + getClass().
+-keepclassmembers class * extends eu.kanade.tachiyomi.source.online.HttpSource {
+    public java.lang.Class getClass();
+}
+-keepclassmembers class * extends exh.source.DelegatedHttpSource {
+    public java.lang.Class getClass();
+}
+
+# Prevent R8 from merging/sealing Source interface hierarchy across
+# classloader boundaries. Extension sources exist in separate dex files.
+-keep,allowobfuscation class * implements eu.kanade.tachiyomi.source.Source { *; }
 # KMK <--
 
 # KMK -->

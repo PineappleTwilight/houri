@@ -20,3 +20,28 @@
 -keep,allowoptimization class eu.kanade.tachiyomi.util.JsoupExtensionsKt { public protected *; }
 
 -keep class exh.metadata.** { public protected *; }
+
+# KMK -->
+# Prevent R8 devirtualization on the Source interface. Extension APKs loaded
+# via classloader implement Source, but R8 cannot see those implementations
+# across dex boundaries. Devirtualization + null-check stripping = NPE.
+-keep,allowobfuscation interface eu.kanade.tachiyomi.source.Source { *; }
+
+# Keep HttpSource methods to prevent R8 from making them final when it
+# cannot see classloader-loaded overrides.
+-keep,allowobfuscation class eu.kanade.tachiyomi.source.online.HttpSource {
+    public protected <methods>;
+    public protected <fields>;
+}
+
+# Keep EnhancedHttpSource / DelegatedHttpSource fields and constructors.
+# R8 must not strip fields read after classloader-loaded objects are wrapped.
+-keepclassmembers class exh.source.EnhancedHttpSource {
+    <init>(...);
+    public protected *;
+}
+-keepclassmembers class exh.source.DelegatedHttpSource {
+    <init>(...);
+    public protected *;
+}
+# KMK <--
