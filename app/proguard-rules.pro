@@ -6,6 +6,22 @@
 -keep,allowoptimization class exh.**
 
 # KMK -->
+# Keep ALL constructors for Filter model classes. Extensions compiled against
+# this API call synthetic constructors (generated for Kotlin default parameters)
+# directly via bytecode. R8 must not strip them.
+-keepclassmembers class eu.kanade.tachiyomi.source.model.Filter** {
+    <init>(...);
+}
+# Keep ALL constructors for other model classes used by extensions.
+-keepclassmembers class eu.kanade.tachiyomi.source.model.SManga { <init>(...); }
+-keepclassmembers class eu.kanade.tachiyomi.source.model.SChapter { <init>(...); }
+-keepclassmembers class eu.kanade.tachiyomi.source.model.MangasPage { <init>(...); }
+-keepclassmembers class eu.kanade.tachiyomi.source.model.SMangaUpdate { <init>(...); }
+-keepclassmembers class eu.kanade.tachiyomi.source.model.Page { <init>(...); }
+-keepclassmembers class eu.kanade.tachiyomi.source.model.FilterList { <init>(...); }
+# KMK <--
+
+# KMK -->
 # Keep ShellInterface constructor for Shizuku reflection-based instantiation
 # (Shizuku server uses Class.newInstance() in a separate process)
 -keep class mihon.app.shizuku.ShellInterface {
