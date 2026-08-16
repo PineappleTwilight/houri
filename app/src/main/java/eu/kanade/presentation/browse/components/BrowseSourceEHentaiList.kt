@@ -43,6 +43,8 @@ import exh.metadata.metadata.EHentaiSearchMetadata
 import exh.metadata.metadata.RaisedSearchMetadata
 import exh.util.SourceTagsUtil
 import exh.util.SourceTagsUtil.GenreColor
+import exh.util.SourceTagsUtil.censorshipColor
+import exh.util.SourceTagsUtil.censorshipTextColor
 import exh.util.SourceTagsUtil.genreTextColor
 import exh.util.floor
 import kotlinx.coroutines.flow.StateFlow
@@ -191,6 +193,7 @@ fun BrowseSourceEHentaiListItem(
             rating?.div(0.5F)?.floor()?.let { 0.5F.times(it) } ?: 0f
         }
     }
+    val censorship = censorshipColor(metadata.censorshipStatus ?: metadata.detectCensorshipStatus())
 
     Row(
         modifier = Modifier
@@ -298,6 +301,17 @@ fun BrowseSourceEHentaiListItem(
                             // KMK -->
                             color = textColor,
                             // KMK <--
+                            modifier = Modifier.padding(vertical = 4.dp, horizontal = 8.dp),
+                            maxLines = 1,
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                    }
+                    Card(
+                        colors = CardDefaults.cardColors(Color(censorship.color)),
+                    ) {
+                        Text(
+                            text = censorship.label,
+                            color = Color(censorshipTextColor(censorship)),
                             modifier = Modifier.padding(vertical = 4.dp, horizontal = 8.dp),
                             maxLines = 1,
                             style = MaterialTheme.typography.bodyMedium,

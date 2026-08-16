@@ -3,6 +3,7 @@ package exh.ui.metadata.adapters
 import android.annotation.SuppressLint
 import android.content.res.ColorStateList
 import android.view.LayoutInflater
+import android.view.View
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
@@ -21,6 +22,8 @@ import exh.metadata.MetadataUtil
 import exh.metadata.metadata.EHentaiSearchMetadata
 import exh.ui.metadata.adapters.MetadataUIUtil.bindDrawable
 import exh.util.SourceTagsUtil
+import exh.util.SourceTagsUtil.censorshipColor
+import exh.util.SourceTagsUtil.censorshipTextColor
 import exh.util.SourceTagsUtil.genreTextColor
 import tachiyomi.core.common.i18n.pluralStringResource
 import tachiyomi.core.common.i18n.stringResource
@@ -63,6 +66,12 @@ fun EHentaiDescription(
                     }
                     ?: meta.genre
                     ?: context.stringResource(MR.strings.unknown)
+
+            val censorship = censorshipColor(meta.censorshipStatus ?: meta.detectCensorshipStatus())
+            binding.censorshipBadge.visibility = View.VISIBLE
+            binding.censorshipText.text = censorship.label
+            binding.censorshipText.setBackgroundColor(censorship.color)
+            binding.censorshipText.setTextColor(censorshipTextColor(censorship))
 
             binding.visible.text =
                 context.stringResource(
@@ -132,6 +141,7 @@ fun EHentaiDescription(
             listOf(
                 binding.favorites,
                 binding.genre,
+                binding.censorshipText,
                 binding.language,
                 binding.pages,
                 binding.rating,

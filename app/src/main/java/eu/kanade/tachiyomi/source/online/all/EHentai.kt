@@ -36,6 +36,10 @@ import exh.log.xLogD
 import exh.log.xLogI
 import exh.metadata.MetadataUtil
 import exh.metadata.metadata.EHentaiSearchMetadata
+import exh.metadata.metadata.EHentaiSearchMetadata.Companion.CENSORSHIP_STATUS_CENSORED
+import exh.metadata.metadata.EHentaiSearchMetadata.Companion.CENSORSHIP_STATUS_DECENSORED
+import exh.metadata.metadata.EHentaiSearchMetadata.Companion.CENSORSHIP_STATUS_UNCENSORED
+import exh.metadata.metadata.EHentaiSearchMetadata.Companion.EH_CENSORSHIP_NAMESPACE
 import exh.metadata.metadata.EHentaiSearchMetadata.Companion.EH_GENRE_NAMESPACE
 import exh.metadata.metadata.EHentaiSearchMetadata.Companion.EH_META_NAMESPACE
 import exh.metadata.metadata.EHentaiSearchMetadata.Companion.EH_UPLOADER_NAMESPACE
@@ -43,6 +47,7 @@ import exh.metadata.metadata.EHentaiSearchMetadata.Companion.EH_VISIBILITY_NAMES
 import exh.metadata.metadata.EHentaiSearchMetadata.Companion.TAG_TYPE_LIGHT
 import exh.metadata.metadata.EHentaiSearchMetadata.Companion.TAG_TYPE_NORMAL
 import exh.metadata.metadata.EHentaiSearchMetadata.Companion.TAG_TYPE_WEAK
+import exh.metadata.metadata.RaisedSearchMetadata
 import exh.metadata.metadata.RaisedSearchMetadata.Companion.TAG_TYPE_VIRTUAL
 import exh.metadata.metadata.RaisedSearchMetadata.Companion.toGenreString
 import exh.metadata.metadata.base.RaisedTag
@@ -208,6 +213,8 @@ class EHentai(
                 },
                 metadata = EHentaiSearchMetadata().apply {
                     tags += parsedTags
+
+                    censorshipStatus = detectCensorshipStatus()
 
                     if (infoElements != null) {
                         genre = getGenre(infoElements.getOrNull(1))
@@ -574,7 +581,9 @@ class EHentai(
     override fun fetchSearchManga(page: Int, query: String, filters: FilterList): Observable<MangasPage> =
         urlImportFetchSearchManga(context, query) {
             @Suppress("DEPRECATION")
-            super.fetchSearchManga(page, query, filters).checkValid()
+            super.fetchSearchManga(page, query, filters)
+                .checkValid()
+                .map { sortMangasByCensorship(it, filters) }
         }
 
     override suspend fun getSearchManga(page: Int, query: String, filters: FilterList): MangasPage {
@@ -600,7 +609,7 @@ class EHentai(
         val jumpSeekValue = filters.firstNotNullOfOrNull { (it as? JumpSeekFilter)?.state?.nullIfBlank() }
 
         uri.appendQueryParameter("f_apply", "Apply+Filter")
-        uri.appendQueryParameter("f_search", (query + " " + combineQuery(filters)).trim())
+        uri.appendQueryParameter("f_search", buildSearchQuery(query, filters))
         filters.forEach {
             if (it is UriFilter) it.addToUri(uri)
         }
@@ -629,6 +638,38 @@ class EHentai(
             next = if (!isReverseFilterEnabled) page else null,
             prev = if (isReverseFilterEnabled) page else null,
         )
+    }
+
+    private fun buildSearchQuery(query: String, filters: FilterList): String {
+        val censorshipQuery = filters.firstNotNullOfOrNull { (it as? CensorshipFilter)?.query()?.nullIfBlank() }
+        return listOf(
+            query.trim(),
+            combineQuery(filters),
+            censorshipQuery.orEmpty(),
+        ).filter { it.isNotBlank() }
+            .joinToString(" ")
+    }
+
+    private fun sortMangasByCensorship(page: MangasPage, filters: FilterList): MangasPage {
+        val selection = filters.filterIsInstance<CensorshipSort>().firstOrNull()?.state
+        if (selection == null || selection.index == 0 || page !is MetadataMangasPage) return page
+
+        val ordered = page.mangas.zip(page.mangasMetadata)
+            .sortedWith(compareBy { censorshipRank(it.second) })
+        val result = if (selection.ascending) ordered else ordered.reversed()
+
+        return page.copy(
+            mangas = result.map { it.first },
+            mangasMetadata = result.map { it.second },
+        )
+    }
+
+    private fun censorshipRank(metadata: RaisedSearchMetadata): Int {
+        return when ((metadata as? EHentaiSearchMetadata)?.censorshipStatus?.lowercase()) {
+            CENSORSHIP_STATUS_DECENSORED -> 1
+            CENSORSHIP_STATUS_UNCENSORED -> 2
+            else -> 0
+        }
     }
 
     @Suppress("DEPRECATION")
@@ -863,6 +904,9 @@ class EHentai(
                 genre?.let {
                     tags += RaisedTag(EH_GENRE_NAMESPACE, it, TAG_TYPE_VIRTUAL)
                 }
+                val censorStatus = detectCensorshipStatus()
+                censorshipStatus = censorStatus
+                tags += RaisedTag(EH_CENSORSHIP_NAMESPACE, censorStatus, TAG_TYPE_VIRTUAL)
                 if (aged) {
                     tags += RaisedTag(EH_META_NAMESPACE, "aged", TAG_TYPE_VIRTUAL)
                 }
@@ -1058,6 +1102,8 @@ class EHentai(
             AutoCompleteTags(),
             Watched(isEnabled = exhPreferences.exhWatchedListDefaultState().get()),
             GenreGroup(),
+            CensorshipFilter(),
+            CensorshipSort(),
             AdvancedGroup(),
             ReverseFilter(),
             JumpSeekFilter(),
@@ -1117,6 +1163,24 @@ class EHentai(
             builder.appendQueryParameter("f_cats", bits.toString())
         }
     }
+
+    class CensorshipFilter : Filter.Select<String>(
+        "Censorship",
+        arrayOf("All", "Censored", "Decensored", "Uncensored"),
+    ) {
+        fun query(): String = when (state) {
+            1 -> "$EH_CENSORSHIP_NAMESPACE:$CENSORSHIP_STATUS_CENSORED"
+            2 -> "$EH_CENSORSHIP_NAMESPACE:$CENSORSHIP_STATUS_DECENSORED"
+            3 -> "$EH_CENSORSHIP_NAMESPACE:$CENSORSHIP_STATUS_UNCENSORED"
+            else -> ""
+        }
+    }
+
+    class CensorshipSort : Filter.Sort(
+        "Sort by Censorship",
+        arrayOf("Default", "Censorship status"),
+        Filter.Sort.Selection(0, true),
+    )
 
     class AdvancedOption(
         name: String,

@@ -13,6 +13,7 @@ firebase-bom = "34.15.0"
 markdown = "0.39.2"
 junit = "6.0.3"
 materialKolor = "5.0.0-alpha07"
+ben-manes-versions = "0.54.0"
 
 [libraries]
 desugar = "com.android.tools:desugar_jdk_libs:2.1.5"
@@ -120,6 +121,7 @@ sqldelight = { id = "app.cash.sqldelight", version.ref = "sqldelight" }
 moko = { id = "dev.icerock.mobile.multiplatform-resources", version.ref = "moko" }
 firebase-crashlytics = { id = "com.google.firebase.crashlytics", version = "3.0.7" }
 android-kmp-library = { id = "com.android.kotlin.multiplatform.library" }
+ben-manes-versions = { id = "com.github.ben-manes.versions", version.ref = "ben-manes-versions" }
 
 [bundles]
 okhttp = ["okhttp-core", "okhttp-logging", "okhttp-brotli", "okhttp-dnsoverhttps", "okhttp-zstd"]

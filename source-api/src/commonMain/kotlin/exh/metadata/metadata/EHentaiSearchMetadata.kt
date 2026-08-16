@@ -33,6 +33,8 @@ class EHentaiSearchMetadata : RaisedSearchMetadata() {
 
     var genre: String? = null
 
+    var censorshipStatus: String? = null
+
     var datePosted: Long? = null
     var parent: String? = null
 
@@ -85,9 +87,22 @@ class EHentaiSearchMetadata : RaisedSearchMetadata() {
             }
         }
 
+        val censorStatus = censorshipStatus ?: detectCensorshipStatus()
+        val displayTitle = (title ?: manga.title)?.let { t ->
+            when (censorStatus) {
+                CENSORSHIP_STATUS_DECENSORED ->
+                    if (t.startsWith(CENSORSHIP_TITLE_DECENSORED, ignoreCase = true)) t
+                    else "$CENSORSHIP_TITLE_DECENSORED $t"
+                CENSORSHIP_STATUS_UNCENSORED ->
+                    if (t.startsWith(CENSORSHIP_TITLE_UNCENSORED, ignoreCase = true)) t
+                    else "$CENSORSHIP_TITLE_UNCENSORED $t"
+                else -> t
+            }
+        }
+
         return manga.copy(
             url = key ?: manga.url,
-            title = title ?: manga.title,
+            title = displayTitle ?: manga.title,
             artist = group ?: manga.artist,
             author = artist ?: manga.artist,
             description = null,
@@ -95,6 +110,15 @@ class EHentaiSearchMetadata : RaisedSearchMetadata() {
             status = status,
             thumbnail_url = cover ?: manga.thumbnail_url,
         )
+    }
+
+    fun detectCensorshipStatus(): String {
+        val otherTags = tags.ofNamespace(EH_OTHER_NAMESPACE).map { it.name.lowercase() }
+        return when {
+            otherTags.any { it == "full censorship" || it == "mosaic censorship" } -> CENSORSHIP_STATUS_DECENSORED
+            otherTags.any { it == "uncensored" } -> CENSORSHIP_STATUS_UNCENSORED
+            else -> CENSORSHIP_STATUS_CENSORED
+        }
     }
 
     override fun getExtraInfoPairs(context: Context): List<Pair<String, String>> {
@@ -154,6 +178,14 @@ class EHentaiSearchMetadata : RaisedSearchMetadata() {
         const val EH_META_NAMESPACE = "meta"
         const val EH_UPLOADER_NAMESPACE = "uploader"
         const val EH_VISIBILITY_NAMESPACE = "visibility"
+        const val EH_CENSORSHIP_NAMESPACE = "censorship"
+        private const val EH_OTHER_NAMESPACE = "other"
+
+        const val CENSORSHIP_STATUS_DECENSORED = "decensored"
+        const val CENSORSHIP_STATUS_UNCENSORED = "uncensored"
+        const val CENSORSHIP_STATUS_CENSORED = "censored"
+        private const val CENSORSHIP_TITLE_DECENSORED = "[Decensored]"
+        private const val CENSORSHIP_TITLE_UNCENSORED = "[Uncensored]"
 
         private fun splitGalleryUrl(url: String) =
             url.let {

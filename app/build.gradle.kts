@@ -10,7 +10,7 @@ plugins {
     kotlin("plugin.parcelize")
     kotlin("plugin.serialization")
     alias(libs.plugins.aboutLibraries)
-    id("com.github.ben-manes.versions")
+    alias(libs.plugins.ben.manes.versions)
 }
 
 if (Config.includeTelemetry) {

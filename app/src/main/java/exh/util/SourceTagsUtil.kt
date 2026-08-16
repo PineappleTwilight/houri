@@ -8,6 +8,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.core.graphics.toColorInt
+import exh.metadata.metadata.EHentaiSearchMetadata
 import exh.metadata.metadata.base.RaisedTag
 import exh.source.PURURIN_SOURCE_ID
 import exh.source.TSUMINO_SOURCE_ID
@@ -124,6 +125,29 @@ object SourceTagsUtil {
             GenreColor.COSPLAY_COLOR -> Color.WHITE
             GenreColor.ASIAN_PORN_COLOR -> Color.BLACK
             GenreColor.MISC_COLOR -> Color.BLACK
+        }
+    }
+
+    enum class CensorshipStatus(val color: Int, val label: String) {
+        CENSORED("#9e9e9e", "Censored"),
+        DECENSORED("#ff9800", "Decensored"),
+        UNCENSORED("#4caf50", "Uncensored"),
+        ;
+
+        constructor(color: String, label: String) : this(color.toColorInt(), label)
+    }
+
+    fun censorshipColor(status: String?): CensorshipStatus = when (status?.lowercase()) {
+        EHentaiSearchMetadata.CENSORSHIP_STATUS_DECENSORED -> CensorshipStatus.DECENSORED
+        EHentaiSearchMetadata.CENSORSHIP_STATUS_UNCENSORED -> CensorshipStatus.UNCENSORED
+        else -> CensorshipStatus.CENSORED
+    }
+
+    @ColorInt fun censorshipTextColor(status: CensorshipStatus): Int {
+        return when (status) {
+            CensorshipStatus.CENSORED -> Color.WHITE
+            CensorshipStatus.DECENSORED -> Color.BLACK
+            CensorshipStatus.UNCENSORED -> Color.BLACK
         }
     }
 

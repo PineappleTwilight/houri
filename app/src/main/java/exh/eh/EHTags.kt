@@ -15,6 +15,7 @@ import exh.eh.tags.Mixed
 import exh.eh.tags.Other
 import exh.eh.tags.Parody
 import exh.eh.tags.Reclass
+import exh.metadata.metadata.EHentaiSearchMetadata.Companion.EH_CENSORSHIP_NAMESPACE
 
 object EHTags {
     fun getAllTags(): List<String> = listOf(
@@ -48,5 +49,6 @@ object EHTags {
         "mixed",
         "location",
         "other",
+        EH_CENSORSHIP_NAMESPACE,
     )
 }
