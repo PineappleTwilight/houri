@@ -11,14 +11,17 @@
 # directly via bytecode. R8 must not strip them.
 -keepclassmembers class eu.kanade.tachiyomi.source.model.Filter** {
     <init>(...);
+    <fields>;
+    <methods>;
 }
-# Keep ALL constructors for other model classes used by extensions.
--keepclassmembers class eu.kanade.tachiyomi.source.model.SManga { <init>(...); }
--keepclassmembers class eu.kanade.tachiyomi.source.model.SChapter { <init>(...); }
--keepclassmembers class eu.kanade.tachiyomi.source.model.MangasPage { <init>(...); }
--keepclassmembers class eu.kanade.tachiyomi.source.model.SMangaUpdate { <init>(...); }
--keepclassmembers class eu.kanade.tachiyomi.source.model.Page { <init>(...); }
--keepclassmembers class eu.kanade.tachiyomi.source.model.FilterList { <init>(...); }
+# Keep ALL constructors and members for other model classes used by extensions.
+# Extensions call SManga.Companion.create(), SManga.setState(), etc. directly.
+-keepclassmembers class eu.kanade.tachiyomi.source.model.SManga { <init>(...); <fields>; <methods>; }
+-keepclassmembers class eu.kanade.tachiyomi.source.model.SChapter { <init>(...); <fields>; <methods>; }
+-keepclassmembers class eu.kanade.tachiyomi.source.model.MangasPage { <init>(...); <fields>; <methods>; }
+-keepclassmembers class eu.kanade.tachiyomi.source.model.SMangaUpdate { <init>(...); <fields>; <methods>; }
+-keepclassmembers class eu.kanade.tachiyomi.source.model.Page { <init>(...); <fields>; <methods>; }
+-keepclassmembers class eu.kanade.tachiyomi.source.model.FilterList { <init>(...); <fields>; <methods>; }
 
 # Prevent R8 devirtualization on the Source interface. Extensions loaded via
 # classloader implement Source, but R8 can't see their overrides and may
