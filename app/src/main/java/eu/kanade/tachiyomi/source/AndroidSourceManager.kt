@@ -116,12 +116,16 @@ class AndroidSourceManager(
                         put(MERGED_SOURCE_ID, MergedSource())
                         // SY <--
                     }
+                    // KMK -->
                     extensions.forEach { extension ->
-                        extension.sources.mapNotNull { it.toInternalSource(/* KMK --> */isHentaiEnabled/* KMK <-- */) }.forEach {
-                            mutableMap[it.id] = it
-                            registerStubSource(StubSource.from(it))
-                        }
+                        extension.sources.filterIsInstance<Source>()
+                            .mapNotNull { it.toInternalSource(isHentaiEnabled) }
+                            .forEach {
+                                mutableMap[it.id] = it
+                                registerStubSource(StubSource.from(it))
+                            }
                     }
+                    // KMK <--
                     sourcesMapFlow.value = mutableMap
                     _isInitialized.value = true
                 }
