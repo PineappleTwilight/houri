@@ -285,38 +285,47 @@ fun BrowseSourceEHentaiListItem(
                     val textColor = genre?.first?.let(::genreTextColor)?.let(::Color) ?: Color.Unspecified
                     // KMK <--
                     val res = genre?.second
-                    Card(
-                        colors = if (color != null) {
-                            CardDefaults.cardColors(Color(color))
-                        } else {
-                            CardDefaults.cardColors()
-                        },
+                    // KMK -->
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(MaterialTheme.padding.small),
+                        verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Text(
-                            text = if (res != null) {
-                                stringResource(res)
+                        // KMK <--
+                        Card(
+                            colors = if (color != null) {
+                                CardDefaults.cardColors(Color(color))
                             } else {
-                                metadata.genre.orEmpty()
+                                CardDefaults.cardColors()
                             },
-                            // KMK -->
-                            color = textColor,
-                            // KMK <--
-                            modifier = Modifier.padding(vertical = 4.dp, horizontal = 8.dp),
-                            maxLines = 1,
-                            style = MaterialTheme.typography.bodyMedium,
-                        )
+                        ) {
+                            Text(
+                                text = if (res != null) {
+                                    stringResource(res)
+                                } else {
+                                    metadata.genre.orEmpty()
+                                },
+                                // KMK -->
+                                color = textColor,
+                                // KMK <--
+                                modifier = Modifier.padding(vertical = 4.dp, horizontal = 8.dp),
+                                maxLines = 1,
+                                style = MaterialTheme.typography.bodyMedium,
+                            )
+                        }
+                        Card(
+                            colors = CardDefaults.cardColors(Color(censorship.color)),
+                        ) {
+                            Text(
+                                text = censorship.label,
+                                color = Color(censorshipTextColor(censorship)),
+                                modifier = Modifier.padding(vertical = 4.dp, horizontal = 8.dp),
+                                maxLines = 1,
+                                style = MaterialTheme.typography.bodyMedium,
+                            )
+                        }
+                        // KMK -->
                     }
-                    Card(
-                        colors = CardDefaults.cardColors(Color(censorship.color)),
-                    ) {
-                        Text(
-                            text = censorship.label,
-                            color = Color(censorshipTextColor(censorship)),
-                            modifier = Modifier.padding(vertical = 4.dp, horizontal = 8.dp),
-                            maxLines = 1,
-                            style = MaterialTheme.typography.bodyMedium,
-                        )
-                    }
+                    // KMK <--
                 }
                 Column(
                     verticalArrangement = Arrangement.spacedBy(MaterialTheme.padding.small),
