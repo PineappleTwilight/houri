@@ -22,12 +22,7 @@
 # Keep Kotlin intrinsics for source API classes. Extensions loaded via classloader
 # may have null elements in typed lists (JVM erasure); R8 must not strip the
 # null-check assertions that prevent getClass() NPEs.
--keep class kotlin.jvm.internal.Intrinsics {
-    static void checkNotNull(...);
-    static void checkNotNullParameter(...);
-    static void checkNotNullExpressionValue(...);
-    static void checkNotNull(..., java.lang.String);
-}
+-keep class kotlin.jvm.internal.Intrinsics { *; }
 # KMK <--
 
 # KMK -->
