@@ -50,12 +50,17 @@
 -keep,allowoptimization class com.squareup.zstd.** { public protected *; }
 
 # From extensions-lib
--keep,allowoptimization class eu.kanade.tachiyomi.network.interceptor.RateLimitInterceptorKt { public protected *; }
--keep,allowoptimization class eu.kanade.tachiyomi.network.interceptor.SpecificHostRateLimitInterceptorKt { public protected *; }
--keep,allowoptimization class eu.kanade.tachiyomi.network.NetworkHelper { public protected *; }
--keep,allowoptimization class eu.kanade.tachiyomi.network.OkHttpExtensionsKt { public protected *; }
--keep,allowoptimization class eu.kanade.tachiyomi.network.RequestsKt { public protected *; }
--keep,allowoptimization class eu.kanade.tachiyomi.AppInfo { public protected *; }
+# NOTE: Use { *; } instead of { public protected *; } for Kotlin files —
+# Kotlin generates synthetic $default bridge methods for functions with default
+# parameters. Extensions call $default directly when using defaults, but R8
+# cannot see those cross-APK call sites. The old { public protected *; }
+# excluded synthetic methods → NoSuchMethodError at runtime.
+-keep class eu.kanade.tachiyomi.network.interceptor.RateLimitInterceptorKt { *; }
+-keep class eu.kanade.tachiyomi.network.interceptor.SpecificHostRateLimitInterceptorKt { *; }
+-keep class eu.kanade.tachiyomi.network.NetworkHelper { *; }
+-keep class eu.kanade.tachiyomi.network.OkHttpExtensionsKt { *; }
+-keep class eu.kanade.tachiyomi.network.RequestsKt { *; }
+-keep class eu.kanade.tachiyomi.AppInfo { *; }
 
 # Debug functions
 -keep,allowoptimization class exh.debug.DebugFunctions { public *; }

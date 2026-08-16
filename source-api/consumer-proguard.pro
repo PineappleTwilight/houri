@@ -17,7 +17,14 @@
 -keepclassmembers class eu.kanade.tachiyomi.source.model.Page { <init>(...); }
 -keepclassmembers class eu.kanade.tachiyomi.source.model.FilterList { <init>(...); }
 
--keep,allowoptimization class eu.kanade.tachiyomi.util.JsoupExtensionsKt { public protected *; }
+# KMK -->
+# Kotlin generates synthetic $default bridge methods for functions with default
+# parameters. Extensions compiled against this API call $default directly when
+# using defaults, but R8 cannot see those cross-APK call sites. The old rule
+# used { public protected *; } which excluded synthetic methods →
+# NoSuchMethodError at runtime. Use { *; } to keep ALL members.
+-keep class eu.kanade.tachiyomi.util.JsoupExtensionsKt { *; }
+# KMK <--
 
 -keep class exh.metadata.** { public protected *; }
 
