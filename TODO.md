@@ -10,6 +10,7 @@
 - [~] Toggle to enable an anime girl moaning whenever a chapter is completed. Moans should be randomized and have different probabilities of appearing (gacha mechanic)
 - [x] Add content censorship status as a tag next to the content type tag (doujinshi, manga, etc) in e/exhentai. Content defaults to censored (no title marking), decensored (marked as [Decensored] in the title), or uncensored (marked as [Uncensored] in the title).
     - [x] Add accompanying sort/filter options for this change
+- [ ] Add tracker from Mihon upstream: Hikka
 
 ## Bugfixes
 - [x] Fix UI transition choppiness.
@@ -24,6 +25,7 @@
 - [x] Fix extension crashes related to R8 stripping
 - [x] Change about page's github URL to this fork repo
 - [x] Fix "invalid_redirect" error with MangaBaka oAuth
+- [ ] Change AnimePlanet ID to 12 (11 is hikka upstream)
 
 ## Chores
 - [x] Replace all Komikku icons/branding with pineapple icons/branding
