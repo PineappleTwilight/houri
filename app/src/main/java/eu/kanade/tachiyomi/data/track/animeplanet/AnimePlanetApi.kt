@@ -10,6 +10,7 @@ import tachiyomi.core.common.util.lang.withIOContext
 import java.net.URLEncoder
 
 class AnimePlanetApi(
+    private val trackId: Long,
     private val interceptor: AnimePlanetInterceptor,
     private val client: OkHttpClient,
 ) {
@@ -20,36 +21,8 @@ class AnimePlanetApi(
             .build()
     }
 
-    suspend fun authenticate(username: String, password: String): String = withIOContext {
-        val loginUrl = "$BASE_URL/login?username=${URLEncoder.encode(username, "UTF-8")}" +
-            "&password=${URLEncoder.encode(password, "UTF-8")}"
-
-        val request = Request.Builder()
-            .url(loginUrl)
-            .addHeader("Referer", "$BASE_URL/login")
-            .build()
-
-        val response = client.newCall(request).await()
-
-        val sessionCookie = response.header("Set-Cookie")
-            ?.split(";")
-            ?.firstOrNull { it.trim().startsWith("session=") }
-            ?.substringAfter("session=")
-            ?.trim()
-            ?: throw Exception("Login failed: No session cookie received")
-
-        val profileRequest = Request.Builder()
-            .url("$BASE_URL/users/$username")
-            .addHeader("Cookie", "session=$sessionCookie")
-            .build()
-
-        val profileResponse = client.newCall(profileRequest).await()
-        if (!profileResponse.isSuccessful) {
-            throw Exception("Login failed: Could not verify profile access")
-        }
-
-        sessionCookie
-    }
+    // KMK --> login moved to AnimePlanetLoginActivity (webview-based cookie capture)
+    // KMK <--
 
     suspend fun search(query: String): List<TrackSearch> = withIOContext {
         val encodedQuery = URLEncoder.encode(query, "UTF-8")
@@ -76,7 +49,7 @@ class AnimePlanetApi(
 
                 val coverUrl = card.selectFirst("img")?.attr("src") ?: ""
 
-                TrackSearch.create(AP_ID).apply {
+                TrackSearch.create(trackId).apply {
                     remote_id = 0
                     this.title = title
                     cover_url = coverUrl
@@ -107,7 +80,7 @@ class AnimePlanetApi(
         val coverUrl = document.selectFirst("img[src*=\"cdn.anime-planet.com\"]")?.attr("src") ?: ""
         val description = document.selectFirst("meta[name=\"description\"]")?.attr("content") ?: ""
 
-        TrackSearch.create(AP_ID).apply {
+        TrackSearch.create(trackId).apply {
             remote_id = mangaId
             this.title = title
             cover_url = coverUrl
@@ -213,7 +186,6 @@ class AnimePlanetApi(
 
     companion object {
         private const val BASE_URL = "https://www.anime-planet.com"
-        private const val AP_ID = 11L
     }
 
     data class MangaListEntry(

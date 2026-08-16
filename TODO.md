@@ -25,7 +25,8 @@
 - [x] Fix extension crashes related to R8 stripping
 - [x] Change about page's github URL to this fork repo
 - [x] Fix "invalid_redirect" error with MangaBaka oAuth
-- [ ] Change AnimePlanet ID to 12 (11 is hikka upstream)
+- [x] Change AnimePlanet ID to something likely to be unique (ID 11 is hikka upstream)
+- [x] Change AnimePlanet login to webview system to avoid cloudflare issues
 
 ## Chores
 - [x] Replace all Komikku icons/branding with pineapple icons/branding

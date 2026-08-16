@@ -208,6 +208,11 @@
                 <data android:host="shikimori-auth" />
             </intent-filter>
         </activity>
+        <!-- KMK: AnimePlanet webview login (no OAuth redirect; launched directly) -->
+        <activity
+            android:name=".ui.setting.track.AnimePlanetLoginActivity"
+            android:exported="false"
+            android:label="@string/track_activity_name" />
         <activity
             android:name=".ui.setting.track.GoogleDriveLoginActivity"
             android:label="GoogleDrive"

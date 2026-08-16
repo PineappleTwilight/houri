@@ -21,6 +21,10 @@ class AnimePlanet(id: Long) : BaseTracker(id, "AnimePlanet"), DeletableTracker {
         const val DROPPED = 5L
         const val REREADING = 6L
 
+        // KMK -->
+        private const val ANON_USERNAME = "animeplanet-user"
+        // KMK <--
+
         private val SCORE_LIST = (0..10)
             .map { if (it == 0) "-" else it.toString() }
             .toImmutableList()
@@ -28,7 +32,7 @@ class AnimePlanet(id: Long) : BaseTracker(id, "AnimePlanet"), DeletableTracker {
 
     private val interceptor by lazy { AnimePlanetInterceptor(this) }
 
-    private val api by lazy { AnimePlanetApi(interceptor, client) }
+    private val api by lazy { AnimePlanetApi(id, interceptor, client) }
 
     override fun getLogo(): Int = R.drawable.brand_animeplanet
 
@@ -110,11 +114,14 @@ class AnimePlanet(id: Long) : BaseTracker(id, "AnimePlanet"), DeletableTracker {
         return track
     }
 
-    override suspend fun login(username: String, password: String) {
-        val sessionCookie = api.authenticate(username, password)
-        saveCredentials(username, sessionCookie)
+    override suspend fun login(username: String, password: String) = loginWithCookie(password, username)
+
+    // KMK -->
+    suspend fun loginWithCookie(sessionCookie: String, username: String = "") {
+        saveCredentials(username.ifBlank { ANON_USERNAME }, sessionCookie)
         interceptor.newAuth(sessionCookie)
     }
+    // KMK <--
 
     fun restoreSession(): String? {
         return trackPreferences.trackPassword(this).get().ifBlank { null }

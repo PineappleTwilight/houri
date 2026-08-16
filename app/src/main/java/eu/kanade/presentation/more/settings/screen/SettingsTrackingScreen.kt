@@ -199,7 +199,13 @@ object SettingsTrackingScreen : SearchableSettings {
                     ),
                     Preference.PreferenceItem.TrackerPreference(
                         tracker = trackerManager.animePlanet,
-                        login = { dialog = LoginDialog(trackerManager.animePlanet, MR.strings.username) },
+                        // KMK -->
+                        login = {
+                            context.startActivity(
+                                eu.kanade.tachiyomi.ui.setting.track.AnimePlanetLoginActivity.newIntent(context),
+                            )
+                        },
+                        // KMK <--
                         logout = { dialog = LogoutDialog(trackerManager.animePlanet) },
                     ),
                     Preference.PreferenceItem.InfoPreference(stringResource(MR.strings.tracking_info)),
