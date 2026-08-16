@@ -14,6 +14,23 @@ kotlin {
     android {
         compileSdk { version = release(AndroidConfig.COMPILE_SDK) }
         namespace = "eu.kanade.tachiyomi.source"
+
+        // KMK -->
+        // Publish consumer keep rules so R8 sees them when building the app module.
+        // Under AGP 9.x + com.android.kotlin.multiplatform.library, the legacy
+        // `android { defaultConfig { consumerProguardFiles(...) } }` DSL is gone;
+        // consumer rules are SILENTLY DROPPED unless explicitly declared via
+        // `optimization { consumerKeepRules { ... } }`. Without this, R8 strips
+        // extension-facing synthetic methods (e.g. `JsoupExtensionsKt.asJsoup$default`,
+        // `SManga$Companion.create`) → NoSuchMethodError at runtime when
+        // classloader-loaded extensions call them.
+        optimization {
+            consumerKeepRules.apply {
+                publish = true
+                file("consumer-proguard.pro")
+            }
+        }
+        // KMK <--
     }
 
     sourceSets {
