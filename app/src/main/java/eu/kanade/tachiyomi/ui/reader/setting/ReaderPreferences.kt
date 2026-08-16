@@ -59,6 +59,8 @@ class ReaderPreferences(
     fun pagedDoubleTapZoomEnabled() = preferenceStore.getBoolean("pref_enable_double_tap_zoom_paged", true)
 
     fun webtoonPinchToZoomEnabled() = preferenceStore.getBoolean("pref_enable_pinch_to_zoom_webtoon", true)
+
+    fun chapterCompletionSound() = preferenceStore.getBoolean("pref_chapter_completion_sound", false)
     // KMK <--
 
     fun imageScaleType() = preferenceStore.getInt("pref_image_scale_type_key", 1)

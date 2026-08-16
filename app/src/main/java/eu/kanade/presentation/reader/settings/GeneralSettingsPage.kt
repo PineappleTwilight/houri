@@ -10,6 +10,7 @@ import eu.kanade.tachiyomi.ui.reader.setting.ReaderPreferences
 import eu.kanade.tachiyomi.ui.reader.setting.ReaderSettingsScreenModel
 import eu.kanade.tachiyomi.util.system.hasDisplayCutout
 import tachiyomi.i18n.MR
+import tachiyomi.i18n.kmk.KMR
 import tachiyomi.i18n.sy.SYMR
 import tachiyomi.presentation.core.components.CheckboxItem
 import tachiyomi.presentation.core.components.SettingsChipRow
@@ -108,6 +109,13 @@ internal fun GeneralPage(screenModel: ReaderSettingsScreenModel) {
         label = stringResource(MR.strings.pref_always_show_chapter_transition),
         pref = screenModel.preferences.alwaysShowChapterTransition(),
     )
+
+    // KMK -->
+    CheckboxItem(
+        label = stringResource(KMR.strings.pref_chapter_completion_sound),
+        pref = screenModel.preferences.chapterCompletionSound(),
+    )
+    // KMK <--
 
     // SY -->
     /*CheckboxItem(

@@ -386,7 +386,19 @@ class ReaderViewModel @JvmOverloads constructor(
         // SY <--
     }
 
+    // KMK -->
+    private val chapterCompleteSoundPlayer: ChapterCompleteSoundPlayer by lazy {
+        ChapterCompleteSoundPlayer(
+            context = Injekt.get<Application>(),
+            readerPreferences = readerPreferences,
+        )
+    }
+    // KMK <--
+
     override fun onCleared() {
+        // KMK -->
+        chapterCompleteSoundPlayer.release()
+        // KMK <--
         val currentChapters = state.value.viewerChapters
         if (currentChapters != null) {
             currentChapters.unref()
@@ -858,6 +870,9 @@ class ReaderViewModel @JvmOverloads constructor(
 
     private suspend fun updateChapterProgressOnComplete(readerChapter: ReaderChapter) {
         readerChapter.chapter.read = true
+        // KMK -->
+        chapterCompleteSoundPlayer.playChapterCompleteSound()
+        // KMK <--
         // SY -->
         if (manga?.isEhBasedManga() == true) {
             viewModelScope.launchNonCancellable {

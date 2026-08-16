@@ -90,55 +90,55 @@ class AndroidSourceManager(
                 .collectLatest { (extensions, enableExhentai/* KMK --> */, isHentaiEnabled/* KMK <-- */) ->
                     // KMK -->
                     try {
-                    // KMK <--
-                    val mutableMap = ConcurrentHashMap<Long, Source>(
-                        mapOf(
-                            LocalSource.ID to LocalSource(
-                                context,
-                                Injekt.get(),
-                                Injekt.get(),
-                                // SY -->
-                                sourcePreferences.allowLocalSourceHiddenFolders()::get,
-                                // SY <--
+                        // KMK <--
+                        val mutableMap = ConcurrentHashMap<Long, Source>(
+                            mapOf(
+                                LocalSource.ID to LocalSource(
+                                    context,
+                                    Injekt.get(),
+                                    Injekt.get(),
+                                    // SY -->
+                                    sourcePreferences.allowLocalSourceHiddenFolders()::get,
+                                    // SY <--
+                                ),
                             ),
-                        ),
-                    ).apply {
-                        // KMK -->
-                        if (isHentaiEnabled) {
-                            EHENTAI_EXT_SOURCES.forEach { (id, lang) ->
-                                put(id, EHentai(id, false, context, lang))
-                            }
-                            if (enableExhentai) {
-                                EXHENTAI_EXT_SOURCES.forEach { (id, lang) ->
-                                    put(id, EHentai(id, true, context, lang))
+                        ).apply {
+                            // KMK -->
+                            if (isHentaiEnabled) {
+                                EHENTAI_EXT_SOURCES.forEach { (id, lang) ->
+                                    put(id, EHentai(id, false, context, lang))
+                                }
+                                if (enableExhentai) {
+                                    EXHENTAI_EXT_SOURCES.forEach { (id, lang) ->
+                                        put(id, EHentai(id, true, context, lang))
+                                    }
                                 }
                             }
+                            // KMK <--
+                            // SY -->
+                            put(MERGED_SOURCE_ID, MergedSource())
+                            // SY <--
+                        }
+                        // KMK -->
+                        extensions.forEach { extension ->
+                            extension.sources.filterIsInstance<Source>()
+                                .mapNotNull {
+                                    try {
+                                        it.toInternalSource(isHentaiEnabled)
+                                    } catch (e: Throwable) {
+                                        xLogD("Failed to internalize source from extension: %s", e.message)
+                                        null
+                                    }
+                                }
+                                .forEach {
+                                    mutableMap[it.id] = it
+                                    registerStubSource(StubSource.from(it))
+                                }
                         }
                         // KMK <--
-                        // SY -->
-                        put(MERGED_SOURCE_ID, MergedSource())
-                        // SY <--
-                    }
-                    // KMK -->
-                    extensions.forEach { extension ->
-                        extension.sources.filterIsInstance<Source>()
-                            .mapNotNull {
-                                try {
-                                    it.toInternalSource(isHentaiEnabled)
-                                } catch (e: Throwable) {
-                                    xLogD("Failed to internalize source from extension: %s", e.message)
-                                    null
-                                }
-                            }
-                            .forEach {
-                                mutableMap[it.id] = it
-                                registerStubSource(StubSource.from(it))
-                            }
-                    }
-                    // KMK <--
-                    sourcesMapFlow.value = mutableMap
-                    _isInitialized.value = true
-                    // KMK -->
+                        sourcesMapFlow.value = mutableMap
+                        _isInitialized.value = true
+                        // KMK -->
                     } catch (e: Throwable) {
                         xLogD("Failed to initialize source map: %s", e.message)
                     }
