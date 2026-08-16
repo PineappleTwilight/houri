@@ -142,13 +142,16 @@ class AndroidSourceManager(
         }
     }
 
-    private fun Source.toInternalSource(
+    private fun Source?.toInternalSource(
         // KMK -->
         isHentaiEnabled: Boolean,
         // KMK <--
     ): Source? {
+        // KMK -->
+        val src = this ?: return null
+        // KMK <--
         // EXH -->
-        val sourceQName = this::class.qualifiedName
+        val sourceQName = src::class.qualifiedName
         val delegate = if (sourceQName != null) {
             // KMK -->
             DELEGATED_SOURCES.firstOrNull { delegated ->
@@ -159,11 +162,11 @@ class AndroidSourceManager(
         } else {
             null
         }
-        val newSource = if (this is HttpSource && delegate != null) {
+        val newSource = if (src is HttpSource && delegate != null) {
             xLogD("Delegating source: %s -> %s!", sourceQName, delegate.newSourceClass.qualifiedName)
             val enhancedSource = EnhancedHttpSource(
-                this,
-                delegate.newSourceClass.constructors.find { it.parameters.size == 2 }!!.call(this, context),
+                src,
+                delegate.newSourceClass.constructors.find { it.parameters.size == 2 }!!.call(src, context),
             )
 
             currentDelegatedSources[enhancedSource.originalSource.id] = DelegatedSource(
@@ -175,20 +178,20 @@ class AndroidSourceManager(
             )
             enhancedSource
         } else {
-            this
+            src
         }
 
         return if (
             // KMK -->
             isHentaiEnabled &&
             // KMK <--
-            id in BlacklistedSources.BLACKLISTED_EXT_SOURCES
+            src.id in BlacklistedSources.BLACKLISTED_EXT_SOURCES
         ) {
             xLogD(
                 "Removing blacklisted source: (id: %s, name: %s, lang: %s)!",
-                id,
-                name,
-                lang,
+                src.id,
+                src.name,
+                src.lang,
             )
             null
         } else {
