@@ -6,46 +6,18 @@
 -keep,allowoptimization class exh.**
 
 # KMK -->
-# Keep ALL constructors for Filter model classes. Extensions compiled against
-# this API call synthetic constructors (generated for Kotlin default parameters)
-# directly via bytecode. R8 must not strip them.
--keepclassmembers class eu.kanade.tachiyomi.source.model.Filter** {
-    <init>(...);
-    <fields>;
-    <methods>;
-}
-# Keep ALL constructors and members for other model classes used by extensions.
-# Extensions call SManga.Companion.create(), SManga.setState(), etc. directly.
--keepclassmembers class eu.kanade.tachiyomi.source.model.SManga { <init>(...); <fields>; <methods>; }
--keepclassmembers class eu.kanade.tachiyomi.source.model.SChapter { <init>(...); <fields>; <methods>; }
--keepclassmembers class eu.kanade.tachiyomi.source.model.MangasPage { <init>(...); <fields>; <methods>; }
--keepclassmembers class eu.kanade.tachiyomi.source.model.SMangaUpdate { <init>(...); <fields>; <methods>; }
--keepclassmembers class eu.kanade.tachiyomi.source.model.Page { <init>(...); <fields>; <methods>; }
--keepclassmembers class eu.kanade.tachiyomi.source.model.FilterList { <init>(...); <fields>; <methods>; }
-
-# Prevent R8 devirtualization on the Source interface. Extensions loaded via
-# classloader implement Source, but R8 can't see their overrides and may
-# devirtualize calls → NPE when null checks on receivers are stripped.
--keep,allowobfuscation interface eu.kanade.tachiyomi.source.Source { *; }
-
-# Keep EnhancedHttpSource and DelegatedHttpSource fully — R8 must not strip
-# fields, methods, or constructors on classes that wrap classloader-loaded sources.
--keepclassmembers class exh.source.EnhancedHttpSource { *; }
--keepclassmembers class exh.source.DelegatedHttpSource { *; }
-
-# Prevent R8 from stripping javaClass references on Source/HttpSource objects.
-# javaClass is a direct JVM call that R8 cannot optimize away, unlike
-# Kotlin's ::class property which compiles to Intrinsics.checkNotNull + getClass().
--keepclassmembers class * extends eu.kanade.tachiyomi.source.online.HttpSource {
-    public java.lang.Class getClass();
-}
--keepclassmembers class * extends exh.source.DelegatedHttpSource {
-    public java.lang.Class getClass();
-}
-
-# Prevent R8 from merging/sealing Source interface hierarchy across
-# classloader boundaries. Extension sources exist in separate dex files.
--keep,allowobfuscation class * implements eu.kanade.tachiyomi.source.Source { *; }
+# Keep the ENTIRE source-api package — the public API contract between the app
+# and classloader-loaded extensions. Extensions compile against these classes
+# and call methods, constructors, companions, and inner classes that R8 cannot
+# see (different classloader / separate APK). Without this, R8 strips "unused"
+# members, causing NoSuchMethodError / NoSuchFieldError / ClassCastException
+# at runtime.
+#
+# Do NOT use allowoptimization here — that lets R8 strip individual members.
+# This single rule replaces all per-class/per-companion per-member rules and
+# prevents future breakage when new model classes are added to source-api.
+-keep class eu.kanade.tachiyomi.source.** { *; }
+-keep class exh.source.** { *; }
 # KMK <--
 
 # KMK -->
