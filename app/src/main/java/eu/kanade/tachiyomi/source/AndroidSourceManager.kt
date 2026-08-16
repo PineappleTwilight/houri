@@ -189,7 +189,7 @@ class AndroidSourceManager(
                     enhancedSource.originalSource.id,
                     // KMK -->
                     enhancedSource.originalSource.javaClass.name,
-                    (enhancedSource.enhancedSource as DelegatedHttpSource).javaClass,
+                    (enhancedSource.enhancedSource as DelegatedHttpSource)::class,
                     // KMK <--
                     delegate.factory,
                 )
