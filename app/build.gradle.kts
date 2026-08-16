@@ -10,7 +10,6 @@ plugins {
     kotlin("plugin.parcelize")
     kotlin("plugin.serialization")
     alias(libs.plugins.aboutLibraries)
-    alias(libs.plugins.ben.manes.versions)
 }
 
 if (Config.includeTelemetry) {
@@ -26,8 +25,8 @@ android {
     defaultConfig {
         applicationId = "app.houri"
 
-        versionCode = 104
-        versionName = "1.16.8"
+    versionCode = 105
+    versionName = "1.17.0"
 
         buildConfigField("String", "COMMIT_COUNT", "\"${getCommitCount()}\"")
         buildConfigField("String", "COMMIT_SHA", "\"${getGitSha()}\"")

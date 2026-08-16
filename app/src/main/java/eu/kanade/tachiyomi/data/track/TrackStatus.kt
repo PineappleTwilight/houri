@@ -2,6 +2,7 @@ package eu.kanade.tachiyomi.data.track
 
 import dev.icerock.moko.resources.StringResource
 import eu.kanade.tachiyomi.data.track.anilist.Anilist
+import eu.kanade.tachiyomi.data.track.animeplanet.AnimePlanet
 import eu.kanade.tachiyomi.data.track.bangumi.Bangumi
 import eu.kanade.tachiyomi.data.track.kitsu.Kitsu
 import eu.kanade.tachiyomi.data.track.komga.Komga
@@ -116,6 +117,17 @@ enum class TrackStatus(val int: Int, val res: StringResource) {
                         MangaBaka.DROPPED -> DROPPED
                         MangaBaka.PLAN_TO_READ -> PLAN_TO_READ
                         MangaBaka.REREADING -> REPEATING
+                        else -> null
+                    }
+                }
+                trackerManager.animePlanet.id -> {
+                    when (status) {
+                        AnimePlanet.READING -> READING
+                        AnimePlanet.COMPLETED -> COMPLETED
+                        AnimePlanet.ON_HOLD -> PAUSED
+                        AnimePlanet.PLAN_TO_READ -> PLAN_TO_READ
+                        AnimePlanet.DROPPED -> DROPPED
+                        AnimePlanet.REREADING -> REPEATING
                         else -> null
                     }
                 }

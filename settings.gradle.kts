@@ -7,7 +7,7 @@ pluginManagement {
             }
         }
         dependencies {
-            classpath("com.android.tools:r8:${libs.versions.r8.get()}")
+            classpath("com.android.tools:r8:9.1.29")
         }
     }
     resolutionStrategy {

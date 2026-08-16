@@ -197,6 +197,11 @@ object SettingsTrackingScreen : SearchableSettings {
                         login = { context.openInBrowser(MangaBakaApi.authUrl(), forceDefaultBrowser = true) },
                         logout = { dialog = LogoutDialog(trackerManager.mangaBaka) },
                     ),
+                    Preference.PreferenceItem.TrackerPreference(
+                        tracker = trackerManager.animePlanet,
+                        login = { dialog = LoginDialog(trackerManager.animePlanet, MR.strings.username) },
+                        logout = { dialog = LogoutDialog(trackerManager.animePlanet) },
+                    ),
                     Preference.PreferenceItem.InfoPreference(stringResource(MR.strings.tracking_info)),
                 ),
             ),

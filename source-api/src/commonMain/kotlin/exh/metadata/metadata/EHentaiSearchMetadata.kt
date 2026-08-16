@@ -91,11 +91,17 @@ class EHentaiSearchMetadata : RaisedSearchMetadata() {
         val displayTitle = (title ?: manga.title)?.let { t ->
             when (censorStatus) {
                 CENSORSHIP_STATUS_DECENSORED ->
-                    if (t.startsWith(CENSORSHIP_TITLE_DECENSORED, ignoreCase = true)) t
-                    else "$CENSORSHIP_TITLE_DECENSORED $t"
+                    if (t.startsWith(CENSORSHIP_TITLE_DECENSORED, ignoreCase = true)) {
+                        t
+                    } else {
+                        "$CENSORSHIP_TITLE_DECENSORED $t"
+                    }
                 CENSORSHIP_STATUS_UNCENSORED ->
-                    if (t.startsWith(CENSORSHIP_TITLE_UNCENSORED, ignoreCase = true)) t
-                    else "$CENSORSHIP_TITLE_UNCENSORED $t"
+                    if (t.startsWith(CENSORSHIP_TITLE_UNCENSORED, ignoreCase = true)) {
+                        t
+                    } else {
+                        "$CENSORSHIP_TITLE_UNCENSORED $t"
+                    }
                 else -> t
             }
         }
