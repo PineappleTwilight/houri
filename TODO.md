@@ -3,7 +3,7 @@
 ## Feature Ideas
 
 - [x] **Yokai Backport**: Library sort option to ignore articles (A, An, The, etc.) — like J2K/Yokai. Example: "A Sign of Affection" sorts under S, "The Apothecary Diaries" sorts under A instead of T.
-- [x] **Tracker**: MangaBaka (port from mihon)
+- [x] **Tracker**: MangaBaka (Mihon backport)
 - [x] **Tracker**: Anime-Planet (scraping method, no api)
 - [ ] **Tracker**: Hikka (Mihon backport)
 - [ ] **Mihon Backport**: Reader
