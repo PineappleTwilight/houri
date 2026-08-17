@@ -20,9 +20,8 @@ class TrackerManager {
         const val ANILIST = 2L
         const val KITSU = 3L
         const val KAVITA = 8L
-        const val MANGABAKA = 10L
+        const val MANGABAKA = 11L
         // KMK -->
-        // ID 11 collides with Mihon's Hikka tracker upstream; 61 sits next to MdList (60L).
         const val ANIMEPLANET = 61L
         // KMK <--
 

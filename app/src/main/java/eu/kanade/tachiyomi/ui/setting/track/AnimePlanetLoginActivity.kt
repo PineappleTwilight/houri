@@ -54,13 +54,43 @@ class AnimePlanetLoginActivity : BaseActivity() {
 
     private fun onPageFinished(view: WebView, url: String) {
         val parsedUrl = url.toUri()
-        val isUserProfile = parsedUrl.host.equals("www.anime-planet.com", ignoreCase = true) &&
-            parsedUrl.path?.startsWith("/users/") == true
-        if (!isUserProfile) return
+        val isAnimePlanet = parsedUrl.host.equals("www.anime-planet.com", ignoreCase = true)
+        if (!isAnimePlanet) return
 
-        val sessionCookie = getSessionCookie() ?: return
-        val username = parsedUrl.lastPathSegment.orEmpty()
+        val isUserProfile = parsedUrl.path?.startsWith("/users/") == true
+        if (isUserProfile) {
+            val sessionCookie = getSessionCookie() ?: return
+            val username = parsedUrl.lastPathSegment.orEmpty()
+            if (username.isNotBlank()) {
+                loginAndFinish(sessionCookie, username)
+            }
+            return
+        }
 
+        // KMK -->
+        // After login, AnimePlanet redirects to the homepage ("/") instead of
+        // the user's profile. Detect the session cookie and navigate to the
+        // user's profile page to extract the username.
+        if (hasSessionCookie() && !navigatedToProfile) {
+            navigatedToProfile = true
+            view.loadUrl("https://www.anime-planet.com/users/")
+        }
+        // KMK <--
+    }
+
+    // KMK -->
+    private var navigatedToProfile = false
+
+    private fun hasSessionCookie(): Boolean {
+        val cookies = CookieManager.getInstance().getCookie("https://www.anime-planet.com") ?: return false
+        return cookies.split("; ")
+            .mapNotNull { HttpCookie.parse(it).firstOrNull() }
+            .firstOrNull { it.name.equals("session", ignoreCase = true) }
+            ?.value
+            ?.isNotBlank() == true
+    }
+
+    private fun loginAndFinish(sessionCookie: String, username: String) {
         lifecycleScope.launchIO {
             try {
                 trackerManager.animePlanet.loginWithCookie(sessionCookie, username)
@@ -72,6 +102,7 @@ class AnimePlanetLoginActivity : BaseActivity() {
             }
         }
     }
+    // KMK <--
 
     private fun getSessionCookie(): String? {
         val cookies = CookieManager.getInstance().getCookie("https://www.anime-planet.com") ?: return null
