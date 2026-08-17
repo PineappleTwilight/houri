@@ -2,17 +2,17 @@
 
 ## Feature Ideas
 
-- [x] Library sort option to ignore articles (A, An, The, etc.) — like J2K/Yokai. Example: "A Sign of Affection" sorts under S, "The Apothecary Diaries" sorts under A instead of T.
-- [ ] Port mihon's new decoder to the app (maybe not, highly experimental)
-- [x] Add mangabaka tracker (port from mihon)
-- [x] Add animeplanet tracker (no api)
-- [ ] Port mihon's new reader
-- [~] Toggle to enable an anime girl moaning whenever a chapter is completed. Moans should be randomized and have different probabilities of appearing (gacha mechanic)
+- [x] **Yokai Backport**: Library sort option to ignore articles (A, An, The, etc.) — like J2K/Yokai. Example: "A Sign of Affection" sorts under S, "The Apothecary Diaries" sorts under A instead of T.
+- [x] **Tracker**: MangaBaka (port from mihon)
+- [x] **Tracker**: Anime-Planet (scraping method, no api)
+- [ ] **Tracker**: Hikka (Mihon backport)
+- [ ] **Mihon Backport**: Reader
+- [ ] **Mihon Backport**: Decoder (maybe not, highly experimental)
+- [ ] **Mihon Backport**: Updater
+- [ ] **New**: Toggle to enable an anime girl moaning whenever a chapter is completed. Moans should be randomized and have different probabilities of appearing (gacha mechanic) **Partially implemented, pending audio files.**
 - [x] Add content censorship status as a tag next to the content type tag (doujinshi, manga, etc) in e/exhentai. Content defaults to censored (no title marking), decensored (marked as [Decensored] in the title), or uncensored (marked as [Uncensored] in the title).
     - [x] Add accompanying sort/filter options for this change
-- [ ] Add tracker from Mihon upstream: Hikka
-- [ ] Port mihon updater
-- [ ] Add mango easter egg (?)
+- [ ] **New**: Add mango easter egg (?)
 
 ## Bugfixes
 - [x] Fix UI transition choppiness.
@@ -32,6 +32,7 @@
 - [x] Fix e/ex-hentai manga details page count overlaying on top of the content type chip instead of below the chips
 - [x] Change MangaBaka to ID 11 (Hikka is ID 10)
 - [x] Fix anime planet webview login - never gets session cookie once logged in
+- [ ] Remove komikku logo from more app locations
 
 ## Chores
 - [x] Replace all Komikku icons/branding with pineapple icons/branding
