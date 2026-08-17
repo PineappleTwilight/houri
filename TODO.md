@@ -33,6 +33,7 @@
 - [x] Change MangaBaka to ID 11 (Hikka is ID 10)
 - [x] Fix anime planet webview login - never gets session cookie once logged in
 - [ ] Remove komikku logo from more app locations
+- [ ] Remove all komikku references
 
 ## Chores
 - [x] Replace all Komikku icons/branding with pineapple icons/branding
