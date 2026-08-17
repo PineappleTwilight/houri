@@ -287,6 +287,7 @@ fun BrowseSourceEHentaiListItem(
                     val res = genre?.second
                     // KMK -->
                     Row(
+                        modifier = Modifier.padding(end = 8.dp),
                         horizontalArrangement = Arrangement.spacedBy(MaterialTheme.padding.small),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
