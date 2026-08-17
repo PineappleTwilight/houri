@@ -29,6 +29,8 @@
 - [x] Change AnimePlanet ID to something likely to be unique (ID 11 is hikka upstream)
 - [x] Change AnimePlanet login to webview system to avoid cloudflare issues
 - [ ] Fix e/ex-hentai manga details page count overlaying on top of the content type chip instead of below the chips
+- [ ] Change MangaBaka to ID 11 (Hikka is ID 10)
+- [ ] Fix anime planet webview login - never gets session cookie once logged in
 
 ## Chores
 - [x] Replace all Komikku icons/branding with pineapple icons/branding
