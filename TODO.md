@@ -11,6 +11,7 @@
 - [x] Add content censorship status as a tag next to the content type tag (doujinshi, manga, etc) in e/exhentai. Content defaults to censored (no title marking), decensored (marked as [Decensored] in the title), or uncensored (marked as [Uncensored] in the title).
     - [x] Add accompanying sort/filter options for this change
 - [ ] Add tracker from Mihon upstream: Hikka
+- [ ] Port mihon updater
 
 ## Bugfixes
 - [x] Fix UI transition choppiness.
@@ -27,6 +28,7 @@
 - [x] Fix "invalid_redirect" error with MangaBaka oAuth
 - [x] Change AnimePlanet ID to something likely to be unique (ID 11 is hikka upstream)
 - [x] Change AnimePlanet login to webview system to avoid cloudflare issues
+- [ ] Fix e/ex-hentai manga details page count overlaying on top of the content type chip instead of below the chips
 
 ## Chores
 - [x] Replace all Komikku icons/branding with pineapple icons/branding
