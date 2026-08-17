@@ -10,7 +10,7 @@
 - [ ] **Mihon Backport**: Decoder (maybe not, highly experimental)
 - [ ] **Mihon Backport**: Updater
 - [ ] **New**: Toggle to enable an anime girl moaning whenever a chapter is completed. Moans should be randomized and have different probabilities of appearing (gacha mechanic) **Partially implemented, pending audio files.**
-- [x] **New**: Add content censorship status as a tag next to the content type tag (doujinshi, manga, etc) in e/exhentai. Content defaults to censored (no title marking), decensored (marked as [Decensored] in the title), or uncensored (marked as [Uncensored] in the title).
+- [x] **E-Hentai**: Add content censorship status as a tag next to the content type tag (doujinshi, manga, etc). Content defaults to censored (no title marking), decensored (marked as [Decensored] in the title), or uncensored (marked as [Uncensored] in the title).
     - [x] Add accompanying sort/filter options for this change
 - [ ] **New**: Add mango easter egg (?)
 
@@ -34,6 +34,7 @@
 - [x] Fix anime planet webview login - never gets session cookie once logged in
 - [ ] Remove komikku logo from more app locations
 - [ ] Remove all komikku references
+- [ ] Fix database "export sensitive tokens" option not including exhentai auth cookies
 
 ## Chores
 - [x] Replace all Komikku icons/branding with pineapple icons/branding
