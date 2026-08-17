@@ -12,6 +12,7 @@
     - [x] Add accompanying sort/filter options for this change
 - [ ] Add tracker from Mihon upstream: Hikka
 - [ ] Port mihon updater
+- [ ] Add mango easter egg (?)
 
 ## Bugfixes
 - [x] Fix UI transition choppiness.
