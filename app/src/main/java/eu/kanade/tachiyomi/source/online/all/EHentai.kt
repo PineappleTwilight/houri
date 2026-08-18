@@ -155,10 +155,13 @@ class EHentai(
         val parsedMangas = select(".itg > tbody > tr").filter { element ->
             // Do not parse header and ads
             element.selectFirst("th") == null && element.selectFirst(".itd") == null
-        }.map { body ->
-            val thumbnailElement = body.selectFirst(".gl1e img, .gl2c .glthumb img")!!
-            val column2 = body.selectFirst(".gl3e, .gl2c")!!
-            val linkElement = body.selectFirst(".gl3c > a, .gl2e > div > a")!!
+        }.mapNotNull { body ->
+            val thumbnailElement = body.selectFirst(".gl1e img, .gl2c .glthumb img")
+                ?: return@mapNotNull null
+            val column2 = body.selectFirst(".gl3e, .gl2c")
+                ?: return@mapNotNull null
+            val linkElement = body.selectFirst(".gl3c > a, .gl2e > div > a")
+                ?: return@mapNotNull null
             val infoElement = body.selectFirst(".gl3e")
 
             // why is column2 null
@@ -195,7 +198,8 @@ class EHentai(
                             )
                         }
                     } else {
-                        val tagElement = body.selectFirst(".gl3c > a")!!
+                        val tagElement = body.selectFirst(".gl3c > a")
+                            ?: return@mapNotNull null
                         val tagElements = tagElement.select("div")
                         tagElements.forEach { element ->
                             if (element.className() == "gt") {
@@ -229,25 +233,27 @@ class EHentai(
                     } else {
                         genre = getGenre(body.selectFirst(".gl1c div"))
 
-                        val info = body.selectFirst(".gl2c")!!
-                        val extraInfo = body.selectFirst(".gl4c")!!
+                        val info = body.selectFirst(".gl2c")
+                        val extraInfo = body.selectFirst(".gl4c")
 
-                        val infoList = info.select("div div")
+                        if (info != null && extraInfo != null) {
+                            val infoList = info.select("div div")
 
-                        datePosted = getDateTag(infoList.getOrNull(8))
+                            datePosted = getDateTag(infoList.getOrNull(8))
 
-                        averageRating = getRating(infoList.getOrNull(9))
+                            averageRating = getRating(infoList.getOrNull(9))
 
-                        val extraInfoList = extraInfo.select("div")
+                            val extraInfoList = extraInfo.select("div")
 
-                        if (extraInfoList.getOrNull(2) == null) {
-                            uploader = getUploader(extraInfoList.getOrNull(0))
+                            if (extraInfoList.getOrNull(2) == null) {
+                                uploader = getUploader(extraInfoList.getOrNull(0))
 
-                            length = getPageCount(extraInfoList.getOrNull(1))
-                        } else {
-                            uploader = getUploader(extraInfoList.getOrNull(1))
+                                length = getPageCount(extraInfoList.getOrNull(1))
+                            } else {
+                                uploader = getUploader(extraInfoList.getOrNull(1))
 
-                            length = getPageCount(extraInfoList.getOrNull(2))
+                                length = getPageCount(extraInfoList.getOrNull(2))
+                            }
                         }
                     }
                 },
@@ -832,7 +838,7 @@ class EHentai(
                 // Parse the table
                 select("#gdd tr").forEach {
                     val left = it.select(".gdt1").text().trimOrNull()
-                    val rightElement = it.selectFirst(".gdt2")!!
+                    val rightElement = it.selectFirst(".gdt2") ?: return@forEach
                     val right = rightElement.text().trimOrNull()
                     if (left != null && right != null) {
                         ignore {
@@ -940,7 +946,8 @@ class EHentai(
 
     private fun realImageUrlParse(response: Response, page: Page): String {
         with(response.asJsoup()) {
-            val currentImage = getElementById("img")!!.attr("src")
+            val currentImage = getElementById("img")?.attr("src")
+                ?: throw Exception("Image element not found on page")
             // Each press of the retry button will choose another server
             select("#loadfail").attr("onclick").nullIfBlank()?.let {
                 page.url = addParam(page.url, "nl", it.substring(it.indexOf('\'') + 1 until it.lastIndexOf('\'')))

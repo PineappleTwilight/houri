@@ -1058,9 +1058,10 @@ class LibraryScreenModel(
 
             setCustomMangaInfo.set(mangaInfo)
         }
-        clearSelection()
         // Refresh library so Manga objects are reconstructed with updated customMangaInfo
+        // Must call before clearSelection() since it reads the current selection
         updateSelectedManga()
+        clearSelection()
     }
 
     @OptIn(DelicateCoroutinesApi::class)
@@ -1226,6 +1227,14 @@ class LibraryScreenModel(
                 }
             }
             // AZ <--
+            // KMK -->
+            if (query.trim().lowercase() == "mango") {
+                // Mango easter egg: show manga with "mango" in the title
+                return unfiltered.fastFilter {
+                    it.libraryManga.manga.title.lowercase().contains("mango")
+                }
+            }
+            // KMK <--
             // Prepare filter object
             val parsedQuery = searchEngine.parseQuery(query)
             val mangaWithMetaIds = getIdsOfFavoriteMangaWithMetadata.await()
