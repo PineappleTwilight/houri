@@ -53,3 +53,4 @@
 - [x] Fix GitHub actions
 - [x] Fine-tune GitHub actions (add compile, auto-release if version changed, etc)
 - [ ] Replace Material UI framework with more stable library
+- [ ] **Update Dependency**: Voyager (UI related)
