@@ -12,6 +12,7 @@
 - [ ] **New**: Toggle to enable an anime girl moaning whenever a chapter is completed. Moans should be randomized and have different probabilities of appearing (gacha mechanic) **Partially implemented, pending audio files.**
 - [x] **E-Hentai**: Add content censorship status as a tag next to the content type tag (doujinshi, manga, etc). Content defaults to censored (no title marking), decensored (marked as [Decensored] in the title), or uncensored (marked as [Uncensored] in the title).
     - [x] Add accompanying sort/filter options for this change
+- [ ] **E-Hentai**: Censorship type identification from manga tags (mosaic, full, etc)
 - [ ] **New**: Add mango easter egg (?)
 
 ## Bugfixes
