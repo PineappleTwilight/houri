@@ -146,7 +146,13 @@ class SettingsSearchScreen : Screen() {
                 contentPadding = contentPadding,
             ) { result ->
                 SearchableSettings.highlightKey = result.highlightKey
-                navigator.replace(result.route)
+                val targetKey = result.route.key
+                val existingIndex = navigator.items.indexOfFirst { it.key == targetKey }
+                if (existingIndex >= 0) {
+                    navigator.popUntil { it.key == targetKey }
+                } else {
+                    navigator.replace(result.route)
+                }
             }
         }
     }
