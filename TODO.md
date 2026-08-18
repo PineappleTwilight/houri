@@ -37,6 +37,7 @@
 - [x] Remove all komikku references (filenames, WebDAV default, deep links, OAuth redirects)
 - [ ] Fix database "export sensitive tokens" option not including exhentai auth cookies
 - [ ] Fix e/exhentai censorship tags - censorship markers can appear at any order in the manga title, not just at the very end
+- [ ] Fix clean titles not refreshing the library (requires app restart to load cleaned titles)
 
 ## Chores
 - [x] Replace all Komikku icons/branding with houri icons/branding
