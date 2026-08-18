@@ -32,12 +32,12 @@
 - [x] Fix e/ex-hentai manga details page count overlaying on top of the content type chip instead of below the chips
 - [x] Change MangaBaka to ID 11 (Hikka is ID 10)
 - [x] Fix anime planet webview login - never gets session cookie once logged in
-- [ ] Remove komikku logo from more app locations
-- [ ] Remove all komikku references
+- [x] Remove komikku logo from more app locations
+- [x] Remove all komikku references (filenames, WebDAV default, deep links, OAuth redirects)
 - [ ] Fix database "export sensitive tokens" option not including exhentai auth cookies
 
 ## Chores
-- [x] Replace all Komikku icons/branding with pineapple icons/branding
+- [x] Replace all Komikku icons/branding with houri icons/branding
 - [x] Update ancient test framework
 - [x] Streamline gradle tasks
 - [x] Update gradle plugins
