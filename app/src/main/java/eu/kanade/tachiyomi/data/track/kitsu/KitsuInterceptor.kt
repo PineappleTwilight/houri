@@ -22,7 +22,8 @@ class KitsuInterceptor(private val kitsu: Kitsu) : Interceptor {
 
         val currAuth = oauth ?: throw Exception("Not authenticated with Kitsu")
 
-        val refreshToken = currAuth.refreshToken!!
+        val refreshToken = currAuth.refreshToken
+            ?: throw Exception("No refresh token available for Kitsu")
 
         // Refresh access token if expired.
         if (currAuth.isExpired()) {
@@ -35,8 +36,9 @@ class KitsuInterceptor(private val kitsu: Kitsu) : Interceptor {
         }
 
         // Add the authorization header to the original request.
+        val updatedAuth = oauth ?: throw Exception("Not authenticated with Kitsu")
         val authRequest = originalRequest.newBuilder()
-            .addHeader("Authorization", "Bearer ${oauth!!.accessToken}")
+            .addHeader("Authorization", "Bearer ${updatedAuth.accessToken}")
             .header("User-Agent", "Houri v${BuildConfig.VERSION_NAME} (${BuildConfig.APPLICATION_ID})")
             .header("Accept", "application/vnd.api+json")
             .header("Content-Type", "application/vnd.api+json")

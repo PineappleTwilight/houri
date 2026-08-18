@@ -61,17 +61,14 @@ class NotificationReceiver : BroadcastReceiver() {
             ACTION_CLEAR_DOWNLOADS -> downloadManager.clearQueue()
             // Launch share activity and dismiss notification
             ACTION_SHARE_IMAGE ->
-                shareImage(
-                    context,
-                    intent.getStringExtra(EXTRA_URI)!!.toUri(),
-                )
+                intent.getStringExtra(EXTRA_URI)?.toUri()?.let { uri ->
+                    shareImage(context, uri)
+                }
             // Share backup file
             ACTION_SHARE_BACKUP ->
-                shareFile(
-                    context,
-                    intent.getParcelableExtraCompat(EXTRA_URI)!!,
-                    "application/x-protobuf+gzip",
-                )
+                intent.getParcelableExtraCompat<Uri>(EXTRA_URI)?.let { uri ->
+                    shareFile(context, uri, "application/x-protobuf+gzip")
+                }
             ACTION_CANCEL_RESTORE -> cancelRestore(context)
 
             ACTION_CANCEL_SYNC -> cancelSync(context)

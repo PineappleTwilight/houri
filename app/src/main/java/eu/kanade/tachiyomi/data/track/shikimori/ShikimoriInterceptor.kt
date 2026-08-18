@@ -22,7 +22,8 @@ class ShikimoriInterceptor(private val shikimori: Shikimori) : Interceptor {
 
         val currAuth = oauth ?: throw Exception("Not authenticated with Shikimori")
 
-        val refreshToken = currAuth.refreshToken!!
+        val refreshToken = currAuth.refreshToken
+            ?: throw Exception("No refresh token available for Shikimori")
 
         // Refresh access token if expired.
         if (currAuth.isExpired()) {
@@ -34,8 +35,9 @@ class ShikimoriInterceptor(private val shikimori: Shikimori) : Interceptor {
             }
         }
         // Add the authorization header to the original request.
+        val updatedAuth = oauth ?: throw Exception("Not authenticated with Shikimori")
         val authRequest = originalRequest.newBuilder()
-            .addHeader("Authorization", "Bearer ${oauth!!.accessToken}")
+            .addHeader("Authorization", "Bearer ${updatedAuth.accessToken}")
             .header("User-Agent", "Houri v${BuildConfig.VERSION_NAME} (${BuildConfig.APPLICATION_ID})")
             .build()
 

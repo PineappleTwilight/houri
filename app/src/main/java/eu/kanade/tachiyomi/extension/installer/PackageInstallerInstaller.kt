@@ -80,10 +80,11 @@ class PackageInstallerInstaller(private val service: Service) : Installer(servic
                 installParams.setRequireUserAction(PackageInstaller.SessionParams.USER_ACTION_NOT_REQUIRED)
             }
             activeSession = entry to packageInstaller.createSession(installParams)
-            xLogD("[ExtInstall] PackageInstaller session created id=${activeSession!!.second}")
+            val sessionId = activeSession?.second ?: return
+            xLogD("[ExtInstall] PackageInstaller session created id=$sessionId")
 
             val inputStream = service.contentResolver.openInputStream(entry.uri) ?: throw IllegalStateException()
-            val session = packageInstaller.openSession(activeSession!!.second)
+            val session = packageInstaller.openSession(sessionId)
             val outputStream = session.openWrite(entry.downloadId.toString(), 0, fileSize)
             session.use {
                 arrayOf(inputStream, outputStream).use {
@@ -94,13 +95,13 @@ class PackageInstallerInstaller(private val service: Service) : Installer(servic
 
                 val intentSender = PendingIntent.getBroadcast(
                     service,
-                    activeSession!!.second,
+                    sessionId,
                     Intent(INSTALL_ACTION).setPackage(service.packageName),
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) PendingIntent.FLAG_MUTABLE else 0,
                 ).intentSender
                 @SuppressLint("RequestInstallPackagesPolicy")
                 session.commit(intentSender)
-                xLogD("[ExtInstall] PackageInstaller session committed id=${activeSession!!.second}")
+                xLogD("[ExtInstall] PackageInstaller session committed id=$sessionId")
             }
         } catch (e: Exception) {
             xLogE("Failed to install extension ${entry.downloadId} ${entry.uri}", e)

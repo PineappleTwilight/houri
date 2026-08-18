@@ -44,7 +44,8 @@ class RefreshTracks(
                 .map { (track, service) ->
                     async {
                         return@async try {
-                            val updatedTrack = service!!.refresh(track.toDbTrack()).toDomainTrack()!!
+                            val updatedTrack = service!!.refresh(track.toDbTrack()).toDomainTrack()
+                                ?: return@async service to IllegalStateException("Failed to convert track data")
                             insertTrack.await(updatedTrack)
                             // KMK -->
                             if (!enhancedTrackersOnly) {

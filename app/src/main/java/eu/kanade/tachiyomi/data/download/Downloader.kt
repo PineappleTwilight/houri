@@ -479,15 +479,16 @@ class Downloader(
 
         // Try to find the image file
         val imageFile = tmpDir.listFiles()?.firstOrNull {
-            it.name!!.startsWith("$filename.") || it.name!!.startsWith("${filename}__001")
+            it.name?.startsWith("$filename.") == true || it.name?.startsWith("${filename}__001") == true
         }
 
         try {
             // If the image is already downloaded, do nothing. Otherwise download from network
+            val imageUrl = page.imageUrl
             val file = when {
                 imageFile != null -> imageFile
-                chapterCache.isImageInCache(page.imageUrl!!) ->
-                    copyImageFromCache(chapterCache.getImageFile(page.imageUrl!!), tmpDir, filename)
+                imageUrl != null && chapterCache.isImageInCache(imageUrl) ->
+                    copyImageFromCache(chapterCache.getImageFile(imageUrl), tmpDir, filename)
                 else -> downloadImage(page, download.source, tmpDir, filename, dataSaver)
             }
 
@@ -687,7 +688,7 @@ class Downloader(
 
         // Remove the old file
         dir.findFile(COMIC_INFO_FILE)?.delete()
-        dir.createFile(COMIC_INFO_FILE)!!.openOutputStream().use {
+        dir.createFile(COMIC_INFO_FILE)?.openOutputStream()?.use {
             val comicInfoString = xml.encodeToString(ComicInfo.serializer(), comicInfo)
             it.write(comicInfoString.toByteArray())
         }

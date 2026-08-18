@@ -111,7 +111,7 @@ data class MigrateMangaScreen(
                 // KMK -->
                 MigrateMangaAppBar(
                     // KMK <--
-                    title = state.source!!.name,
+                    title = state.source?.name ?: "",
                     navigateUp = {
                         // KMK -->
                         navigator.pop()

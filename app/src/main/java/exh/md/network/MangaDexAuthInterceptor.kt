@@ -30,7 +30,8 @@ class MangaDexAuthInterceptor(
             oauth = MdUtil.loadOAuth(trackPreferences, mdList)
         }
         // Refresh access token if expired
-        if (oauth != null && oauth!!.isExpired()) {
+        val currentOauth = oauth
+        if (currentOauth != null && currentOauth.isExpired()) {
             setAuth(refreshToken(chain))
         }
 
@@ -39,8 +40,9 @@ class MangaDexAuthInterceptor(
         }
 
         // Add the authorization header to the original request
+        val authOauth = oauth ?: throw IOException("No authentication token")
         val authRequest = originalRequest.newBuilder()
-            .addHeader("Authorization", "Bearer ${oauth!!.accessToken}")
+            .addHeader("Authorization", "Bearer ${authOauth.accessToken}")
             .build()
 
         val response = chain.proceed(authRequest)
@@ -77,8 +79,9 @@ class MangaDexAuthInterceptor(
     }
 
     private fun refreshToken(chain: Interceptor.Chain): MALOAuth? {
+        val currentOauth = oauth ?: return null
         val newOauth = runCatching {
-            val oauthResponse = chain.proceed(MdUtil.refreshTokenRequest(oauth!!))
+            val oauthResponse = chain.proceed(MdUtil.refreshTokenRequest(currentOauth))
 
             if (oauthResponse.isSuccessful) {
                 with(MdUtil.jsonParser) { oauthResponse.parseAs<MALOAuth>() }

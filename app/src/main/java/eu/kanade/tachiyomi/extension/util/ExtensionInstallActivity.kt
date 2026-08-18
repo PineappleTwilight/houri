@@ -70,7 +70,7 @@ class ExtensionInstallActivity : Activity() {
     }
 
     private fun checkInstallationResult(resultCode: Int) {
-        val downloadId = intent.extras!!.getLong(ExtensionInstaller.EXTRA_DOWNLOAD_ID)
+        val downloadId = intent.extras?.getLong(ExtensionInstaller.EXTRA_DOWNLOAD_ID) ?: return
         val extensionManager = Injekt.get<ExtensionManager>()
         val newStep = when (resultCode) {
             RESULT_OK -> InstallStep.Installed

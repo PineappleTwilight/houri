@@ -430,7 +430,8 @@ class DownloadCache(
                 updatedRootDir.sourceDirs = updatedRootDir.dir?.listFiles().orEmpty()
                     .filter { it.isDirectory && !it.name.isNullOrBlank() }
                     .mapNotNull { dir ->
-                        val sourceId = sourceMap[dir.name!!.lowercase()]
+                        val dirName = dir.name ?: return@mapNotNull null
+                        val sourceId = sourceMap[dirName.lowercase()]
                         sourceId?.let { it to SourceDirectory(dir) }
                     }
                     .toMap()

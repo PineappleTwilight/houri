@@ -104,10 +104,11 @@ internal class DownloadNotifier(private val context: Context) {
                 )
             }
 
+            val pagesSize = download.pages?.size ?: 0
             val downloadingProgressText = context.stringResource(
                 MR.strings.chapter_downloading_progress,
                 download.downloadedImages,
-                download.pages!!.size,
+                pagesSize,
             )
 
             if (preferences.hideNotificationContent().get()) {
@@ -124,7 +125,7 @@ internal class DownloadNotifier(private val context: Context) {
                 setContentText(downloadingProgressText)
             }
 
-            setProgress(download.pages!!.size, download.downloadedImages, false)
+            setProgress(pagesSize, download.downloadedImages, false)
             setOngoing(true)
 
             show(Notifications.ID_DOWNLOAD_CHAPTER_PROGRESS)

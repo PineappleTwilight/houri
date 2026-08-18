@@ -22,7 +22,10 @@ class BackupDecoder(
      * Decode a potentially-gzipped backup.
      */
     fun decode(uri: Uri): Backup {
-        return context.contentResolver.openInputStream(uri)!!.use { inputStream ->
+        return (
+            context.contentResolver.openInputStream(uri)
+                ?: throw IOException(context.stringResource(MR.strings.invalid_backup_file_unknown))
+            ).use { inputStream ->
             val source = inputStream.source().buffer()
 
             val peeked = source.peek().apply {

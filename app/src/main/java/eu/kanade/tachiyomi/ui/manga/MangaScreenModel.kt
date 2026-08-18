@@ -1420,13 +1420,13 @@ class MangaScreenModel(
             .filter { it.first != null }
             .forEach { (track, e) ->
                 logcat(LogPriority.ERROR, e) {
-                    "Failed to refresh track data mangaId=$mangaId for service ${track!!.id}"
+                    "Failed to refresh track data mangaId=$mangaId for service ${track?.id}"
                 }
                 withUIContext {
                     context.toast(
                         context.stringResource(
                             MR.strings.track_error,
-                            track!!.name,
+                            track?.name ?: "Unknown",
                             e.message ?: "",
                         ),
                     )

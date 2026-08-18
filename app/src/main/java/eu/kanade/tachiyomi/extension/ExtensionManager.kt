@@ -110,8 +110,10 @@ class ExtensionManager(
         val pkgName = getExtensionPackage(sourceId)
         if (pkgName != null) {
             return iconMap[pkgName] ?: iconMap.getOrPut(pkgName) {
-                ExtensionLoader.getExtensionPackageInfoFromPkgName(context, pkgName)!!.applicationInfo!!
-                    .loadIcon(context.packageManager)
+                ExtensionLoader.getExtensionPackageInfoFromPkgName(context, pkgName)
+                    ?.applicationInfo
+                    ?.loadIcon(context.packageManager)
+                    ?: ContextCompat.getDrawable(context, R.mipmap.ic_launcher)!!
             }
         }
 

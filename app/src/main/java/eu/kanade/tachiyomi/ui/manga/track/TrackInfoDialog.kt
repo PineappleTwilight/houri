@@ -365,13 +365,13 @@ data class TrackInfoDialogHomeScreen(
                 .filter { it.first != null }
                 .forEach { (track, e) ->
                     logcat(LogPriority.ERROR, e) {
-                        "Failed to refresh track data mangaId=$mangaId for service ${track!!.id}"
+                        "Failed to refresh track data mangaId=$mangaId for service ${track?.id}"
                     }
                     withUIContext {
                         context.toast(
                             context.stringResource(
                                 MR.strings.track_error,
-                                track!!.name,
+                                track?.name ?: "Unknown",
                                 e.message ?: "",
                             ),
                         )
@@ -380,8 +380,9 @@ data class TrackInfoDialogHomeScreen(
         }
 
         fun togglePrivate(item: TrackItem) {
+            val track = item.track ?: return
             screenModelScope.launchNonCancellable {
-                item.tracker.setRemotePrivate(item.track!!.toDbTrack(), !item.track.private)
+                item.tracker.setRemotePrivate(track.toDbTrack(), !track.private)
             }
         }
 

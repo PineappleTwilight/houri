@@ -79,7 +79,7 @@ class ExtensionInstallService : Service() {
                 }
             }
         }
-        installer!!.addToQueue(id, uri)
+        installer?.addToQueue(id, uri)
         return START_NOT_STICKY
     }
 

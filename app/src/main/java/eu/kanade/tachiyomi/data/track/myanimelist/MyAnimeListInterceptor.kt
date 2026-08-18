@@ -30,8 +30,9 @@ class MyAnimeListInterceptor(private val myanimelist: MyAnimeList) : Interceptor
         }
 
         // Add the authorization header to the original request
+        val currentOauth = oauth ?: throw IOException("MAL: User is not authenticated")
         val authRequest = originalRequest.newBuilder()
-            .addHeader("Authorization", "Bearer ${oauth!!.accessToken}")
+            .addHeader("Authorization", "Bearer ${currentOauth.accessToken}")
             // TODO(antsy): Add back custom user agent when they stop blocking us for no apparent reason
             // .header("User-Agent", "Houri v${BuildConfig.VERSION_NAME} (${BuildConfig.APPLICATION_ID})")
             .build()
@@ -52,8 +53,9 @@ class MyAnimeListInterceptor(private val myanimelist: MyAnimeList) : Interceptor
         if (tokenExpired) throw MALTokenExpired()
         oauth?.takeUnless { it.isExpired() }?.let { return@synchronized it }
 
+        val currentOauth = oauth ?: throw MALTokenRefreshFailed()
         val response = try {
-            chain.proceed(MyAnimeListApi.refreshTokenRequest(oauth!!))
+            chain.proceed(MyAnimeListApi.refreshTokenRequest(currentOauth))
         } catch (_: Throwable) {
             throw MALTokenRefreshFailed()
         }

@@ -546,7 +546,7 @@ class MangaScreen(
             MangaScreenModel.Dialog.FullCover -> {
                 val sm = rememberScreenModel { MangaCoverScreenModel(successState.manga.id) }
                 val manga by sm.state.collectAsState()
-                if (manga != null) {
+                manga?.let { currentManga ->
                     val getContent = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) {
                         if (it == null) return@rememberLauncherForActivityResult
                         sm.editCover(context, it)
@@ -563,9 +563,9 @@ class MangaScreen(
                     )
                     // KMK <--
                     MangaCoverDialog(
-                        manga = manga!!,
+                        manga = currentManga,
                         snackbarHostState = sm.snackbarHostState,
-                        isCustomCover = remember(manga) { manga!!.hasCustomCover() },
+                        isCustomCover = remember(currentManga) { currentManga.hasCustomCover() },
                         onShareClick = { sm.shareCover(context) },
                         onSaveClick = {
                             // KMK -->
@@ -595,7 +595,7 @@ class MangaScreen(
                             ),
                         // KMK <--
                     )
-                } else {
+                } ?: run {
                     LoadingScreen(Modifier.systemBarsPadding())
                 }
             }

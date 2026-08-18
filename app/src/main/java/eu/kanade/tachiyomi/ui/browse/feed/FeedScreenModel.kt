@@ -303,7 +303,7 @@ open class FeedScreenModel(
                     val result = withIOContext {
                         itemUI.copy(
                             results = page
-                                .map { it.toDomainManga(itemUI.source!!.id) }
+                                .mapNotNull { itemUI.source?.let { source -> it.toDomainManga(source.id) } }
                                 .distinctBy { it.url }
                                 .let { networkToLocalManga(it) }
                                 // KMK -->

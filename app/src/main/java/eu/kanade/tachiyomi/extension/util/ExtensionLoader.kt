@@ -216,7 +216,7 @@ internal object ExtensionLoader {
             context.packageManager.getPackageArchiveInfo(privateExtensionFile.absolutePath, PACKAGE_FLAGS)
                 ?.takeIf { isPackageAnExtension(it) }
                 ?.let {
-                    it.applicationInfo!!.fixBasePaths(privateExtensionFile.absolutePath)
+                    it.applicationInfo?.fixBasePaths(privateExtensionFile.absolutePath)
                     ExtensionInfo(
                         packageInfo = it,
                         isShared = false,

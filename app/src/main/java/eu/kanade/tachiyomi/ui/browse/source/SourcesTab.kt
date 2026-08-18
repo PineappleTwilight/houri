@@ -126,8 +126,8 @@ fun Screen.sourcesTab(
                         onDismiss = screenModel::closeDialog,
                         // KMK -->
                         onClickSettings = {
-                            if (source.installedExtension !== null) {
-                                navigator.push(ExtensionDetailsScreen(source.installedExtension!!.pkgName))
+                            source.installedExtension?.let { ext ->
+                                navigator.push(ExtensionDetailsScreen(ext.pkgName))
                             }
                             screenModel.closeDialog()
                         },
