@@ -82,7 +82,6 @@ import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.flow.updateAndGet
-import kotlinx.coroutines.runBlocking
 import mihon.core.common.utils.mutate
 import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.core.common.preference.CheckboxState
@@ -553,7 +552,7 @@ class LibraryScreenModel(
         }
     }
 
-    private fun List<LibraryItem>.applyGrouping(
+    private suspend fun List<LibraryItem>.applyGrouping(
         categories: List<Category>,
         // KMK -->
         groupType: Int,
@@ -799,9 +798,7 @@ class LibraryScreenModel(
             // Pre-fetch merged manga data to avoid N+1 queries
             val mergedMangaCache = mutableMapOf<Long, List<Manga>>()
             libraryManga.filter { it.manga.source == MERGED_SOURCE_ID }.forEach { manga ->
-                mergedMangaCache[manga.manga.id] = runBlocking {
-                    getMergedMangaById.await(manga.manga.id)
-                }
+                mergedMangaCache[manga.manga.id] = getMergedMangaById.await(manga.manga.id)
             }
 
             libraryManga.map { manga ->
@@ -1531,13 +1528,13 @@ class LibraryScreenModel(
     }
 
     // SY -->
-    private fun List<LibraryItem>.getGroupedMangaItems(
+    private suspend fun List<LibraryItem>.getGroupedMangaItems(
         groupType: Int,
     ): Map<Category, List</* LibraryItem */ Long>> {
         val context = preferences.context
         return when (groupType) {
             LibraryGroup.BY_TRACK_STATUS -> {
-                val tracks = runBlocking { getTracks.await() }.groupBy { it.mangaId }
+                val tracks = getTracks.await().groupBy { it.mangaId }
                 // KMK -->
                 val groupCache = mutableMapOf</* Track.status */ Int, MutableList</* LibraryItem */ Long>>()
                 forEach { item ->

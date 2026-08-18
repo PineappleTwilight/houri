@@ -221,11 +221,12 @@ data object LibraryTab : Tab {
                     // KMK -->
                     onMergeClicked = {
                         if (state.selection.size == 1) {
-                            val manga = state.selectedManga.first()
-                            // Invoke merging for this manga
-                            screenModel.clearSelection()
-                            val smartSearchConfig = SourcesScreen.SmartSearchConfig(manga.title, manga.id)
-                            navigator.push(SourcesScreen(smartSearchConfig))
+                            state.selectedManga.firstOrNull()?.let { manga ->
+                                // Invoke merging for this manga
+                                screenModel.clearSelection()
+                                val smartSearchConfig = SourcesScreen.SmartSearchConfig(manga.title, manga.id)
+                                navigator.push(SourcesScreen(smartSearchConfig))
+                            }
                         } else if (state.selection.isNotEmpty()) {
                             // Invoke multiple merge
                             val selectedManga = state.selectedManga
