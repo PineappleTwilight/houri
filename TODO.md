@@ -4,7 +4,11 @@
 
 - [x] **Yokai Backport**: Library sort option to ignore articles (A, An, The, etc.) — like J2K/Yokai. Example: "A Sign of Affection" sorts under S, "The Apothecary Diaries" sorts under A instead of T.
 - [x] **Tracker**: MangaBaka (Mihon backport)
-- [x] **Tracker**: Anime-Planet (scraping method, no api)
+- [~] **Tracker**: Anime-Planet (scraping method, no api)
+  - [ ] Implement cookie scanning and storage for "ap" and "REMEMBER ME" (both are login auth cookies)
+  - [ ] Implement cookie caching for all cf_* cookies
+  - [ ] Cache "xf_user" and "xf_session" cookies
+- [ ] **Tracker**: ComicK
 - [ ] **Tracker**: Hikka (Mihon backport)
 - [ ] **Mihon Backport**: Reader
 - [ ] **Mihon Backport**: Decoder (maybe not, highly experimental)
@@ -13,7 +17,7 @@
 - [x] **E-Hentai**: Add content censorship status as a tag next to the content type tag (doujinshi, manga, etc). Content defaults to censored (no title marking), decensored (marked as [Decensored] in the title), or uncensored (marked as [Uncensored] in the title).
     - [x] Add accompanying sort/filter options for this change
 - [ ] **E-Hentai**: Censorship type identification from manga tags (mosaic, full, etc)
-- [ ] **New**: Add mango easter egg (?)
+- [x] **New**: Add mango easter egg (?)
 
 ## Bugfixes
 - [x] Fix UI transition choppiness.
