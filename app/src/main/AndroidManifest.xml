@@ -213,6 +213,11 @@
             android:name=".ui.setting.track.AnimePlanetLoginActivity"
             android:exported="false"
             android:label="@string/track_activity_name" />
+        <!-- KMK: ComicK webview login (Cloudflare-protected, no OAuth redirect) -->
+        <activity
+            android:name=".ui.setting.track.ComicKLoginActivity"
+            android:exported="false"
+            android:label="@string/track_activity_name" />
         <activity
             android:name=".ui.setting.track.GoogleDriveLoginActivity"
             android:label="GoogleDrive"

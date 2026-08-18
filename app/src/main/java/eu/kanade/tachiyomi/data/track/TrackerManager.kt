@@ -3,6 +3,8 @@ package eu.kanade.tachiyomi.data.track
 import eu.kanade.tachiyomi.data.track.anilist.Anilist
 import eu.kanade.tachiyomi.data.track.animeplanet.AnimePlanet
 import eu.kanade.tachiyomi.data.track.bangumi.Bangumi
+import eu.kanade.tachiyomi.data.track.comick.ComicK
+import eu.kanade.tachiyomi.data.track.hikka.Hikka
 import eu.kanade.tachiyomi.data.track.kavita.Kavita
 import eu.kanade.tachiyomi.data.track.kitsu.Kitsu
 import eu.kanade.tachiyomi.data.track.komga.Komga
@@ -20,9 +22,12 @@ class TrackerManager {
         const val ANILIST = 2L
         const val KITSU = 3L
         const val KAVITA = 8L
+        const val HIKKA = 10L
         const val MANGABAKA = 11L
         // KMK -->
         const val ANIMEPLANET = 61L
+        const val SUWAYOMI = 62L
+        const val COMICK = 63L
         // KMK <--
 
         // SY --> Mangadex from Neko
@@ -40,12 +45,14 @@ class TrackerManager {
     val komga = Komga(6L)
     val mangaUpdates = MangaUpdates(7L)
     val kavita = Kavita(KAVITA)
-    val suwayomi = Suwayomi(9L)
+    val suwayomi = Suwayomi(SUWAYOMI)
+    val hikka = Hikka(HIKKA)
     val mangaBaka = MangaBaka(MANGABAKA)
     val animePlanet = AnimePlanet(ANIMEPLANET)
+    val comicK = ComicK(COMICK)
 
     val trackers =
-        listOf(mdList, myAnimeList, aniList, kitsu, shikimori, bangumi, komga, mangaUpdates, kavita, suwayomi, mangaBaka, animePlanet)
+        listOf(mdList, myAnimeList, aniList, kitsu, shikimori, bangumi, komga, mangaUpdates, kavita, suwayomi, hikka, mangaBaka, animePlanet, comicK)
 
     fun loggedInTrackers() = trackers.filter { it.isLoggedIn }
 

@@ -9,7 +9,7 @@ import android.webkit.WebView
 import android.widget.Toast
 import androidx.core.net.toUri
 import androidx.lifecycle.lifecycleScope
-import eu.kanade.presentation.webview.AnimePlanetLoginWebViewScreen
+import eu.kanade.presentation.webview.ComicKLoginWebViewScreen
 import eu.kanade.tachiyomi.R
 import eu.kanade.tachiyomi.data.track.TrackerManager
 import eu.kanade.tachiyomi.ui.base.activity.BaseActivity
@@ -21,7 +21,7 @@ import tachiyomi.i18n.MR
 import uy.kohesive.injekt.injectLazy
 import java.net.HttpCookie
 
-class AnimePlanetLoginActivity : BaseActivity() {
+class ComicKLoginActivity : BaseActivity() {
 
     private val trackerManager: TrackerManager by injectLazy()
 
@@ -45,7 +45,7 @@ class AnimePlanetLoginActivity : BaseActivity() {
         }
 
         setComposeContent {
-            AnimePlanetLoginWebViewScreen(
+            ComicKLoginWebViewScreen(
                 onUp = { finish() },
                 onPageFinished = ::onPageFinished,
             )
@@ -54,46 +54,44 @@ class AnimePlanetLoginActivity : BaseActivity() {
 
     private fun onPageFinished(view: WebView, url: String) {
         val parsedUrl = url.toUri()
-        val isAnimePlanet = parsedUrl.host.equals("www.anime-planet.com", ignoreCase = true)
-        if (!isAnimePlanet) return
+        val isComick = parsedUrl.host.equals("comick.dev", ignoreCase = true)
+        if (!isComick) return
 
-        val isUserProfile = parsedUrl.path?.startsWith("/users/") == true
-        if (isUserProfile) {
-            val cookieHeader = getAllCookies() ?: return
-            val username = parsedUrl.lastPathSegment.orEmpty()
-            if (username.isNotBlank()) {
-                loginAndFinish(cookieHeader, username)
+        // Check if we have the session cookie after login
+        val sessionCookie = getSessionCookie() ?: return
+
+        // Extract username from user page or use a default
+        val username = if (parsedUrl.path?.startsWith("/user/") == true) {
+            parsedUrl.lastPathSegment.orEmpty()
+        } else {
+            // Navigate to user page to get username
+            if (!navigatedToProfile) {
+                navigatedToProfile = true
+                view.loadUrl("https://comick.dev/user")
             }
             return
         }
 
-        // KMK -->
-        // After login, AnimePlanet redirects to the homepage ("/") instead of
-        // the user's profile. Detect the session cookie and navigate to the
-        // user's profile page to extract the username.
-        if (hasSessionCookie() && !navigatedToProfile) {
-            navigatedToProfile = true
-            view.loadUrl("https://www.anime-planet.com/users/")
+        if (username.isNotBlank()) {
+            loginAndFinish(sessionCookie, username)
         }
-        // KMK <--
     }
 
-    // KMK -->
     private var navigatedToProfile = false
 
     private fun hasSessionCookie(): Boolean {
-        val cookies = CookieManager.getInstance().getCookie("https://www.anime-planet.com") ?: return false
+        val cookies = CookieManager.getInstance().getCookie("https://comick.dev") ?: return false
         return cookies.split("; ")
             .mapNotNull { HttpCookie.parse(it).firstOrNull() }
-            .firstOrNull { it.name.equals("session", ignoreCase = true) }
+            .firstOrNull { it.name.equals("ory_kratos_session", ignoreCase = true) }
             ?.value
             ?.isNotBlank() == true
     }
 
-    private fun loginAndFinish(cookieHeader: String, username: String) {
+    private fun loginAndFinish(sessionCookie: String, username: String) {
         lifecycleScope.launchIO {
             try {
-                trackerManager.animePlanet.loginWithCookie(cookieHeader, username)
+                trackerManager.comicK.loginWithCookie(sessionCookie, username)
                 setResult(RESULT_OK)
             } catch (e: Throwable) {
                 toast(e.message.toString())
@@ -102,34 +100,22 @@ class AnimePlanetLoginActivity : BaseActivity() {
             }
         }
     }
-    // KMK <--
 
-    // KMK -->
-    /**
-     * Capture all cookies from the WebView CookieManager for anime-planet.com.
-     * Returns them as a raw cookie header string (name=value; name2=value2).
-     *
-     * Important cookies captured:
-     * - "session" — primary auth cookie
-     * - "ap" — auth cookie
-     * - "REMEMBER ME" — persistent login cookie
-     * - "cf_*" — Cloudflare challenge cookies
-     * - "xf_user", "xf_session" — XenForo forum cookies
-     */
-    private fun getAllCookies(): String? {
-        val rawCookies = CookieManager.getInstance().getCookie("https://www.anime-planet.com") ?: return null
-        // CookieManager returns cookies in "name=value; name2=value2" format already
-        // But we need to parse and re-emit to ensure we get a valid header string
-        val parsed = rawCookies.split("; ")
-            .mapNotNull { part ->
-                val trimmed = part.trim()
-                if (trimmed.isNotEmpty() && trimmed.contains("=")) trimmed else null
-            }
-            .joinToString("; ")
+    private fun getSessionCookie(): String? {
+        val cookies = CookieManager.getInstance().getCookie("https://comick.dev") ?: return null
 
-        return parsed.ifBlank { null }
+        // Parse all cookies from the cookie string
+        val parsedCookies = cookies.split("; ")
+            .mapNotNull { HttpCookie.parse(it).firstOrNull() }
+
+        // Get the ory_kratos_session cookie value
+        val session = parsedCookies
+            .firstOrNull { it.name.equals("ory_kratos_session", ignoreCase = true) }
+            ?.value
+            ?.takeIf { it.isNotBlank() }
+
+        return session
     }
-    // KMK <--
 
     override fun finish() {
         super.finish()
@@ -151,7 +137,7 @@ class AnimePlanetLoginActivity : BaseActivity() {
 
     companion object {
         fun newIntent(context: Context): Intent {
-            return Intent(context, AnimePlanetLoginActivity::class.java).apply {
+            return Intent(context, ComicKLoginActivity::class.java).apply {
                 addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
             }
         }

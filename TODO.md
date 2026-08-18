@@ -5,11 +5,11 @@
 - [x] **Yokai Backport**: Library sort option to ignore articles (A, An, The, etc.) — like J2K/Yokai. Example: "A Sign of Affection" sorts under S, "The Apothecary Diaries" sorts under A instead of T.
 - [x] **Tracker**: MangaBaka (Mihon backport)
 - [~] **Tracker**: Anime-Planet (scraping method, no api)
-  - [ ] Implement cookie scanning and storage for "ap" and "REMEMBER ME" (both are login auth cookies)
-  - [ ] Implement cookie caching for all cf_* cookies
-  - [ ] Cache "xf_user" and "xf_session" cookies
-- [ ] **Tracker**: ComicK
-- [ ] **Tracker**: Hikka (Mihon backport)
+  - [x] Implement cookie scanning and storage for "ap" and "REMEMBER ME" (both are login auth cookies)
+  - [x] Implement cookie caching for all cf_* cookies
+  - [x] Cache "xf_user" and "xf_session" cookies
+- [x] **Tracker**: ComicK
+- [x] **Tracker**: Hikka (Mihon backport)
 - [ ] **Mihon Backport**: Reader
 - [ ] **Mihon Backport**: Decoder (maybe not, highly experimental)
 - [ ] **Mihon Backport**: Updater

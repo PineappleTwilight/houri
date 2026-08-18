@@ -9,15 +9,24 @@ class AnimePlanetInterceptor(
     private val animePlanet: AnimePlanet,
 ) : Interceptor {
 
-    private var sessionCookie: String? = animePlanet.restoreSession()
+    /**
+     * The full cookie header string to send with requests.
+     * This includes all cookies captured from the WebView session:
+     * - "session" (auth)
+     * - "ap" (auth)
+     * - "REMEMBER ME" (auth)
+     * - "cf_*" (Cloudflare)
+     * - "xf_user", "xf_session" (XenForo)
+     */
+    private var cookieHeader: String? = animePlanet.restoreCookieHeader()
 
     override fun intercept(chain: Interceptor.Chain): Response {
         val originalRequest = chain.request()
 
-        val cookie = sessionCookie ?: throw IOException("Not authenticated with AnimePlanet")
+        val cookies = cookieHeader ?: throw IOException("Not authenticated with AnimePlanet")
 
         val authRequest = originalRequest.newBuilder()
-            .addHeader("Cookie", "session=$cookie")
+            .addHeader("Cookie", cookies)
             .header("User-Agent", "Houri v${BuildConfig.VERSION_NAME} (${BuildConfig.APPLICATION_ID})")
             .build()
 
@@ -25,6 +34,6 @@ class AnimePlanetInterceptor(
     }
 
     fun newAuth(cookie: String?) {
-        this.sessionCookie = cookie
+        this.cookieHeader = cookie
     }
 }

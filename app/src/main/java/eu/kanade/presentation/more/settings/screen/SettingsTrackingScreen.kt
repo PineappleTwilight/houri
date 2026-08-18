@@ -208,6 +208,17 @@ object SettingsTrackingScreen : SearchableSettings {
                         // KMK <--
                         logout = { dialog = LogoutDialog(trackerManager.animePlanet) },
                     ),
+                    // KMK -->
+                    Preference.PreferenceItem.TrackerPreference(
+                        tracker = trackerManager.comicK,
+                        login = {
+                            context.startActivity(
+                                eu.kanade.tachiyomi.ui.setting.track.ComicKLoginActivity.newIntent(context),
+                            )
+                        },
+                        logout = { dialog = LogoutDialog(trackerManager.comicK) },
+                    ),
+                    // KMK <--
                     Preference.PreferenceItem.InfoPreference(stringResource(MR.strings.tracking_info)),
                 ),
             ),

@@ -117,15 +117,36 @@ class AnimePlanet(id: Long) : BaseTracker(id, "AnimePlanet"), DeletableTracker {
     override suspend fun login(username: String, password: String) = loginWithCookie(password, username)
 
     // KMK -->
-    suspend fun loginWithCookie(sessionCookie: String, username: String = "") {
-        saveCredentials(username.ifBlank { ANON_USERNAME }, sessionCookie)
-        interceptor.newAuth(sessionCookie)
+    suspend fun loginWithCookie(cookieHeader: String, username: String = "") {
+        saveCredentials(username.ifBlank { ANON_USERNAME }, cookieHeader)
+        interceptor.newAuth(cookieHeader)
     }
     // KMK <--
 
     fun restoreSession(): String? {
         return trackPreferences.trackPassword(this).get().ifBlank { null }
     }
+
+    // KMK -->
+    /**
+     * Returns the full cookie header string for API requests.
+     * Handles backward compatibility: old installs stored just the session value,
+     * new installs store the full "name=value; name2=value2" cookie header.
+     */
+    fun restoreCookieHeader(): String? {
+        val stored = trackPreferences.trackPassword(this).get().ifBlank { null } ?: return null
+        // If it already contains "; " or "=", it's a full cookie header (new format)
+        return if (stored.contains("=") && stored.contains("; ")) {
+            stored
+        } else if (stored.contains("=")) {
+            // Single cookie like "session=abc123" — wrap as-is
+            stored
+        } else {
+            // Legacy: bare value without key — assume it's the session cookie
+            "session=$stored"
+        }
+    }
+    // KMK <--
 
     private fun extractSlugFromUrl(url: String): String? {
         return Regex("""/manga/([^/?]+)""").find(url)?.groupValues?.get(1)
