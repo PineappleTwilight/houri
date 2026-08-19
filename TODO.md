@@ -51,6 +51,8 @@
 - [x] Fix e/exhentai censorship tags - censorship markers can appear at any order in the manga title, not just at the very end
 - [x] Fix clean titles not refreshing the library (requires app restart to load cleaned titles)
 - [x] Fix e/exhentai rare nullptr exceptions when browsing
+- [ ] Change Suwayomi tracker back to ID 9 (parity with upstream)
+- [ ] Change AnimePlanet and Comick trackers to use cookiejar storage instead of preference storage
 
 ## Chores
 - [x] Replace all Komikku icons/branding with houri icons/branding
