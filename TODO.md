@@ -71,3 +71,8 @@
 ## Drawing Board
 - [ ] **New**: WebAssembly computation engine
   - [ ] Optional extension support via overridable method
+- [ ] **New**: AI-powered translation/English grammar and vocab fixer.
+  - Would help users comprehend media better that was badly translated or not translated at all
+  - Disabled by default
+  - Unsure if model would run locally or via free endpoint
+    - Also unsure how to draw the translations over the content
