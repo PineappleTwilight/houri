@@ -62,3 +62,7 @@
 - [x] Fine-tune GitHub actions (add compile, auto-release if version changed, etc)
 - [ ] Replace Material UI framework with more stable library
 - [ ] **Update Dependency**: Voyager (UI related)
+
+## Drawing Board
+- [ ] **New**: WebAssembly computation engine
+  - [ ] Optional extension support via overridable method 
