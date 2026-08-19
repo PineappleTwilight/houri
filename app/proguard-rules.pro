@@ -168,6 +168,18 @@
 
 # XmlUtil
 -keep public enum nl.adaptivity.xmlutil.EventType { *; }
+-keep class nl.adaptivity.xmlutil.core.impl.idom.** { *; }
+
+# KMK -->
+# Kim (EXIF/TIFF metadata reader) — ships no consumer ProGuard rules.
+# Contains enums (MetadataType) and TIFF tag constant objects used internally.
+# R8 tree-shaking without a keep rule strips enum internals → runtime crash.
+-keep class de.stefan_oltmann.kim.** { *; }
+
+# MPReg ImageDecoder — ships empty ProGuard rules, uses JNI native methods.
+# decode() and encode() are native; R8 renaming/stripping breaks JNI binding.
+-keep class ca.mpreg.imagedecoder.** { *; }
+# KMK <--
 
 # Firebase
 -keep class com.google.firebase.installations.** { *; }
