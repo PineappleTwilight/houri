@@ -64,7 +64,6 @@ import eu.kanade.presentation.components.RestoringBannerBackgroundColor
 import eu.kanade.presentation.components.SyncingBannerBackgroundColor
 import eu.kanade.presentation.components.UpdatingBannerBackgroundColor
 import eu.kanade.presentation.more.settings.screen.ConfigureExhDialog
-import eu.kanade.presentation.more.settings.screen.about.AboutScreen.Companion.getReleaseNotes
 import eu.kanade.presentation.more.settings.screen.about.WhatsNewDialog
 import eu.kanade.presentation.more.settings.screen.browse.ExtensionStoresScreen
 import eu.kanade.presentation.more.settings.screen.data.RestoreBackupScreen
@@ -82,7 +81,7 @@ import eu.kanade.tachiyomi.data.download.DownloadCache
 import eu.kanade.tachiyomi.data.library.LibraryUpdateJob
 import eu.kanade.tachiyomi.data.notification.NotificationReceiver
 import eu.kanade.tachiyomi.data.updater.AppUpdateChecker
-import eu.kanade.tachiyomi.data.updater.AppUpdateJob
+import eu.kanade.tachiyomi.data.updater.RELEASE_URL
 import eu.kanade.tachiyomi.extension.api.ExtensionApi
 import eu.kanade.tachiyomi.ui.base.activity.BaseActivity
 import eu.kanade.tachiyomi.ui.browse.source.browse.BrowseSourceScreen
@@ -93,12 +92,12 @@ import eu.kanade.tachiyomi.ui.home.HomeScreen
 import eu.kanade.tachiyomi.ui.manga.MangaScreen
 import eu.kanade.tachiyomi.ui.more.NewUpdateScreen
 import eu.kanade.tachiyomi.ui.more.OnboardingScreen
-import eu.kanade.tachiyomi.ui.more.WhatsNewScreen
 import eu.kanade.tachiyomi.util.system.dpToPx
 import eu.kanade.tachiyomi.util.system.isDebugBuildType
 import eu.kanade.tachiyomi.util.system.isNavigationBarNeedsScrim
 import eu.kanade.tachiyomi.util.system.isPreviewBuildType
 import eu.kanade.tachiyomi.util.system.isReleaseBuildType
+import eu.kanade.tachiyomi.util.system.openInBrowser
 import eu.kanade.tachiyomi.util.system.updaterEnabled
 import eu.kanade.tachiyomi.util.view.setComposeContent
 import exh.debug.DebugToggles
@@ -408,7 +407,6 @@ class MainActivity : BaseActivity() {
                 0,
             )
             val previewCurrentVersion = BuildConfig.COMMIT_COUNT.toInt()
-            var isCheckingWhatsNew by remember { mutableStateOf(false) }
             // KMK <--
 
             var showChangelog by remember {
@@ -425,27 +423,7 @@ class MainActivity : BaseActivity() {
                     onDismissRequest = { showChangelog = false },
                     onOpenWhatsNew = {
                         showChangelog = false
-                        if (!isCheckingWhatsNew) {
-                            scope.launch {
-                                isCheckingWhatsNew = true
-
-                                getReleaseNotes(
-                                    context = context,
-                                    onAvailableUpdate = { result ->
-                                        val whatsNewScreen = WhatsNewScreen(
-                                            currentVersion = BuildConfig.VERSION_NAME,
-                                            versionName = result.release.version,
-                                            changelogInfo = result.release.info,
-                                            releaseLink = result.release.releaseLink,
-                                        )
-                                        navigator?.push(whatsNewScreen)
-                                    },
-                                    onFinish = {
-                                        isCheckingWhatsNew = false
-                                    },
-                                )
-                            }
-                        }
+                        context.openInBrowser(RELEASE_URL)
                     },
                 )
                 // KMK <--
@@ -551,9 +529,6 @@ class MainActivity : BaseActivity() {
         LaunchedEffect(Unit) {
             if (updaterEnabled) {
                 try {
-                    // KMK -->
-                    AppUpdateJob.setupTask(context)
-                    // KMK <--
                     val result = AppUpdateChecker().checkForUpdate(context)
                     if (result is GetApplicationRelease.Result.NewUpdate) {
                         val updateScreen = NewUpdateScreen(

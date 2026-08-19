@@ -44,7 +44,6 @@ import eu.kanade.tachiyomi.core.security.SecurityPreferences
 import eu.kanade.tachiyomi.data.download.DownloadCache
 import eu.kanade.tachiyomi.data.download.DownloadManager
 import eu.kanade.tachiyomi.data.library.MetadataUpdateJob
-import eu.kanade.tachiyomi.data.updater.AppUpdateJob
 import eu.kanade.tachiyomi.network.NetworkHelper
 import eu.kanade.tachiyomi.network.NetworkPreferences
 import eu.kanade.tachiyomi.network.PREF_DOH_360
@@ -175,8 +174,6 @@ object SettingsAdvancedScreen : SearchableSettings {
                 title = stringResource(KMR.strings.auto_update_app),
                 subtitle = stringResource(MR.strings.restrictions),
                 onValueChanged = {
-                    // Post to event looper to allow the preference to be updated.
-                    ContextCompat.getMainExecutor(context).execute { AppUpdateJob.setupTask(context) }
                     true
                 },
             ),

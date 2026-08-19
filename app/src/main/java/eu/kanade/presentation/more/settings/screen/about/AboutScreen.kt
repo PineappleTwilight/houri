@@ -30,9 +30,9 @@ import eu.kanade.presentation.util.LocalBackPress
 import eu.kanade.presentation.util.Screen
 import eu.kanade.tachiyomi.BuildConfig
 import eu.kanade.tachiyomi.data.updater.AppUpdateChecker
+import eu.kanade.tachiyomi.data.updater.RELEASE_URL
 import eu.kanade.tachiyomi.ui.more.ComingUpdatesScreen
 import eu.kanade.tachiyomi.ui.more.NewUpdateScreen
-import eu.kanade.tachiyomi.ui.more.WhatsNewScreen
 import eu.kanade.tachiyomi.util.CrashLogUtil
 import eu.kanade.tachiyomi.util.lang.toDateTimestampString
 import eu.kanade.tachiyomi.util.system.copyToClipboard
@@ -76,7 +76,6 @@ class AboutScreen : Screen() {
         var isCheckingUpdates by remember { mutableStateOf(false) }
 
         // KMK -->
-        var isCheckingWhatsNew by remember { mutableStateOf(false) }
         var isCheckingWhatsComing by remember { mutableStateOf(false) }
         // KMK <--
 
@@ -146,41 +145,10 @@ class AboutScreen : Screen() {
                     }
                 }
 
-                // KMK -->
                 item {
                     TextPreferenceWidget(
                         title = stringResource(MR.strings.whats_new),
-                        widget = {
-                            AnimatedVisibility(visible = isCheckingWhatsNew) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(28.dp),
-                                    strokeWidth = 3.dp,
-                                )
-                            }
-                        },
-                        onPreferenceClick = {
-                            if (!isCheckingWhatsNew) {
-                                scope.launch {
-                                    isCheckingWhatsNew = true
-
-                                    getReleaseNotes(
-                                        context = context,
-                                        onAvailableUpdate = { result ->
-                                            val whatsNewScreen = WhatsNewScreen(
-                                                currentVersion = BuildConfig.VERSION_NAME,
-                                                versionName = result.release.version,
-                                                changelogInfo = result.release.info,
-                                                releaseLink = result.release.releaseLink,
-                                            )
-                                            navigator.push(whatsNewScreen)
-                                        },
-                                        onFinish = {
-                                            isCheckingWhatsNew = false
-                                        },
-                                    )
-                                }
-                            }
-                        },
+                        onPreferenceClick = { uriHandler.openUri(RELEASE_URL) },
                     )
                 }
 
@@ -332,32 +300,6 @@ class AboutScreen : Screen() {
     }
 
     companion object {
-        // KMK -->
-        suspend fun getReleaseNotes(
-            context: Context,
-            onAvailableUpdate: (GetApplicationRelease.Result.NewUpdate) -> Unit,
-            onFinish: () -> Unit,
-        ) {
-            val updateChecker = AppUpdateChecker()
-            withUIContext {
-                try {
-                    when (val result = withIOContext { updateChecker.getReleaseNotes() }) {
-                        is GetApplicationRelease.Result.NewUpdate -> {
-                            onAvailableUpdate(result)
-                        }
-
-                        else -> {}
-                    }
-                } catch (e: Exception) {
-                    context.toast(e.message)
-                    logcat(LogPriority.ERROR, e)
-                } finally {
-                    onFinish()
-                }
-            }
-        }
-        // KMK <--
-
         fun getVersionName(withBuildDate: Boolean): String {
             return when {
                 isDebugBuildType -> {

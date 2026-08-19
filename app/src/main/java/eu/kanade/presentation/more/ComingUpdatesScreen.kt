@@ -13,14 +13,15 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.PreviewLightDark
 import eu.kanade.presentation.manga.components.MarkdownRender
 import eu.kanade.presentation.theme.TachiyomiPreviewTheme
+import eu.kanade.tachiyomi.ui.more.NewUpdateScreenModel
 import org.intellij.markdown.flavours.gfm.GFMFlavourDescriptor
 import tachiyomi.i18n.MR
 import tachiyomi.i18n.kmk.KMR
-import tachiyomi.i18n.sy.SYMR
 import tachiyomi.presentation.core.components.material.padding
 import tachiyomi.presentation.core.i18n.stringResource
 import tachiyomi.presentation.core.screens.InfoScreen
@@ -29,16 +30,27 @@ import tachiyomi.presentation.core.screens.InfoScreen
 fun ComingUpdatesScreen(
     versionName: String,
     changelogInfo: String,
+    stage: NewUpdateScreenModel.Stage,
+    downloadProgress: () -> Int,
     onOpenInBrowser: () -> Unit,
-    onRejectUpdate: () -> Unit,
     onAcceptUpdate: () -> Unit,
+    onRejectUpdate: () -> Unit,
 ) {
     InfoScreen(
         icon = Icons.Outlined.NewReleases,
         headingText = stringResource(KMR.strings.update_check_notification_preview_available),
-        subtitleText = stringResource(SYMR.strings.latest_, versionName),
-        acceptText = stringResource(KMR.strings.update_check_try_now),
+        subtitleText = versionName,
+        acceptText = when (stage) {
+            NewUpdateScreenModel.Stage.Available -> stringResource(KMR.strings.update_check_try_now)
+            NewUpdateScreenModel.Stage.Downloading -> stringResource(
+                MR.strings.downloading_with_progress,
+                downloadProgress(),
+            )
+            NewUpdateScreenModel.Stage.Downloaded -> stringResource(MR.strings.action_install)
+            NewUpdateScreenModel.Stage.Failed -> stringResource(MR.strings.action_retry)
+        },
         onAcceptClick = onAcceptUpdate,
+        canAccept = stage != NewUpdateScreenModel.Stage.Downloading,
         rejectText = stringResource(MR.strings.action_not_now),
         onRejectClick = onRejectUpdate,
     ) {
@@ -48,8 +60,8 @@ fun ComingUpdatesScreen(
                 .padding(vertical = MaterialTheme.padding.large),
         ) {
             MarkdownRender(
-                content = changelogInfo.trimIndent(),
-                flavour = GFMFlavourDescriptor(),
+                content = changelogInfo,
+                flavour = remember { GFMFlavourDescriptor() },
             )
 
             TextButton(
@@ -79,6 +91,8 @@ private fun ComingUpdatesScreenPreview() {
                 - Hello ([@cuong-tran](@https://github.com/cuong-tran))
                 - World
             """.trimIndent(),
+            stage = NewUpdateScreenModel.Stage.Available,
+            downloadProgress = { 0 },
             onOpenInBrowser = {},
             onRejectUpdate = {},
             onAcceptUpdate = {},

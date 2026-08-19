@@ -977,6 +977,7 @@
     <string name="update_check_no_new_updates">No new updates available</string>
 
     <!--UpdateCheck Notifications-->
+    <string name="downloading_with_progress">Downloading… (%d%%)</string>
     <string name="update_check_notification_download_in_progress">Downloading…</string>
     <string name="update_check_notification_download_complete">Tap to install update</string>
     <string name="update_check_notification_download_error">Download error</string>

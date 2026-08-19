@@ -13,7 +13,6 @@ import eu.kanade.tachiyomi.data.backup.models.LongPreferenceValue
 import eu.kanade.tachiyomi.data.backup.models.StringPreferenceValue
 import eu.kanade.tachiyomi.data.backup.models.StringSetPreferenceValue
 import eu.kanade.tachiyomi.data.library.LibraryUpdateJob
-import eu.kanade.tachiyomi.data.updater.AppUpdateJob
 import eu.kanade.tachiyomi.source.sourcePreferences
 import exh.EXHMigrations
 import exh.log.xLogE
@@ -44,9 +43,6 @@ class PreferenceRestorer(
 
         LibraryUpdateJob.setupTask(context)
         BackupCreateJob.setupTask(context)
-        // KMK -->
-        AppUpdateJob.setupTask(context)
-        // KMK <--
     }
 
     suspend fun restoreSource(preferences: List<BackupSourcePreferences>) {
