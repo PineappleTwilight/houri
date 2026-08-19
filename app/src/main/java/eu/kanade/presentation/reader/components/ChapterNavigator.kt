@@ -63,6 +63,9 @@ fun ChapterNavigator(
     // SY <--
     totalPages: Int,
     onPageIndexChange: (Int) -> Unit,
+    // Mihon -->
+    onPageIndexChangeFinished: () -> Unit = {},
+    // Mihon <--
 ) {
     // SY -->
     if (isVerticalSlider) {
@@ -75,6 +78,9 @@ fun ChapterNavigator(
             currentPageText = currentPageText,
             totalPages = totalPages,
             onPageIndexChange = onPageIndexChange,
+            // Mihon -->
+            onPageIndexChangeFinished = onPageIndexChangeFinished,
+            // Mihon <--
         )
         return
     }
@@ -158,6 +164,9 @@ fun ChapterNavigator(
                                 if (it == currentPage) return@f
                                 onPageIndexChange(it - 1)
                             },
+                            // Mihon -->
+                            onValueChangeFinished = onPageIndexChangeFinished,
+                            // Mihon <--
                             interactionSource = interactionSource,
                         )
 
@@ -201,6 +210,9 @@ fun ChapterNavigatorVert(
     // SY <--
     totalPages: Int,
     onPageIndexChange: (Int) -> Unit,
+    // Mihon -->
+    onPageIndexChangeFinished: () -> Unit = {},
+    // Mihon <--
 ) {
     val isTabletUi = isTabletUi()
     val verticalPadding = if (isTabletUi) 24.dp else 8.dp
@@ -290,6 +302,9 @@ fun ChapterNavigatorVert(
                         if (it == currentPage) return@f
                         onPageIndexChange(it - 1)
                     },
+                    // Mihon -->
+                    onValueChangeFinished = onPageIndexChangeFinished,
+                    // Mihon <--
                     interactionSource = interactionSource,
                 )
 

@@ -14,6 +14,9 @@ markdown = "0.39.2"
 junit = "6.0.3"
 materialKolor = "5.0.0-alpha07"
 ben-manes-versions = "0.54.0"
+kim = "0.37.0"
+webgpuviewer = "28"
+mpreg-imagedecoder = "9"
 
 [libraries]
 desugar = "com.android.tools:desugar_jdk_libs:2.1.5"
@@ -111,6 +114,10 @@ markdown-core = { module = "com.mikepenz:multiplatform-markdown-renderer", versi
 markdown-coil = { module = "com.mikepenz:multiplatform-markdown-renderer-coil3", version.ref = "markdown" }
 
 stringSimilarity = { module = "com.aallam.similarity:string-similarity-kotlin", version = "0.1.0" }
+
+kim = { module = "de.stefan-oltmann:kim", version.ref = "kim" }
+webgpuviewer = { module = "ca.mpreg:webgpuviewer", version.ref = "webgpuviewer" }
+mpreg-imagedecoder = { module = "ca.mpreg:imagedecoder", version.ref = "mpreg-imagedecoder" }
 
 materialKolor = { module = "com.materialkolor:material-kolor", version.ref = "materialKolor" }
 

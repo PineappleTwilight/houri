@@ -274,6 +274,12 @@ dependencies {
     }
     implementation(libs.image.decoder)
 
+    // Mihon -->
+    implementation(libs.webgpuviewer)
+    implementation(libs.mpreg.imagedecoder)
+    implementation(libs.kim)
+    // Mihon <--
+
     // UI libraries
     implementation(libs.material)
     implementation(libs.flexible.adapter.core)

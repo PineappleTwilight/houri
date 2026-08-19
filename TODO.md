@@ -10,8 +10,8 @@
   - [x] Cache "xf_user" and "xf_session" cookies
 - [x] **Tracker**: ComicK
 - [x] **Tracker**: Hikka (Mihon backport)
-- [ ] **Mihon Backport**: Reader
-- [ ] **Mihon Backport**: Decoder (maybe not, highly experimental)
+- [x] **Mihon Backport**: Reader
+- [x] **Mihon Backport**: Decoder (experimental)
 - [ ] **Mihon Backport**: Updater
 - [ ] **New**: Toggle to enable an anime girl moaning whenever a chapter is completed. Moans should be randomized and have different probabilities of appearing (gacha mechanic) **Partially implemented, pending audio files.**
 - [x] **E-Hentai**: Add content censorship status as a tag next to the content type tag (doujinshi, manga, etc). Content defaults to censored (no title marking), decensored (marked as [Decensored] in the title), or uncensored (marked as [Uncensored] in the title).
@@ -65,4 +65,4 @@
 
 ## Drawing Board
 - [ ] **New**: WebAssembly computation engine
-  - [ ] Optional extension support via overridable method 
+  - [ ] Optional extension support via overridable method

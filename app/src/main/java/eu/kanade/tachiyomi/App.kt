@@ -262,6 +262,9 @@ class App : Application(), DefaultLifecycleObserver, SingletonImageLoader.Factor
                 add(OkHttpNetworkFetcherFactory(callFactoryLazy::value))
                 // Decoder.Factory
                 add(TachiyomiImageDecoder.Factory())
+                // Mihon -->
+                add(eu.kanade.tachiyomi.data.coil.NewImageDecoder.Factory())
+                // Mihon <--
                 // Fetcher.Factory
                 add(BufferedSourceFetcher.Factory())
                 add(MangaCoverFetcher.MangaCoverFactory(callFactoryLazy))

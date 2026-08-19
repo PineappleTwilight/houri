@@ -79,6 +79,18 @@ internal fun GeneralPage(screenModel: ReaderSettingsScreenModel) {
             label = stringResource(SYMR.strings.pref_left_handed_vertical_seekbar),
             pref = screenModel.preferences.leftVerticalSeekbar(),
         )
+
+        // Mihon -->
+        val verticalNavigatorHeight by screenModel.preferences.verticalNavigatorHeight().collectAsState()
+        SliderItem(
+            label = stringResource(MR.strings.pref_vertical_navigator_height),
+            value = verticalNavigatorHeight,
+            valueRange = 65..100,
+            steps = 6,
+            onChange = { screenModel.preferences.verticalNavigatorHeight().set(it) },
+            pillColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+        )
+        // Mihon <--
     }
     // SY <--
 

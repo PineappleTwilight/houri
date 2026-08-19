@@ -68,6 +68,9 @@ fun ReaderAppBars(
     currentPage: Int,
     totalPages: Int,
     onPageIndexChange: (Int) -> Unit,
+    // Mihon -->
+    onPageIndexChangeFinished: () -> Unit = {},
+    // Mihon <--
 
     readingMode: ReadingMode,
     onClickReadingMode: () -> Unit,
@@ -179,6 +182,7 @@ fun ReaderAppBars(
                         currentPage = currentPage,
                         totalPages = totalPages,
                         onPageIndexChange = onPageIndexChange,
+                        onPageIndexChangeFinished = onPageIndexChangeFinished,
                         // SY -->
                         isVerticalSlider = true,
                         currentPageText = currentPageText,
@@ -213,6 +217,7 @@ fun ReaderAppBars(
                         currentPage = currentPage,
                         totalPages = totalPages,
                         onPageIndexChange = onPageIndexChange,
+                        onPageIndexChangeFinished = onPageIndexChangeFinished,
                         // SY -->
                         isVerticalSlider = true,
                         currentPageText = currentPageText,
@@ -244,6 +249,7 @@ fun ReaderAppBars(
                         currentPage = currentPage,
                         totalPages = totalPages,
                         onPageIndexChange = onPageIndexChange,
+                        onPageIndexChangeFinished = onPageIndexChangeFinished,
                         // SY -->
                         isVerticalSlider = false,
                         currentPageText = currentPageText,

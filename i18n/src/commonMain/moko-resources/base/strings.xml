@@ -387,6 +387,12 @@
     <string name="pref_dual_page_invert_summary">If the placement of the split wide pages don\'t match reading direction</string>
     <string name="pref_page_rotate">Rotate wide pages to fit</string>
     <string name="pref_page_rotate_invert">Flip orientation of rotated wide pages</string>
+    <!-- Mihon -->
+    <string name="pref_dual_page_view">Dual page view</string>
+    <string name="dual_page_view_never">Never</string>
+    <string name="dual_page_view_always">Always</string>
+    <string name="dual_page_view_wide">When wide</string>
+    <!-- Mihon -->
     <string name="pref_double_tap_zoom">Double tap to zoom</string>
     <string name="pref_cutout_short">Show content in cutout area</string>
     <string name="pref_page_transitions">Animate page transitions</string>
@@ -425,6 +431,11 @@
     <string name="pref_skip_filtered_chapters">Skip filtered chapters</string>
     <string name="pref_skip_dupe_chapters">Skip duplicate chapters</string>
     <string name="pref_reader_navigation">Navigation</string>
+    <!-- Mihon -->
+    <string name="pref_vertical_navigator">Use vertical chapter navigator in</string>
+    <string name="pref_vertical_navigator_height">Vertical navigator height</string>
+    <string name="pref_webtoon_vertical_navigator_on_left">Place vertical navigator on the left side</string>
+    <!-- Mihon -->
     <string name="pref_read_with_volume_keys">Volume keys</string>
     <string name="pref_read_with_volume_keys_inverted">Invert volume keys</string>
     <string name="pref_read_with_tapping_inverted">Invert tap zones</string>
@@ -457,6 +468,26 @@
     <string name="webtoon_viewer">Long strip</string>
     <string name="vertical_plus_viewer">Long strip with gaps</string>
     <string name="pager_viewer">Paged</string>
+    <!-- Mihon -->
+    <string name="webgpu_viewer">WebGPU</string>
+    <string name="pref_transition_animation">Transition animation</string>
+    <string name="transition_animation_default">Default</string>
+    <string name="transition_animation_flip_left">Page flip (left)</string>
+    <string name="transition_animation_flip_right">Page flip (right)</string>
+    <string name="transition_animation_stack_left">Stack (left)</string>
+    <string name="transition_animation_stack_right">Stack (right)</string>
+    <string name="transition_animation_stack_up">Stack (up)</string>
+    <string name="transition_animation_stack_down">Stack (down)</string>
+    <string name="transition_animation_sphere">Sphere</string>
+    <string name="transition_animation_cube_inside">Cube (Inside)</string>
+    <string name="transition_animation_cube_outside">Cube (Outside)</string>
+    <string name="transition_animation_fade">Fade</string>
+    <string name="transition_animation_fade_white">Fade to white</string>
+    <string name="pref_cutout_mode">Display cutout mode</string>
+    <string name="cutout_mode_ignore">Ignore</string>
+    <string name="cutout_mode_avoid">Avoid</string>
+    <string name="cutout_mode_shift">Shift</string>
+    <!-- Mihon -->
     <string name="pref_viewer_nav">Tap zones</string>
     <string name="pref_image_scale_type">Scale type</string>
     <string name="scale_type_fit_screen">Fit screen</string>

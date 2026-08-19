@@ -707,6 +707,9 @@ class ReaderActivity : BaseActivity() {
                 isScrollingThroughPages = true
                 moveToPageIndex(it)
             },
+            // Mihon -->
+            onPageIndexChangeFinished = { isScrollingThroughPages = false },
+            // Mihon <--
 
             readingMode = ReadingMode.fromPreference(
                 viewModel.getMangaReadingMode(resolveDefault = false),

@@ -118,6 +118,9 @@ object ImageUtil {
         JXL("image/jxl", "jxl"),
         PNG("image/png", "png"),
         WEBP("image/webp", "webp"),
+        // Mihon -->
+        JP2("image/jp2", "jp2"),
+        // Mihon <--
     }
 
     /**

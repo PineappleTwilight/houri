@@ -514,6 +514,9 @@ class ReaderViewModel @JvmOverloads constructor(
                 if (e is CancellationException) {
                     throw e
                 }
+                // Mihon -->
+                mutableState.update { it.copy(initError = e) }
+                // Mihon <--
                 Result.failure(e)
             }
         }
@@ -1519,6 +1522,10 @@ class ReaderViewModel @JvmOverloads constructor(
         val isAutoScrollEnabled: Boolean = false,
         val ehAutoscrollFreq: String = "",
         // SY <--
+
+        // Mihon -->
+        val initError: Throwable? = null,
+        // Mihon <--
     ) {
         val currentChapter: ReaderChapter?
             get() = viewerChapters?.currChapter

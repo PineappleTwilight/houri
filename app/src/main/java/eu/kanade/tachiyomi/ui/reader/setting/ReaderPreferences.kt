@@ -126,6 +126,10 @@ class ReaderPreferences(
 
     fun dualPageRotateToFitInvertWebtoon() = preferenceStore.getBoolean("pref_dual_page_rotate_invert_webtoon", false)
 
+    // Mihon -->
+    fun dualPageView() = preferenceStore.getEnum("pref_dual_page_view", DualPageView.NEVER)
+    // Mihon <--
+
     // endregion
 
     // region Color filter
@@ -172,6 +176,19 @@ class ReaderPreferences(
 
     // endregion
 
+    // Mihon -->
+    // region WebGpu
+
+    fun transitionAnimation() = preferenceStore.getEnum(
+        "webgpu_transition_animation",
+        TransitionAnimation.DEFAULT,
+    )
+
+    fun cutoutMode() = preferenceStore.getEnum("webgpu_cutout_mode", CutoutMode.AVOID)
+
+    // endregion
+    // Mihon <--
+
     // SY -->
 
     fun readerThreads() = preferenceStore.getInt("eh_reader_threads", 2)
@@ -201,6 +218,10 @@ class ReaderPreferences(
     fun landscapeVerticalSeekbar() = preferenceStore.getBoolean("pref_show_vert_seekbar_landscape", false)
 
     fun leftVerticalSeekbar() = preferenceStore.getBoolean("pref_left_handed_vertical_seekbar", false)
+
+    // Mihon -->
+    fun verticalNavigatorHeight() = preferenceStore.getInt("pref_vertical_navigator_height", 100)
+    // Mihon <--
 
     fun readerBottomButtons() = preferenceStore.getStringSet("reader_bottom_buttons", ReaderBottomButton.BUTTONS_DEFAULTS)
 
@@ -256,6 +277,37 @@ class ReaderPreferences(
         R20_9(KMR.strings.scale_type_20_9, 9f / 20f),
     }
     // KMK <--
+
+    // Mihon -->
+    enum class DualPageView(val titleRes: StringResource) {
+        NEVER(MR.strings.dual_page_view_never),
+        ALWAYS(MR.strings.dual_page_view_always),
+        WIDE(MR.strings.dual_page_view_wide),
+    }
+    // Mihon <--
+
+    // Mihon -->
+    enum class TransitionAnimation(val titleRes: StringResource) {
+        DEFAULT(MR.strings.transition_animation_default),
+        FLIP_LEFT(MR.strings.transition_animation_flip_left),
+        FLIP_RIGHT(MR.strings.transition_animation_flip_right),
+        STACK_LEFT(MR.strings.transition_animation_stack_left),
+        STACK_RIGHT(MR.strings.transition_animation_stack_right),
+        STACK_UP(MR.strings.transition_animation_stack_up),
+        STACK_DOWN(MR.strings.transition_animation_stack_down),
+        SPHERE(MR.strings.transition_animation_sphere),
+        CUBE_INSIDE(MR.strings.transition_animation_cube_inside),
+        CUBE_OUTSIDE(MR.strings.transition_animation_cube_outside),
+        FADE(MR.strings.transition_animation_fade),
+        FADE_WHITE(MR.strings.transition_animation_fade_white),
+    }
+
+    enum class CutoutMode(val titleRes: StringResource) {
+        IGNORE(MR.strings.cutout_mode_ignore),
+        AVOID(MR.strings.cutout_mode_avoid),
+        SHIFT(MR.strings.cutout_mode_shift),
+    }
+    // Mihon <--
 
     object ArchiveReaderMode {
         const val LOAD_FROM_FILE = 0
