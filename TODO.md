@@ -18,6 +18,12 @@
     - [x] Add accompanying sort/filter options for this change
 - [ ] **E-Hentai**: Censorship type identification from manga tags (mosaic, full, etc)
 - [x] **New**: Add mango easter egg (?)
+- [ ] **New**: Library subcategories
+  - Allows you to sort content even further inside a category, e.g. a category called "Manhua" could have a subcategory called "Favorites" or even a tag name like "Shounen" to allow for finer library customization.
+  - User can create subcategories freely and assign media to them easily.
+    - This requires modifying how manga is added to the library visually to accommodate assigning it to a subcategory
+  - Subcategories follow all library filter rules
+  - Should include default subcategory "All", which displays content from all subcategories in that category
 
 ## Bugfixes
 - [x] Fix UI transition choppiness.
