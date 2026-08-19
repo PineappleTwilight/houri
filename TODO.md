@@ -33,7 +33,9 @@
 - [x] Refresh manga details page when migrated (prevents having to exit the manga and view the details again for the changes to apply)
 - [x] Improve Discord connection feature
 - [x] Enable EH functionality by default.
-- [x] Refresh library on title clean
+- [ ] Refresh library on title clean
+  - Library should be re-initialized from disk to prevent the user from needing to restart the app to see the title changes
+  - Ensure compatibility with e/exhentai censorship detector
 - [x] Fix some extensions not registering
 - [x] Fix extension crashes related to R8 stripping
 - [x] Change about page's github URL to this fork repo
