@@ -1,6 +1,8 @@
 package tachiyomi.data.manga
 
 import android.content.Context
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
@@ -13,6 +15,9 @@ class CustomMangaRepositoryImpl(context: Context) : CustomMangaRepository {
     private val editJson = File(context.getExternalFilesDir(null), "edits.json")
 
     private val customMangaMap = fetchCustomData()
+
+    private val _changes = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+    override val changes: SharedFlow<Unit> = _changes
 
     override fun get(mangaId: Long) = customMangaMap[mangaId]
 
@@ -52,6 +57,7 @@ class CustomMangaRepositoryImpl(context: Context) : CustomMangaRepository {
             customMangaMap[mangaInfo.id] = mangaInfo
         }
         saveCustomInfo()
+        _changes.tryEmit(Unit)
     }
 
     private fun saveCustomInfo() {

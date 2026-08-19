@@ -26,7 +26,7 @@ class TrackerManager {
         const val MANGABAKA = 11L
         // KMK -->
         const val ANIMEPLANET = 61L
-        const val SUWAYOMI = 62L
+        const val SUWAYOMI = 9L
         const val COMICK = 63L
         // KMK <--
 

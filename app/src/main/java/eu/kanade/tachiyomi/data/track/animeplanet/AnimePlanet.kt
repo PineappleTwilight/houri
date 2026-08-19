@@ -121,6 +121,14 @@ class AnimePlanet(id: Long) : BaseTracker(id, "AnimePlanet"), DeletableTracker {
         saveCredentials(username.ifBlank { ANON_USERNAME }, cookieHeader)
         interceptor.newAuth(cookieHeader)
     }
+
+    /**
+     * Persist the current cookie header string to preferences so the
+     * [AnimePlanetInterceptor] can restore its [CookieJar] on restart.
+     */
+    fun saveCookieHeader(cookieHeader: String) {
+        trackPreferences.trackPassword(this).set(cookieHeader)
+    }
     // KMK <--
 
     fun restoreSession(): String? {

@@ -6,7 +6,6 @@ import okhttp3.CookieJar
 import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.Interceptor
-import okhttp3.OkHttpClient
 import okhttp3.Response
 import java.io.IOException
 
@@ -14,18 +13,21 @@ class ComicKInterceptor(
     private val comicK: ComicK,
 ) : Interceptor {
 
-    private var sessionCookie: String? = comicK.restoreSession()
-
     /**
-     * Cookie jar that persists cookies from Comick API responses.
-     * This is needed for CSRF tokens which are set by the server.
+     * Persistent cookie store. Cookies are serialised to/from the tracker
+     * preference string so they survive process death.
      */
-    private val cookieStore = mutableMapOf<String, List<Cookie>>()
+    private val cookieStore = mutableMapOf<String, MutableList<Cookie>>()
 
     private val cookieJar = object : CookieJar {
         override fun saveFromResponse(url: HttpUrl, cookies: List<Cookie>) {
-            val existing = cookieStore[url.host].orEmpty()
-            cookieStore[url.host] = existing + cookies
+            val existing = cookieStore[url.host].orEmpty().toMutableList()
+            // Replace cookies with the same name
+            val newNames = cookies.map { it.name }.toSet()
+            val filtered = existing.filter { it.name !in newNames }.toMutableList()
+            filtered.addAll(cookies)
+            cookieStore[url.host] = filtered
+            persistCookies()
         }
 
         override fun loadForRequest(url: HttpUrl): List<Cookie> {
@@ -38,19 +40,13 @@ class ComicKInterceptor(
     override fun intercept(chain: Interceptor.Chain): Response {
         val originalRequest = chain.request()
 
-        val csrfCookie = getCsrfToken()
-        val session = sessionCookie
-
-        if (session.isNullOrBlank()) {
+        val cookies = cookieJar.loadForRequest(originalRequest.url)
+        val hasSession = cookies.any { it.name == "ory_kratos_session" }
+        if (!hasSession) {
             throw IOException("Not authenticated with ComicK")
         }
 
-        val cookieHeader = buildString {
-            append("ory_kratos_session=$session")
-            if (csrfCookie != null) {
-                append("; $csrfCookie")
-            }
-        }
+        val cookieHeader = cookies.joinToString("; ") { "${it.name}=${it.value}" }
 
         val authRequest = originalRequest.newBuilder()
             .header("Cookie", cookieHeader)
@@ -58,30 +54,62 @@ class ComicKInterceptor(
             .header("Referer", "https://comick.dev/")
             .build()
 
-        val response = chain.proceed(authRequest)
-
-        // Save any new cookies from the response
-        val setCookies = response.headers("Set-Cookie")
-        if (setCookies.isNotEmpty()) {
-            val url = originalRequest.url
-            val parsed = setCookies.mapNotNull { Cookie.parse(url, it) }
-            if (parsed.isNotEmpty()) {
-                val existing = cookieStore[url.host].orEmpty()
-                cookieStore[url.host] = existing + parsed
-            }
-        }
-
-        return response
+        return chain.proceed(authRequest)
     }
 
-    private fun getCsrfToken(): String? {
-        // CSRF cookie name contains a hash suffix like csrf_token_efd16ce7...
-        val allCookies = cookieStore.values.flatten()
-        val csrfCookie = allCookies.find { it.name.startsWith("csrf_token_") }
-        return csrfCookie?.let { "${it.name}=${it.value}" }
+    /**
+     * Seed the cookie store from the raw cookie header string captured
+     * by [ComicKLoginActivity].
+     */
+    fun restoreFromCookieHeader(cookieHeader: String?) {
+        if (cookieHeader.isNullOrBlank()) return
+        val url = COMICK_URL
+        cookieHeader.split("; ")
+            .mapNotNull { part ->
+                val trimmed = part.trim()
+                if (trimmed.isNotEmpty() && trimmed.contains("=")) {
+                    val parts = trimmed.split("=", limit = 2)
+                    Cookie.Builder()
+                        .domain(url.host)
+                        .path("/")
+                        .name(parts[0])
+                        .value(parts[1])
+                        .build()
+                } else {
+                    null
+                }
+            }
+            .let { cookies ->
+                if (cookies.isNotEmpty()) {
+                    cookieStore[url.host] = cookies.toMutableList()
+                }
+            }
     }
 
     fun newAuth(cookie: String?) {
-        this.sessionCookie = cookie
+        cookieStore.clear()
+        if (!cookie.isNullOrBlank()) {
+            // The login captures the ory_kratos_session value; wrap as a proper cookie
+            restoreFromCookieHeader("ory_kratos_session=$cookie")
+            persistCookies()
+        }
+    }
+
+    private fun persistCookies() {
+        val header = cookieStore.values.flatten()
+            .joinToString("; ") { "${it.name}=${it.value}" }
+        comicK.saveCookieHeader(header)
+    }
+
+    init {
+        // Restore persisted cookies on construction
+        val persisted = comicK.restoreCookieHeader()
+        if (!persisted.isNullOrBlank()) {
+            restoreFromCookieHeader(persisted)
+        }
+    }
+
+    companion object {
+        private val COMICK_URL = "https://comick.dev".toHttpUrl()
     }
 }

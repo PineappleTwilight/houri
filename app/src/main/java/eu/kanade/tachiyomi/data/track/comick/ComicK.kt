@@ -152,6 +152,31 @@ class ComicK(id: Long) : BaseTracker(id, "ComicK"), DeletableTracker {
         return trackPreferences.trackPassword(this).get().ifBlank { null }
     }
 
+    /**
+     * Persist the current cookie header string to preferences so the
+     * [ComicKInterceptor] can restore its [CookieJar] on restart.
+     */
+    fun saveCookieHeader(cookieHeader: String) {
+        trackPreferences.trackPassword(this).set(cookieHeader)
+    }
+
+    /**
+     * Returns the full cookie header string for API requests.
+     * Backward-compatible: old installs stored just the session value,
+     * new installs store the full "name=value; name2=value2" cookie header.
+     */
+    fun restoreCookieHeader(): String? {
+        val stored = trackPreferences.trackPassword(this).get().ifBlank { null } ?: return null
+        return if (stored.contains("=") && stored.contains("; ")) {
+            stored
+        } else if (stored.contains("=")) {
+            stored
+        } else {
+            // Legacy: bare value without key — assume it's the session cookie
+            "ory_kratos_session=$stored"
+        }
+    }
+
     override fun hasNotStartedReading(status: Long): Boolean = status == PLAN_TO_READ
 
     override suspend fun delete(track: DomainTrack) {

@@ -3,15 +3,19 @@ package tachiyomi.domain.manga.interactor
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.retry
 import logcat.LogPriority
 import tachiyomi.core.common.util.system.logcat
 import tachiyomi.domain.library.model.LibraryManga
+import tachiyomi.domain.manga.repository.CustomMangaRepository
 import tachiyomi.domain.manga.repository.MangaRepository
 import kotlin.time.Duration.Companion.seconds
 
 class GetLibraryManga(
     private val mangaRepository: MangaRepository,
+    private val customMangaRepository: CustomMangaRepository,
 ) {
 
     suspend fun await(): List<LibraryManga> {
@@ -19,7 +23,14 @@ class GetLibraryManga(
     }
 
     fun subscribe(): Flow<List<LibraryManga>> {
-        return mangaRepository.getLibraryMangaAsFlow()
+        return merge(
+            mangaRepository.getLibraryMangaAsFlow(),
+            // When custom manga info changes (e.g. title cleaning), re-emit
+            // the library so the UI picks up the new titles without a restart.
+            customMangaRepository.changes.flatMapLatest {
+                mangaRepository.getLibraryMangaAsFlow()
+            },
+        )
             .retry {
                 if (it is NullPointerException) {
                     delay(0.5.seconds)

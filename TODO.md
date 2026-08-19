@@ -12,7 +12,7 @@
 - [x] **Tracker**: Hikka (Mihon backport)
 - [x] **Mihon Backport**: Reader
 - [x] **Mihon Backport**: Decoder (experimental)
-- [ ] **Mihon Backport**: Updater
+- [x] **Mihon Backport**: Updater
 - [ ] **New**: Toggle to enable an anime girl moaning whenever a chapter is completed. Moans should be randomized and have different probabilities of appearing (gacha mechanic) **Partially implemented, pending audio files.**
 - [x] **E-Hentai**: Add content censorship status as a tag next to the content type tag (doujinshi, manga, etc). Content defaults to censored (no title marking), decensored (marked as [Decensored] in the title), or uncensored (marked as [Uncensored] in the title).
     - [x] Add accompanying sort/filter options for this change
@@ -24,6 +24,7 @@
     - This requires modifying how manga is added to the library visually to accommodate assigning it to a subcategory
   - Subcategories follow all library filter rules
   - Should include default subcategory "All", which displays content from all subcategories in that category
+  - Should function visually and functionally to Android home screen folders
 
 ## Bugfixes
 - [x] Fix UI transition choppiness.
@@ -33,7 +34,7 @@
 - [x] Refresh manga details page when migrated (prevents having to exit the manga and view the details again for the changes to apply)
 - [x] Improve Discord connection feature
 - [x] Enable EH functionality by default.
-- [ ] Refresh library on title clean
+- [x] Refresh library on title clean
   - Library should be re-initialized from disk to prevent the user from needing to restart the app to see the title changes
   - Ensure compatibility with e/exhentai censorship detector
 - [x] Fix some extensions not registering
@@ -51,8 +52,8 @@
 - [x] Fix e/exhentai censorship tags - censorship markers can appear at any order in the manga title, not just at the very end
 - [x] Fix clean titles not refreshing the library (requires app restart to load cleaned titles)
 - [x] Fix e/exhentai rare nullptr exceptions when browsing
-- [ ] Change Suwayomi tracker back to ID 9 (parity with upstream)
-- [ ] Change AnimePlanet and Comick trackers to use cookiejar storage instead of preference storage
+- [x] Change Suwayomi tracker back to ID 9 (parity with upstream)
+- [x] Change AnimePlanet and Comick trackers to use cookiejar storage instead of preference storage
 
 ## Chores
 - [x] Replace all Komikku icons/branding with houri icons/branding
@@ -64,6 +65,8 @@
 - [x] Fine-tune GitHub actions (add compile, auto-release if version changed, etc)
 - [ ] Replace Material UI framework with more stable library
 - [ ] **Update Dependency**: Voyager (UI related)
+- [ ] **Update Dependency**: MaterialKolor (UI related)
+- [ ] **Update Dependency**:
 
 ## Drawing Board
 - [ ] **New**: WebAssembly computation engine
