@@ -77,3 +77,4 @@
   - Disabled by default
   - Unsure if model would run locally or via free endpoint
     - Also unsure how to draw the translations over the content
+    - Reference Code: [Here](https://github.com/mannu691/TachiyomiAT)
