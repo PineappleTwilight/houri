@@ -124,7 +124,7 @@ jobs:
           echo "COMMIT_LOGS<<{delimiter}
           $(curl -H "Accept: application/vnd.github.v3+json" \
             "https://api.github.com/repos/${{ github.repository }}/compare/${{ steps.previous_commit.outputs.PREV_RELEASE_SHA }}...${{ steps.current_commit.outputs.CURRENT_SHA }}" \
-            | jq '[.commits[]|{message:(.commit.message | split("\n")), username:.author.login}]' \
+            | jq '[.commits[] | select(.files | map(.filename) | if length > 0 then all(. == "TODO.md" or . == "docs/TODO.md") | not else true end) | {message:(.commit.message | split("\n")), username:.author.login}]' \
             | jq -r '.[]|"- \(.message | first) (@\(.username))"')
           {delimiter}" >> $GITHUB_OUTPUT
 
@@ -243,6 +243,6 @@ jobs:
             Houri-armeabi-v7a-${{ needs.prepare-build.outputs.VERSION_TAG }}.apk
             Houri-x86-${{ needs.prepare-build.outputs.VERSION_TAG }}.apk
             Houri-x86_64-${{ needs.prepare-build.outputs.VERSION_TAG }}.apk
-          draft: true
+          draft: false
           prerelease: false
           token: ${{ secrets.GITHUB_TOKEN }}
