@@ -10,6 +10,7 @@ plugins {
     kotlin("plugin.parcelize")
     kotlin("plugin.serialization")
     alias(libs.plugins.aboutLibraries)
+    alias(libs.plugins.metro)
 }
 
 if (Config.includeTelemetry) {
@@ -265,6 +266,10 @@ dependencies {
 
     // Dependency injection
     implementation(libs.injekt)
+    implementation(projects.core.metro)
+    implementation(libs.metro.runtime)
+    implementation(libs.metrox.viewmodel)
+    implementation(libs.metrox.viewmodel.compose)
 
     // Image loading
     implementation(platform(libs.coil.bom))

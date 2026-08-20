@@ -12,6 +12,9 @@ import androidx.core.content.ContextCompat
 import coil3.asDrawable
 import coil3.imageLoader
 import coil3.request.ImageRequest
+import dev.zacsweers.metro.AppScope
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
 import eu.kanade.presentation.util.formatChapterNumber
 import eu.kanade.tachiyomi.R
 import eu.kanade.tachiyomi.core.security.SecurityPreferences
@@ -43,6 +46,8 @@ import java.math.RoundingMode
 import java.text.NumberFormat
 
 @OptIn(DelicateCoroutinesApi::class)
+@Inject
+@SingleIn(AppScope::class)
 class LibraryUpdateNotifier(
     private val context: Context,
 

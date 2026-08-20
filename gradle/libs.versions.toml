@@ -13,6 +13,9 @@ firebase-bom = "34.15.0"
 markdown = "0.39.2"
 junit = "6.0.3"
 materialKolor = "5.0.0-alpha07"
+metro = "1.4.2"
+metrox-viewmodel = "1.4.2"
+metrox-viewmodel-compose = "1.4.2"
 ben-manes-versions = "0.54.0"
 kim = "0.37.0"
 webgpuviewer = "28"
@@ -48,6 +51,10 @@ sqlite-android = "com.github.requery:sqlite-android:665608662e"
 preferencektx = "androidx.preference:preference-ktx:1.2.1"
 
 injekt = "com.github.mihonapp:injekt:91edab2317"
+
+metro-runtime = { module = "dev.zacsweers.metro:runtime", version.ref = "metro" }
+metrox-viewmodel = { module = "dev.zacsweers.metro:metrox-viewmodel", version.ref = "metrox-viewmodel" }
+metrox-viewmodel-compose = { module = "dev.zacsweers.metro:metrox-viewmodel-compose", version.ref = "metrox-viewmodel-compose" }
 
 coil-bom = { module = "io.coil-kt.coil3:coil-bom", version = "3.5.0" }
 coil-core = { module = "io.coil-kt.coil3:coil" }
@@ -128,6 +135,7 @@ sqldelight = { id = "app.cash.sqldelight", version.ref = "sqldelight" }
 moko = { id = "dev.icerock.mobile.multiplatform-resources", version.ref = "moko" }
 firebase-crashlytics = { id = "com.google.firebase.crashlytics", version = "3.0.7" }
 android-kmp-library = { id = "com.android.kotlin.multiplatform.library" }
+metro = { id = "dev.zacsweers.metro", version.ref = "metro" }
 ben-manes-versions = { id = "com.github.ben-manes.versions", version.ref = "ben-manes-versions" }
 
 [bundles]

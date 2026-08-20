@@ -4,6 +4,9 @@ import android.os.Build
 import androidx.compose.ui.graphics.BlendMode
 import com.davemorrissey.labs.subscaleview.SubsamplingScaleImageView
 import dev.icerock.moko.resources.StringResource
+import dev.zacsweers.metro.AppScope
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
 import eu.kanade.tachiyomi.ui.reader.viewer.pager.PagerConfig
 import tachiyomi.core.common.preference.PreferenceStore
 import tachiyomi.core.common.preference.getEnum
@@ -11,6 +14,8 @@ import tachiyomi.i18n.MR
 import tachiyomi.i18n.kmk.KMR
 import tachiyomi.i18n.sy.SYMR
 
+@SingleIn(AppScope::class)
+@Inject
 class ReaderPreferences(
     private val preferenceStore: PreferenceStore,
 ) {

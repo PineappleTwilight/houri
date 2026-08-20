@@ -131,7 +131,7 @@ class DomainModule : InjektModule {
         addFactory { GetManga(get()) }
         addFactory { DeleteNonLibraryManga(get()) }
         addFactory { GetNextChapters(get(), get(), get(), get()) }
-        addFactory { GetUpcomingManga(get()) }
+        addFactory { GetUpcomingManga(get(), get(), get()) }
         addFactory { ResetViewerFlags(get()) }
         addFactory { SetMangaChapterFlags(get()) }
         addFactory { FetchInterval(get()) }
@@ -190,7 +190,7 @@ class DomainModule : InjektModule {
         addSingletonFactory<UpdatesRepository> { UpdatesRepositoryImpl(get()) }
         addFactory { GetUpdates(get()) }
 
-        addSingletonFactory<SourceRepository> { SourceRepositoryImpl(get(), get()) }
+        addSingletonFactory<SourceRepository> { SourceRepositoryImpl(get(), get(), get()) }
         addSingletonFactory<StubSourceRepository> { StubSourceRepositoryImpl(get()) }
         addFactory { GetEnabledSources(get(), get()) }
         addFactory { GetLanguagesWithSources(get(), get()) }

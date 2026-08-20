@@ -1,5 +1,9 @@
 package tachiyomi.data.manga
 
+import dev.zacsweers.metro.AppScope
+import dev.zacsweers.metro.ContributesBinding
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
 import logcat.LogPriority
 import tachiyomi.core.common.util.system.logcat
 import tachiyomi.data.DatabaseHandler
@@ -7,6 +11,9 @@ import tachiyomi.domain.manga.model.FavoriteEntry
 import tachiyomi.domain.manga.model.FavoriteEntryAlternative
 import tachiyomi.domain.manga.repository.FavoritesEntryRepository
 
+@Inject
+@SingleIn(AppScope::class)
+@ContributesBinding(AppScope::class)
 class FavoritesEntryRepositoryImpl(
     private val handler: DatabaseHandler,
 ) : FavoritesEntryRepository {

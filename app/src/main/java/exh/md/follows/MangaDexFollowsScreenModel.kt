@@ -8,13 +8,16 @@ import exh.source.getMainSource
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
+import tachiyomi.domain.manga.interactor.NetworkToLocalManga
 import tachiyomi.domain.manga.model.Manga
 import tachiyomi.domain.source.repository.SourcePagingSource
+import uy.kohesive.injekt.Injekt
+import uy.kohesive.injekt.api.get
 
 class MangaDexFollowsScreenModel(sourceId: Long) : BrowseSourceScreenModel(sourceId, null) {
 
     override fun createSourcePagingSource(query: String, filters: FilterList): SourcePagingSource {
-        return MangaDexFollowsPagingSource(source.getMainSource() as MangaDex)
+        return MangaDexFollowsPagingSource(source.getMainSource() as MangaDex, Injekt.get())
     }
 
     override fun Flow<Manga>.combineMetadata(metadata: RaisedSearchMetadata?): Flow<Pair<Manga, RaisedSearchMetadata?>> {

@@ -16,6 +16,9 @@ import com.google.api.client.json.gson.GsonFactory
 import com.google.api.services.drive.Drive
 import com.google.api.services.drive.DriveScopes
 import com.google.api.services.drive.model.File
+import dev.zacsweers.metro.AppScope
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
 import eu.kanade.domain.sync.SyncPreferences
 import eu.kanade.tachiyomi.data.backup.models.Backup
 import kotlinx.coroutines.launch
@@ -36,6 +39,7 @@ import java.io.PipedOutputStream
 import java.util.zip.GZIPInputStream
 import java.util.zip.GZIPOutputStream
 
+@Suppress("DEPRECATION")
 class GoogleDriveSyncService(context: Context, json: Json, syncPreferences: SyncPreferences) : SyncService(
     context,
     json,
@@ -61,7 +65,7 @@ class GoogleDriveSyncService(context: Context, json: Json, syncPreferences: Sync
 
     private val remoteFileName = "${appName}_sync.proto.gz"
 
-    private val googleDriveService = GoogleDriveService(context)
+    private val googleDriveService = GoogleDriveService(context, syncPreferences)
 
     private val protoBuf: ProtoBuf = Injekt.get()
 
@@ -242,12 +246,16 @@ class GoogleDriveSyncService(context: Context, json: Json, syncPreferences: Sync
     }
 }
 
-class GoogleDriveService(private val context: Context) {
+@Inject
+@SingleIn(AppScope::class)
+class GoogleDriveService(
+    private val context: Context,
+    private val syncPreferences: SyncPreferences,
+) {
     var driveService: Drive? = null
     companion object {
         const val REDIRECT_URI = "eu.kanade.google.oauth:/oauth2redirect"
     }
-    private val syncPreferences = Injekt.get<SyncPreferences>()
 
     init {
         initGoogleDriveService()

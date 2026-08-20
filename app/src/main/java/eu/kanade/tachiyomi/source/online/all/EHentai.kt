@@ -416,14 +416,14 @@ class EHentai(
             }
         }
 
-        val location = doc?.location() ?: url
+        val location = doc.location()
         val self = SChapter(
             url = EHentaiSearchMetadata.normalizeUrl(location),
-            name = "v1: " + doc?.selectFirst("#gn")?.text().orEmpty(),
+            name = "v1: " + doc.selectFirst("#gn")?.text().orEmpty(),
             chapter_number = 1f,
             date_upload = try {
                 ZonedDateTime.parse(
-                    doc?.select("#gdd .gdt1")?.find { el ->
+                    doc.select("#gdd .gdt1").find { el ->
                         el.text().lowercase() == "posted:"
                     }?.nextElementSibling()?.text().orEmpty(),
                     MetadataUtil.EX_DATE_FORMAT.withZone(ZoneOffset.UTC),
@@ -434,7 +434,7 @@ class EHentai(
             scanlator = EHentaiSearchMetadata.galleryId(location),
         )
 
-        val newDisplay = doc?.select("#gnd a") ?: emptyList()
+        val newDisplay = doc.select("#gnd a")
 
         return if (DebugToggles.INCLUDE_ONLY_ROOT_WHEN_LOADING_EXH_VERSIONS.enabled) {
             listOf(self)
@@ -520,7 +520,7 @@ class EHentai(
         return if (it.text() == ">") it.attr("href") else null
     }
 
-    @Suppress("DEPRECATION")
+    @Suppress("DEPRECATION", "OVERRIDE_DEPRECATION")
     override fun popularMangaRequest(page: Int) =
         // KMK -->
         if (isLangNatural()) {
@@ -598,7 +598,7 @@ class EHentai(
         }
     }
 
-    @Suppress("DEPRECATION")
+    @Suppress("DEPRECATION", "OVERRIDE_DEPRECATION")
     override fun searchMangaRequest(page: Int, query: String, filters: FilterList): Request {
         val toplist = ToplistOption.entries[filters.firstNotNullOfOrNull { (it as? ToplistOptions)?.state } ?: 0]
         if (toplist != ToplistOption.NONE) {
@@ -678,7 +678,7 @@ class EHentai(
         }
     }
 
-    @Suppress("DEPRECATION")
+    @Suppress("DEPRECATION", "OVERRIDE_DEPRECATION")
     override fun latestUpdatesRequest(page: Int) =
         // KMK -->
         if (isLangNatural()) {
@@ -688,13 +688,13 @@ class EHentai(
             exGet(baseUrl, page)
         }
 
-    @Suppress("DEPRECATION")
+    @Suppress("DEPRECATION", "OVERRIDE_DEPRECATION")
     override fun popularMangaParse(response: Response) = genericMangaParse(response)
 
-    @Suppress("DEPRECATION")
+    @Suppress("DEPRECATION", "OVERRIDE_DEPRECATION")
     override fun searchMangaParse(response: Response) = genericMangaParse(response)
 
-    @Suppress("DEPRECATION")
+    @Suppress("DEPRECATION", "OVERRIDE_DEPRECATION")
     override fun latestUpdatesParse(response: Response) = genericMangaParse(response)
 
     private fun exGet(

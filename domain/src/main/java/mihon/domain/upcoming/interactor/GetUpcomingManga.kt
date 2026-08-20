@@ -1,5 +1,6 @@
 package mihon.domain.upcoming.interactor
 
+import dev.zacsweers.metro.Inject
 import eu.kanade.tachiyomi.source.model.SManga
 import eu.kanade.tachiyomi.source.model.UpdateStrategy
 import kotlinx.coroutines.flow.Flow
@@ -11,18 +12,17 @@ import tachiyomi.domain.library.service.LibraryPreferences.Companion.MANGA_OUTSI
 import tachiyomi.domain.manga.interactor.GetLibraryManga
 import tachiyomi.domain.manga.model.Manga
 import tachiyomi.domain.manga.repository.MangaRepository
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 import java.time.LocalDate
 import java.time.ZoneId
 
+@Inject
 class GetUpcomingManga(
     private val mangaRepository: MangaRepository,
-) {
     // KMK -->
-    private val libraryPreferences: LibraryPreferences = Injekt.get()
-    private val getLibraryManga: GetLibraryManga = Injekt.get()
+    private val libraryPreferences: LibraryPreferences,
+    private val getLibraryManga: GetLibraryManga,
     // KMK <--
+) {
 
     private val includedStatuses = setOf(
         SManga.ONGOING.toLong(),

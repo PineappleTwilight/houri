@@ -1,10 +1,17 @@
 // KMK -->
 package tachiyomi.data.recommendation
 
+import dev.zacsweers.metro.AppScope
+import dev.zacsweers.metro.ContributesBinding
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
 import tachiyomi.data.DatabaseHandler
 import tachiyomi.domain.recommendation.model.CachedRecommendation
 import tachiyomi.domain.recommendation.repository.RecommendationCacheRepository
 
+@Inject
+@SingleIn(AppScope::class)
+@ContributesBinding(AppScope::class)
 class RecommendationCacheRepositoryImpl(
     private val handler: DatabaseHandler,
 ) : RecommendationCacheRepository {

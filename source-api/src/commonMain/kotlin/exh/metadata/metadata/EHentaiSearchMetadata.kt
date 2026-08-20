@@ -88,7 +88,7 @@ class EHentaiSearchMetadata : RaisedSearchMetadata() {
         }
 
         val censorStatus = censorshipStatus ?: detectCensorshipStatus()
-        val displayTitle = (title ?: manga.title)?.let { t ->
+        val displayTitle = (title ?: manga.title).let { t ->
             when (censorStatus) {
                 CENSORSHIP_STATUS_DECENSORED ->
                     t.replace(CENSORSHIP_TITLE_DECENSORED, "").trim()
@@ -100,7 +100,7 @@ class EHentaiSearchMetadata : RaisedSearchMetadata() {
 
         return manga.copy(
             url = key ?: manga.url,
-            title = displayTitle ?: manga.title,
+            title = displayTitle,
             artist = group ?: manga.artist,
             author = artist ?: manga.artist,
             description = null,

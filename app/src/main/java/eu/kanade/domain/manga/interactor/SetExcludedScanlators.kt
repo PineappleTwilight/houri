@@ -1,7 +1,9 @@
 package eu.kanade.domain.manga.interactor
 
+import dev.zacsweers.metro.Inject
 import tachiyomi.data.DatabaseHandler
 
+@Inject
 class SetExcludedScanlators(
     private val handler: DatabaseHandler,
 ) {

@@ -1,5 +1,9 @@
 package tachiyomi.data.updates
 
+import dev.zacsweers.metro.AppScope
+import dev.zacsweers.metro.ContributesBinding
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
 import kotlinx.coroutines.flow.Flow
 import tachiyomi.core.common.util.lang.toLong
 import tachiyomi.data.DatabaseHandler
@@ -7,6 +11,9 @@ import tachiyomi.domain.manga.model.MangaCover
 import tachiyomi.domain.updates.model.UpdatesWithRelations
 import tachiyomi.domain.updates.repository.UpdatesRepository
 
+@Inject
+@SingleIn(AppScope::class)
+@ContributesBinding(AppScope::class)
 class UpdatesRepositoryImpl(
     private val databaseHandler: DatabaseHandler,
 ) : UpdatesRepository {

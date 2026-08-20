@@ -1,5 +1,9 @@
 package tachiyomi.data.manga
 
+import dev.zacsweers.metro.AppScope
+import dev.zacsweers.metro.ContributesBinding
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
 import kotlinx.coroutines.flow.Flow
 import logcat.LogPriority
 import tachiyomi.core.common.util.lang.toLong
@@ -16,6 +20,9 @@ import tachiyomi.domain.manga.repository.MangaRepository
 import java.time.LocalDate
 import java.time.ZoneId
 
+@Inject
+@SingleIn(AppScope::class)
+@ContributesBinding(AppScope::class)
 class MangaRepositoryImpl(
     private val handler: DatabaseHandler,
 ) : MangaRepository {

@@ -352,6 +352,7 @@ abstract class HttpSource : CatalogueSource {
      * @since komikku/extensions-lib 1.6
      * @param manga the manga to look for related mangas.
      */
+    @Suppress("DEPRECATION")
     protected open fun relatedMangaListRequest(manga: SManga): Request {
         return mangaDetailsRequest(manga)
     }
@@ -362,6 +363,7 @@ abstract class HttpSource : CatalogueSource {
      * @since komikku/extensions-lib 1.6
      * @param response the response from the site.
      */
+    @Suppress("DEPRECATION")
     protected open fun relatedMangaListParse(response: Response): List<SManga> = popularMangaParse(response).mangas
     // KMK <--
 

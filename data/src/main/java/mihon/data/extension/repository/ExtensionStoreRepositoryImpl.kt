@@ -1,5 +1,9 @@
 package mihon.data.extension.repository
 
+import dev.zacsweers.metro.AppScope
+import dev.zacsweers.metro.ContributesBinding
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
 import eu.kanade.tachiyomi.extension.model.Extension
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -12,6 +16,9 @@ import mihon.domain.extension.repository.ExtensionStoreRepository
 import tachiyomi.core.common.util.system.logcat
 import tachiyomi.data.DatabaseHandler
 
+@Inject
+@SingleIn(AppScope::class)
+@ContributesBinding(AppScope::class)
 class ExtensionStoreRepositoryImpl(
     private val service: ExtensionStoreService,
     private val handler: DatabaseHandler,

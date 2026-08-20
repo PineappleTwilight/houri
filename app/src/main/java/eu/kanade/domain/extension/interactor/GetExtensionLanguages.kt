@@ -10,6 +10,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import dev.zacsweers.metro.Inject
 import eu.kanade.domain.source.service.SourcePreferences
 import eu.kanade.tachiyomi.R
 import eu.kanade.tachiyomi.extension.ExtensionManager
@@ -17,6 +18,7 @@ import eu.kanade.tachiyomi.util.system.LocaleHelper
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 
+@Inject
 class GetExtensionLanguages(
     private val preferences: SourcePreferences,
     private val extensionManager: ExtensionManager,

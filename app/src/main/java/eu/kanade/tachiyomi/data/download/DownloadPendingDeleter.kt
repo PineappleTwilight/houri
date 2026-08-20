@@ -2,6 +2,9 @@ package eu.kanade.tachiyomi.data.download
 
 import android.content.Context
 import androidx.core.content.edit
+import dev.zacsweers.metro.AppScope
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -15,6 +18,8 @@ import uy.kohesive.injekt.api.get
  *
  * @param context the application context.
  */
+@Inject
+@SingleIn(AppScope::class)
 class DownloadPendingDeleter(
     context: Context,
     private val json: Json = Injekt.get(),

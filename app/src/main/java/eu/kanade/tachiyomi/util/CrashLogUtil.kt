@@ -2,6 +2,9 @@ package eu.kanade.tachiyomi.util
 
 import android.content.Context
 import android.os.Build
+import dev.zacsweers.metro.AppScope
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
 import eu.kanade.tachiyomi.BuildConfig
 import eu.kanade.tachiyomi.extension.ExtensionManager
 import eu.kanade.tachiyomi.util.storage.getUriCompat
@@ -16,6 +19,8 @@ import uy.kohesive.injekt.api.get
 import java.time.OffsetDateTime
 import java.time.ZoneId
 
+@Inject
+@SingleIn(AppScope::class)
 class CrashLogUtil(
     private val context: Context,
     private val extensionManager: ExtensionManager = Injekt.get(),

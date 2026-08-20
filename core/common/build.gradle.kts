@@ -1,6 +1,7 @@
 plugins {
     id("mihon.library")
     kotlin("plugin.serialization")
+    alias(libs.plugins.metro)
 }
 
 android {
@@ -53,6 +54,10 @@ dependencies {
 
     testImplementation(libs.bundles.test)
     testRuntimeOnly(libs.junit.platform.launcher)
+
+    implementation(libs.metro.runtime)
+    implementation(projects.core.metro)
+    implementation(libs.injekt)
 
     // SY -->
     implementation(sylibs.xlog)

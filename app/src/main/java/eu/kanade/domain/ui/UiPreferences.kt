@@ -2,6 +2,9 @@ package eu.kanade.domain.ui
 
 import androidx.compose.material3.FabPosition
 import com.materialkolor.PaletteStyle
+import dev.zacsweers.metro.AppScope
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
 import eu.kanade.domain.ui.model.AppTheme
 import eu.kanade.domain.ui.model.TabletUiMode
 import eu.kanade.domain.ui.model.ThemeMode
@@ -11,6 +14,8 @@ import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
 import java.util.Locale
 
+@SingleIn(AppScope::class)
+@Inject
 class UiPreferences(
     private val preferenceStore: PreferenceStore,
 ) {

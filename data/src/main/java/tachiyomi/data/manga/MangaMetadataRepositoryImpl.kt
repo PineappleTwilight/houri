@@ -1,5 +1,9 @@
 package tachiyomi.data.manga
 
+import dev.zacsweers.metro.AppScope
+import dev.zacsweers.metro.ContributesBinding
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
 import exh.metadata.metadata.base.FlatMetadata
 import exh.metadata.sql.models.SearchMetadata
 import exh.metadata.sql.models.SearchTag
@@ -11,6 +15,9 @@ import tachiyomi.data.DatabaseHandler
 import tachiyomi.domain.manga.model.Manga
 import tachiyomi.domain.manga.repository.MangaMetadataRepository
 
+@Inject
+@SingleIn(AppScope::class)
+@ContributesBinding(AppScope::class)
 class MangaMetadataRepositoryImpl(
     private val handler: DatabaseHandler,
 ) : MangaMetadataRepository {

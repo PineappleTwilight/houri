@@ -2,6 +2,9 @@ package eu.kanade.tachiyomi.data.backup
 
 import android.content.Context
 import android.net.Uri
+import dev.zacsweers.metro.AppScope
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
 import eu.kanade.tachiyomi.data.backup.models.Backup
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.protobuf.ProtoBuf
@@ -14,6 +17,8 @@ import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
 import java.io.IOException
 
+@Inject
+@SingleIn(AppScope::class)
 class BackupDecoder(
     private val context: Context,
     private val parser: ProtoBuf = Injekt.get(),

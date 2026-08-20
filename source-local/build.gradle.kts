@@ -7,6 +7,7 @@ plugins {
     id("com.android.kotlin.multiplatform.library")
     id("mihon.code.lint")
     kotlin("multiplatform")
+    alias(libs.plugins.metro)
 }
 
 kotlin {
@@ -37,6 +38,9 @@ kotlin {
                 implementation(projects.domain)
 
                 implementation(kotlinx.bundles.serialization)
+
+                implementation(libs.metro.runtime)
+                implementation(libs.injekt)
             }
         }
     }

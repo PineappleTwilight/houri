@@ -1,10 +1,17 @@
 package tachiyomi.data.track
 
+import dev.zacsweers.metro.AppScope
+import dev.zacsweers.metro.ContributesBinding
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
 import kotlinx.coroutines.flow.Flow
 import tachiyomi.data.DatabaseHandler
 import tachiyomi.domain.track.model.Track
 import tachiyomi.domain.track.repository.TrackRepository
 
+@Inject
+@SingleIn(AppScope::class)
+@ContributesBinding(AppScope::class)
 class TrackRepositoryImpl(
     private val handler: DatabaseHandler,
 ) : TrackRepository {

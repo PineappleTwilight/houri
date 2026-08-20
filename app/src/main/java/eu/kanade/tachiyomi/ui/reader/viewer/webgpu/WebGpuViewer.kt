@@ -88,6 +88,7 @@ open class WebGpuViewer(
     private val decodeDispatcher = decodeExecutor.asCoroutineDispatcher()
 
     // Single lock for all page cache and queue operations
+    @Suppress("PLATFORM_CLASS_MAPPED_TO_KOTLIN")
     private val lock = Object()
 
     // Page cache - keyed by stable PageKey for O(1) lookup

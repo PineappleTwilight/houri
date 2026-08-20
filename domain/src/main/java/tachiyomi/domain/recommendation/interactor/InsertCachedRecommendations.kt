@@ -1,6 +1,7 @@
 // KMK -->
 package tachiyomi.domain.recommendation.interactor
 
+import dev.zacsweers.metro.Inject
 import logcat.LogPriority
 import tachiyomi.core.common.util.lang.withNonCancellableContext
 import tachiyomi.core.common.util.system.logcat
@@ -8,6 +9,7 @@ import tachiyomi.domain.recommendation.interactor.DeleteCachedRecommendations.Re
 import tachiyomi.domain.recommendation.model.CachedRecommendation
 import tachiyomi.domain.recommendation.repository.RecommendationCacheRepository
 
+@Inject
 class InsertCachedRecommendations(
     private val repository: RecommendationCacheRepository,
 ) {

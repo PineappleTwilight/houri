@@ -1,6 +1,7 @@
 package eu.kanade.domain.track.interactor
 
 import android.app.Application
+import dev.zacsweers.metro.Inject
 import eu.kanade.domain.track.model.toDbTrack
 import eu.kanade.domain.track.model.toDomainTrack
 import eu.kanade.tachiyomi.data.database.models.Track
@@ -25,6 +26,7 @@ import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
 import java.time.ZoneOffset
 
+@Inject
 class AddTracks(
     private val insertTrack: InsertTrack,
     private val syncChapterProgressWithTrack: SyncChapterProgressWithTrack,

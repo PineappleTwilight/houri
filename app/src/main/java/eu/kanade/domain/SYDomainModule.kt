@@ -129,7 +129,7 @@ class SYDomainModule : InjektModule {
         addFactory { DeleteMergeById(get()) }
         addFactory { GetMergedMangaForDownloading(get()) }
         // KMK -->
-        addFactory { MergeMangaBySmartSearch(get()) }
+        addFactory { MergeMangaBySmartSearch(get(), get(), get(), get(), get(), get(), get(), get(), get()) }
         // KMK <--
 
         addSingletonFactory<FavoritesEntryRepository> { FavoritesEntryRepositoryImpl(get()) }

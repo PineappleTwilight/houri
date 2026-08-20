@@ -1,5 +1,8 @@
 package eu.kanade.domain.sync
 
+import dev.zacsweers.metro.AppScope
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
 import eu.kanade.domain.sync.models.SyncSettings
 import eu.kanade.tachiyomi.data.sync.SyncManager
 import eu.kanade.tachiyomi.data.sync.models.SyncTriggerOptions
@@ -7,6 +10,8 @@ import tachiyomi.core.common.preference.Preference
 import tachiyomi.core.common.preference.PreferenceStore
 import java.util.UUID
 
+@SingleIn(AppScope::class)
+@Inject
 class SyncPreferences(
     private val preferenceStore: PreferenceStore,
 ) {

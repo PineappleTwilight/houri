@@ -3,6 +3,10 @@
 package eu.kanade.tachiyomi.source
 
 import android.content.Context
+import dev.zacsweers.metro.AppScope
+import dev.zacsweers.metro.ContributesBinding
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
 import eu.kanade.domain.source.service.SourcePreferences
 import eu.kanade.tachiyomi.data.download.DownloadManager
 import eu.kanade.tachiyomi.extension.ExtensionManager
@@ -47,10 +51,15 @@ import uy.kohesive.injekt.injectLazy
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.reflect.KClass
 
+@Inject
+@SingleIn(AppScope::class)
+@ContributesBinding(AppScope::class)
 class AndroidSourceManager(
     private val context: Context,
     private val extensionManager: ExtensionManager,
     private val sourceRepository: StubSourceRepository,
+    private val exhPreferences: ExhPreferences,
+    private val sourcePreferences: SourcePreferences,
 ) : SourceManager {
 
     private val _isInitialized = MutableStateFlow(false)
@@ -67,8 +76,6 @@ class AndroidSourceManager(
     override val sources: Flow<List<Source>> = sourcesMapFlow.map { it.values.toList() }
 
     // SY -->
-    private val exhPreferences: ExhPreferences by injectLazy()
-    private val sourcePreferences: SourcePreferences by injectLazy()
     // SY <--
     // KMK -->
     private val getMergedReferencesById: GetMergedReferencesById by injectLazy()

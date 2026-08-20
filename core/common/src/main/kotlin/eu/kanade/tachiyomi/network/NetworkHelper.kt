@@ -1,6 +1,9 @@
 package eu.kanade.tachiyomi.network
 
 import android.content.Context
+import dev.zacsweers.metro.AppScope
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
 import eu.kanade.tachiyomi.network.interceptor.CloudflareInterceptor
 import eu.kanade.tachiyomi.network.interceptor.UncaughtExceptionInterceptor
 import eu.kanade.tachiyomi.network.interceptor.UserAgentInterceptor
@@ -20,7 +23,10 @@ import java.util.concurrent.TimeUnit
 import kotlin.math.pow
 import kotlin.random.Random
 
-/* SY --> */ open /* SY <-- */ class NetworkHelper(
+@Inject
+@SingleIn(AppScope::class)
+/* SY --> */
+open /* SY <-- */ class NetworkHelper(
     private val context: Context,
     private val preferences: NetworkPreferences,
     // KMK -->

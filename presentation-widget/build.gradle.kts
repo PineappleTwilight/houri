@@ -1,6 +1,7 @@
 plugins {
     id("mihon.library")
     id("mihon.library.compose")
+    alias(libs.plugins.metro)
 }
 
 android {
@@ -27,4 +28,7 @@ dependencies {
     implementation(libs.coil.core)
 
     api(libs.injekt)
+
+    implementation(libs.metro.runtime)
+    implementation(projects.core.metro)
 }

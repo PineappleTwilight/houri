@@ -35,6 +35,8 @@ import com.elvishew.xlog.printer.Printer
 import com.elvishew.xlog.printer.file.backup.NeverBackupStrategy
 import com.elvishew.xlog.printer.file.naming.DateFileNameGenerator
 import dev.mihon.injekt.patchInjekt
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.createGraphFactory
 import eu.kanade.domain.DomainModule
 import eu.kanade.domain.KMKDomainModule
 import eu.kanade.domain.SYDomainModule
@@ -82,6 +84,9 @@ import kotlinx.coroutines.flow.onEach
 import logcat.AndroidLogcatLogger
 import logcat.LogPriority
 import logcat.LogcatLogger
+import mihon.app.di.AppGraph
+import mihon.app.di.injekt.MetroInteropModule
+import mihon.core.metro.GraphProvider
 import mihon.core.migration.Migrator
 import mihon.core.migration.migrations.migrations
 import mihon.telemetry.TelemetryConfig
@@ -96,13 +101,20 @@ import tachiyomi.i18n.MR
 import tachiyomi.presentation.widget.WidgetManager
 import timber.log.Timber
 import uy.kohesive.injekt.Injekt
+import uy.kohesive.injekt.api.addSingleton
 import uy.kohesive.injekt.api.get
 import uy.kohesive.injekt.injectLazy
 import java.security.Security
 import java.text.SimpleDateFormat
 import java.util.Locale
 
-class App : Application(), DefaultLifecycleObserver, SingletonImageLoader.Factory {
+class App : Application(), DefaultLifecycleObserver, SingletonImageLoader.Factory, GraphProvider<AppGraph> {
+
+    override val graph: AppGraph by lazy {
+        createGraphFactory<AppGraph.Factory>().create(context = this)
+    }
+
+    @Inject private lateinit var injektMetroInteropModule: MetroInteropModule
 
     private val basePreferences: BasePreferences by injectLazy()
     private val privacyPreferences: PrivacyPreferences by injectLazy()
@@ -113,6 +125,28 @@ class App : Application(), DefaultLifecycleObserver, SingletonImageLoader.Factor
     override fun onCreate() {
         super<Application>.onCreate()
         patchInjekt()
+        Injekt.addSingleton<Application>(this)
+        Injekt.addSingleton<Context>(this)
+
+        // Old Injekt modules must be imported BEFORE graph.inject() because
+        // graph construction triggers injectLazy() calls that resolve via PatchedDefaultRegister
+        Injekt.importModule(PreferenceModule(this))
+        Injekt.importModule(AppModule(this))
+        Injekt.importModule(DomainModule())
+        // KMK -->
+        Injekt.importModule(KMKDomainModule())
+        // KMK <--
+        // SY -->
+        Injekt.importModule(SYPreferenceModule(this))
+        Injekt.importModule(SYDomainModule())
+        // SY <--
+
+        graph.inject(this)
+
+        // MetroInteropModule bridges Metro singletons to Injekt for extension backwards compat;
+        // must be imported AFTER graph.inject() so Metro graph is built
+        Injekt.importModule(injektMetroInteropModule)
+
         TelemetryConfig.init(
             applicationContext,
             isPreviewBuildType,
@@ -135,17 +169,6 @@ class App : Application(), DefaultLifecycleObserver, SingletonImageLoader.Factor
             val process = getProcessName()
             if (packageName != process) WebView.setDataDirectorySuffix(process)
         }
-
-        Injekt.importModule(PreferenceModule(this))
-        Injekt.importModule(AppModule(this))
-        Injekt.importModule(DomainModule())
-        // KMK -->
-        Injekt.importModule(KMKDomainModule())
-        // KMK <--
-        // SY -->
-        Injekt.importModule(SYPreferenceModule(this))
-        Injekt.importModule(SYDomainModule())
-        // SY <--
 
         setupExhLogging() // EXH logging
         if (!LogcatLogger.isInstalled) {
@@ -223,7 +246,9 @@ class App : Application(), DefaultLifecycleObserver, SingletonImageLoader.Factor
         // KMK <--
 
         // Updates widget update
-        WidgetManager(Injekt.get(), Injekt.get()).apply { init(scope) }
+        with(this@App) {
+            WidgetManager(Injekt.get(), Injekt.get()).init(scope)
+        }
 
         if (!WorkManager.isInitialized()) {
             WorkManager.initialize(this, Configuration.Builder().build())
@@ -235,6 +260,12 @@ class App : Application(), DefaultLifecycleObserver, SingletonImageLoader.Factor
         }
 
         initializeMigrator()
+    }
+
+    private fun setupInjekt() {
+        Injekt.addSingleton<Application>(this)
+        Injekt.addSingleton<Context>(this)
+        Injekt.importModule(injektMetroInteropModule)
     }
 
     private fun initializeMigrator() {

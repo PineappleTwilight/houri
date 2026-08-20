@@ -4,6 +4,9 @@ import android.content.Context
 import android.graphics.BitmapFactory
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
+import dev.zacsweers.metro.AppScope
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
 import eu.kanade.tachiyomi.R
 import eu.kanade.tachiyomi.core.security.SecurityPreferences
 import eu.kanade.tachiyomi.data.notification.NotificationReceiver
@@ -15,6 +18,8 @@ import tachiyomi.i18n.MR
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
 
+@Inject
+@SingleIn(AppScope::class)
 class ExtensionUpdateNotifier(
     private val context: Context,
     private val securityPreferences: SecurityPreferences = Injekt.get(),

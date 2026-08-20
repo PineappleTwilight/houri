@@ -1,6 +1,9 @@
 package exh.eh
 
 import android.content.Context
+import dev.zacsweers.metro.AppScope
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
 import eu.kanade.domain.manga.interactor.UpdateManga
 import exh.metadata.metadata.EHentaiSearchMetadata
 import kotlinx.coroutines.Dispatchers
@@ -30,6 +33,8 @@ import java.io.File
 
 data class ChapterChain(val manga: Manga, val chapters: List<Chapter>, val history: List<History>)
 
+@Inject
+@SingleIn(AppScope::class)
 class EHentaiUpdateHelper(context: Context) {
     val parentLookupTable =
         MemAutoFlushingLookupTable(

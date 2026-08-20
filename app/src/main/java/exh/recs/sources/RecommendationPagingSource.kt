@@ -17,6 +17,7 @@ import logcat.LogPriority
 import tachiyomi.core.common.util.system.logcat
 import tachiyomi.data.source.BaseSourcePagingSource
 import tachiyomi.data.source.NoResultsException
+import tachiyomi.domain.manga.interactor.NetworkToLocalManga
 import tachiyomi.domain.manga.model.Manga
 import tachiyomi.domain.source.service.SourceManager
 import tachiyomi.domain.track.interactor.GetTracks
@@ -33,7 +34,7 @@ abstract class RecommendationPagingSource(
     // KMK -->
     source: RecommendationSource = RecommendationSource(),
     // KMK <--
-) : BaseSourcePagingSource(source) {
+) : BaseSourcePagingSource(source, Injekt.get()) {
     // Display name
     abstract val name: String
 

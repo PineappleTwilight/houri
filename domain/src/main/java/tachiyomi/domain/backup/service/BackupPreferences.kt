@@ -1,8 +1,13 @@
 package tachiyomi.domain.backup.service
 
+import dev.zacsweers.metro.AppScope
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
 import tachiyomi.core.common.preference.Preference
 import tachiyomi.core.common.preference.PreferenceStore
 
+@SingleIn(AppScope::class)
+@Inject
 class BackupPreferences(
     private val preferenceStore: PreferenceStore,
 ) {

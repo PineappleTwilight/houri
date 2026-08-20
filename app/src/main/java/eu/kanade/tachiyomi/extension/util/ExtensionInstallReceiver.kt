@@ -64,7 +64,7 @@ internal class ExtensionInstallReceiver(private val listener: Listener) : Broadc
                 scope.launch {
                     var result = getExtensionFromIntent(context, intent)
                     if (result is LoadResult.Error) {
-                        logcat(LogPriority.WARN) { "[ExtInstall] First load attempt failed for $pkgName: ${(result as LoadResult.Error).reason}, retrying..." }
+                        logcat(LogPriority.WARN) { "[ExtInstall] First load attempt failed for $pkgName: ${result.reason}, retrying..." }
                         kotlinx.coroutines.delay(RETRY_DELAY_MS)
                         result = getExtensionFromIntent(context, intent)
                     }
@@ -83,7 +83,7 @@ internal class ExtensionInstallReceiver(private val listener: Listener) : Broadc
                 scope.launch {
                     var result = getExtensionFromIntent(context, intent)
                     if (result is LoadResult.Error) {
-                        logcat(LogPriority.WARN) { "[ExtInstall] First load attempt failed for $pkgName update: ${(result as LoadResult.Error).reason}, retrying..." }
+                        logcat(LogPriority.WARN) { "[ExtInstall] First load attempt failed for $pkgName update: ${result.reason}, retrying..." }
                         kotlinx.coroutines.delay(RETRY_DELAY_MS)
                         result = getExtensionFromIntent(context, intent)
                     }

@@ -3,6 +3,9 @@ package eu.kanade.tachiyomi.extension
 import android.content.Context
 import android.graphics.drawable.Drawable
 import androidx.core.content.ContextCompat
+import dev.zacsweers.metro.AppScope
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
 import eu.kanade.domain.extension.interactor.TrustExtension
 import eu.kanade.domain.source.service.SourcePreferences
 import eu.kanade.tachiyomi.R
@@ -47,6 +50,8 @@ import java.util.Locale
  * signature is trusted, otherwise the user will be prompted with a warning to trust it before being
  * loaded.
  */
+@Inject
+@SingleIn(AppScope::class)
 class ExtensionManager(
     private val context: Context,
     private val preferences: SourcePreferences = Injekt.get(),

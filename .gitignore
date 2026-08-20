@@ -29,3 +29,5 @@ AUDIT.md
 AGENTS.md
 **/AGENTS.md
 extensions-source/
+.gradle-home/
+tasks/

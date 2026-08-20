@@ -3,10 +3,15 @@ package tachiyomi.core.common.storage
 import android.content.Context
 import android.os.Environment
 import androidx.core.net.toUri
+import dev.zacsweers.metro.AppScope
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
 import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.i18n.MR
 import java.io.File
 
+@SingleIn(AppScope::class)
+@Inject
 class AndroidStorageFolderProvider(
     private val context: Context,
 ) : FolderProvider {

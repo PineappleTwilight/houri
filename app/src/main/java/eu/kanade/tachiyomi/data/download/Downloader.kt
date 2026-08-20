@@ -2,6 +2,9 @@ package eu.kanade.tachiyomi.data.download
 
 import android.content.Context
 import com.hippo.unifile.UniFile
+import dev.zacsweers.metro.AppScope
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
 import eu.kanade.domain.chapter.model.toSChapter
 import eu.kanade.domain.manga.model.getComicInfo
 import eu.kanade.domain.source.service.SourcePreferences
@@ -75,6 +78,8 @@ import java.util.Locale
  * Its queue contains the list of chapters to download.
  */
 @OptIn(DelicateCoroutinesApi::class)
+@Inject
+@SingleIn(AppScope::class)
 class Downloader(
     private val context: Context,
     private val provider: DownloadProvider,

@@ -1,9 +1,11 @@
 // KMK -->
 package tachiyomi.domain.recommendation.interactor
 
+import dev.zacsweers.metro.Inject
 import tachiyomi.domain.recommendation.model.CachedRecommendation
 import tachiyomi.domain.recommendation.repository.RecommendationCacheRepository
 
+@Inject
 class GetCachedRecommendations(
     private val repository: RecommendationCacheRepository,
 ) {

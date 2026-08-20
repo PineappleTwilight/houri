@@ -1,9 +1,14 @@
 package tachiyomi.domain.updates.service
 
+import dev.zacsweers.metro.AppScope
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
 import tachiyomi.core.common.preference.PreferenceStore
 import tachiyomi.core.common.preference.TriState
 import tachiyomi.core.common.preference.getEnum
 
+@SingleIn(AppScope::class)
+@Inject
 class UpdatesPreferences(
     private val preferenceStore: PreferenceStore,
 ) {

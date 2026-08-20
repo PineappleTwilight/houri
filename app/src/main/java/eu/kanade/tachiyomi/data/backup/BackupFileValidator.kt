@@ -2,11 +2,16 @@ package eu.kanade.tachiyomi.data.backup
 
 import android.content.Context
 import android.net.Uri
+import dev.zacsweers.metro.AppScope
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
 import eu.kanade.tachiyomi.data.track.TrackerManager
 import tachiyomi.domain.source.service.SourceManager
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
 
+@Inject
+@SingleIn(AppScope::class)
 class BackupFileValidator(
     private val context: Context,
 

@@ -5,6 +5,9 @@ import android.graphics.BitmapFactory
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import com.hippo.unifile.UniFile
+import dev.zacsweers.metro.AppScope
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
 import eu.kanade.tachiyomi.R
 import eu.kanade.tachiyomi.core.security.SecurityPreferences
 import eu.kanade.tachiyomi.data.BackupRestoreStatus
@@ -24,6 +27,8 @@ import uy.kohesive.injekt.injectLazy
 import java.io.File
 import java.util.concurrent.TimeUnit
 
+@Inject
+@SingleIn(AppScope::class)
 class BackupNotifier(private val context: Context) {
 
     private val preferences: SecurityPreferences by injectLazy()

@@ -1,10 +1,17 @@
 package tachiyomi.data.libraryUpdateError
 
+import dev.zacsweers.metro.AppScope
+import dev.zacsweers.metro.ContributesBinding
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
 import kotlinx.coroutines.flow.Flow
 import tachiyomi.data.DatabaseHandler
 import tachiyomi.domain.libraryUpdateError.model.LibraryUpdateError
 import tachiyomi.domain.libraryUpdateError.repository.LibraryUpdateErrorRepository
 
+@Inject
+@SingleIn(AppScope::class)
+@ContributesBinding(AppScope::class)
 class LibraryUpdateErrorRepositoryImpl(
     private val handler: DatabaseHandler,
 ) : LibraryUpdateErrorRepository {

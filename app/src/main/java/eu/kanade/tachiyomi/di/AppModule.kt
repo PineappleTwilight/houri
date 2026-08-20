@@ -143,14 +143,14 @@ class AppModule(val app: Application) : InjektModule {
             }
         }
         addSingletonFactory {
-            XML {
-                defaultPolicy {
+            XML.v1 {
+                policy {
                     ignoreUnknownChildren()
+                    autoPolymorphic = true
                 }
-                autoPolymorphic = true
                 xmlDeclMode = XmlDeclMode.Charset
-                indent = 2
                 xmlVersion = XmlVersion.XML10
+                setIndent(2)
             }
         }
         addSingletonFactory<ProtoBuf> {
@@ -165,7 +165,7 @@ class AppModule(val app: Application) : InjektModule {
         addSingletonFactory { NetworkHelper(app, get(), get()) }
         addSingletonFactory { JavaScriptEngine(app) }
 
-        addSingletonFactory<SourceManager> { AndroidSourceManager(app, get(), get()) }
+        addSingletonFactory<SourceManager> { AndroidSourceManager(app, get(), get(), get(), get()) }
         addSingletonFactory { ExtensionManager(app) }
 
         addSingletonFactory { DownloadProvider(app) }
@@ -213,6 +213,6 @@ class AppModule(val app: Application) : InjektModule {
             // SY <--
         }
 
-        addSingletonFactory { GoogleDriveService(app) }
+        addSingletonFactory { GoogleDriveService(app, get()) }
     }
 }

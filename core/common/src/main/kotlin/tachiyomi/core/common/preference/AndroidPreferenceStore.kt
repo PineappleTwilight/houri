@@ -3,6 +3,9 @@ package tachiyomi.core.common.preference
 import android.content.Context
 import android.content.SharedPreferences
 import androidx.preference.PreferenceManager
+import dev.zacsweers.metro.AppScope
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.callbackFlow
 import tachiyomi.core.common.preference.AndroidPreference.BooleanPrimitive
@@ -14,6 +17,8 @@ import tachiyomi.core.common.preference.AndroidPreference.ObjectAsString
 import tachiyomi.core.common.preference.AndroidPreference.StringPrimitive
 import tachiyomi.core.common.preference.AndroidPreference.StringSetPrimitive
 
+@SingleIn(AppScope::class)
+@Inject
 class AndroidPreferenceStore(
     context: Context,
     private val sharedPreferences: SharedPreferences = PreferenceManager.getDefaultSharedPreferences(context),

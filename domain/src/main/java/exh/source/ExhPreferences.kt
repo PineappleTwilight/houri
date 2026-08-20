@@ -1,11 +1,16 @@
 package exh.source
 
+import dev.zacsweers.metro.AppScope
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
 import exh.log.EHLogLevel
 import exh.log.EHLogLevel.Companion.EH_LOG_LEVEL_PREF
 import tachiyomi.core.common.preference.Preference
 import tachiyomi.core.common.preference.PreferenceStore
 import tachiyomi.domain.release.service.AppUpdatePolicy
 
+@SingleIn(AppScope::class)
+@Inject
 class ExhPreferences(
     private val preferenceStore: PreferenceStore,
 ) {
