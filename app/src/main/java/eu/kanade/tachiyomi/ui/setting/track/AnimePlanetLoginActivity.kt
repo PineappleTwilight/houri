@@ -7,7 +7,6 @@ import android.os.Bundle
 import android.webkit.CookieManager
 import android.webkit.WebView
 import android.widget.Toast
-import androidx.core.net.toUri
 import androidx.lifecycle.lifecycleScope
 import eu.kanade.presentation.webview.AnimePlanetLoginWebViewScreen
 import eu.kanade.tachiyomi.R
@@ -19,7 +18,7 @@ import eu.kanade.tachiyomi.util.view.setComposeContent
 import tachiyomi.core.common.util.lang.launchIO
 import tachiyomi.i18n.MR
 import uy.kohesive.injekt.injectLazy
-import java.net.HttpCookie
+
 
 class AnimePlanetLoginActivity : BaseActivity() {
 
@@ -52,48 +51,32 @@ class AnimePlanetLoginActivity : BaseActivity() {
         }
     }
 
+    // KMK -->
     private fun onPageFinished(view: WebView, url: String) {
-        val parsedUrl = url.toUri()
-        val isAnimePlanet = parsedUrl.host.equals("www.anime-planet.com", ignoreCase = true)
-        if (!isAnimePlanet) return
-
-        val isUserProfile = parsedUrl.path?.startsWith("/users/") == true
-        if (isUserProfile) {
+        // After login, AnimePlanet may redirect through CF challenge pages,
+        // error pages, or other domains before setting the session cookie.
+        // Just check for the session cookie on every page load — regardless
+        // of what domain we're on. Once we have it, grab cookies and finish.
+        if (!loginAttempted && hasSessionCookie()) {
+            loginAttempted = true
             val cookieHeader = getAllCookies() ?: return
-            val username = parsedUrl.lastPathSegment.orEmpty()
-            if (username.isNotBlank()) {
-                loginAndFinish(cookieHeader, username)
-            }
-            return
+            loginAndFinish(cookieHeader)
         }
-
-        // KMK -->
-        // After login, AnimePlanet redirects to the homepage ("/") instead of
-        // the user's profile. Detect the session cookie and navigate to the
-        // user's profile page to extract the username.
-        if (hasSessionCookie() && !navigatedToProfile) {
-            navigatedToProfile = true
-            view.loadUrl("https://www.anime-planet.com/users/")
-        }
-        // KMK <--
     }
 
     // KMK -->
-    private var navigatedToProfile = false
+    private var loginAttempted = false
 
     private fun hasSessionCookie(): Boolean {
         val cookies = CookieManager.getInstance().getCookie("https://www.anime-planet.com") ?: return false
-        return cookies.split("; ")
-            .mapNotNull { HttpCookie.parse(it).firstOrNull() }
-            .firstOrNull { it.name.equals("session", ignoreCase = true) }
-            ?.value
-            ?.isNotBlank() == true
+        val lower = cookies.lowercase()
+        return lower.contains("ap=") || lower.contains("rememberme=")
     }
 
-    private fun loginAndFinish(cookieHeader: String, username: String) {
+    private fun loginAndFinish(cookieHeader: String) {
         lifecycleScope.launchIO {
             try {
-                trackerManager.animePlanet.loginWithCookie(cookieHeader, username)
+                trackerManager.animePlanet.loginWithCookie(cookieHeader)
                 setResult(RESULT_OK)
             } catch (e: Throwable) {
                 toast(e.message.toString())

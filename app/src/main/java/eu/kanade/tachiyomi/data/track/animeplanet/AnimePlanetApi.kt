@@ -29,7 +29,7 @@ class AnimePlanetApi(
         val url = "$BASE_URL/manga/all?name=$encodedQuery"
 
         val request = Request.Builder().url(url).build()
-        val response = client.newCall(request).awaitSuccess()
+        val response = authClient.newCall(request).awaitSuccess()
         val document = response.asJsoup()
 
         document.select(".card").mapNotNull { card ->
