@@ -66,7 +66,8 @@
 - [ ] Replace Material UI framework with more stable library
 - [ ] **Update Dependency**: Voyager (UI related)
 - [ ] **Update Dependency**: MaterialKolor (UI related)
-- [ ] **Update Dependency**:
+- [ ] **Migration**: Injekt -> Metro
+- [ ] **Code Cleanup**: Fix compile warnings
 
 ## Drawing Board
 - [ ] **New**: WebAssembly computation engine

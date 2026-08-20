@@ -3,7 +3,6 @@ agp_version = "9.1.1"
 lifecycle_version = "2.10.0"
 paging_version = "3.4.1"
 interpolator_version = "1.0.0"
-r8 = "9.1.29"
 
 [libraries]
 gradle = { module = "com.android.tools.build:gradle", version.ref = "agp_version" }
