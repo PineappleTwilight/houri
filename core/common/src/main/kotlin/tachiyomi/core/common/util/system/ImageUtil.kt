@@ -66,7 +66,10 @@ object ImageUtil {
                 Format.Webp -> ImageType.WEBP
                 else -> null
             }
-        } catch (_: Exception) {
+        } catch (_: Throwable) {
+            // Catch Throwable (not just Exception) to handle NoClassDefFoundError
+            // when the native image decoder .so fails to load on devices with
+            // 16KB page sizes (the .so has 4096-byte ELF alignment)
             null
         }
     }

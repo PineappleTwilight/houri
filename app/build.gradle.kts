@@ -113,10 +113,6 @@ android {
 
     packaging {
         jniLibs {
-            // Extract native libs from APK at install time to work around
-            // page-size alignment issues on devices with 16KB pages
-            // (libimagedecoder.so is built with 4096-byte alignment)
-            useLegacyPackaging = true
             keepDebugSymbols += listOf(
                 "libandroidx.graphics.path",
                 "libarchive-jni",
