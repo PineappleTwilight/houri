@@ -465,6 +465,11 @@ object SettingsAdvancedScreen : SearchableSettings {
                     title = stringResource(MR.strings.pref_always_decode_long_strip_with_ssiv_2),
                     subtitle = stringResource(MR.strings.pref_always_decode_long_strip_with_ssiv_summary),
                 ),
+                Preference.PreferenceItem.SwitchPreference(
+                    preference = basePreferences.highQualityRenderer(),
+                    title = stringResource(MR.strings.pref_high_quality_renderer),
+                    subtitle = stringResource(MR.strings.pref_high_quality_renderer_summary),
+                ),
                 Preference.PreferenceItem.TextPreference(
                     title = stringResource(MR.strings.pref_display_profile),
                     subtitle = basePreferences.displayProfile().get(),
