@@ -54,6 +54,8 @@
 - [x] Fix e/exhentai rare nullptr exceptions when browsing
 - [x] Change Suwayomi tracker back to ID 9 (parity with upstream)
 - [x] Change AnimePlanet and Comick trackers to use cookiejar storage instead of preference storage
+- [ ] Fix webgpu renderer not respecting preference toggle (does not load even when enabled)
+- [ ] Fix app crash when attempting to update through the new updater
 
 ## Chores
 - [x] Replace all Komikku icons/branding with houri icons/branding
