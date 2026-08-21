@@ -26,6 +26,7 @@
   - Should include default subcategory "All", which displays content from all subcategories in that category
   - Should function visually and functionally to Android home screen folders
 - [ ] **Improvement**: Heavily improve the "Feed" feature
+- [ ] **New**: Webhook integration for app events similar to the Discord RPC, but for Discord webhooks and other webhook formats.
 
 ## Bugfixes
 - [x] Fix UI transition choppiness.
