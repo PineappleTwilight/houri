@@ -56,6 +56,8 @@
 - [x] Change AnimePlanet and Comick trackers to use cookiejar storage instead of preference storage
 - [ ] Fix webgpu renderer not respecting preference toggle (does not load even when enabled)
 - [ ] Fix app crash when attempting to update through the new updater
+- [ ] Fix AnimePlanet search showing "WebView cannot be initialized on this thread because it has no looper" error
+- [ ] Fix rare AnimePlanet search crash
 
 ## Chores
 - [x] Replace all Komikku icons/branding with houri icons/branding
@@ -68,8 +70,8 @@
 - [ ] Replace Material UI framework with more stable library
 - [ ] **Update Dependency**: Voyager (UI related)
 - [ ] **Update Dependency**: MaterialKolor (UI related)
-- [ ] **Migration**: Injekt -> Metro
-- [ ] **Code Cleanup**: Fix compile warnings
+- [x] **Migration**: Injekt -> Metro
+- [x] **Code Cleanup**: Fix compile warnings
 
 ## Drawing Board
 - [ ] **New**: WebAssembly computation engine
