@@ -9,9 +9,9 @@ import eu.kanade.tachiyomi.data.track.model.TrackSearch
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
 import tachiyomi.i18n.MR
-import tachiyomi.domain.track.model.Track as DomainTrack
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
+import tachiyomi.domain.track.model.Track as DomainTrack
 
 class AnimePlanet(id: Long) : BaseTracker(id, "AnimePlanet"), DeletableTracker {
 

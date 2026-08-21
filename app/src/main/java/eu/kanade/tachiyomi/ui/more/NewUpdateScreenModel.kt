@@ -85,11 +85,22 @@ class NewUpdateScreenModel(
     }
 
     fun installUpdate() {
-        val intent = Intent(Intent.ACTION_VIEW).apply {
-            setDataAndType(apkFile.getUriCompat(context), ExtensionInstaller.APK_MIME)
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION
+        try {
+            if (!apkFile.exists()) {
+                logcat(LogPriority.WARN) { "APK file not found, re-downloading" }
+                _state.update { it.copy(stage = Stage.Available) }
+                startDownload()
+                return
+            }
+            val intent = Intent(Intent.ACTION_VIEW).apply {
+                setDataAndType(apkFile.getUriCompat(context), ExtensionInstaller.APK_MIME)
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION
+            }
+            context.startActivity(intent)
+        } catch (e: Exception) {
+            logcat(LogPriority.ERROR, e) { "Failed to install update" }
+            _state.update { it.copy(stage = Stage.Failed) }
         }
-        context.startActivity(intent)
     }
 
     @Immutable

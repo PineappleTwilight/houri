@@ -96,6 +96,7 @@ class FilterSerializer {
         serializer.mappings().forEach {
             if (it.second is KMutableProperty1) {
                 val obj = json[it.first]!!.jsonPrimitive
+
                 @Suppress("PLATFORM_CLASS_MAPPED_TO_KOTLIN")
                 val res: Any? = when (json[CLASS_MAPPINGS]!!.jsonObject[it.first]!!.jsonPrimitive.content) {
                     java.lang.Integer::class.java.name -> obj.int

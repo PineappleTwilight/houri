@@ -19,7 +19,6 @@ import tachiyomi.core.common.util.lang.launchIO
 import tachiyomi.i18n.MR
 import uy.kohesive.injekt.injectLazy
 
-
 class AnimePlanetLoginActivity : BaseActivity() {
 
     private val trackerManager: TrackerManager by injectLazy()

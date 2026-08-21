@@ -45,39 +45,61 @@ class AnimePlanetWebClient(context: Context) {
                     }
 
                     var loadCount = 0
+
                     var done = false
 
-                    fun finish(result: () -> Unit) {
+                    // Pending delayed runnables that need to be cancelled on cleanup
+                    var pendingExtractRunnable: Runnable? = null
+
+                    fun destroyWebView() {
+                        try {
+                            webView.stopLoading()
+                            webView.destroy()
+                        } catch (_: Exception) {
+                            // WebView may already be in a bad state
+                        }
+                    }
+
+                    fun finish(result: (() -> Unit)?) {
                         if (done) return
                         done = true
+                        // Cancel any pending delayed extract runnable
+                        pendingExtractRunnable?.let { mainHandler.removeCallbacks(it) }
                         mainHandler.post {
                             try {
-                                result()
+                                result?.invoke()
                             } finally {
-                                webView.stopLoading()
-                                webView.destroy()
+                                destroyWebView()
                             }
                         }
                     }
 
                     cont.invokeOnCancellation {
-                        finish {}
+                        finish(null)
                     }
 
                     webView.webViewClient = object : WebViewClient() {
                         override fun onPageFinished(view: WebView, url: String?) {
+                            if (done) return
                             loadCount++
                             // First load: wait a bit for CF challenge JS to execute.
                             // Subsequent loads (CF redirects): shorter wait.
                             val delay = if (loadCount == 1) 3_000L else 1_000L
-                            mainHandler.postDelayed({
-                                if (done) return@postDelayed
-                                view.evaluateJavascript(SCRIPT_EXTRACT_HTML) { html ->
-                                    finish {
-                                        cont.resume(decodeJsString(html))
+                            val extractRunnable = Runnable {
+                                if (done) return@Runnable
+                                try {
+                                    view.evaluateJavascript(SCRIPT_EXTRACT_HTML) { html ->
+                                        finish {
+                                            cont.resume(decodeJsString(html))
+                                        }
                                     }
+                                } catch (_: Exception) {
+                                    // WebView may have been destroyed between the delay and now
+                                    finish(null)
                                 }
-                            }, delay)
+                            }
+                            pendingExtractRunnable = extractRunnable
+                            mainHandler.postDelayed(extractRunnable, delay)
                         }
 
                         override fun onReceivedError(
@@ -121,27 +143,40 @@ class AnimePlanetWebClient(context: Context) {
                     }
 
                     var done = false
+                    var pendingRunnable: Runnable? = null
 
-                    fun finish(result: () -> Unit) {
+                    fun destroyWebView() {
+                        try {
+                            webView.stopLoading()
+                            webView.destroy()
+                        } catch (_: Exception) {
+                            // WebView may already be in a bad state
+                        }
+                    }
+
+                    fun finish(result: (() -> Unit)?) {
                         if (done) return
                         done = true
+                        pendingRunnable?.let { mainHandler.removeCallbacks(it) }
                         mainHandler.post {
                             try {
-                                result()
+                                result?.invoke()
                             } finally {
-                                webView.stopLoading()
-                                webView.destroy()
+                                destroyWebView()
                             }
                         }
                     }
 
-                    cont.invokeOnCancellation { finish {} }
+                    cont.invokeOnCancellation { finish(null) }
 
                     webView.webViewClient = object : WebViewClient() {
                         override fun onPageFinished(view: WebView, url: String?) {
-                            mainHandler.postDelayed({
+                            if (done) return
+                            val runnable = Runnable {
                                 finish { cont.resume(url) }
-                            }, 1_000L)
+                            }
+                            pendingRunnable = runnable
+                            mainHandler.postDelayed(runnable, 1_000L)
                         }
                     }
 
