@@ -63,6 +63,8 @@
 - [x] Modify "add to library" dialogue to support subcategories
 - [x] Modify library viewer to support viewing subcategories
 - [ ] Ensure Discord RPC handles subcategory filtering correctly
+- [ ] Fix chapter completion reading moan not working
+  - [ ] Improve chapter completion reading moan to make it dynamic so we can add more sounds in the future or custom sounds from the user
 
 ## Chores
 - [x] Replace all Komikku icons/branding with houri icons/branding
