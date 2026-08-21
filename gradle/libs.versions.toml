@@ -18,7 +18,7 @@ metrox-viewmodel = "1.4.2"
 metrox-viewmodel-compose = "1.4.2"
 ben-manes-versions = "0.54.0"
 kim = "0.37.0"
-webgpuviewer = "28"
+webgpuviewer = "31"
 mpreg-imagedecoder = "9"
 
 [libraries]

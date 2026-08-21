@@ -10,6 +10,9 @@ class WebGpuViewerContinuous(activity: ReaderActivity) :
 
     override val isContinuous: Boolean = true
 
+    override val preloadAhead = 1
+    override val preloadBehind = 1
+
     private fun scrollByHalfPage(direction: Int) {
         val state = (pager as ImageViewContinuous).state
         val totalDistance = direction * state.height / 2f

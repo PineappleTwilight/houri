@@ -50,26 +50,27 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.takeWhile
 import kotlinx.coroutines.launch
 import logcat.LogPriority
+import mihon.app.di.globalAppGraph
 import tachiyomi.core.common.util.system.logcat
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 import java.util.concurrent.Executors
 import kotlin.math.abs
 import kotlin.math.min
+import kotlin.time.Duration.Companion.milliseconds
 
 open class WebGpuViewer(
     val activity: ReaderActivity,
     val isReversed: Boolean,
     val isVertical: Boolean,
-    val pager: ImageView = ImageView(activity, isVertical = isVertical),
+    val pager: ImageView = ImageView(activity, isVertical = isVertical, isReversed = isReversed),
 ) : Viewer {
 
     open val isContinuous: Boolean = false
 
-    val readerPreferences by lazy { Injekt.get<ReaderPreferences>() }
+    val readerPreferences by lazy { globalAppGraph.readerPreferences }
 
     private fun readerBackgroundColor(): Int = activity.baseContext.readerBackgroundColor(config.theme)
 
@@ -201,8 +202,10 @@ open class WebGpuViewer(
     @Volatile
     var currentPage: ViewerPage? = null
 
-    val preloadCount = 3
-    open val cacheSize = 9
+    open val preloadAhead = 3
+    open val preloadBehind = 2
+
+    open val cacheSize get() = 1 + preloadAhead + preloadBehind
 
     /**
      * Page processing state
@@ -230,6 +233,11 @@ open class WebGpuViewer(
                 candidates.find {
                     it is ViewerReaderPage && it.page.chapter.chapter.id == chapterId && it.page.index == nextIndex
                 } ?: candidates.find { it is TransitionPage && it.prevChapter?.chapter?.id == chapterId }
+                    ?: page.nextChapter?.chapter?.id?.let { nextChapterId ->
+                        candidates.find {
+                            it is ViewerReaderPage && it.page.chapter.chapter.id == nextChapterId && it.page.index == 0
+                        }
+                    }
             }
 
             is TransitionPage -> {
@@ -249,6 +257,14 @@ open class WebGpuViewer(
                 candidates.find {
                     it is ViewerReaderPage && it.page.chapter.chapter.id == chapterId && it.page.index == prevIndex
                 } ?: candidates.find { it is TransitionPage && it.nextChapter?.chapter?.id == chapterId }
+                    ?: page.prevChapter?.let { prevChapter ->
+                        prevChapter.pages?.lastIndex?.let { lastIndex ->
+                            candidates.find {
+                                it is ViewerReaderPage && it.page.chapter.chapter.id == prevChapter.chapter.id &&
+                                    it.page.index == lastIndex
+                            }
+                        }
+                    }
             }
 
             is TransitionPage -> {
@@ -318,6 +334,26 @@ open class WebGpuViewer(
         }
     }
 
+    /**
+     * Kicks off loading [chapter] and, once its pages actually show up, re-runs
+     * [preloadPages] from the current page - [ReaderActivity]'s viewModel.preload isn't
+     * guaranteed to have finished loading by the time it returns, so a single immediate
+     * retry can race it and silently never queue the adjacent chapter's edge page for
+     * decode. Gives up after 5 seconds if the chapter never finishes loading.
+     */
+    private fun preloadChapterThenRetry(chapter: ReaderChapter) {
+        scope.launch(Dispatchers.Default) {
+            activity.viewModel.preload(chapter)
+            repeat(25) {
+                if (chapter.state is ReaderChapter.State.Loaded) {
+                    currentPage?.let { preloadPages(it) }
+                    return@launch
+                }
+                delay(200.milliseconds)
+            }
+        }
+    }
+
     abstract class ViewerPage {
         abstract val prevChapter: ReaderChapter?
         abstract val nextChapter: ReaderChapter?
@@ -334,10 +370,10 @@ open class WebGpuViewer(
     inner class TransitionPage(override val prevChapter: ReaderChapter?, override val nextChapter: ReaderChapter?) :
         ViewerPage() {
         override val prev: ViewerPage?
-            get() = prevChapter?.pages?.lastOrNull()?.let { getPage(it) }
+            get() = prevChapter?.pages?.lastOrNull()?.let { getPage(it, currentPage) }
 
         override val next: ViewerPage?
-            get() = nextChapter?.pages?.firstOrNull()?.let { getPage(it) }
+            get() = nextChapter?.pages?.firstOrNull()?.let { getPage(it, currentPage) }
     }
 
     inner class ViewerReaderPage(val page: ReaderPage) : ViewerPage() {
@@ -364,36 +400,36 @@ open class WebGpuViewer(
 
         override val prev: ViewerPage?
             get() = page.chapter.pages?.let { pages ->
-                pages.getOrNull(page.index - 1)?.let { getPage(it) } ?: prevChapter?.let { prevChapter ->
+                pages.getOrNull(page.index - 1)?.let { getPage(it, currentPage) } ?: run {
+                    val prevChapter = prevChapter ?: return@run getPage(null, page.chapter, currentPage)
+
                     if (prevChapter.state !is ReaderChapter.State.Loaded) {
-                        scope.launch(Dispatchers.Default) {
-                            activity.viewModel.preload(prevChapter)
-                            currentPage?.let { preloadPages(it) }
-                        }
+                        preloadChapterThenRetry(prevChapter)
                     }
+
                     if (config.alwaysShowChapterTransition) {
-                        getPage(prevChapter, page.chapter)
+                        getPage(prevChapter, page.chapter, currentPage)
                     } else {
-                        prevChapter.pages?.lastOrNull()?.let { getPage(it) }
+                        prevChapter.pages?.lastOrNull()?.let { getPage(it, currentPage) }
                     }
-                } ?: getPage(null, page.chapter)
+                }
             }
 
         override val next: ViewerPage?
             get() = page.chapter.pages?.let { pages ->
-                pages.getOrNull(page.index + 1)?.let { getPage(it) } ?: nextChapter?.let { nextChapter ->
+                pages.getOrNull(page.index + 1)?.let { getPage(it, currentPage) } ?: run {
+                    val nextChapter = nextChapter ?: return@run getPage(page.chapter, null, currentPage)
+
                     if (nextChapter.state !is ReaderChapter.State.Loaded) {
-                        scope.launch(Dispatchers.Default) {
-                            activity.viewModel.preload(nextChapter)
-                            currentPage?.let { preloadPages(it) }
-                        }
+                        preloadChapterThenRetry(nextChapter)
                     }
+
                     if (config.alwaysShowChapterTransition) {
-                        getPage(page.chapter, nextChapter)
+                        getPage(page.chapter, nextChapter, currentPage)
                     } else {
-                        nextChapter.pages?.firstOrNull()?.let { getPage(it) }
+                        nextChapter.pages?.firstOrNull()?.let { getPage(it, currentPage) }
                     }
-                } ?: getPage(page.chapter, null)
+                }
             }
     }
 
@@ -505,18 +541,17 @@ open class WebGpuViewer(
     init {
         pager.state.apply {
             fetchPage = fetch@{ index ->
-                val i = if (isReversed) -index else index
                 val current = currentPage ?: return@fetch null
 
                 // For index 0, return the current spread
-                if (i == 0) {
+                if (index == 0) {
                     return@fetch buildSpreadPage(getSpreadAnchor(current))
                 }
 
                 // Navigate by spreads from current
                 var page = current
-                val step = if (i > 0) 1 else -1
-                repeat(abs(i)) {
+                val step = if (index > 0) 1 else -1
+                repeat(abs(index)) {
                     page = nextPage(page, step) ?: return@fetch null
                 }
 
@@ -829,6 +864,7 @@ open class WebGpuViewer(
                     }
                     val errorPage = ImagePage(bitmap, createMipMaps = false).also {
                         it.image?.position = Image.Position.SINGLE
+                        it.highQuality = false
                     }
                     synchronized(lock) {
                         if (pageInCache(page) && !page.imagePage.isDecoded && !page.imagePage.destroyed) {
@@ -991,6 +1027,7 @@ open class WebGpuViewer(
 
             val imagePage = ImagePage(bitmap, createMipMaps = false)
             imagePage.image?.position = Image.Position.SINGLE
+            imagePage.highQuality = false
 
             synchronized(lock) {
                 if (pageInCache(page) && !page.imagePage.isDecoded && !page.imagePage.destroyed) {
@@ -1135,7 +1172,7 @@ open class WebGpuViewer(
         // Add prev pages (lowest priority)
         val prevPages = mutableListOf<ViewerPage>()
         var p: ViewerPage? = cachedPage
-        for (i in 0 until preloadCount) {
+        for (i in 0 until preloadBehind) {
             p = p?.prev ?: break
             prevPages.add(p)
         }
@@ -1144,7 +1181,7 @@ open class WebGpuViewer(
         // Add next pages (medium priority)
         val nextPages = mutableListOf<ViewerPage>()
         p = cachedPage
-        for (i in 0 until preloadCount) {
+        for (i in 0 until preloadAhead) {
             p = p?.next ?: break
             nextPages.add(p)
         }
@@ -1180,13 +1217,12 @@ open class WebGpuViewer(
 
                 // The viewer already showed the page at fetchPage(delta).
                 // We need to update currentPage to match that.
-                val direction = if (isReversed) -delta else delta
                 val current = currentPage ?: return@onPageChange
 
                 // Navigate the same way fetchPage does
                 var page = current
-                val step = if (direction > 0) 1 else -1
-                repeat(abs(direction)) {
+                val step = if (delta > 0) 1 else -1
+                repeat(abs(delta)) {
                     page = nextPage(page, step) ?: return@onPageChange
                 }
 

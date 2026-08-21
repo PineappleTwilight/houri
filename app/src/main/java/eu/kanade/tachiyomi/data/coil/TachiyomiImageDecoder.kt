@@ -1,6 +1,5 @@
 package eu.kanade.tachiyomi.data.coil
 
-import android.app.Application
 import android.graphics.Bitmap
 import coil3.ImageLoader
 import coil3.asImage
@@ -12,21 +11,20 @@ import coil3.fetch.SourceFetchResult
 import coil3.request.Options
 import coil3.request.bitmapConfig
 import com.hippo.unifile.UniFile
+import mihon.app.di.globalAppGraph
 import mihon.core.archive.CbzCrypto
 import mihon.core.archive.CbzCrypto.getCoverStream
 import mihon.core.archive.archiveReader
 import okio.BufferedSource
 import tachiyomi.core.common.util.system.ImageUtil
 import tachiyomi.decoder.ImageDecoder
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 import java.io.BufferedInputStream
 
 /**
  * A [Decoder] that uses built-in [ImageDecoder] to decode images that is not supported by the system.
  */
 class TachiyomiImageDecoder(private val resources: ImageSource, private val options: Options) : Decoder {
-    private val context = Injekt.get<Application>()
+    private val context = globalAppGraph.context
 
     override suspend fun decode(): DecodeResult {
         // SY -->
@@ -38,7 +36,7 @@ class TachiyomiImageDecoder(private val resources: ImageSource, private val opti
                     ?.getCoverStream()
             }
         }
-        val decoder = resources.sourceOrNull()?.use {
+        val decoder = resources.source().use {
             coverStream.use { coverStream ->
                 ImageDecoder.newInstance(coverStream ?: it.inputStream(), options.cropBorders, displayProfile)
             }

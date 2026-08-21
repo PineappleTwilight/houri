@@ -38,7 +38,7 @@ class NewImageDecoder(private val resources: ImageSource, private val options: O
     }
 
     override suspend fun decode(): DecodeResult {
-        val decoder = resources.sourceOrNull()?.use {
+        val decoder = resources.source().use {
             try {
                 ImageDecoder.new(it.inputStream())
             } catch (e: ImageDecoder.DecodeException) {
