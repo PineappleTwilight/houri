@@ -25,6 +25,7 @@
   - Subcategories follow all library filter rules
   - Should include default subcategory "All", which displays content from all subcategories in that category
   - Should function visually and functionally to Android home screen folders
+- [ ] **Improvement**: Heavily improve the "Feed" feature
 
 ## Bugfixes
 - [x] Fix UI transition choppiness.
