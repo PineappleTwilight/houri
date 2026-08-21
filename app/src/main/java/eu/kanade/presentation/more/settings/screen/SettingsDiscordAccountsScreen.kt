@@ -45,12 +45,11 @@ import eu.kanade.tachiyomi.ui.setting.connections.DiscordLoginScreen
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import logcat.logcat
+import mihon.app.di.globalAppGraph
 import tachiyomi.i18n.MR
 import tachiyomi.i18n.kmk.KMR
 import tachiyomi.presentation.core.components.material.Scaffold
 import tachiyomi.presentation.core.i18n.stringResource
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 
 object DiscordAccountsScreen : Screen {
     @Suppress("unused")
@@ -146,8 +145,8 @@ private fun DiscordAccountsScreenContent() {
 }
 
 class DiscordAccountsScreenModel : StateScreenModel<DiscordAccountsScreenState>(DiscordAccountsScreenState()) {
-    private val discord = Injekt.get<ConnectionsManager>().discord
-    private val connectionsPreferences = Injekt.get<ConnectionsPreferences>()
+    private val discord = globalAppGraph.connectionsManager.discord
+    private val connectionsPreferences = globalAppGraph.connectionsPreferences
     private var noAccountsFoundString: String = ""
 
     init {

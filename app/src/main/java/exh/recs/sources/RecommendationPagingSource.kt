@@ -14,6 +14,7 @@ import exh.source.COMICK_IDS
 import exh.source.MANGADEX_IDS
 import kotlinx.serialization.json.Json
 import logcat.LogPriority
+import mihon.app.di.globalAppGraph
 import tachiyomi.core.common.util.system.logcat
 import tachiyomi.data.source.BaseSourcePagingSource
 import tachiyomi.data.source.NoResultsException
@@ -22,9 +23,6 @@ import tachiyomi.domain.manga.model.Manga
 import tachiyomi.domain.source.service.SourceManager
 import tachiyomi.domain.track.interactor.GetTracks
 import tachiyomi.i18n.sy.SYMR
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
-import uy.kohesive.injekt.injectLazy
 
 /**
  * General class for recommendation sources.
@@ -34,7 +32,7 @@ abstract class RecommendationPagingSource(
     // KMK -->
     source: RecommendationSource = RecommendationSource(),
     // KMK <--
-) : BaseSourcePagingSource(source, Injekt.get()) {
+) : BaseSourcePagingSource(source, globalAppGraph.networkToLocalManga) {
     // Display name
     abstract val name: String
 
@@ -105,11 +103,11 @@ abstract class TrackerRecommendationPagingSource(
     protected val endpoint: String,
     manga: Manga,
 ) : RecommendationPagingSource(manga) {
-    private val getTracks: GetTracks by injectLazy()
+    private val getTracks: GetTracks by lazy { globalAppGraph.getTracks }
 
-    protected val trackerManager: TrackerManager by injectLazy()
-    protected val client by lazy { Injekt.get<NetworkHelper>().client }
-    protected val json by injectLazy<Json>()
+    protected val trackerManager: TrackerManager by lazy { globalAppGraph.trackerManager }
+    protected val client by lazy { globalAppGraph.networkHelper.client }
+    protected val json by lazy { globalAppGraph.json }
 
     /**
      * Tracker id associated with the recommendation source.
@@ -151,7 +149,7 @@ abstract class TrackerRecommendationPagingSource(
 // KMK -->
 class RecommendationSource(
     override val id: Long = RECOMMENDS_SOURCE,
-    sourceManager: SourceManager = Injekt.get(),
+    sourceManager: SourceManager = globalAppGraph.sourceManager,
 ) : Source {
     private val delegate by lazy {
         sourceManager.get(id)

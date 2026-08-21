@@ -33,6 +33,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
+import mihon.app.di.globalAppGraph
 import tachiyomi.core.common.Constants
 import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.core.common.util.lang.launchIO
@@ -43,8 +44,6 @@ import tachiyomi.domain.source.service.SourceManager
 import tachiyomi.i18n.MR
 import tachiyomi.i18n.sy.SYMR
 import tachiyomi.presentation.core.components.material.Scaffold
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 
 class InterceptActivity : BaseActivity() {
     private var statusJob: Job? = null
@@ -114,7 +113,7 @@ class InterceptActivity : BaseActivity() {
         if (Intent.ACTION_VIEW == intent.action) {
             lifecycleScope.launchIO {
                 // wait for sources to load
-                Injekt.get<SourceManager>().isInitialized.first { it }
+                globalAppGraph.sourceManager.isInitialized.first { it }
                 loadGallery(intent.dataString!!)
             }
         }

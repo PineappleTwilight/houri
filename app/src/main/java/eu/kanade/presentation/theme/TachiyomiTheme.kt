@@ -34,8 +34,7 @@ import eu.kanade.presentation.theme.colorscheme.TealTurqoiseColorScheme
 import eu.kanade.presentation.theme.colorscheme.TidalWaveColorScheme
 import eu.kanade.presentation.theme.colorscheme.YinYangColorScheme
 import eu.kanade.presentation.theme.colorscheme.YotsubaColorScheme
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
+import mihon.app.di.globalAppGraph
 
 @Composable
 fun TachiyomiTheme(
@@ -43,7 +42,7 @@ fun TachiyomiTheme(
     amoled: Boolean? = null,
     content: @Composable () -> Unit,
 ) {
-    val uiPreferences = Injekt.get<UiPreferences>()
+    val uiPreferences = globalAppGraph.uiPreferences
     BaseTachiyomiTheme(
         appTheme = appTheme ?: uiPreferences.appTheme().get(),
         isAmoled = amoled ?: uiPreferences.themeDarkAmoled().get(),
@@ -64,7 +63,7 @@ fun TachiyomiTheme(
     if (seedColor == null) {
         TachiyomiTheme(appTheme, amoled, content)
     } else {
-        val uiPreferences = Injekt.get<UiPreferences>()
+        val uiPreferences = globalAppGraph.uiPreferences
         val isAmoled = amoled ?: uiPreferences.themeDarkAmoled().get()
         DynamicMaterialExpressiveTheme(
             seedColor = seedColor,
@@ -118,7 +117,7 @@ private fun getThemeColorScheme(
         }
         // KMK -->
         AppTheme.CUSTOM -> {
-            val uiPreferences = Injekt.get<UiPreferences>()
+            val uiPreferences = globalAppGraph.uiPreferences
             CustomColorScheme(
                 seed = Color(uiPreferences.colorTheme().get()),
                 style = uiPreferences.customThemeStyle().get(),

@@ -22,6 +22,7 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
 import kotlinx.serialization.json.putJsonObject
+import mihon.app.di.globalAppGraph
 import okhttp3.CacheControl
 import okhttp3.FormBody
 import okhttp3.Headers.Companion.headersOf
@@ -29,7 +30,6 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import tachiyomi.core.common.util.lang.withIOContext
-import uy.kohesive.injekt.injectLazy
 import tachiyomi.domain.track.model.Track as DomainTrack
 
 class BangumiApi(
@@ -38,7 +38,7 @@ class BangumiApi(
     interceptor: BangumiInterceptor,
 ) {
 
-    private val json: Json by injectLazy()
+    private val json: Json by lazy { globalAppGraph.json }
 
     private val authClient = client.newBuilder().addInterceptor(interceptor).build()
 

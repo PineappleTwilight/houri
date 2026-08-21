@@ -1,6 +1,5 @@
 package eu.kanade.domain.track.interactor
 
-import android.app.Application
 import dev.zacsweers.metro.Inject
 import eu.kanade.domain.track.model.toDbTrack
 import eu.kanade.domain.track.model.toDomainTrack
@@ -12,6 +11,7 @@ import eu.kanade.tachiyomi.source.Source
 import eu.kanade.tachiyomi.util.lang.convertEpochMillisZone
 import eu.kanade.tachiyomi.util.system.toast
 import logcat.LogPriority
+import mihon.app.di.globalAppGraph
 import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.core.common.util.lang.withIOContext
 import tachiyomi.core.common.util.lang.withNonCancellableContext
@@ -22,8 +22,6 @@ import tachiyomi.domain.history.interactor.GetHistory
 import tachiyomi.domain.manga.model.Manga
 import tachiyomi.domain.track.interactor.InsertTrack
 import tachiyomi.i18n.kmk.KMR
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 import java.time.ZoneOffset
 
 @Inject
@@ -69,7 +67,7 @@ class AddTracks(
                 }
 
                 if (track.startDate <= 0) {
-                    val firstReadChapterDate = Injekt.get<GetHistory>().await(mangaId)
+                    val firstReadChapterDate = globalAppGraph.getHistory.await(mangaId)
                         .sortedBy { it.readAt }
                         .firstOrNull()
                         ?.readAt
@@ -90,7 +88,7 @@ class AddTracks(
             syncChapterProgressWithTrack.await(mangaId, track, tracker)
                 // KMK -->
                 ?.let {
-                    val context = Injekt.get<Application>()
+                    val context = globalAppGraph.context
                     withUIContext {
                         context.toast(context.stringResource(KMR.strings.sync_progress_from_trackers_up_to_chapter, it))
                     }
@@ -118,7 +116,7 @@ class AddTracks(
                             )
                                 // KMK -->
                                 ?.let {
-                                    val context = Injekt.get<Application>()
+                                    val context = globalAppGraph.context
                                     withUIContext {
                                         context.toast(context.stringResource(KMR.strings.sync_progress_from_trackers_up_to_chapter, it))
                                     }

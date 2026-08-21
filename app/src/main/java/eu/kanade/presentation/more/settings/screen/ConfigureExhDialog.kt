@@ -19,18 +19,17 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
+import mihon.app.di.globalAppGraph
 import tachiyomi.core.common.util.lang.launchUI
 import tachiyomi.i18n.MR
 import tachiyomi.i18n.sy.SYMR
 import tachiyomi.presentation.core.i18n.stringResource
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 import kotlin.time.Duration.Companion.seconds
 
 @Composable
 fun ConfigureExhDialog(run: Boolean, onRunning: () -> Unit) {
     val exhPreferences = remember {
-        Injekt.get<ExhPreferences>()
+        globalAppGraph.exhPreferences
     }
     var warnDialogOpen by remember { mutableStateOf(false) }
     var configureDialogOpen by remember { mutableStateOf(false) }

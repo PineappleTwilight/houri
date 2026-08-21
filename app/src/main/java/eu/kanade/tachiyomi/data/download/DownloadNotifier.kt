@@ -18,9 +18,9 @@ import eu.kanade.tachiyomi.util.lang.chop
 import eu.kanade.tachiyomi.util.system.cancelNotification
 import eu.kanade.tachiyomi.util.system.notificationBuilder
 import eu.kanade.tachiyomi.util.system.notify
+import mihon.app.di.globalAppGraph
 import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.i18n.MR
-import uy.kohesive.injekt.injectLazy
 import java.util.regex.Pattern
 
 /**
@@ -30,7 +30,7 @@ import java.util.regex.Pattern
  */
 internal class DownloadNotifier(private val context: Context) {
 
-    private val preferences: SecurityPreferences by injectLazy()
+    private val preferences: SecurityPreferences by lazy { globalAppGraph.securityPreferences }
 
     private val progressNotificationBuilder by lazy {
         context.notificationBuilder(Notifications.CHANNEL_DOWNLOADER_PROGRESS) {

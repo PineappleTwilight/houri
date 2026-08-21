@@ -1,6 +1,5 @@
 package eu.kanade.tachiyomi.ui.updates
 
-import android.app.Application
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.getValue
@@ -40,6 +39,7 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import logcat.LogPriority
+import mihon.app.di.globalAppGraph
 import tachiyomi.core.common.preference.TriState
 import tachiyomi.core.common.util.lang.launchIO
 import tachiyomi.core.common.util.lang.launchNonCancellable
@@ -54,24 +54,22 @@ import tachiyomi.domain.source.service.SourceManager
 import tachiyomi.domain.updates.interactor.GetUpdates
 import tachiyomi.domain.updates.model.UpdatesWithRelations
 import tachiyomi.domain.updates.service.UpdatesPreferences
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 import java.time.ZonedDateTime
 
 class UpdatesScreenModel(
-    private val sourceManager: SourceManager = Injekt.get(),
-    private val downloadManager: DownloadManager = Injekt.get(),
-    private val downloadCache: DownloadCache = Injekt.get(),
-    private val updateChapter: UpdateChapter = Injekt.get(),
-    private val setReadStatus: SetReadStatus = Injekt.get(),
-    private val getUpdates: GetUpdates = Injekt.get(),
-    private val getManga: GetManga = Injekt.get(),
-    private val getChapter: GetChapter = Injekt.get(),
-    private val libraryPreferences: LibraryPreferences = Injekt.get(),
-    private val updatesPreferences: UpdatesPreferences = Injekt.get(),
+    private val sourceManager: SourceManager = globalAppGraph.sourceManager,
+    private val downloadManager: DownloadManager = globalAppGraph.downloadManager,
+    private val downloadCache: DownloadCache = globalAppGraph.downloadCache,
+    private val updateChapter: UpdateChapter = globalAppGraph.updateChapter,
+    private val setReadStatus: SetReadStatus = globalAppGraph.setReadStatus,
+    private val getUpdates: GetUpdates = globalAppGraph.getUpdates,
+    private val getManga: GetManga = globalAppGraph.getManga,
+    private val getChapter: GetChapter = globalAppGraph.getChapter,
+    private val libraryPreferences: LibraryPreferences = globalAppGraph.libraryPreferences,
+    private val updatesPreferences: UpdatesPreferences = globalAppGraph.updatesPreferences,
     val snackbarHostState: SnackbarHostState = SnackbarHostState(),
     // SY -->
-    readerPreferences: ReaderPreferences = Injekt.get(),
+    readerPreferences: ReaderPreferences = globalAppGraph.readerPreferences,
     // SY <--
 ) : StateScreenModel<UpdatesScreenModel.State>(State()) {
 
@@ -214,7 +212,7 @@ class UpdatesScreenModel(
     }
 
     fun updateLibrary(): Boolean {
-        val started = LibraryUpdateJob.startNow(Injekt.get<Application>())
+        val started = LibraryUpdateJob.startNow(globalAppGraph.context)
         screenModelScope.launch {
             _events.send(Event.LibraryUpdateTriggered(started))
         }

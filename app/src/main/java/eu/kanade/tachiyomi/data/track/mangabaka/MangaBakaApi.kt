@@ -23,12 +23,12 @@ import eu.kanade.tachiyomi.network.parseAs
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
+import mihon.app.di.globalAppGraph
 import okhttp3.FormBody
 import okhttp3.Headers.Companion.headersOf
 import okhttp3.OkHttpClient
 import okhttp3.RequestBody.Companion.toRequestBody
 import tachiyomi.core.common.util.lang.withIOContext
-import uy.kohesive.injekt.injectLazy
 import java.math.RoundingMode
 import java.security.SecureRandom
 import java.util.Base64
@@ -41,7 +41,7 @@ class MangaBakaApi(
     interceptor: MangaBakaInterceptor,
 ) {
 
-    private val json: Json by injectLazy()
+    private val json: Json by lazy { globalAppGraph.json }
 
     private val client = baseClient.newBuilder().addInterceptor {
         it.request().newBuilder()

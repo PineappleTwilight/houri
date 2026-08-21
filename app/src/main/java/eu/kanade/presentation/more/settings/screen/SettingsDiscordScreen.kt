@@ -36,14 +36,13 @@ import eu.kanade.tachiyomi.data.connections.ConnectionsManager
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.persistentMapOf
 import kotlinx.collections.immutable.toImmutableMap
+import mihon.app.di.globalAppGraph
 import tachiyomi.domain.category.interactor.GetCategories
 import tachiyomi.i18n.MR
 import tachiyomi.i18n.kmk.KMR
 import tachiyomi.presentation.core.components.material.padding
 import tachiyomi.presentation.core.i18n.stringResource
 import tachiyomi.presentation.core.util.collectAsState
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 
 object SettingsDiscordScreen : SearchableSettings {
     @Suppress("unused")
@@ -67,8 +66,8 @@ object SettingsDiscordScreen : SearchableSettings {
     @Composable
     override fun getPreferences(): List<Preference> {
         val navigator = LocalNavigator.currentOrThrow
-        val connectionsPreferences = remember { Injekt.get<ConnectionsPreferences>() }
-        val connectionsManager = remember { Injekt.get<ConnectionsManager>() }
+        val connectionsPreferences = remember { globalAppGraph.connectionsPreferences }
+        val connectionsManager = remember { globalAppGraph.connectionsManager }
         val enableDRPCPref = connectionsPreferences.enableDiscordRPC()
         val useChapterTitlesPref = connectionsPreferences.useChapterTitles()
         val discordRPCStatus = connectionsPreferences.discordRPCStatus()
@@ -252,7 +251,7 @@ object SettingsDiscordScreen : SearchableSettings {
         connectionsPreferences: ConnectionsPreferences,
         enabled: Boolean,
     ): Preference.PreferenceGroup {
-        val getCategories = remember { Injekt.get<GetCategories>() }
+        val getCategories = remember { globalAppGraph.getCategories }
         val allCategories by getCategories.subscribe().collectAsState(initial = emptyList())
 
         val discordRPCIncognitoPref = connectionsPreferences.discordRPCIncognito()

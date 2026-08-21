@@ -2,8 +2,8 @@ package exh.debug
 
 import eu.kanade.core.preference.PreferenceMutableState
 import kotlinx.coroutines.CoroutineScope
+import mihon.app.di.globalAppGraph
 import tachiyomi.core.common.preference.PreferenceStore
-import uy.kohesive.injekt.injectLazy
 import java.util.Locale
 
 enum class DebugToggles(val default: Boolean) {
@@ -38,6 +38,6 @@ enum class DebugToggles(val default: Boolean) {
     fun asPref(scope: CoroutineScope) = PreferenceMutableState(preferenceStore.getBoolean(prefKey, default), scope)
 
     companion object {
-        private val preferenceStore: PreferenceStore by injectLazy()
+        private val preferenceStore: PreferenceStore by lazy { globalAppGraph.preferenceStore }
     }
 }

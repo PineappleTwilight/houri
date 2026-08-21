@@ -9,23 +9,22 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
+import mihon.app.di.globalAppGraph
 import mihon.domain.extension.interactor.AddExtensionStore
 import mihon.domain.extension.interactor.GetExtensionStores
 import mihon.domain.extension.interactor.RemoveExtensionStore
 import mihon.domain.extension.interactor.UpdateExtensionStores
 import mihon.domain.extension.model.ExtensionStore
 import tachiyomi.core.common.util.lang.launchIO
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 
 class ExtensionStoresScreenModel(
-    private val getExtensionStores: GetExtensionStores = Injekt.get(),
-    private val addExtensionStore: AddExtensionStore = Injekt.get(),
-    private val removeExtensionStore: RemoveExtensionStore = Injekt.get(),
-    private val updateExtensionStores: UpdateExtensionStores = Injekt.get(),
-    private val extensionManager: ExtensionManager = Injekt.get(),
+    private val getExtensionStores: GetExtensionStores = globalAppGraph.getExtensionStores,
+    private val addExtensionStore: AddExtensionStore = globalAppGraph.addExtensionStore,
+    private val removeExtensionStore: RemoveExtensionStore = globalAppGraph.removeExtensionStore,
+    private val updateExtensionStores: UpdateExtensionStores = globalAppGraph.updateExtensionStores,
+    private val extensionManager: ExtensionManager = globalAppGraph.extensionManager,
     // KMK -->
-    private val sourcePreferences: SourcePreferences = Injekt.get(),
+    private val sourcePreferences: SourcePreferences = globalAppGraph.sourcePreferences,
     // KMK <--
 ) : StateScreenModel<ExtensionStoreScreenState>(ExtensionStoreScreenState.Loading) {
 

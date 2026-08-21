@@ -16,8 +16,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
+import mihon.app.di.globalAppGraph
 
 /**
  * Configuration used by pager viewers.
@@ -25,7 +24,7 @@ import uy.kohesive.injekt.api.get
 class PagerConfig(
     private val viewer: PagerViewer,
     scope: CoroutineScope,
-    readerPreferences: ReaderPreferences = Injekt.get(),
+    readerPreferences: ReaderPreferences = globalAppGraph.readerPreferences,
 ) : ViewerConfig(readerPreferences, scope) {
 
     var automaticBackground = false

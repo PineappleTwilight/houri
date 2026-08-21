@@ -23,11 +23,10 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
+import mihon.app.di.globalAppGraph
 
 class DownloadQueueScreenModel(
-    private val downloadManager: DownloadManager = Injekt.get(),
+    private val downloadManager: DownloadManager = globalAppGraph.downloadManager,
     // KMK -->
     private val navigator: Navigator? = null,
     // KMK <--

@@ -94,6 +94,7 @@ import eu.kanade.presentation.components.DropdownMenu
 import eu.kanade.tachiyomi.R
 import eu.kanade.tachiyomi.source.model.SManga
 import eu.kanade.tachiyomi.util.system.copyToClipboard
+import mihon.app.di.globalAppGraph
 import org.intellij.markdown.MarkdownElementTypes
 import org.intellij.markdown.MarkdownTokenTypes
 import org.intellij.markdown.ast.findChildOfType
@@ -112,8 +113,6 @@ import tachiyomi.presentation.core.i18n.stringResource
 import tachiyomi.presentation.core.util.clickableNoIndication
 import tachiyomi.presentation.core.util.collectAsState
 import tachiyomi.presentation.core.util.secondaryItemAlpha
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 import java.time.Instant
 import java.time.temporal.ChronoUnit
 import kotlin.math.roundToInt
@@ -140,8 +139,8 @@ fun MangaInfoBox(
     // KMK <--
 ) {
     // KMK -->
-    val usePanoramaCover by Injekt.get<UiPreferences>().usePanoramaCoverMangaInfo().collectAsState()
-    val topAlignCover by Injekt.get<UiPreferences>().topAlignCover().collectAsState()
+    val usePanoramaCover by globalAppGraph.uiPreferences.usePanoramaCoverMangaInfo().collectAsState()
+    val topAlignCover by globalAppGraph.uiPreferences.topAlignCover().collectAsState()
     // KMK <--
     Box(modifier = modifier) {
         // Backdrop
@@ -251,7 +250,7 @@ fun MangaActionRow(
     modifier: Modifier = Modifier,
 ) {
     // KMK -->
-    val libraryPreferences: LibraryPreferences = Injekt.get()
+    val libraryPreferences: LibraryPreferences = globalAppGraph.libraryPreferences
     val restrictions = libraryPreferences.autoUpdateMangaRestrictions().get()
     val notSkipCompleted = MANGA_NON_COMPLETED !in restrictions || status != SManga.COMPLETED.toLong()
     val selectedInterval by remember(interval) { mutableIntStateOf(if (interval < 0) -interval else 0) }
@@ -365,7 +364,7 @@ fun ExpandableMangaDescription(
     modifier: Modifier = Modifier,
 ) {
     // KMK -->
-    val uiPreferences = Injekt.get<UiPreferences>()
+    val uiPreferences = globalAppGraph.uiPreferences
     val pureDarkMode = uiPreferences.themeDarkAmoled().get()
     // KMK <--
     Column(modifier = modifier) {
@@ -921,7 +920,7 @@ private fun MangaSummary(
     onEditNotesClicked: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val preferences = remember { Injekt.get<UiPreferences>() }
+    val preferences = remember { globalAppGraph.uiPreferences }
     val loadImages = remember { preferences.imagesInDescription().get() }
     val animProgress by animateFloatAsState(
         targetValue = if (expanded) 1f else 0f,

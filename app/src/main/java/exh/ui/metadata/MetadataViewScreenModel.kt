@@ -8,24 +8,23 @@ import exh.metadata.metadata.RaisedSearchMetadata
 import exh.source.getMainSource
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import mihon.app.di.globalAppGraph
 import tachiyomi.core.common.util.lang.launchIO
 import tachiyomi.domain.manga.interactor.GetFlatMetadataById
 import tachiyomi.domain.manga.interactor.GetManga
 import tachiyomi.domain.manga.model.Manga
 import tachiyomi.domain.source.service.SourceManager
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 
 class MetadataViewScreenModel(
     val mangaId: Long,
     val sourceId: Long,
-    private val getFlatMetadataById: GetFlatMetadataById = Injekt.get(),
-    private val sourceManager: SourceManager = Injekt.get(),
-    private val getManga: GetManga = Injekt.get(),
+    private val getFlatMetadataById: GetFlatMetadataById = globalAppGraph.getFlatMetadataById,
+    private val sourceManager: SourceManager = globalAppGraph.sourceManager,
+    private val getManga: GetManga = globalAppGraph.getManga,
 ) : StateScreenModel<MetadataViewState>(MetadataViewState.Loading) {
 
     // KMK -->
-    private val uiPreferences = Injekt.get<UiPreferences>()
+    private val uiPreferences = globalAppGraph.uiPreferences
     val themeCoverBased = uiPreferences.themeCoverBased().get()
     // KMK <--
 

@@ -26,6 +26,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
+import mihon.app.di.globalAppGraph
 import okhttp3.FormBody
 import okhttp3.Request
 import tachiyomi.core.common.i18n.stringResource
@@ -43,25 +44,22 @@ import tachiyomi.domain.manga.model.FavoriteEntry
 import tachiyomi.domain.manga.model.Manga
 import tachiyomi.domain.source.service.SourceManager
 import tachiyomi.i18n.sy.SYMR
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
-import uy.kohesive.injekt.injectLazy
 import kotlin.time.Duration.Companion.seconds
 
 // TODO only apply database changes after sync
 class FavoritesSyncHelper(val context: Context) {
-    private val getLibraryManga: GetLibraryManga by injectLazy()
-    private val getCategories: GetCategories by injectLazy()
-    private val getManga: GetManga by injectLazy()
-    private val updateManga: UpdateManga by injectLazy()
-    private val setMangaCategories: SetMangaCategories by injectLazy()
-    private val createCategoryWithName: CreateCategoryWithName by injectLazy()
-    private val updateCategory: UpdateCategory by injectLazy()
+    private val getLibraryManga: GetLibraryManga by lazy { globalAppGraph.getLibraryManga }
+    private val getCategories: GetCategories by lazy { globalAppGraph.getCategories }
+    private val getManga: GetManga by lazy { globalAppGraph.getManga }
+    private val updateManga: UpdateManga by lazy { globalAppGraph.updateManga }
+    private val setMangaCategories: SetMangaCategories by lazy { globalAppGraph.setMangaCategories }
+    private val createCategoryWithName: CreateCategoryWithName by lazy { globalAppGraph.createCategoryWithName }
+    private val updateCategory: UpdateCategory by lazy { globalAppGraph.updateCategory }
 
-    private val exhPreferences: ExhPreferences by injectLazy()
+    private val exhPreferences: ExhPreferences by lazy { globalAppGraph.exhPreferences }
 
     private val exh by lazy {
-        Injekt.get<SourceManager>().get(EXH_SOURCE_ID) as? EHentai
+        globalAppGraph.sourceManager.get(EXH_SOURCE_ID) as? EHentai
             ?: EHentai(0, true, context)
     }
 

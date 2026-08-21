@@ -39,11 +39,10 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
+import mihon.app.di.globalAppGraph
 import tachiyomi.core.common.util.lang.launchIO
 import tachiyomi.i18n.MR
 import tachiyomi.presentation.core.i18n.stringResource
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 
 data object MoreTab : Tab {
     private fun readResolve(): Any = MoreTab
@@ -107,10 +106,10 @@ data object MoreTab : Tab {
 }
 
 private class MoreScreenModel(
-    private val downloadManager: DownloadManager = Injekt.get(),
-    preferences: BasePreferences = Injekt.get(),
+    private val downloadManager: DownloadManager = globalAppGraph.downloadManager,
+    preferences: BasePreferences = globalAppGraph.basePreferences,
     // SY -->
-    uiPreferences: UiPreferences = Injekt.get(),
+    uiPreferences: UiPreferences = globalAppGraph.uiPreferences,
     // SY <--
 ) : ScreenModel {
 

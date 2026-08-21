@@ -16,14 +16,14 @@ import eu.kanade.tachiyomi.ui.base.activity.BaseActivity
 import eu.kanade.tachiyomi.util.system.WebViewUtil
 import eu.kanade.tachiyomi.util.system.toast
 import eu.kanade.tachiyomi.util.view.setComposeContent
+import mihon.app.di.appGraph
 import tachiyomi.core.common.util.lang.launchIO
 import tachiyomi.i18n.MR
-import uy.kohesive.injekt.injectLazy
 import java.net.HttpCookie
 
 class ComicKLoginActivity : BaseActivity() {
 
-    private val trackerManager: TrackerManager by injectLazy()
+    private val trackerManager: TrackerManager by lazy { appGraph.trackerManager }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {

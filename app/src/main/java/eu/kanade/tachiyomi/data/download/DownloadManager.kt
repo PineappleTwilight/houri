@@ -19,6 +19,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.onStart
 import logcat.LogPriority
+import mihon.app.di.globalAppGraph
 import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.core.common.storage.extension
 import tachiyomi.core.common.util.lang.launchIO
@@ -31,8 +32,6 @@ import tachiyomi.domain.manga.model.Manga
 import tachiyomi.domain.source.service.SourceManager
 import tachiyomi.i18n.MR
 import tachiyomi.source.local.isLocal
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 
 /**
  * This class is used to manage chapter downloads in the application. It must be instantiated once
@@ -43,11 +42,11 @@ import uy.kohesive.injekt.api.get
 @SingleIn(AppScope::class)
 class DownloadManager(
     private val context: Context,
-    private val provider: DownloadProvider = Injekt.get(),
-    private val cache: DownloadCache = Injekt.get(),
-    private val getCategories: GetCategories = Injekt.get(),
-    private val sourceManager: SourceManager = Injekt.get(),
-    private val downloadPreferences: DownloadPreferences = Injekt.get(),
+    private val provider: DownloadProvider = globalAppGraph.downloadProvider,
+    private val cache: DownloadCache = globalAppGraph.downloadCache,
+    private val getCategories: GetCategories = globalAppGraph.getCategories,
+    private val sourceManager: SourceManager = globalAppGraph.sourceManager,
+    private val downloadPreferences: DownloadPreferences = globalAppGraph.downloadPreferences,
 ) {
 
     /**

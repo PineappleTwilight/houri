@@ -67,6 +67,7 @@ import eu.kanade.presentation.more.settings.LocalPreferenceMinHeight
 import eu.kanade.presentation.more.settings.widget.TextPreferenceWidget
 import eu.kanade.tachiyomi.source.Source
 import eu.kanade.tachiyomi.source.model.SManga
+import mihon.app.di.globalAppGraph
 import tachiyomi.domain.manga.model.Manga
 import tachiyomi.domain.manga.model.MangaWithChapterCount
 import tachiyomi.domain.source.model.StubSource
@@ -80,8 +81,6 @@ import tachiyomi.presentation.core.i18n.pluralStringResource
 import tachiyomi.presentation.core.i18n.stringResource
 import tachiyomi.presentation.core.util.collectAsState
 import tachiyomi.presentation.core.util.secondaryItemAlpha
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 
 @Composable
 fun DuplicateMangaDialog(
@@ -100,7 +99,7 @@ fun DuplicateMangaDialog(
     stopRunning: () -> Unit = {},
     // KMK <--
 ) {
-    val sourceManager = remember { Injekt.get<SourceManager>() }
+    val sourceManager = remember { globalAppGraph.sourceManager }
     val minHeight = LocalPreferenceMinHeight.current
     val horizontalPadding = PaddingValues(horizontal = TabbedDialogPaddings.Horizontal)
     val horizontalPaddingModifier = Modifier.padding(horizontalPadding)
@@ -294,7 +293,7 @@ private fun DuplicateMangaListItem(
     onMigrate: () -> Unit,
 ) {
     // KMK -->
-    val usePanoramaCover by Injekt.get<UiPreferences>().usePanoramaCoverAlways().collectAsState()
+    val usePanoramaCover by globalAppGraph.uiPreferences.usePanoramaCoverAlways().collectAsState()
     val coverRatio = remember { mutableFloatStateOf(1f) }
     val coverIsWide = coverRatio.floatValue <= RatioSwitchToPanorama
     // KMK <--

@@ -14,8 +14,8 @@ import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.serialization.json.Json
+import mihon.app.di.globalAppGraph
 import tachiyomi.i18n.MR
-import uy.kohesive.injekt.injectLazy
 import tachiyomi.domain.track.model.Track as DomainTrack
 
 class Anilist(id: Long) : BaseTracker(id, "AniList"), DeletableTracker {
@@ -35,7 +35,7 @@ class Anilist(id: Long) : BaseTracker(id, "AniList"), DeletableTracker {
         const val POINT_3 = "POINT_3"
     }
 
-    private val json: Json by injectLazy()
+    private val json: Json by lazy { globalAppGraph.json }
 
     private val interceptor by lazy { AnilistInterceptor(this, getPassword()) }
 

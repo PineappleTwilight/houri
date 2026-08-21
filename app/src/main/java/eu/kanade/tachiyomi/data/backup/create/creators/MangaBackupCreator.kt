@@ -12,6 +12,7 @@ import eu.kanade.tachiyomi.source.online.MetadataSource
 import eu.kanade.tachiyomi.ui.reader.setting.ReadingMode
 import exh.source.MERGED_SOURCE_ID
 import exh.source.getMainSource
+import mihon.app.di.globalAppGraph
 import tachiyomi.data.DatabaseHandler
 import tachiyomi.data.MemoColumnAdapter
 import tachiyomi.domain.category.interactor.GetCategories
@@ -21,17 +22,15 @@ import tachiyomi.domain.manga.interactor.GetFlatMetadataById
 import tachiyomi.domain.manga.model.CustomMangaInfo
 import tachiyomi.domain.manga.model.Manga
 import tachiyomi.domain.source.service.SourceManager
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 
 class MangaBackupCreator(
-    private val handler: DatabaseHandler = Injekt.get(),
-    private val getCategories: GetCategories = Injekt.get(),
-    private val getHistory: GetHistory = Injekt.get(),
+    private val handler: DatabaseHandler = globalAppGraph.databaseHandler,
+    private val getCategories: GetCategories = globalAppGraph.getCategories,
+    private val getHistory: GetHistory = globalAppGraph.getHistory,
     // SY -->
-    private val sourceManager: SourceManager = Injekt.get(),
-    private val getCustomMangaInfo: GetCustomMangaInfo = Injekt.get(),
-    private val getFlatMetadataById: GetFlatMetadataById = Injekt.get(),
+    private val sourceManager: SourceManager = globalAppGraph.sourceManager,
+    private val getCustomMangaInfo: GetCustomMangaInfo = globalAppGraph.getCustomMangaInfo,
+    private val getFlatMetadataById: GetFlatMetadataById = globalAppGraph.getFlatMetadataById,
     // SY <--
 ) {
 

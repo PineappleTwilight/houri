@@ -10,6 +10,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.serialization.json.JsonObject
+import mihon.app.di.globalAppGraph
 import mihon.core.common.extensions.EMPTY
 import tachiyomi.domain.category.interactor.GetCategories
 import tachiyomi.domain.category.interactor.SetMangaCategories
@@ -28,7 +29,6 @@ import tachiyomi.domain.manga.interactor.InsertFavoriteEntryAlternative
 import tachiyomi.domain.manga.model.FavoriteEntryAlternative
 import tachiyomi.domain.manga.model.Manga
 import tachiyomi.domain.manga.model.MangaUpdate
-import uy.kohesive.injekt.injectLazy
 import java.io.File
 
 data class ChapterChain(val manga: Manga, val chapters: List<Chapter>, val history: List<History>)
@@ -41,17 +41,17 @@ class EHentaiUpdateHelper(context: Context) {
             File(context.filesDir, "exh-plt.maftable"),
             GalleryEntry.Serializer(),
         )
-    private val getChapterByUrl: GetChapterByUrl by injectLazy()
-    private val getChaptersByMangaId: GetChaptersByMangaId by injectLazy()
-    private val getManga: GetManga by injectLazy()
-    private val updateManga: UpdateManga by injectLazy()
-    private val setMangaCategories: SetMangaCategories by injectLazy()
-    private val getCategories: GetCategories by injectLazy()
-    private val chapterRepository: ChapterRepository by injectLazy()
-    private val upsertHistory: UpsertHistory by injectLazy()
-    private val removeHistory: RemoveHistory by injectLazy()
-    private val getHistory: GetHistory by injectLazy()
-    private val insertFavoriteEntryAlternative: InsertFavoriteEntryAlternative by injectLazy()
+    private val getChapterByUrl: GetChapterByUrl by lazy { globalAppGraph.getChapterByUrl }
+    private val getChaptersByMangaId: GetChaptersByMangaId by lazy { globalAppGraph.getChaptersByMangaId }
+    private val getManga: GetManga by lazy { globalAppGraph.getManga }
+    private val updateManga: UpdateManga by lazy { globalAppGraph.updateManga }
+    private val setMangaCategories: SetMangaCategories by lazy { globalAppGraph.setMangaCategories }
+    private val getCategories: GetCategories by lazy { globalAppGraph.getCategories }
+    private val chapterRepository: ChapterRepository by lazy { globalAppGraph.chapterRepository }
+    private val upsertHistory: UpsertHistory by lazy { globalAppGraph.upsertHistory }
+    private val removeHistory: RemoveHistory by lazy { globalAppGraph.removeHistory }
+    private val getHistory: GetHistory by lazy { globalAppGraph.getHistory }
+    private val insertFavoriteEntryAlternative: InsertFavoriteEntryAlternative by lazy { globalAppGraph.insertFavoriteEntryAlternative }
 
     /**
      * @param chapters Cannot be an empty list!

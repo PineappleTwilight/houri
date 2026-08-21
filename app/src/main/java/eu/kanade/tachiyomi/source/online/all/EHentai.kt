@@ -78,6 +78,7 @@ import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
+import mihon.app.di.globalAppGraph
 import okhttp3.CacheControl
 import okhttp3.Headers
 import okhttp3.HttpUrl
@@ -96,7 +97,6 @@ import org.jsoup.nodes.TextNode
 import rx.Observable
 import tachiyomi.core.common.util.lang.runAsObservable
 import tachiyomi.core.common.util.lang.withIOContext
-import uy.kohesive.injekt.injectLazy
 import java.io.ByteArrayOutputStream
 import java.io.IOException
 import java.net.URLEncoder
@@ -144,8 +144,8 @@ class EHentai(
     }
     // KMK <--
 
-    private val exhPreferences: ExhPreferences by injectLazy()
-    private val updateHelper: EHentaiUpdateHelper by injectLazy()
+    private val exhPreferences: ExhPreferences by lazy { globalAppGraph.exhPreferences }
+    private val updateHelper: EHentaiUpdateHelper by lazy { globalAppGraph.eHentaiUpdateHelper }
 
     /**
      * Gallery list entry

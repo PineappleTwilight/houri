@@ -40,6 +40,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
+import mihon.app.di.globalAppGraph
 import mihon.domain.manga.model.toDomainManga
 import tachiyomi.core.common.util.QuerySanitizer.sanitize
 import tachiyomi.core.common.util.lang.launchIO
@@ -62,30 +63,28 @@ import tachiyomi.domain.source.service.SourceManager
 import tachiyomi.i18n.kmk.KMR
 import tachiyomi.i18n.sy.SYMR
 import tachiyomi.source.local.isLocal
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 import xyz.nulldev.ts.api.http.serializer.FilterSerializer
 import java.util.concurrent.Executors
 import tachiyomi.domain.manga.model.Manga as DomainManga
 
 open class SourceFeedScreenModel(
     val sourceId: Long,
-    uiPreferences: UiPreferences = Injekt.get(),
-    sourceManager: SourceManager = Injekt.get(),
-    private val getManga: GetManga = Injekt.get(),
-    private val networkToLocalManga: NetworkToLocalManga = Injekt.get(),
-    getFeedSavedSearchBySourceId: GetFeedSavedSearchBySourceId = Injekt.get(),
-    private val getSavedSearchBySourceIdFeed: GetSavedSearchBySourceIdFeed = Injekt.get(),
-    private val countFeedSavedSearchBySourceId: CountFeedSavedSearchBySourceId = Injekt.get(),
-    private val insertFeedSavedSearch: InsertFeedSavedSearch = Injekt.get(),
-    private val deleteFeedSavedSearchById: DeleteFeedSavedSearchById = Injekt.get(),
-    private val getExhSavedSearch: GetExhSavedSearch = Injekt.get(),
+    uiPreferences: UiPreferences = globalAppGraph.uiPreferences,
+    sourceManager: SourceManager = globalAppGraph.sourceManager,
+    private val getManga: GetManga = globalAppGraph.getManga,
+    private val networkToLocalManga: NetworkToLocalManga = globalAppGraph.networkToLocalManga,
+    getFeedSavedSearchBySourceId: GetFeedSavedSearchBySourceId = globalAppGraph.getFeedSavedSearchBySourceId,
+    private val getSavedSearchBySourceIdFeed: GetSavedSearchBySourceIdFeed = globalAppGraph.getSavedSearchBySourceIdFeed,
+    private val countFeedSavedSearchBySourceId: CountFeedSavedSearchBySourceId = globalAppGraph.countFeedSavedSearchBySourceId,
+    private val insertFeedSavedSearch: InsertFeedSavedSearch = globalAppGraph.insertFeedSavedSearch,
+    private val deleteFeedSavedSearchById: DeleteFeedSavedSearchById = globalAppGraph.deleteFeedSavedSearchById,
+    private val getExhSavedSearch: GetExhSavedSearch = globalAppGraph.getExhSavedSearch,
     // KMK -->
-    private val reorderFeed: ReorderFeed = Injekt.get(),
-    getIncognitoState: GetIncognitoState = Injekt.get(),
-    private val toggleIncognito: ToggleIncognito = Injekt.get(),
-    private val extensionManager: ExtensionManager = Injekt.get(),
-    sourcePreferences: SourcePreferences = Injekt.get(),
+    private val reorderFeed: ReorderFeed = globalAppGraph.reorderFeed,
+    getIncognitoState: GetIncognitoState = globalAppGraph.getIncognitoState,
+    private val toggleIncognito: ToggleIncognito = globalAppGraph.toggleIncognito,
+    private val extensionManager: ExtensionManager = globalAppGraph.extensionManager,
+    sourcePreferences: SourcePreferences = globalAppGraph.sourcePreferences,
     // KMK <--
 ) : StateScreenModel<SourceFeedState>(SourceFeedState()) {
 

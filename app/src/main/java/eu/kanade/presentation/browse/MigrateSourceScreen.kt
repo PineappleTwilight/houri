@@ -44,6 +44,7 @@ import eu.kanade.tachiyomi.util.system.copyToClipboard
 import exh.source.ExhPreferences
 import exh.source.eHentaiSourceIds
 import kotlinx.collections.immutable.ImmutableList
+import mihon.app.di.globalAppGraph
 import tachiyomi.domain.source.model.Source
 import tachiyomi.i18n.MR
 import tachiyomi.i18n.kmk.KMR
@@ -57,8 +58,6 @@ import tachiyomi.presentation.core.screens.EmptyScreen
 import tachiyomi.presentation.core.screens.LoadingScreen
 import tachiyomi.presentation.core.theme.header
 import tachiyomi.presentation.core.util.secondaryItemAlpha
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 
 @Composable
 fun MigrateSourceScreen(
@@ -120,7 +119,7 @@ private fun MigrateSourceList(
     // KMK -->
     val lazyListState = rememberLazyListState()
     var filterObsoleteSource by rememberSaveable { mutableStateOf(false) }
-    val isHentaiEnabled = remember { Injekt.get<ExhPreferences>().isHentaiEnabled().get() }
+    val isHentaiEnabled = remember { globalAppGraph.exhPreferences.isHentaiEnabled().get() }
 
     BackHandler(enabled = !state.searchQuery.isNullOrBlank()) {
         onChangeSearchQuery("")

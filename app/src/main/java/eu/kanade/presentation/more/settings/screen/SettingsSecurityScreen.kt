@@ -54,6 +54,7 @@ import eu.kanade.tachiyomi.util.system.AuthenticatorUtil.isAuthenticationSupport
 import eu.kanade.tachiyomi.util.system.telemetryIncluded
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableMap
+import mihon.app.di.globalAppGraph
 import mihon.core.archive.CbzCrypto
 import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.i18n.MR
@@ -61,8 +62,6 @@ import tachiyomi.i18n.sy.SYMR
 import tachiyomi.presentation.core.i18n.pluralStringResource
 import tachiyomi.presentation.core.i18n.stringResource
 import tachiyomi.presentation.core.util.collectAsState
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 
 object SettingsSecurityScreen : SearchableSettings {
     private fun readResolve(): Any = SettingsSecurityScreen
@@ -73,8 +72,8 @@ object SettingsSecurityScreen : SearchableSettings {
 
     @Composable
     override fun getPreferences(): List<Preference> {
-        val securityPreferences = remember { Injekt.get<SecurityPreferences>() }
-        val privacyPreferences = remember { Injekt.get<PrivacyPreferences>() }
+        val securityPreferences = remember { globalAppGraph.securityPreferences }
+        val privacyPreferences = remember { globalAppGraph.privacyPreferences }
         return buildList(2) {
             add(getSecurityGroup(securityPreferences))
             if (!telemetryIncluded) return@buildList

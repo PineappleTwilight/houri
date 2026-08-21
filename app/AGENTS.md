@@ -24,11 +24,14 @@ The monolithic application module containing UI, domain, data services, and DI w
 | `exh/` | E-Hentai/ExHentai features (see exh/AGENTS.md) |
 | `mihon/feature/` | Self-contained feature modules (migration, upcoming) |
 
-## DI modules (loaded in order)
+## Dependency injection
 
-1. `PreferenceModule` – All preference stores
-2. `AppModule` – Infrastructure singletons (DB, network, downloads)
-3. `DomainModule` – Core domain interactors + repos
+Primary: **Metro** (`dev.zacsweers.metro`). `AppGraph` (`mihon/app/di/AppGraph.kt`) exposes typed accessors; resolve via `context.appGraph.x`, `globalAppGraph.x` (non-Context classes), or constructor `@Inject`. ViewModels: `@AssistedInject` + nested `@AssistedFactory` (`@ContributesIntoMap(AppScope)`), resolved with `viewModels<T> { graph.viewModelFactory }`. New bindings go through `@Inject` constructors / `AppBindings` — **not** Injekt.
+
+Legacy Injekt modules (still loaded in `App.onCreate`, kept only for remaining keep-sites + the extension bridge — do not extend):
+1. `PreferenceModule` – preference stores
+2. `AppModule` – infrastructure singletons (DB, network, downloads)
+3. `DomainModule` – core domain interactors + repos
 4. `KMKDomainModule` – Komikku-only (library update errors)
 5. `SYPreferenceModule` – SY/ExH preferences
 6. `SYDomainModule` – SY domain (metadata, merge, feed)

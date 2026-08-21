@@ -35,12 +35,11 @@ import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import logcat.LogPriority
+import mihon.app.di.globalAppGraph
 import tachiyomi.core.common.util.lang.withUIContext
 import tachiyomi.core.common.util.system.logcat
 import tachiyomi.domain.source.model.StubSource
 import tachiyomi.i18n.MR
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 import java.util.Locale
 
 /**
@@ -54,8 +53,8 @@ import java.util.Locale
 @SingleIn(AppScope::class)
 class ExtensionManager(
     private val context: Context,
-    private val preferences: SourcePreferences = Injekt.get(),
-    private val trustExtension: TrustExtension = Injekt.get(),
+    private val preferences: SourcePreferences = globalAppGraph.sourcePreferences,
+    private val trustExtension: TrustExtension = globalAppGraph.trustExtension,
 ) {
 
     val scope = CoroutineScope(SupervisorJob())
@@ -187,7 +186,7 @@ class ExtensionManager(
     private fun Extension.isBlacklisted(
         blacklistEnabled: Boolean = preferences.enableSourceBlacklist().get(),
         // KMK -->
-        isHentaiEnabled: Boolean = Injekt.get<ExhPreferences>().isHentaiEnabled().get(),
+        isHentaiEnabled: Boolean = globalAppGraph.exhPreferences.isHentaiEnabled().get(),
         // KMK <--
     ): Boolean {
         return pkgName in BlacklistedSources.BLACKLISTED_EXTENSIONS &&

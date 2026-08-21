@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.coroutines.flow.toList
+import mihon.app.di.globalAppGraph
 import mihon.domain.manga.model.toDomainManga
 import tachiyomi.domain.category.interactor.GetCategories
 import tachiyomi.domain.category.model.Category
@@ -19,15 +20,13 @@ import tachiyomi.domain.manga.interactor.GetFavorites
 import tachiyomi.domain.manga.interactor.InsertFavoriteEntries
 import tachiyomi.domain.manga.model.FavoriteEntry
 import tachiyomi.domain.manga.model.Manga
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 
 class LocalFavoritesStorage(
-    private val getFavorites: GetFavorites = Injekt.get(),
-    private val getCategories: GetCategories = Injekt.get(),
-    private val deleteFavoriteEntries: DeleteFavoriteEntries = Injekt.get(),
-    private val getFavoriteEntries: GetFavoriteEntries = Injekt.get(),
-    private val insertFavoriteEntries: InsertFavoriteEntries = Injekt.get(),
+    private val getFavorites: GetFavorites = globalAppGraph.getFavorites,
+    private val getCategories: GetCategories = globalAppGraph.getCategories,
+    private val deleteFavoriteEntries: DeleteFavoriteEntries = globalAppGraph.deleteFavoriteEntries,
+    private val getFavoriteEntries: GetFavoriteEntries = globalAppGraph.getFavoriteEntries,
+    private val insertFavoriteEntries: InsertFavoriteEntries = globalAppGraph.insertFavoriteEntries,
 ) {
 
     suspend fun getChangedDbEntries() = getFavorites.await()

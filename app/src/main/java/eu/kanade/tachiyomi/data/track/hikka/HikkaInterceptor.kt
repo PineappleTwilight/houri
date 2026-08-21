@@ -3,12 +3,12 @@ package eu.kanade.tachiyomi.data.track.hikka
 import eu.kanade.tachiyomi.data.track.hikka.dto.HKAuthTokenInfo
 import eu.kanade.tachiyomi.data.track.hikka.dto.HKOAuth
 import kotlinx.serialization.json.Json
+import mihon.app.di.globalAppGraph
 import okhttp3.Interceptor
 import okhttp3.Response
-import uy.kohesive.injekt.injectLazy
 
 class HikkaInterceptor(private val hikka: Hikka) : Interceptor {
-    private val json: Json by injectLazy()
+    private val json: Json by lazy { globalAppGraph.json }
     private var oauth: HKOAuth? = hikka.loadOAuth()
 
     override fun intercept(chain: Interceptor.Chain): Response {

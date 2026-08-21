@@ -6,8 +6,8 @@ import android.graphics.RectF
 import dev.icerock.moko.resources.StringResource
 import eu.kanade.tachiyomi.ui.reader.setting.ReaderPreferences
 import eu.kanade.tachiyomi.util.lang.invert
+import mihon.app.di.globalAppGraph
 import tachiyomi.i18n.MR
-import uy.kohesive.injekt.injectLazy
 
 abstract class ViewerNavigation {
 
@@ -54,7 +54,7 @@ abstract class ViewerNavigation {
     }
 
     // KMK -->
-    private val readerPreferences: ReaderPreferences by injectLazy()
+    private val readerPreferences: ReaderPreferences by lazy { globalAppGraph.readerPreferences }
     protected val regionSize1
         get() = if (readerPreferences.smallerTapZone().get()) 0.25f else 0.33f
     protected val regionSize2 = 1f - regionSize1

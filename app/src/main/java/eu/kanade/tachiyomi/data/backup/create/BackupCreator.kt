@@ -23,6 +23,7 @@ import eu.kanade.tachiyomi.data.backup.models.BackupSource
 import eu.kanade.tachiyomi.data.backup.models.BackupSourcePreferences
 import kotlinx.serialization.protobuf.ProtoBuf
 import logcat.LogPriority
+import mihon.app.di.globalAppGraph
 import okio.buffer
 import okio.gzip
 import okio.sink
@@ -34,8 +35,6 @@ import tachiyomi.domain.manga.interactor.GetMergedManga
 import tachiyomi.domain.manga.model.Manga
 import tachiyomi.domain.manga.repository.MangaRepository
 import tachiyomi.i18n.MR
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 import java.io.FileOutputStream
 import java.text.SimpleDateFormat
 import java.time.Instant
@@ -46,10 +45,10 @@ class BackupCreator(
     private val context: Context,
     private val isAutoBackup: Boolean,
 
-    private val parser: ProtoBuf = Injekt.get(),
-    private val getFavorites: GetFavorites = Injekt.get(),
-    private val backupPreferences: BackupPreferences = Injekt.get(),
-    private val mangaRepository: MangaRepository = Injekt.get(),
+    private val parser: ProtoBuf = globalAppGraph.protoBuf,
+    private val getFavorites: GetFavorites = globalAppGraph.getFavorites,
+    private val backupPreferences: BackupPreferences = globalAppGraph.backupPreferences,
+    private val mangaRepository: MangaRepository = globalAppGraph.mangaRepository,
 
     private val categoriesBackupCreator: CategoriesBackupCreator = CategoriesBackupCreator(),
     private val mangaBackupCreator: MangaBackupCreator = MangaBackupCreator(),
@@ -61,7 +60,7 @@ class BackupCreator(
     // KMK <--
     // SY -->
     private val savedSearchBackupCreator: SavedSearchBackupCreator = SavedSearchBackupCreator(),
-    private val getMergedManga: GetMergedManga = Injekt.get(),
+    private val getMergedManga: GetMergedManga = globalAppGraph.getMergedManga,
     // SY <--
 ) {
 

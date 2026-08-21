@@ -14,17 +14,16 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
+import mihon.app.di.globalAppGraph
 import tachiyomi.core.common.util.lang.launchIO
 import tachiyomi.i18n.MR
 import tachiyomi.i18n.sy.SYMR
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 
 class SourceCategoryScreenModel(
-    private val getSourceCategories: GetSourceCategories = Injekt.get(),
-    private val createSourceCategory: CreateSourceCategory = Injekt.get(),
-    private val renameSourceCategory: RenameSourceCategory = Injekt.get(),
-    private val deleteSourceCategory: DeleteSourceCategory = Injekt.get(),
+    private val getSourceCategories: GetSourceCategories = globalAppGraph.getSourceCategories,
+    private val createSourceCategory: CreateSourceCategory = globalAppGraph.createSourceCategory,
+    private val renameSourceCategory: RenameSourceCategory = globalAppGraph.renameSourceCategory,
+    private val deleteSourceCategory: DeleteSourceCategory = globalAppGraph.deleteSourceCategory,
 ) : StateScreenModel<SourceCategoryScreenState>(SourceCategoryScreenState.Loading) {
 
     private val _events: Channel<SourceCategoryEvent> = Channel(Int.MAX_VALUE)

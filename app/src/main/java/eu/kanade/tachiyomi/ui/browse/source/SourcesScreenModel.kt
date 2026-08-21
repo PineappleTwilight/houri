@@ -35,24 +35,23 @@ import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import logcat.LogPriority
+import mihon.app.di.globalAppGraph
 import tachiyomi.core.common.util.system.logcat
 import tachiyomi.domain.source.model.Pin
 import tachiyomi.domain.source.model.Source
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 import java.util.TreeMap
 
 class SourcesScreenModel(
-    private val getEnabledSources: GetEnabledSources = Injekt.get(),
-    private val toggleSource: ToggleSource = Injekt.get(),
-    private val toggleSourcePin: ToggleSourcePin = Injekt.get(),
+    private val getEnabledSources: GetEnabledSources = globalAppGraph.getEnabledSources,
+    private val toggleSource: ToggleSource = globalAppGraph.toggleSource,
+    private val toggleSourcePin: ToggleSourcePin = globalAppGraph.toggleSourcePin,
     // SY -->
-    private val uiPreferences: UiPreferences = Injekt.get(),
-    private val getSourceCategories: GetSourceCategories = Injekt.get(),
-    private val getShowLatest: GetShowLatest = Injekt.get(),
-    private val toggleExcludeFromDataSaver: ToggleExcludeFromDataSaver = Injekt.get(),
-    private val setSourceCategories: SetSourceCategories = Injekt.get(),
-    private val sourcePreferences: SourcePreferences = Injekt.get(),
+    private val uiPreferences: UiPreferences = globalAppGraph.uiPreferences,
+    private val getSourceCategories: GetSourceCategories = globalAppGraph.getSourceCategories,
+    private val getShowLatest: GetShowLatest = globalAppGraph.getShowLatest,
+    private val toggleExcludeFromDataSaver: ToggleExcludeFromDataSaver = globalAppGraph.toggleExcludeFromDataSaver,
+    private val setSourceCategories: SetSourceCategories = globalAppGraph.setSourceCategories,
+    private val sourcePreferences: SourcePreferences = globalAppGraph.sourcePreferences,
     val smartSearchConfig: SourcesScreen.SmartSearchConfig?,
     // SY <--
 ) : StateScreenModel<SourcesScreenModel.State>(State()) {

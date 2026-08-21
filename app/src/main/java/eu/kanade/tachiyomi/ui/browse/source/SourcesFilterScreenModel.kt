@@ -12,16 +12,15 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import mihon.app.di.globalAppGraph
 import tachiyomi.domain.source.model.Source
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 import java.util.SortedMap
 
 class SourcesFilterScreenModel(
-    private val preferences: SourcePreferences = Injekt.get(),
-    private val getLanguagesWithSources: GetLanguagesWithSources = Injekt.get(),
-    private val toggleSource: ToggleSource = Injekt.get(),
-    private val toggleLanguage: ToggleLanguage = Injekt.get(),
+    private val preferences: SourcePreferences = globalAppGraph.sourcePreferences,
+    private val getLanguagesWithSources: GetLanguagesWithSources = globalAppGraph.getLanguagesWithSources,
+    private val toggleSource: ToggleSource = globalAppGraph.toggleSource,
+    private val toggleLanguage: ToggleLanguage = globalAppGraph.toggleLanguage,
 ) : StateScreenModel<SourcesFilterScreenModel.State>(State.Loading) {
 
     init {

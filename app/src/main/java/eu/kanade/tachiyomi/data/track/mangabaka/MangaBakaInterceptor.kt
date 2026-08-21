@@ -2,13 +2,13 @@ package eu.kanade.tachiyomi.data.track.mangabaka
 
 import eu.kanade.tachiyomi.data.track.mangabaka.dto.MangaBakaOAuth
 import kotlinx.serialization.json.Json
+import mihon.app.di.globalAppGraph
 import okhttp3.Interceptor
 import okhttp3.Response
-import uy.kohesive.injekt.injectLazy
 
 class MangaBakaInterceptor(private val mangaBaka: MangaBaka) : Interceptor {
 
-    private val json: Json by injectLazy()
+    private val json: Json by lazy { globalAppGraph.json }
 
     private var oauth: MangaBakaOAuth? = mangaBaka.restoreToken()
 

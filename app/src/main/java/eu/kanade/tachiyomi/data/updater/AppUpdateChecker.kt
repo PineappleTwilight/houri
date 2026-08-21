@@ -7,9 +7,9 @@ import dev.zacsweers.metro.SingleIn
 import eu.kanade.tachiyomi.BuildConfig
 import eu.kanade.tachiyomi.util.system.isFossBuildType
 import eu.kanade.tachiyomi.util.system.isPreviewBuildType
+import mihon.app.di.globalAppGraph
 import tachiyomi.core.common.util.lang.withIOContext
 import tachiyomi.domain.release.interactor.GetApplicationRelease
-import uy.kohesive.injekt.injectLazy
 
 @Inject
 @SingleIn(AppScope::class)
@@ -17,7 +17,7 @@ class AppUpdateChecker(
     private val peekIntoPreview: Boolean = false,
 ) {
 
-    private val getApplicationRelease: GetApplicationRelease by injectLazy()
+    private val getApplicationRelease: GetApplicationRelease by lazy { globalAppGraph.getApplicationRelease }
 
     suspend fun checkForUpdate(
         context: Context,

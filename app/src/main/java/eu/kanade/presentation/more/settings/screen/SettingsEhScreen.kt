@@ -60,6 +60,7 @@ import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.persistentMapOf
 import kotlinx.serialization.json.Json
 import logcat.LogPriority
+import mihon.app.di.globalAppGraph
 import tachiyomi.core.common.i18n.pluralStringResource
 import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.core.common.util.lang.launchNonCancellable
@@ -75,8 +76,6 @@ import tachiyomi.i18n.MR
 import tachiyomi.i18n.sy.SYMR
 import tachiyomi.presentation.core.i18n.stringResource
 import tachiyomi.presentation.core.util.collectAsState
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.days
 import kotlin.time.Duration.Companion.hours
@@ -91,7 +90,7 @@ object SettingsEhScreen : SearchableSettings {
     @Composable
     override fun getTitleRes() = SYMR.strings.pref_category_eh
 
-    override fun isEnabled(): Boolean = Injekt.get<ExhPreferences>().isHentaiEnabled().get()
+    override fun isEnabled(): Boolean = globalAppGraph.exhPreferences.isHentaiEnabled().get()
 
     @Composable
     fun Reconfigure(
@@ -127,10 +126,10 @@ object SettingsEhScreen : SearchableSettings {
 
     @Composable
     override fun getPreferences(): List<Preference> {
-        val exhPreferences: ExhPreferences = remember { Injekt.get() }
-        val getFlatMetadataById: GetFlatMetadataById = remember { Injekt.get() }
-        val deleteFavoriteEntries: DeleteFavoriteEntries = remember { Injekt.get() }
-        val getExhFavoriteMangaWithMetadata: GetExhFavoriteMangaWithMetadata = remember { Injekt.get() }
+        val exhPreferences: ExhPreferences = remember { globalAppGraph.exhPreferences }
+        val getFlatMetadataById: GetFlatMetadataById = remember { globalAppGraph.getFlatMetadataById }
+        val deleteFavoriteEntries: DeleteFavoriteEntries = remember { globalAppGraph.deleteFavoriteEntries }
+        val getExhFavoriteMangaWithMetadata: GetExhFavoriteMangaWithMetadata = remember { globalAppGraph.getExhFavoriteMangaWithMetadata }
         val exhentaiEnabled by exhPreferences.enableExhentai().collectAsState()
         var runConfigureDialog by remember { mutableStateOf(false) }
         val openWarnConfigureDialogController = { runConfigureDialog = true }
@@ -199,7 +198,7 @@ object SettingsEhScreen : SearchableSettings {
             title = stringResource(MR.strings.pref_incognito_mode),
             subtitle = stringResource(MR.strings.pref_incognito_mode_summary),
             onValueChanged = { newVal ->
-                val toggleIncognito = Injekt.get<ToggleIncognito>()
+                val toggleIncognito = globalAppGraph.toggleIncognito
                 toggleIncognito.await(EH_PACKAGE, newVal)
                 newVal
             },

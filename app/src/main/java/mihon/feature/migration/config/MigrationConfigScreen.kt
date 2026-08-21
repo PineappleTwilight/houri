@@ -61,6 +61,7 @@ import eu.kanade.tachiyomi.source.online.HttpSource
 import eu.kanade.tachiyomi.util.system.LocaleHelper
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.coroutines.flow.update
+import mihon.app.di.globalAppGraph
 import mihon.feature.migration.list.MigrationListScreen
 import sh.calvin.reorderable.ReorderableCollectionItemScope
 import sh.calvin.reorderable.ReorderableItem
@@ -80,8 +81,6 @@ import tachiyomi.presentation.core.i18n.stringResource
 import tachiyomi.presentation.core.icons.FlagEmoji
 import tachiyomi.presentation.core.screens.LoadingScreen
 import tachiyomi.presentation.core.util.shouldExpandFAB
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 
 /**
  * Screen that allows the user to configure which sources should be used when migrating manga.
@@ -400,8 +399,8 @@ class MigrationConfigScreen(private val mangaIds: Collection<Long>) : Screen() {
     }
 
     private class ScreenModel(
-        val sourcePreferences: SourcePreferences = Injekt.get(),
-        private val sourceManager: SourceManager = Injekt.get(),
+        val sourcePreferences: SourcePreferences = globalAppGraph.sourcePreferences,
+        private val sourceManager: SourceManager = globalAppGraph.sourceManager,
     ) : StateScreenModel<ScreenModel.State>(State()) {
 
         // KMK -->

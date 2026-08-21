@@ -28,13 +28,12 @@ import eu.kanade.tachiyomi.ui.browse.source.feed.SourceFeedScreen
 import eu.kanade.tachiyomi.ui.manga.MangaScreen
 import eu.kanade.tachiyomi.util.system.isDebugBuildType
 import kotlinx.collections.immutable.persistentListOf
+import mihon.app.di.globalAppGraph
 import tachiyomi.i18n.MR
 import tachiyomi.i18n.kmk.KMR
 import tachiyomi.i18n.sy.SYMR
 import tachiyomi.presentation.core.i18n.stringResource
 import tachiyomi.presentation.core.theme.active
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 
 @Composable
 fun MangaToolbar(
@@ -79,7 +78,7 @@ fun MangaToolbar(
     fun onHomeClicked() = navigator?.popUntil { screen ->
         screen is SourceFeedScreen || screen is BrowseSourceScreen
     }
-    val isHomeEnabled = Injekt.get<UiPreferences>().showHomeOnRelatedMangas().get()
+    val isHomeEnabled = globalAppGraph.uiPreferences.showHomeOnRelatedMangas().get()
     // KMK <--
 
     val isActionMode = actionModeCounter > 0

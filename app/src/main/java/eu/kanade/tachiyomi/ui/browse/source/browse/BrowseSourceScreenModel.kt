@@ -56,6 +56,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import logcat.LogPriority
+import mihon.app.di.globalAppGraph
 import mihon.domain.source.interactor.UpdateMangaFromRemote
 import tachiyomi.core.common.preference.CheckboxState
 import tachiyomi.core.common.preference.mapAsCheckboxState
@@ -84,8 +85,6 @@ import tachiyomi.domain.source.repository.SourcePagingSource
 import tachiyomi.domain.source.service.SourceManager
 import tachiyomi.i18n.sy.SYMR
 import tachiyomi.source.local.isLocal
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 import xyz.nulldev.ts.api.http.serializer.FilterSerializer
 import java.time.Instant
 import eu.kanade.tachiyomi.source.model.Filter as SourceModelFilter
@@ -98,32 +97,32 @@ open class BrowseSourceScreenModel(
     filtersJson: String? = null,
     savedSearch: Long? = null,
     // SY <--
-    sourceManager: SourceManager = Injekt.get(),
-    sourcePreferences: SourcePreferences = Injekt.get(),
-    private val libraryPreferences: LibraryPreferences = Injekt.get(),
-    private val coverCache: CoverCache = Injekt.get(),
-    private val getRemoteManga: GetRemoteManga = Injekt.get(),
-    private val getDuplicateLibraryManga: GetDuplicateLibraryManga = Injekt.get(),
-    private val getCategories: GetCategories = Injekt.get(),
-    private val setMangaCategories: SetMangaCategories = Injekt.get(),
-    private val setMangaDefaultChapterFlags: SetMangaDefaultChapterFlags = Injekt.get(),
-    private val getManga: GetManga = Injekt.get(),
-    private val updateManga: UpdateManga = Injekt.get(),
-    private val addTracks: AddTracks = Injekt.get(),
-    getIncognitoState: GetIncognitoState = Injekt.get(),
+    sourceManager: SourceManager = globalAppGraph.sourceManager,
+    sourcePreferences: SourcePreferences = globalAppGraph.sourcePreferences,
+    private val libraryPreferences: LibraryPreferences = globalAppGraph.libraryPreferences,
+    private val coverCache: CoverCache = globalAppGraph.coverCache,
+    private val getRemoteManga: GetRemoteManga = globalAppGraph.getRemoteManga,
+    private val getDuplicateLibraryManga: GetDuplicateLibraryManga = globalAppGraph.getDuplicateLibraryManga,
+    private val getCategories: GetCategories = globalAppGraph.getCategories,
+    private val setMangaCategories: SetMangaCategories = globalAppGraph.setMangaCategories,
+    private val setMangaDefaultChapterFlags: SetMangaDefaultChapterFlags = globalAppGraph.setMangaDefaultChapterFlags,
+    private val getManga: GetManga = globalAppGraph.getManga,
+    private val updateManga: UpdateManga = globalAppGraph.updateManga,
+    private val addTracks: AddTracks = globalAppGraph.addTracks,
+    getIncognitoState: GetIncognitoState = globalAppGraph.getIncognitoState,
     // KMK -->
-    private val updateMangaFromRemote: UpdateMangaFromRemote = Injekt.get(),
-    private val toggleIncognito: ToggleIncognito = Injekt.get(),
-    private val extensionManager: ExtensionManager = Injekt.get(),
+    private val updateMangaFromRemote: UpdateMangaFromRemote = globalAppGraph.updateMangaFromRemote,
+    private val toggleIncognito: ToggleIncognito = globalAppGraph.toggleIncognito,
+    private val extensionManager: ExtensionManager = globalAppGraph.extensionManager,
     // KMK <--
 
     // SY -->
-    exhPreferences: ExhPreferences = Injekt.get(),
-    uiPreferences: UiPreferences = Injekt.get(),
-    private val getFlatMetadataById: GetFlatMetadataById = Injekt.get(),
-    private val deleteSavedSearchById: DeleteSavedSearchById = Injekt.get(),
-    private val insertSavedSearch: InsertSavedSearch = Injekt.get(),
-    private val getExhSavedSearch: GetExhSavedSearch = Injekt.get(),
+    exhPreferences: ExhPreferences = globalAppGraph.exhPreferences,
+    uiPreferences: UiPreferences = globalAppGraph.uiPreferences,
+    private val getFlatMetadataById: GetFlatMetadataById = globalAppGraph.getFlatMetadataById,
+    private val deleteSavedSearchById: DeleteSavedSearchById = globalAppGraph.deleteSavedSearchById,
+    private val insertSavedSearch: InsertSavedSearch = globalAppGraph.insertSavedSearch,
+    private val getExhSavedSearch: GetExhSavedSearch = globalAppGraph.getExhSavedSearch,
     // SY <--
 ) : StateScreenModel<BrowseSourceScreenModel.State>(State(Listing.valueOf(listingQuery))) {
 

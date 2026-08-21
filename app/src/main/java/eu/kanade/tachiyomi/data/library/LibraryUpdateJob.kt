@@ -53,6 +53,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import logcat.LogPriority
+import mihon.app.di.globalAppGraph
 import mihon.domain.chapter.interactor.FilterChaptersForDownload
 import mihon.domain.source.interactor.UpdateMangaFromRemote
 import tachiyomi.core.common.i18n.stringResource
@@ -91,8 +92,6 @@ import tachiyomi.domain.source.service.SourceManager
 import tachiyomi.domain.track.interactor.GetTracks
 import tachiyomi.domain.track.interactor.InsertTrack
 import tachiyomi.i18n.MR
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 import java.time.Instant
 import java.time.ZonedDateTime
 import java.util.concurrent.CopyOnWriteArrayList
@@ -106,34 +105,34 @@ import kotlin.concurrent.atomics.incrementAndFetch
 class LibraryUpdateJob(private val context: Context, workerParams: WorkerParameters) :
     CoroutineWorker(context, workerParams) {
 
-    private val sourceManager: SourceManager = Injekt.get()
-    private val libraryPreferences: LibraryPreferences = Injekt.get()
-    private val downloadManager: DownloadManager = Injekt.get()
-    private val getLibraryManga: GetLibraryManga = Injekt.get()
-    private val getManga: GetManga = Injekt.get()
-    private val fetchInterval: FetchInterval = Injekt.get()
-    private val filterChaptersForDownload: FilterChaptersForDownload = Injekt.get()
-    private val updateMangaFromRemote: UpdateMangaFromRemote = Injekt.get()
+    private val sourceManager: SourceManager = globalAppGraph.sourceManager
+    private val libraryPreferences: LibraryPreferences = globalAppGraph.libraryPreferences
+    private val downloadManager: DownloadManager = globalAppGraph.downloadManager
+    private val getLibraryManga: GetLibraryManga = globalAppGraph.getLibraryManga
+    private val getManga: GetManga = globalAppGraph.getManga
+    private val fetchInterval: FetchInterval = globalAppGraph.fetchInterval
+    private val filterChaptersForDownload: FilterChaptersForDownload = globalAppGraph.filterChaptersForDownload
+    private val updateMangaFromRemote: UpdateMangaFromRemote = globalAppGraph.updateMangaFromRemote
 
     // SY -->
-    private val updateManga: UpdateManga = Injekt.get()
-    private val getFavorites: GetFavorites = Injekt.get()
-    private val insertFlatMetadata: InsertFlatMetadata = Injekt.get()
-    private val networkToLocalManga: NetworkToLocalManga = Injekt.get()
-    private val getMergedMangaForDownloading: GetMergedMangaForDownloading = Injekt.get()
-    private val getTracks: GetTracks = Injekt.get()
-    private val insertTrack: InsertTrack = Injekt.get()
-    private val trackerManager: TrackerManager = Injekt.get()
+    private val updateManga: UpdateManga = globalAppGraph.updateManga
+    private val getFavorites: GetFavorites = globalAppGraph.getFavorites
+    private val insertFlatMetadata: InsertFlatMetadata = globalAppGraph.insertFlatMetadata
+    private val networkToLocalManga: NetworkToLocalManga = globalAppGraph.networkToLocalManga
+    private val getMergedMangaForDownloading: GetMergedMangaForDownloading = globalAppGraph.getMergedMangaForDownloading
+    private val getTracks: GetTracks = globalAppGraph.getTracks
+    private val insertTrack: InsertTrack = globalAppGraph.insertTrack
+    private val trackerManager: TrackerManager = globalAppGraph.trackerManager
     private val mdList = trackerManager.mdList
     // SY <--
 
     private val notifier = LibraryUpdateNotifier(context)
 
     // KMK -->
-    private val libraryUpdateStatus: LibraryUpdateStatus = Injekt.get()
-    private val deleteLibraryUpdateErrors: DeleteLibraryUpdateErrors = Injekt.get()
-    private val insertLibraryUpdateErrors: InsertLibraryUpdateErrors = Injekt.get()
-    private val insertLibraryUpdateErrorMessages: InsertLibraryUpdateErrorMessages = Injekt.get()
+    private val libraryUpdateStatus: LibraryUpdateStatus = globalAppGraph.libraryUpdateStatus
+    private val deleteLibraryUpdateErrors: DeleteLibraryUpdateErrors = globalAppGraph.deleteLibraryUpdateErrors
+    private val insertLibraryUpdateErrors: InsertLibraryUpdateErrors = globalAppGraph.insertLibraryUpdateErrors
+    private val insertLibraryUpdateErrorMessages: InsertLibraryUpdateErrorMessages = globalAppGraph.insertLibraryUpdateErrorMessages
     // KMK <--
 
     private var mangaToUpdate: List<LibraryManga> = mutableListOf()
@@ -141,7 +140,7 @@ class LibraryUpdateJob(private val context: Context, workerParams: WorkerParamet
     override suspend fun doWork(): Result {
         if (tags.contains(WORK_NAME_AUTO)) {
             if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) {
-                val preferences = Injekt.get<LibraryPreferences>()
+                val preferences = globalAppGraph.libraryPreferences
                 val restrictions = preferences.autoUpdateDeviceRestrictions().get()
                 if ((DEVICE_ONLY_ON_WIFI in restrictions) && !context.isConnectedToWifi()) {
                     return Result.retry()
@@ -552,7 +551,7 @@ class LibraryUpdateJob(private val context: Context, workerParams: WorkerParamet
      * filter all follows from Mangadex and only add reading or rereading manga to library
      */
     private suspend fun syncFollows() = coroutineScope {
-        val preferences = Injekt.get<SourcePreferences>()
+        val preferences = globalAppGraph.sourcePreferences
         var count = 0
         val mangaDex = MdUtil.getEnabledMangaDex(preferences, sourceManager = sourceManager)
             ?: return@coroutineScope
@@ -751,7 +750,7 @@ class LibraryUpdateJob(private val context: Context, workerParams: WorkerParamet
             context: Context,
             prefInterval: Int? = null,
         ) {
-            val preferences = Injekt.get<LibraryPreferences>()
+            val preferences = globalAppGraph.libraryPreferences
             val interval = prefInterval ?: preferences.autoUpdateInterval().get()
             if (interval > 0) {
                 val restrictions = preferences.autoUpdateDeviceRestrictions().get()
@@ -830,7 +829,7 @@ class LibraryUpdateJob(private val context: Context, workerParams: WorkerParamet
                 // KMK <--
             )
 
-            val syncPreferences: SyncPreferences = Injekt.get()
+            val syncPreferences: SyncPreferences = globalAppGraph.syncPreferences
 
             // Always sync the data before library update if syncing is enabled.
             if (syncPreferences.isSyncEnabled()) {
@@ -878,7 +877,7 @@ class LibraryUpdateJob(private val context: Context, workerParams: WorkerParamet
                 .forEach {
                     wm.cancelWorkById(it.id)
                     // KMK -->
-                    val libraryUpdateStatus: LibraryUpdateStatus = Injekt.get()
+                    val libraryUpdateStatus: LibraryUpdateStatus = globalAppGraph.libraryUpdateStatus
                     runBlocking { libraryUpdateStatus.stop() }
                     // KMK <--
 

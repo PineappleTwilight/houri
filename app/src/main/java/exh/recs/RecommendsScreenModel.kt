@@ -23,17 +23,16 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import mihon.app.di.globalAppGraph
 import mihon.domain.manga.model.toDomainManga
 import tachiyomi.domain.manga.interactor.GetManga
 import tachiyomi.domain.manga.interactor.NetworkToLocalManga
 import tachiyomi.domain.manga.model.Manga
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 
 open class RecommendsScreenModel(
     private val args: RecommendsScreen.Args,
-    private val getManga: GetManga = Injekt.get(),
-    protected val networkToLocalManga: NetworkToLocalManga = Injekt.get(),
+    private val getManga: GetManga = globalAppGraph.getManga,
+    protected val networkToLocalManga: NetworkToLocalManga = globalAppGraph.networkToLocalManga,
 ) : StateScreenModel<RecommendsScreenModel.State>(State()) {
 
     private val coroutineDispatcher = Dispatchers.IO.limitedParallelism(5)

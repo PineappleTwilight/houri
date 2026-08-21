@@ -21,17 +21,17 @@ import eu.kanade.tachiyomi.util.system.toShareIntent
 import eu.kanade.tachiyomi.util.system.toast
 import eu.kanade.tachiyomi.util.view.setComposeContent
 import logcat.LogPriority
+import mihon.app.di.globalAppGraph
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import tachiyomi.core.common.util.lang.launchIO
 import tachiyomi.core.common.util.system.logcat
 import tachiyomi.domain.source.service.SourceManager
 import tachiyomi.i18n.MR
-import uy.kohesive.injekt.injectLazy
 
 class WebViewActivity : BaseActivity() {
 
-    private val sourceManager: SourceManager by injectLazy()
-    private val network: NetworkHelper by injectLazy()
+    private val sourceManager: SourceManager by lazy { globalAppGraph.sourceManager }
+    private val network: NetworkHelper by lazy { globalAppGraph.networkHelper }
 
     private var assistUrl: String? = null
 

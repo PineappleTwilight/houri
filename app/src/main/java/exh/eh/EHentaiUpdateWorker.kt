@@ -36,6 +36,7 @@ import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.serialization.json.Json
+import mihon.app.di.globalAppGraph
 import mihon.domain.source.interactor.UpdateMangaFromRemote
 import tachiyomi.core.common.preference.getAndSet
 import tachiyomi.domain.chapter.interactor.GetChaptersByMangaId
@@ -49,23 +50,20 @@ import tachiyomi.domain.manga.interactor.GetFlatMetadataById
 import tachiyomi.domain.manga.interactor.InsertFlatMetadata
 import tachiyomi.domain.manga.model.Manga
 import tachiyomi.domain.source.service.SourceManager
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
-import uy.kohesive.injekt.injectLazy
 import java.util.concurrent.TimeUnit
 import kotlin.time.Duration.Companion.days
 
 class EHentaiUpdateWorker(private val context: Context, workerParams: WorkerParameters) :
     CoroutineWorker(context, workerParams) {
-    private val exhPreferences: ExhPreferences by injectLazy()
-    private val libraryPreferences: LibraryPreferences by injectLazy()
-    private val sourceManager: SourceManager by injectLazy()
-    private val updateHelper: EHentaiUpdateHelper by injectLazy()
-    private val updateMangaFromRemote: UpdateMangaFromRemote by injectLazy()
-    private val getChaptersByMangaId: GetChaptersByMangaId by injectLazy()
-    private val getFlatMetadataById: GetFlatMetadataById by injectLazy()
-    private val insertFlatMetadata: InsertFlatMetadata by injectLazy()
-    private val getExhFavoriteMangaWithMetadata: GetExhFavoriteMangaWithMetadata by injectLazy()
+    private val exhPreferences: ExhPreferences by lazy { globalAppGraph.exhPreferences }
+    private val libraryPreferences: LibraryPreferences by lazy { globalAppGraph.libraryPreferences }
+    private val sourceManager: SourceManager by lazy { globalAppGraph.sourceManager }
+    private val updateHelper: EHentaiUpdateHelper by lazy { globalAppGraph.eHentaiUpdateHelper }
+    private val updateMangaFromRemote: UpdateMangaFromRemote by lazy { globalAppGraph.updateMangaFromRemote }
+    private val getChaptersByMangaId: GetChaptersByMangaId by lazy { globalAppGraph.getChaptersByMangaId }
+    private val getFlatMetadataById: GetFlatMetadataById by lazy { globalAppGraph.getFlatMetadataById }
+    private val insertFlatMetadata: InsertFlatMetadata by lazy { globalAppGraph.insertFlatMetadata }
+    private val getExhFavoriteMangaWithMetadata: GetExhFavoriteMangaWithMetadata by lazy { globalAppGraph.getExhFavoriteMangaWithMetadata }
 
     private val updateNotifier by lazy { EHentaiUpdateNotifier(context) }
     private val libraryUpdateNotifier by lazy { LibraryUpdateNotifier(context) }
@@ -320,7 +318,7 @@ class EHentaiUpdateWorker(private val context: Context, workerParams: WorkerPara
         }
 
         fun scheduleBackground(context: Context, prefInterval: Int? = null, prefRestrictions: Set<String>? = null) {
-            val exhPreferences = Injekt.get<ExhPreferences>()
+            val exhPreferences = globalAppGraph.exhPreferences
             val interval = prefInterval ?: exhPreferences.exhAutoUpdateFrequency().get()
             if (interval > 0) {
                 val restrictions = prefRestrictions ?: exhPreferences.exhAutoUpdateRequirements().get()

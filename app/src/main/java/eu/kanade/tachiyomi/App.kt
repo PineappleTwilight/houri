@@ -85,6 +85,7 @@ import logcat.AndroidLogcatLogger
 import logcat.LogPriority
 import logcat.LogcatLogger
 import mihon.app.di.AppGraph
+import mihon.app.di.globalAppGraph
 import mihon.app.di.injekt.MetroInteropModule
 import mihon.core.metro.GraphProvider
 import mihon.core.migration.Migrator
@@ -142,6 +143,11 @@ class App : Application(), DefaultLifecycleObserver, SingletonImageLoader.Factor
         // SY <--
 
         graph.inject(this)
+
+        // KMK -->
+        // Expose the graph to non-Context classes (tracker services, etc.)
+        globalAppGraph = graph
+        // KMK <--
 
         // MetroInteropModule bridges Metro singletons to Injekt for extension backwards compat;
         // must be imported AFTER graph.inject() so Metro graph is built
@@ -239,7 +245,7 @@ class App : Application(), DefaultLifecycleObserver, SingletonImageLoader.Factor
             .onEach { ImageUtil.hardwareBitmapThreshold = it }
             .launchIn(scope)
 
-        setAppCompatDelegateThemeMode(Injekt.get<UiPreferences>().themeMode().get())
+        setAppCompatDelegateThemeMode(globalAppGraph.uiPreferences.themeMode().get())
 
         // KMK -->
         MangaCoverMetadata.load()
@@ -247,13 +253,13 @@ class App : Application(), DefaultLifecycleObserver, SingletonImageLoader.Factor
 
         // Updates widget update
         with(this@App) {
-            WidgetManager(Injekt.get(), Injekt.get()).init(scope)
+            WidgetManager(globalAppGraph.getUpdates, globalAppGraph.securityPreferences).init(scope)
         }
 
         if (!WorkManager.isInitialized()) {
             WorkManager.initialize(this, Configuration.Builder().build())
         }
-        val syncPreferences: SyncPreferences = Injekt.get()
+        val syncPreferences: SyncPreferences = globalAppGraph.syncPreferences
         val syncTriggerOpt = syncPreferences.getSyncTriggerOptions()
         if (syncPreferences.isSyncEnabled() && syncTriggerOpt.syncOnAppStart) {
             SyncDataJob.startNow(this@App)
@@ -269,7 +275,7 @@ class App : Application(), DefaultLifecycleObserver, SingletonImageLoader.Factor
     }
 
     private fun initializeMigrator() {
-        val preferenceStore = Injekt.get<PreferenceStore>()
+        val preferenceStore = globalAppGraph.preferenceStore
         // SY -->
         val preference = preferenceStore.getInt(Preference.appStateKey("eh_last_version_code"), 0)
         // SY <--
@@ -287,7 +293,7 @@ class App : Application(), DefaultLifecycleObserver, SingletonImageLoader.Factor
 
     override fun newImageLoader(context: Context): ImageLoader {
         return ImageLoader.Builder(this).apply {
-            val callFactoryLazy = lazy { Injekt.get<NetworkHelper>().client }
+            val callFactoryLazy = lazy { globalAppGraph.networkHelper.client }
             components {
                 // NetworkFetcher.Factory
                 add(OkHttpNetworkFetcherFactory(callFactoryLazy::value))
@@ -338,7 +344,7 @@ class App : Application(), DefaultLifecycleObserver, SingletonImageLoader.Factor
     override fun onStart(owner: LifecycleOwner) {
         SecureActivityDelegate.onApplicationStart()
 
-        val syncPreferences: SyncPreferences = Injekt.get()
+        val syncPreferences: SyncPreferences = globalAppGraph.syncPreferences
         val syncTriggerOpt = syncPreferences.getSyncTriggerOptions()
         if (syncPreferences.isSyncEnabled() && syncTriggerOpt.syncOnAppResume) {
             SyncDataJob.startNow(this@App)
@@ -410,7 +416,7 @@ class App : Application(), DefaultLifecycleObserver, SingletonImageLoader.Factor
 
         val printers = mutableListOf<Printer>(AndroidPrinter())
 
-        val logFolder = Injekt.get<StorageManager>().getLogsDirectory()
+        val logFolder = globalAppGraph.storageManager.getLogsDirectory()
 
         if (logFolder != null) {
             val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS", Locale.getDefault())

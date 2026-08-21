@@ -115,6 +115,7 @@ import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import logcat.LogPriority
+import mihon.app.di.globalAppGraph
 import mihon.core.migration.Migrator
 import mihon.core.migration.Migrator.scope
 import tachiyomi.core.common.Constants
@@ -130,32 +131,29 @@ import tachiyomi.i18n.MR
 import tachiyomi.i18n.kmk.KMR
 import tachiyomi.presentation.core.components.material.Scaffold
 import tachiyomi.presentation.core.util.collectAsState
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
-import uy.kohesive.injekt.injectLazy
 import java.util.LinkedList
 
 class MainActivity : BaseActivity() {
 
-    private val libraryPreferences: LibraryPreferences by injectLazy()
-    private val preferences: BasePreferences by injectLazy()
+    private val libraryPreferences: LibraryPreferences by lazy { globalAppGraph.libraryPreferences }
+    private val preferences: BasePreferences by lazy { globalAppGraph.basePreferences }
 
     // SY -->
-    private val exhPreferences: ExhPreferences by injectLazy()
+    private val exhPreferences: ExhPreferences by lazy { globalAppGraph.exhPreferences }
     // SY <--
 
     // KMK -->
-    private val backupPreferences: BackupPreferences by injectLazy()
-    private val syncPreferences: SyncPreferences by injectLazy()
-    private val backupRestoreStatus: BackupRestoreStatus by injectLazy()
-    private val syncStatus: SyncStatus by injectLazy()
-    private val libraryUpdateStatus: LibraryUpdateStatus by injectLazy()
+    private val backupPreferences: BackupPreferences by lazy { globalAppGraph.backupPreferences }
+    private val syncPreferences: SyncPreferences by lazy { globalAppGraph.syncPreferences }
+    private val backupRestoreStatus: BackupRestoreStatus by lazy { globalAppGraph.backupRestoreStatus }
+    private val syncStatus: SyncStatus by lazy { globalAppGraph.syncStatus }
+    private val libraryUpdateStatus: LibraryUpdateStatus by lazy { globalAppGraph.libraryUpdateStatus }
     // KMK <--
 
-    private val downloadCache: DownloadCache by injectLazy()
-    private val chapterCache: ChapterCache by injectLazy()
+    private val downloadCache: DownloadCache by lazy { globalAppGraph.downloadCache }
+    private val chapterCache: ChapterCache by lazy { globalAppGraph.chapterCache }
 
-    private val getIncognitoState: GetIncognitoState by injectLazy()
+    private val getIncognitoState: GetIncognitoState by lazy { globalAppGraph.getIncognitoState }
 
     // To be checked by splash screen. If true then splash screen will be removed.
     var ready = false
@@ -163,7 +161,7 @@ class MainActivity : BaseActivity() {
     private var navigator: Navigator? = null
 
     // AM (CONNECTIONS) -->
-    private val connectionsPreferences: ConnectionsPreferences by injectLazy()
+    private val connectionsPreferences: ConnectionsPreferences by lazy { globalAppGraph.connectionsPreferences }
     // <-- AM (CONNECTIONS)
 
     init {
@@ -402,7 +400,7 @@ class MainActivity : BaseActivity() {
             // SY <--
 
             // KMK -->
-            val previewLastVersion = Injekt.get<PreferenceStore>().getInt(
+            val previewLastVersion = globalAppGraph.preferenceStore.getInt(
                 Preference.appStateKey("preview_last_version_code"),
                 0,
             )

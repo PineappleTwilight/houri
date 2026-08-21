@@ -39,11 +39,10 @@ import eu.kanade.tachiyomi.source.ConfigurableSource
 import eu.kanade.tachiyomi.source.sourcePreferences
 import eu.kanade.tachiyomi.widget.TachiyomiTextInputEditText.Companion.setIncognito
 import exh.source.EnhancedHttpSource
+import mihon.app.di.globalAppGraph
 import tachiyomi.domain.source.service.SourceManager
 import tachiyomi.presentation.core.components.material.Scaffold
 import tachiyomi.presentation.core.screens.LoadingScreen
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 
 class SourcePreferencesScreen(val sourceId: Long) : Screen() {
 
@@ -60,7 +59,7 @@ class SourcePreferencesScreen(val sourceId: Long) : Screen() {
         Scaffold(
             topBar = {
                 AppBar(
-                    title = Injekt.get<SourceManager>().getOrStub(sourceId).toString(),
+                    title = globalAppGraph.sourceManager.getOrStub(sourceId).toString(),
                     navigateUp = navigator::pop,
                     scrollBehavior = it,
                 )
@@ -134,7 +133,7 @@ class SourcePreferencesFragment : PreferenceFragmentCompat() {
     private fun populateScreen(): PreferenceScreen {
         val sourceId = requireArguments().getLong(SOURCE_ID)
         // SY -->
-        val source = Injekt.get<SourceManager>()
+        val source = globalAppGraph.sourceManager
             .getOrStub(sourceId)
             .let { source ->
                 if (source is EnhancedHttpSource) {

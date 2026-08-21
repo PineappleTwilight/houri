@@ -100,6 +100,7 @@ import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.launch
 import logcat.LogPriority
+import mihon.app.di.globalAppGraph
 import mihon.feature.migration.config.MigrationConfigScreen
 import mihon.feature.migration.dialog.MigrateMangaDialog
 import tachiyomi.core.common.i18n.stringResource
@@ -117,8 +118,6 @@ import tachiyomi.i18n.MR
 import tachiyomi.i18n.kmk.KMR
 import tachiyomi.i18n.sy.SYMR
 import tachiyomi.presentation.core.screens.LoadingScreen
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 
 class MangaScreen(
     private val mangaId: Long,
@@ -262,7 +261,7 @@ class MangaScreen(
         val hazeState = remember { HazeState() }
         val fullCoverBackground = MaterialTheme.colorScheme.surfaceTint.blend(MaterialTheme.colorScheme.surface)
 
-        val isHentaiEnabled: Boolean = Injekt.get<ExhPreferences>().isHentaiEnabled().get()
+        val isHentaiEnabled: Boolean = globalAppGraph.exhPreferences.isHentaiEnabled().get()
         val isConfigurableSource = successState.source.anyIs<ConfigurableSource>() ||
             (successState.source.isEhBasedSource() && isHentaiEnabled)
         // KMK <--
@@ -819,7 +818,7 @@ class MangaScreen(
         titleRes: StringResource,
         // KMK <--
     ) {
-        val sourceManager: SourceManager = Injekt.get()
+        val sourceManager: SourceManager = globalAppGraph.sourceManager
         // KMK -->
         val mergedMangaAndSources = mergedMangaData.manga.values
             .filterNot { it.source == MERGED_SOURCE_ID }

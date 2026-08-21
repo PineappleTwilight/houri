@@ -3,12 +3,11 @@ package eu.kanade.tachiyomi.data.backup.restore.restorers
 import eu.kanade.tachiyomi.data.backup.models.BackupSavedSearch
 import exh.EXHMigrations
 import exh.util.nullIfBlank
+import mihon.app.di.globalAppGraph
 import tachiyomi.data.DatabaseHandler
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 
 class SavedSearchRestorer(
-    private val handler: DatabaseHandler = Injekt.get(),
+    private val handler: DatabaseHandler = globalAppGraph.databaseHandler,
 ) {
     suspend fun restoreSavedSearches(backupSavedSearches: List<BackupSavedSearch>) {
         if (backupSavedSearches.isEmpty()) return

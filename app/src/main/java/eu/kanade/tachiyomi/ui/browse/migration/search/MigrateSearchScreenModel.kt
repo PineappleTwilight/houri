@@ -7,16 +7,15 @@ import eu.kanade.tachiyomi.ui.browse.source.globalsearch.SearchItemResult
 import eu.kanade.tachiyomi.ui.browse.source.globalsearch.SearchScreenModel
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import mihon.app.di.globalAppGraph
 import tachiyomi.domain.manga.interactor.GetManga
 import tachiyomi.domain.source.service.SourceManager
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 
 class MigrateSearchScreenModel(
     val mangaId: Long,
-    getManga: GetManga = Injekt.get(),
-    private val sourceManager: SourceManager = Injekt.get(),
-    private val sourcePreferences: SourcePreferences = Injekt.get(),
+    getManga: GetManga = globalAppGraph.getManga,
+    private val sourceManager: SourceManager = globalAppGraph.sourceManager,
+    private val sourcePreferences: SourcePreferences = globalAppGraph.sourcePreferences,
 ) : SearchScreenModel() {
 
     private val migrationSources by lazy { sourcePreferences.migrationSources().get() }

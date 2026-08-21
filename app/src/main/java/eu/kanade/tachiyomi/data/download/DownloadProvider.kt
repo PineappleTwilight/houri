@@ -9,6 +9,7 @@ import eu.kanade.tachiyomi.source.Source
 import eu.kanade.tachiyomi.util.lang.Hash.md5
 import eu.kanade.tachiyomi.util.storage.DiskUtil
 import logcat.LogPriority
+import mihon.app.di.globalAppGraph
 import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.core.common.storage.displayablePath
 import tachiyomi.core.common.util.system.logcat
@@ -19,8 +20,6 @@ import tachiyomi.domain.manga.model.Manga
 import tachiyomi.domain.storage.service.StorageManager
 import tachiyomi.i18n.MR
 import tachiyomi.source.local.isLocal
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 import java.io.IOException
 
 /**
@@ -33,10 +32,10 @@ import java.io.IOException
 @SingleIn(AppScope::class)
 class DownloadProvider(
     private val context: Context,
-    private val storageManager: StorageManager = Injekt.get(),
-    private val libraryPreferences: LibraryPreferences = Injekt.get(),
+    private val storageManager: StorageManager = globalAppGraph.storageManager,
+    private val libraryPreferences: LibraryPreferences = globalAppGraph.libraryPreferences,
     // SY -->
-    private val downloadPreferences: DownloadPreferences = Injekt.get(),
+    private val downloadPreferences: DownloadPreferences = globalAppGraph.downloadPreferences,
     // SY <--
 ) {
 

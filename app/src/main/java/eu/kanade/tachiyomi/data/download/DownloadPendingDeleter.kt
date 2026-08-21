@@ -8,10 +8,9 @@ import dev.zacsweers.metro.SingleIn
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import mihon.app.di.globalAppGraph
 import tachiyomi.domain.chapter.model.Chapter
 import tachiyomi.domain.manga.model.Manga
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 
 /**
  * Class used to keep a list of chapters for future deletion.
@@ -22,7 +21,7 @@ import uy.kohesive.injekt.api.get
 @SingleIn(AppScope::class)
 class DownloadPendingDeleter(
     context: Context,
-    private val json: Json = Injekt.get(),
+    private val json: Json = globalAppGraph.json,
 ) {
 
     /**

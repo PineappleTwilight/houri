@@ -47,6 +47,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.supervisorScope
 import logcat.LogPriority
+import mihon.app.di.globalAppGraph
 import mihon.core.archive.CbzCrypto
 import mihon.core.archive.ZipWriter
 import nl.adaptivity.xmlutil.serialization.XML
@@ -67,8 +68,6 @@ import tachiyomi.domain.manga.model.Manga
 import tachiyomi.domain.source.service.SourceManager
 import tachiyomi.domain.track.interactor.GetTracks
 import tachiyomi.i18n.MR
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 import java.io.File
 import java.util.Locale
 
@@ -84,14 +83,14 @@ class Downloader(
     private val context: Context,
     private val provider: DownloadProvider,
     private val cache: DownloadCache,
-    private val sourceManager: SourceManager = Injekt.get(),
-    private val chapterCache: ChapterCache = Injekt.get(),
-    private val downloadPreferences: DownloadPreferences = Injekt.get(),
-    private val xml: XML = Injekt.get(),
-    private val getCategories: GetCategories = Injekt.get(),
-    private val getTracks: GetTracks = Injekt.get(),
+    private val sourceManager: SourceManager = globalAppGraph.sourceManager,
+    private val chapterCache: ChapterCache = globalAppGraph.chapterCache,
+    private val downloadPreferences: DownloadPreferences = globalAppGraph.downloadPreferences,
+    private val xml: XML = globalAppGraph.xml,
+    private val getCategories: GetCategories = globalAppGraph.getCategories,
+    private val getTracks: GetTracks = globalAppGraph.getTracks,
     // SY -->
-    private val sourcePreferences: SourcePreferences = Injekt.get(),
+    private val sourcePreferences: SourcePreferences = globalAppGraph.sourcePreferences,
     // SY <--
 ) {
 

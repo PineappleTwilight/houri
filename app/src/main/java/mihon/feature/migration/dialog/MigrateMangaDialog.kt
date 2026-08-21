@@ -26,6 +26,7 @@ import eu.kanade.domain.source.service.SourcePreferences
 import eu.kanade.tachiyomi.data.cache.CoverCache
 import eu.kanade.tachiyomi.data.download.DownloadManager
 import kotlinx.coroutines.flow.update
+import mihon.app.di.globalAppGraph
 import mihon.domain.migration.models.MigrationFlag
 import mihon.domain.migration.usecases.MigrateMangaUseCase
 import mihon.feature.common.utils.getLabel
@@ -37,8 +38,6 @@ import tachiyomi.presentation.core.components.LabeledCheckbox
 import tachiyomi.presentation.core.components.material.padding
 import tachiyomi.presentation.core.i18n.stringResource
 import tachiyomi.presentation.core.screens.LoadingScreen
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 
 @Composable
 internal fun Screen.MigrateMangaDialog(
@@ -127,10 +126,10 @@ internal fun Screen.MigrateMangaDialog(
 }
 
 private class MigrateDialogScreenModel(
-    val sourcePreference: SourcePreferences = Injekt.get(),
-    private val coverCache: CoverCache = Injekt.get(),
-    private val downloadManager: DownloadManager = Injekt.get(),
-    private val migrateManga: MigrateMangaUseCase = Injekt.get(),
+    val sourcePreference: SourcePreferences = globalAppGraph.sourcePreferences,
+    private val coverCache: CoverCache = globalAppGraph.coverCache,
+    private val downloadManager: DownloadManager = globalAppGraph.downloadManager,
+    private val migrateManga: MigrateMangaUseCase = globalAppGraph.migrateMangaUseCase,
 ) : StateScreenModel<MigrateDialogScreenModel.State>(State()) {
 
     fun init(current: Manga, target: Manga) {

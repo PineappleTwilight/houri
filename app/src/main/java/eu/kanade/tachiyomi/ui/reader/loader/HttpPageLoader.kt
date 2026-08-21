@@ -21,10 +21,9 @@ import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.runInterruptible
 import kotlinx.coroutines.suspendCancellableCoroutine
+import mihon.app.di.globalAppGraph
 import tachiyomi.core.common.util.lang.launchIO
 import tachiyomi.core.common.util.lang.withIOContext
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 import java.util.concurrent.PriorityBlockingQueue
 import kotlin.concurrent.atomics.AtomicInt
 import kotlin.concurrent.atomics.ExperimentalAtomicApi
@@ -38,10 +37,10 @@ import kotlin.math.min
 internal class HttpPageLoader(
     private val chapter: ReaderChapter,
     private val source: HttpSource,
-    private val chapterCache: ChapterCache = Injekt.get(),
+    private val chapterCache: ChapterCache = globalAppGraph.chapterCache,
     // SY -->
-    private val readerPreferences: ReaderPreferences = Injekt.get(),
-    private val sourcePreferences: SourcePreferences = Injekt.get(),
+    private val readerPreferences: ReaderPreferences = globalAppGraph.readerPreferences,
+    private val sourcePreferences: SourcePreferences = globalAppGraph.sourcePreferences,
     // SY <--
 ) : PageLoader() {
 

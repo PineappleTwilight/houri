@@ -13,9 +13,8 @@ import eu.kanade.tachiyomi.ui.reader.viewer.pager.VerticalPagerViewer
 import eu.kanade.tachiyomi.ui.reader.viewer.webgpu.WebGpuViewer
 import eu.kanade.tachiyomi.ui.reader.viewer.webgpu.WebGpuViewerContinuous
 import eu.kanade.tachiyomi.ui.reader.viewer.webtoon.WebtoonViewer
+import mihon.app.di.globalAppGraph
 import tachiyomi.i18n.MR
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 
 enum class ReadingMode(
     val stringRes: StringResource,
@@ -80,7 +79,7 @@ enum class ReadingMode(
             // KMK <--
         ): Viewer {
             // Mihon -->
-            val basePreferences = Injekt.get<BasePreferences>()
+            val basePreferences = globalAppGraph.basePreferences
             if (basePreferences.highQualityRenderer().get()) {
                 return when (fromPreference(preference)) {
                     LEFT_TO_RIGHT -> WebGpuViewer(activity, isReversed = false, isVertical = false)

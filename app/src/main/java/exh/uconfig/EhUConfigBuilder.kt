@@ -1,12 +1,12 @@
 package exh.uconfig
 
 import exh.source.ExhPreferences
+import mihon.app.di.globalAppGraph
 import okhttp3.FormBody
-import uy.kohesive.injekt.injectLazy
 import java.util.Locale
 
 class EhUConfigBuilder {
-    private val exhPreferences: ExhPreferences by injectLazy()
+    private val exhPreferences: ExhPreferences by lazy { globalAppGraph.exhPreferences }
 
     fun build(hathPerks: EHHathPerksResponse): FormBody {
         val configItems = mutableListOf<ConfigItem>()

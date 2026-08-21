@@ -13,9 +13,9 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import mihon.app.di.globalAppGraph
 import mihon.core.archive.ArchiveReader
 import tachiyomi.core.common.util.system.ImageUtil
-import uy.kohesive.injekt.injectLazy
 import java.io.File
 
 /**
@@ -24,8 +24,8 @@ import java.io.File
 internal class ArchivePageLoader(private val reader: ArchiveReader) : PageLoader() {
     // SY -->
     private val mutex = Mutex()
-    private val context: Application by injectLazy()
-    private val readerPreferences: ReaderPreferences by injectLazy()
+    private val context: Application by lazy { globalAppGraph.context as Application }
+    private val readerPreferences: ReaderPreferences by lazy { globalAppGraph.readerPreferences }
     private val tmpDir = File(context.externalCacheDir, "reader_${reader.archiveHashCode}").also {
         it.deleteRecursively()
     }

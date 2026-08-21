@@ -18,10 +18,9 @@ import eu.kanade.presentation.reader.ChapterTransition
 import eu.kanade.presentation.theme.TachiyomiTheme
 import eu.kanade.tachiyomi.data.download.DownloadManager
 import eu.kanade.tachiyomi.ui.reader.model.ChapterTransition
+import mihon.app.di.globalAppGraph
 import tachiyomi.domain.manga.model.Manga
 import tachiyomi.source.local.isLocal
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 
 class ReaderTransitionView @JvmOverloads constructor(
     context: Context,
@@ -64,7 +63,7 @@ class ReaderTransitionView @JvmOverloads constructor(
     override fun Content() {
         data?.let {
             // KMK -->
-            val uiPreferences = Injekt.get<UiPreferences>()
+            val uiPreferences = globalAppGraph.uiPreferences
             val themeCoverBased = uiPreferences.themeCoverBased().get()
             // KMK <--
             TachiyomiTheme(

@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
+import mihon.app.di.globalAppGraph
 import tachiyomi.domain.history.interactor.GetTotalReadDuration
 import tachiyomi.domain.library.model.LibraryManga
 import tachiyomi.domain.library.service.LibraryPreferences
@@ -26,18 +27,16 @@ import tachiyomi.domain.manga.interactor.GetReadMangaNotInLibraryView
 import tachiyomi.domain.track.interactor.GetTracks
 import tachiyomi.domain.track.model.Track
 import tachiyomi.source.local.isLocal
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 
 class StatsScreenModel(
-    private val downloadManager: DownloadManager = Injekt.get(),
-    private val getLibraryManga: GetLibraryManga = Injekt.get(),
-    private val getTotalReadDuration: GetTotalReadDuration = Injekt.get(),
-    private val getTracks: GetTracks = Injekt.get(),
-    private val preferences: LibraryPreferences = Injekt.get(),
-    private val trackerManager: TrackerManager = Injekt.get(),
+    private val downloadManager: DownloadManager = globalAppGraph.downloadManager,
+    private val getLibraryManga: GetLibraryManga = globalAppGraph.getLibraryManga,
+    private val getTotalReadDuration: GetTotalReadDuration = globalAppGraph.getTotalReadDuration,
+    private val getTracks: GetTracks = globalAppGraph.getTracks,
+    private val preferences: LibraryPreferences = globalAppGraph.libraryPreferences,
+    private val trackerManager: TrackerManager = globalAppGraph.trackerManager,
     // SY -->
-    private val getReadMangaNotInLibraryView: GetReadMangaNotInLibraryView = Injekt.get(),
+    private val getReadMangaNotInLibraryView: GetReadMangaNotInLibraryView = globalAppGraph.getReadMangaNotInLibraryView,
     // SY <--
 ) : StateScreenModel<StatsScreenState>(StatsScreenState.Loading) {
 

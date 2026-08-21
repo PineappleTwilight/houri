@@ -21,11 +21,10 @@ import eu.kanade.tachiyomi.util.system.workManager
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.runBlocking
 import logcat.LogPriority
+import mihon.app.di.globalAppGraph
 import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.core.common.util.system.logcat
 import tachiyomi.i18n.MR
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 
 class BackupRestoreJob(private val context: Context, workerParams: WorkerParameters) :
     CoroutineWorker(context, workerParams) {
@@ -33,7 +32,7 @@ class BackupRestoreJob(private val context: Context, workerParams: WorkerParamet
     private val notifier = BackupNotifier(context)
 
     // KMK -->
-    private val backupRestoreStatus: BackupRestoreStatus = Injekt.get()
+    private val backupRestoreStatus: BackupRestoreStatus = globalAppGraph.backupRestoreStatus
     // KMK <--
 
     override suspend fun doWork(): Result {
@@ -110,7 +109,7 @@ class BackupRestoreJob(private val context: Context, workerParams: WorkerParamet
         fun stop(context: Context) {
             context.workManager.cancelUniqueWork(TAG)
             // KMK -->
-            val backupRestoreStatus: BackupRestoreStatus = Injekt.get()
+            val backupRestoreStatus: BackupRestoreStatus = globalAppGraph.backupRestoreStatus
             runBlocking { backupRestoreStatus.stop() }
             // KMK <--
         }

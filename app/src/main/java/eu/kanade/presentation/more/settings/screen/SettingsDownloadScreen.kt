@@ -15,6 +15,7 @@ import eu.kanade.presentation.more.settings.widget.TriStateListDialog
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.persistentMapOf
 import kotlinx.collections.immutable.toImmutableMap
+import mihon.app.di.globalAppGraph
 import tachiyomi.domain.category.interactor.GetCategories
 import tachiyomi.domain.category.model.Category
 import tachiyomi.domain.download.service.DownloadPreferences
@@ -23,8 +24,6 @@ import tachiyomi.i18n.kmk.KMR
 import tachiyomi.presentation.core.i18n.pluralStringResource
 import tachiyomi.presentation.core.i18n.stringResource
 import tachiyomi.presentation.core.util.collectAsState
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 
 object SettingsDownloadScreen : SearchableSettings {
     private fun readResolve(): Any = SettingsDownloadScreen
@@ -35,10 +34,10 @@ object SettingsDownloadScreen : SearchableSettings {
 
     @Composable
     override fun getPreferences(): List<Preference> {
-        val getCategories = remember { Injekt.get<GetCategories>() }
+        val getCategories = remember { globalAppGraph.getCategories }
         val allCategories by getCategories.subscribe().collectAsState(initial = emptyList())
 
-        val downloadPreferences = remember { Injekt.get<DownloadPreferences>() }
+        val downloadPreferences = remember { globalAppGraph.downloadPreferences }
         val parallelSourceLimit by downloadPreferences.parallelSourceLimit().collectAsState()
         val parallelPageLimit by downloadPreferences.parallelPageLimit().collectAsState()
         return listOf(

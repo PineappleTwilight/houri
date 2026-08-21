@@ -12,11 +12,10 @@ import eu.kanade.domain.track.interactor.TrackChapter
 import eu.kanade.domain.track.store.DelayedTrackingStore
 import eu.kanade.tachiyomi.util.system.workManager
 import logcat.LogPriority
+import mihon.app.di.globalAppGraph
 import tachiyomi.core.common.util.lang.withIOContext
 import tachiyomi.core.common.util.system.logcat
 import tachiyomi.domain.track.interactor.GetTracks
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 import java.util.concurrent.TimeUnit
 
 class DelayedTrackingUpdateJob(private val context: Context, workerParams: WorkerParameters) :
@@ -27,10 +26,10 @@ class DelayedTrackingUpdateJob(private val context: Context, workerParams: Worke
             return Result.failure()
         }
 
-        val getTracks = Injekt.get<GetTracks>()
-        val trackChapter = Injekt.get<TrackChapter>()
+        val getTracks = globalAppGraph.getTracks
+        val trackChapter = globalAppGraph.trackChapter
 
-        val delayedTrackingStore = Injekt.get<DelayedTrackingStore>()
+        val delayedTrackingStore = globalAppGraph.delayedTrackingStore
 
         withIOContext {
             delayedTrackingStore.getItems()

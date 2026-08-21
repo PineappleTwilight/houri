@@ -1,5 +1,6 @@
 package mihon.app.di
 
+import android.app.Application
 import android.content.Context
 import androidx.sqlite.db.SupportSQLiteDatabase
 import androidx.sqlite.db.framework.FrameworkSQLiteOpenHelperFactory
@@ -34,6 +35,7 @@ import tachiyomi.data.Mangas
 import tachiyomi.data.MemoColumnAdapter
 import tachiyomi.data.StringListColumnAdapter
 import tachiyomi.data.UpdateStrategyColumnAdapter
+import xyz.nulldev.ts.api.http.serializer.FilterSerializer
 
 // SY -->
 private const val LEGACY_DATABASE_NAME = "tachiyomi.db"
@@ -159,4 +161,18 @@ object AppBindings {
     ): GoogleDriveSyncService {
         return GoogleDriveSyncService(context, json, syncPreferences)
     }
+
+    // KMK -->
+    @Provides
+    @SingleIn(AppScope::class)
+    fun providesApplication(context: Context): Application {
+        return context as Application
+    }
+
+    @Provides
+    @SingleIn(AppScope::class)
+    fun providesFilterSerializer(): FilterSerializer {
+        return FilterSerializer()
+    }
+    // KMK <--
 }

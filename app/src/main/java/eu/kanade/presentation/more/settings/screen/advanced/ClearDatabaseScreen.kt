@@ -43,6 +43,7 @@ import eu.kanade.tachiyomi.util.system.toast
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.update
+import mihon.app.di.globalAppGraph
 import tachiyomi.core.common.util.lang.launchIO
 import tachiyomi.core.common.util.lang.launchUI
 import tachiyomi.core.common.util.lang.withNonCancellableContext
@@ -59,8 +60,6 @@ import tachiyomi.presentation.core.i18n.stringResource
 import tachiyomi.presentation.core.screens.EmptyScreen
 import tachiyomi.presentation.core.screens.LoadingScreen
 import tachiyomi.presentation.core.util.selectedBackground
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 
 class ClearDatabaseScreen : Screen() {
 
@@ -222,9 +221,9 @@ class ClearDatabaseScreen : Screen() {
 }
 
 private class ClearDatabaseScreenModel : StateScreenModel<ClearDatabaseScreenModel.State>(State.Loading) {
-    private val getSourcesWithNonLibraryManga: GetSourcesWithNonLibraryManga = Injekt.get()
-    private val deleteNonLibraryManga: DeleteNonLibraryManga = Injekt.get()
-    private val removeResettedHistory: RemoveResettedHistory = Injekt.get()
+    private val getSourcesWithNonLibraryManga: GetSourcesWithNonLibraryManga = globalAppGraph.getSourcesWithNonLibraryManga
+    private val deleteNonLibraryManga: DeleteNonLibraryManga = globalAppGraph.deleteNonLibraryManga
+    private val removeResettedHistory: RemoveResettedHistory = globalAppGraph.removeResettedHistory
 
     init {
         screenModelScope.launchIO {

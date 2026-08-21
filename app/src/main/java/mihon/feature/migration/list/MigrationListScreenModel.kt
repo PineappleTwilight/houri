@@ -26,6 +26,7 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import logcat.LogPriority
+import mihon.app.di.globalAppGraph
 import mihon.domain.migration.usecases.MigrateMangaUseCase
 import mihon.domain.source.interactor.UpdateMangaFromRemote
 import mihon.feature.migration.list.models.MigratingManga
@@ -39,8 +40,6 @@ import tachiyomi.domain.manga.interactor.GetManga
 import tachiyomi.domain.manga.interactor.NetworkToLocalManga
 import tachiyomi.domain.manga.model.Manga
 import tachiyomi.domain.source.service.SourceManager
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 
 class MigrationListScreenModel(
     mangaIds: Collection<Long>,
@@ -48,13 +47,13 @@ class MigrationListScreenModel(
     // KMK -->
     runManually: Boolean = false,
     // KMK <--
-    val preferences: SourcePreferences = Injekt.get(),
-    private val sourceManager: SourceManager = Injekt.get(),
-    private val getManga: GetManga = Injekt.get(),
-    private val networkToLocalManga: NetworkToLocalManga = Injekt.get(),
-    private val getChaptersByMangaId: GetChaptersByMangaId = Injekt.get(),
-    private val migrateManga: MigrateMangaUseCase = Injekt.get(),
-    private val updateMangaFromRemote: UpdateMangaFromRemote = Injekt.get(),
+    val preferences: SourcePreferences = globalAppGraph.sourcePreferences,
+    private val sourceManager: SourceManager = globalAppGraph.sourceManager,
+    private val getManga: GetManga = globalAppGraph.getManga,
+    private val networkToLocalManga: NetworkToLocalManga = globalAppGraph.networkToLocalManga,
+    private val getChaptersByMangaId: GetChaptersByMangaId = globalAppGraph.getChaptersByMangaId,
+    private val migrateManga: MigrateMangaUseCase = globalAppGraph.migrateMangaUseCase,
+    private val updateMangaFromRemote: UpdateMangaFromRemote = globalAppGraph.updateMangaFromRemote,
 ) : StateScreenModel<MigrationListScreenModel.State>(State()) {
 
     private val smartSearchEngine = SmartSourceSearchEngine(extraSearchQuery)

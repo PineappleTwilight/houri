@@ -27,20 +27,19 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import logcat.LogPriority
+import mihon.app.di.globalAppGraph
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import tachiyomi.core.common.util.system.logcat
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 
 class ExtensionDetailsScreenModel(
     pkgName: String,
     context: Context,
-    private val network: NetworkHelper = Injekt.get(),
-    private val extensionManager: ExtensionManager = Injekt.get(),
-    private val getExtensionSources: GetExtensionSources = Injekt.get(),
-    private val toggleSource: ToggleSource = Injekt.get(),
-    private val toggleIncognito: ToggleIncognito = Injekt.get(),
-    private val preferences: SourcePreferences = Injekt.get(),
+    private val network: NetworkHelper = globalAppGraph.networkHelper,
+    private val extensionManager: ExtensionManager = globalAppGraph.extensionManager,
+    private val getExtensionSources: GetExtensionSources = globalAppGraph.getExtensionSources,
+    private val toggleSource: ToggleSource = globalAppGraph.toggleSource,
+    private val toggleIncognito: ToggleIncognito = globalAppGraph.toggleIncognito,
+    private val preferences: SourcePreferences = globalAppGraph.sourcePreferences,
 ) : StateScreenModel<ExtensionDetailsScreenModel.State>(State()) {
 
     private val _events: Channel<ExtensionDetailsEvent> = Channel()

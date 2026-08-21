@@ -12,11 +12,11 @@ import eu.kanade.presentation.components.SpinnerAdapter
 import eu.kanade.presentation.theme.colorscheme.AndroidViewColorScheme
 import eu.kanade.tachiyomi.databinding.EditMergedSettingsHeaderBinding
 import exh.log.xLogD
+import mihon.app.di.globalAppGraph
 import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.domain.manga.model.MergedMangaReference
 import tachiyomi.domain.source.service.SourceManager
 import tachiyomi.i18n.sy.SYMR
-import uy.kohesive.injekt.injectLazy
 
 class EditMergedSettingsHeaderAdapter(
     private val state: EditMergedSettingsState,
@@ -26,7 +26,7 @@ class EditMergedSettingsHeaderAdapter(
     // KMK <--
 ) : RecyclerView.Adapter<EditMergedSettingsHeaderAdapter.HeaderViewHolder>() {
 
-    private val sourceManager: SourceManager by injectLazy()
+    private val sourceManager: SourceManager by lazy { globalAppGraph.sourceManager }
 
     private lateinit var binding: EditMergedSettingsHeaderBinding
 

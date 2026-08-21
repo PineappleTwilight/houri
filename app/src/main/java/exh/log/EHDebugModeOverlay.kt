@@ -36,10 +36,9 @@ import eu.kanade.core.preference.asState
 import eu.kanade.domain.source.service.SourcePreferences
 import eu.kanade.tachiyomi.BuildConfig
 import eu.kanade.tachiyomi.util.system.isDebugBuildType
+import mihon.app.di.globalAppGraph
 import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.i18n.MR
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 import java.text.DecimalFormat
 import java.text.DecimalFormatSymbols
 import java.util.Locale
@@ -88,7 +87,7 @@ private fun FpsDebugModeOverlay() {
 private fun EHDebugModeOverlay() {
     val scope = rememberCoroutineScope()
     val enableSourceBlacklist by remember {
-        Injekt.get<SourcePreferences>().enableSourceBlacklist().asState(scope)
+        globalAppGraph.sourcePreferences.enableSourceBlacklist().asState(scope)
     }
     val context = LocalContext.current
     Text(

@@ -23,12 +23,12 @@ import kotlinx.serialization.json.add
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
+import mihon.app.di.globalAppGraph
 import okhttp3.Headers
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import tachiyomi.core.common.util.lang.withIOContext
-import uy.kohesive.injekt.injectLazy
 import tachiyomi.domain.track.model.Track as DomainTrack
 
 class HikkaApi(
@@ -200,7 +200,7 @@ class HikkaApi(
 
     suspend fun updateUserManga(track: Track): Track = addUserManga(track)
 
-    private val json: Json by injectLazy()
+    private val json: Json by lazy { globalAppGraph.json }
     private val authClient = client.newBuilder().addInterceptor(interceptor).build()
 
     companion object {

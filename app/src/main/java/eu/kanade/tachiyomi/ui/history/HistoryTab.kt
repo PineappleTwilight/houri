@@ -37,6 +37,7 @@ import eu.kanade.tachiyomi.ui.reader.ReaderActivity
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.receiveAsFlow
+import mihon.app.di.globalAppGraph
 import mihon.feature.migration.dialog.MigrateMangaDialog
 import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.core.common.util.lang.launchIO
@@ -44,8 +45,6 @@ import tachiyomi.domain.chapter.model.Chapter
 import tachiyomi.i18n.MR
 import tachiyomi.presentation.core.i18n.stringResource
 import tachiyomi.presentation.core.util.collectAsState
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 
 data object HistoryTab : Tab {
     @Suppress("unused")
@@ -76,7 +75,7 @@ data object HistoryTab : Tab {
     override fun isEnabled(): Boolean {
         val scope = rememberCoroutineScope()
         return remember {
-            Injekt.get<UiPreferences>().showNavHistory().asState(scope)
+            globalAppGraph.uiPreferences.showNavHistory().asState(scope)
         }.value
     }
     // SY <--

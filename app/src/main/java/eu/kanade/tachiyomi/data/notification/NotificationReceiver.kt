@@ -19,6 +19,7 @@ import eu.kanade.tachiyomi.util.system.toShareIntent
 import eu.kanade.tachiyomi.util.system.toast
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.runBlocking
+import mihon.app.di.globalAppGraph
 import tachiyomi.core.common.Constants
 import tachiyomi.core.common.util.lang.launchIO
 import tachiyomi.domain.chapter.interactor.GetChapter
@@ -30,9 +31,6 @@ import tachiyomi.domain.manga.interactor.GetManga
 import tachiyomi.domain.manga.model.Manga
 import tachiyomi.domain.source.service.SourceManager
 import tachiyomi.i18n.MR
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
-import uy.kohesive.injekt.injectLazy
 import eu.kanade.tachiyomi.BuildConfig.APPLICATION_ID as ID
 
 /**
@@ -43,10 +41,10 @@ import eu.kanade.tachiyomi.BuildConfig.APPLICATION_ID as ID
 @OptIn(DelicateCoroutinesApi::class)
 class NotificationReceiver : BroadcastReceiver() {
 
-    private val getManga: GetManga by injectLazy()
-    private val getChapter: GetChapter by injectLazy()
-    private val updateChapter: UpdateChapter by injectLazy()
-    private val downloadManager: DownloadManager by injectLazy()
+    private val getManga: GetManga by lazy { globalAppGraph.getManga }
+    private val getChapter: GetChapter by lazy { globalAppGraph.getChapter }
+    private val updateChapter: UpdateChapter by lazy { globalAppGraph.updateChapter }
+    private val downloadManager: DownloadManager by lazy { globalAppGraph.downloadManager }
 
     override fun onReceive(context: Context, intent: Intent) {
         when (intent.action) {
@@ -197,8 +195,8 @@ class NotificationReceiver : BroadcastReceiver() {
      * @param mangaId id of manga
      */
     private fun markAsRead(chapterUrls: Array<String>, mangaId: Long) {
-        val downloadPreferences: DownloadPreferences = Injekt.get()
-        val sourceManager: SourceManager = Injekt.get()
+        val downloadPreferences: DownloadPreferences = globalAppGraph.downloadPreferences
+        val sourceManager: SourceManager = globalAppGraph.sourceManager
 
         launchIO {
             val toUpdate = chapterUrls.mapNotNull { getChapter.await(it, mangaId) }

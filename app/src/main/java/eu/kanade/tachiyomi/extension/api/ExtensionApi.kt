@@ -11,27 +11,25 @@ import eu.kanade.tachiyomi.extension.model.LoadResult
 import eu.kanade.tachiyomi.extension.util.ExtensionLoader
 import exh.source.BlacklistedSources
 import exh.source.ExhPreferences
+import mihon.app.di.globalAppGraph
 import mihon.domain.extension.interactor.UpdateExtensionStores
 import mihon.domain.extension.repository.ExtensionStoreRepository
 import tachiyomi.core.common.preference.Preference
 import tachiyomi.core.common.preference.PreferenceStore
 import tachiyomi.core.common.util.lang.withIOContext
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
-import uy.kohesive.injekt.injectLazy
 import java.time.Instant
 import kotlin.time.Duration.Companion.days
 
 internal class ExtensionApi {
 
-    private val repository: ExtensionStoreRepository by injectLazy()
+    private val repository: ExtensionStoreRepository by lazy { globalAppGraph.extensionStoreRepository }
 
-    private val preferenceStore: PreferenceStore by injectLazy()
-    private val updateExtensionStores: UpdateExtensionStores by injectLazy()
-    private val extensionManager: ExtensionManager by injectLazy()
+    private val preferenceStore: PreferenceStore by lazy { globalAppGraph.preferenceStore }
+    private val updateExtensionStores: UpdateExtensionStores by lazy { globalAppGraph.updateExtensionStores }
+    private val extensionManager: ExtensionManager by lazy { globalAppGraph.extensionManager }
 
     // SY -->
-    private val sourcePreferences: SourcePreferences by injectLazy()
+    private val sourcePreferences: SourcePreferences by lazy { globalAppGraph.sourcePreferences }
     // SY <--
 
     private val lastExtCheck: Preference<Long> by lazy {
@@ -104,7 +102,7 @@ internal class ExtensionApi {
     private fun Extension.isBlacklisted(
         blacklistEnabled: Boolean = sourcePreferences.enableSourceBlacklist().get(),
         // KMK -->
-        isHentaiEnabled: Boolean = Injekt.get<ExhPreferences>().isHentaiEnabled().get(),
+        isHentaiEnabled: Boolean = globalAppGraph.exhPreferences.isHentaiEnabled().get(),
         // KMK <--
     ): Boolean {
         return pkgName in BlacklistedSources.BLACKLISTED_EXTENSIONS &&

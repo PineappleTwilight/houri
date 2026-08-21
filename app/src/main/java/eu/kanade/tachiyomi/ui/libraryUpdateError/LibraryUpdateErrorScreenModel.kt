@@ -8,6 +8,7 @@ import eu.kanade.presentation.libraryUpdateError.components.LibraryUpdateErrorUi
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.update
+import mihon.app.di.globalAppGraph
 import tachiyomi.core.common.util.lang.launchIO
 import tachiyomi.core.common.util.lang.withUIContext
 import tachiyomi.domain.libraryUpdateError.interactor.DeleteLibraryUpdateErrors
@@ -17,14 +18,12 @@ import tachiyomi.domain.libraryUpdateErrorMessage.interactor.GetLibraryUpdateErr
 import tachiyomi.domain.libraryUpdateErrorMessage.model.LibraryUpdateErrorMessage
 import tachiyomi.domain.manga.model.MangaCover
 import tachiyomi.domain.source.service.SourceManager
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 
 class LibraryUpdateErrorScreenModel(
-    private val getLibraryUpdateErrorWithRelations: GetLibraryUpdateErrorWithRelations = Injekt.get(),
-    private val getLibraryUpdateErrorMessages: GetLibraryUpdateErrorMessages = Injekt.get(),
-    private val deleteLibraryUpdateErrors: DeleteLibraryUpdateErrors = Injekt.get(),
-    private val sourceManager: SourceManager = Injekt.get(),
+    private val getLibraryUpdateErrorWithRelations: GetLibraryUpdateErrorWithRelations = globalAppGraph.getLibraryUpdateErrorWithRelations,
+    private val getLibraryUpdateErrorMessages: GetLibraryUpdateErrorMessages = globalAppGraph.getLibraryUpdateErrorMessages,
+    private val deleteLibraryUpdateErrors: DeleteLibraryUpdateErrors = globalAppGraph.deleteLibraryUpdateErrors,
+    private val sourceManager: SourceManager = globalAppGraph.sourceManager,
 ) : StateScreenModel<LibraryUpdateErrorScreenState>(LibraryUpdateErrorScreenState()) {
 
     // First and last selected index in list

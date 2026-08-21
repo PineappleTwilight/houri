@@ -19,14 +19,13 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.protobuf.ProtoBuf
 import logcat.LogPriority
 import logcat.logcat
+import mihon.app.di.globalAppGraph
 import tachiyomi.core.common.util.system.logcat
 import tachiyomi.data.Chapters
 import tachiyomi.data.DatabaseHandler
 import tachiyomi.data.manga.MangaMapper.mapManga
 import tachiyomi.domain.category.interactor.GetCategories
 import tachiyomi.domain.manga.model.Manga
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 import java.io.File
 import java.io.IOException
 import java.util.Date
@@ -40,13 +39,13 @@ import kotlin.system.measureTimeMillis
  */
 class SyncManager(
     private val context: Context,
-    private val handler: DatabaseHandler = Injekt.get(),
-    private val syncPreferences: SyncPreferences = Injekt.get(),
+    private val handler: DatabaseHandler = globalAppGraph.databaseHandler,
+    private val syncPreferences: SyncPreferences = globalAppGraph.syncPreferences,
     private var json: Json = Json {
         encodeDefaults = true
         ignoreUnknownKeys = true
     },
-    private val getCategories: GetCategories = Injekt.get(),
+    private val getCategories: GetCategories = globalAppGraph.getCategories,
 ) {
     private val backupCreator: BackupCreator = BackupCreator(context, false)
     private val notifier: SyncNotifier = SyncNotifier(context)

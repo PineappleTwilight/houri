@@ -15,6 +15,7 @@ import eu.kanade.tachiyomi.source.PagePreviewSource
 import eu.kanade.tachiyomi.source.online.HttpSource
 import exh.source.getMainSource
 import logcat.LogPriority
+import mihon.app.di.globalAppGraph
 import okhttp3.CacheControl
 import okhttp3.Call
 import okhttp3.Request
@@ -24,7 +25,6 @@ import okio.Path.Companion.toOkioPath
 import okio.Source
 import tachiyomi.core.common.util.system.logcat
 import tachiyomi.domain.source.service.SourceManager
-import uy.kohesive.injekt.injectLazy
 import java.io.File
 import java.io.IOException
 
@@ -239,8 +239,8 @@ class PagePreviewFetcher(
         private val callFactoryLazy: Lazy<Call.Factory>,
     ) : Fetcher.Factory<PagePreview> {
 
-        private val pagePreviewCache: PagePreviewCache by injectLazy()
-        private val sourceManager: SourceManager by injectLazy()
+        private val pagePreviewCache: PagePreviewCache by lazy { globalAppGraph.pagePreviewCache }
+        private val sourceManager: SourceManager by lazy { globalAppGraph.sourceManager }
 
         override fun create(data: PagePreview, options: Options, imageLoader: ImageLoader): Fetcher {
             return PagePreviewFetcher(

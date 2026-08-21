@@ -15,18 +15,18 @@ import exh.metadata.metadata.base.RaisedTag
 import exh.util.capitalize
 import exh.util.floor
 import exh.util.nullIfEmpty
+import mihon.app.di.globalAppGraph
 import tachiyomi.domain.manga.interactor.GetFlatMetadataById
 import tachiyomi.domain.manga.interactor.GetManga
 import tachiyomi.domain.manga.interactor.InsertFlatMetadata
-import uy.kohesive.injekt.injectLazy
 import java.util.Locale
 
 class ApiMangaParser(
     private val lang: String,
 ) {
-    private val getManga: GetManga by injectLazy()
-    private val insertFlatMetadata: InsertFlatMetadata by injectLazy()
-    private val getFlatMetadataById: GetFlatMetadataById by injectLazy()
+    private val getManga: GetManga by lazy { globalAppGraph.getManga }
+    private val insertFlatMetadata: InsertFlatMetadata by lazy { globalAppGraph.insertFlatMetadata }
+    private val getFlatMetadataById: GetFlatMetadataById by lazy { globalAppGraph.getFlatMetadataById }
 
     val metaClass = MangaDexSearchMetadata::class
 

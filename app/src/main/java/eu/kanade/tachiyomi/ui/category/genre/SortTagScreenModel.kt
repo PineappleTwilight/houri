@@ -14,17 +14,16 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
+import mihon.app.di.globalAppGraph
 import tachiyomi.core.common.util.lang.launchIO
 import tachiyomi.i18n.MR
 import tachiyomi.i18n.sy.SYMR
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 
 class SortTagScreenModel(
-    private val getSortTag: GetSortTag = Injekt.get(),
-    private val createSortTag: CreateSortTag = Injekt.get(),
-    private val deleteSortTag: DeleteSortTag = Injekt.get(),
-    private val reorderSortTag: ReorderSortTag = Injekt.get(),
+    private val getSortTag: GetSortTag = globalAppGraph.getSortTag,
+    private val createSortTag: CreateSortTag = globalAppGraph.createSortTag,
+    private val deleteSortTag: DeleteSortTag = globalAppGraph.deleteSortTag,
+    private val reorderSortTag: ReorderSortTag = globalAppGraph.reorderSortTag,
 ) : StateScreenModel<SortTagScreenState>(SortTagScreenState.Loading) {
 
     private val _events: Channel<SortTagEvent> = Channel(Int.MAX_VALUE)

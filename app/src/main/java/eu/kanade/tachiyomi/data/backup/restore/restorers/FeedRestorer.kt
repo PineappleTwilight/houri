@@ -3,12 +3,11 @@ package eu.kanade.tachiyomi.data.backup.restore.restorers
 import eu.kanade.tachiyomi.data.backup.models.BackupFeed
 import exh.EXHMigrations
 import exh.util.nullIfBlank
+import mihon.app.di.globalAppGraph
 import tachiyomi.data.DatabaseHandler
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 
 class FeedRestorer(
-    private val handler: DatabaseHandler = Injekt.get(),
+    private val handler: DatabaseHandler = globalAppGraph.databaseHandler,
 ) {
     suspend fun restoreFeeds(backupFeeds: List<BackupFeed>) {
         if (backupFeeds.isEmpty()) return

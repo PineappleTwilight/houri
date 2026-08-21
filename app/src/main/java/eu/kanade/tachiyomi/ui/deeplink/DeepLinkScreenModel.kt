@@ -8,6 +8,7 @@ import eu.kanade.tachiyomi.source.model.SChapter
 import eu.kanade.tachiyomi.source.online.ResolvableSource
 import eu.kanade.tachiyomi.source.online.UriType
 import kotlinx.coroutines.flow.update
+import mihon.app.di.globalAppGraph
 import mihon.domain.manga.model.toDomainManga
 import mihon.domain.source.interactor.UpdateMangaFromRemote
 import tachiyomi.core.common.util.lang.launchIO
@@ -16,15 +17,13 @@ import tachiyomi.domain.chapter.model.Chapter
 import tachiyomi.domain.manga.interactor.NetworkToLocalManga
 import tachiyomi.domain.manga.model.Manga
 import tachiyomi.domain.source.service.SourceManager
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 
 class DeepLinkScreenModel(
     query: String = "",
-    private val sourceManager: SourceManager = Injekt.get(),
-    private val networkToLocalManga: NetworkToLocalManga = Injekt.get(),
-    private val getChapterByUrlAndMangaId: GetChapterByUrlAndMangaId = Injekt.get(),
-    private val updateMangaFromRemote: UpdateMangaFromRemote = Injekt.get(),
+    private val sourceManager: SourceManager = globalAppGraph.sourceManager,
+    private val networkToLocalManga: NetworkToLocalManga = globalAppGraph.networkToLocalManga,
+    private val getChapterByUrlAndMangaId: GetChapterByUrlAndMangaId = globalAppGraph.getChapterByUrlAndMangaId,
+    private val updateMangaFromRemote: UpdateMangaFromRemote = globalAppGraph.updateMangaFromRemote,
 ) : StateScreenModel<DeepLinkScreenModel.State>(State.Loading) {
 
     init {

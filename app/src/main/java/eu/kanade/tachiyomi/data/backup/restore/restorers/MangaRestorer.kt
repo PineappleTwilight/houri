@@ -10,6 +10,7 @@ import eu.kanade.tachiyomi.data.backup.models.BackupMergedMangaReference
 import eu.kanade.tachiyomi.data.backup.models.BackupTracking
 import exh.EXHMigrations
 import exh.source.MERGED_SOURCE_ID
+import mihon.app.di.globalAppGraph
 import tachiyomi.data.DatabaseHandler
 import tachiyomi.data.MemoColumnAdapter
 import tachiyomi.data.UpdateStrategyColumnAdapter
@@ -28,8 +29,6 @@ import tachiyomi.domain.manga.model.Manga
 import tachiyomi.domain.track.interactor.GetTracks
 import tachiyomi.domain.track.interactor.InsertTrack
 import tachiyomi.domain.track.model.Track
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 import java.time.ZonedDateTime
 import java.util.Date
 import kotlin.math.max
@@ -38,18 +37,18 @@ import kotlin.math.min
 class MangaRestorer(
     private var isSync: Boolean = false,
 
-    private val handler: DatabaseHandler = Injekt.get(),
-    private val getCategories: GetCategories = Injekt.get(),
-    private val getMangaByUrlAndSourceId: GetMangaByUrlAndSourceId = Injekt.get(),
-    private val getChaptersByMangaId: GetChaptersByMangaId = Injekt.get(),
-    private val updateManga: UpdateManga = Injekt.get(),
-    private val getTracks: GetTracks = Injekt.get(),
-    private val insertTrack: InsertTrack = Injekt.get(),
-    fetchInterval: FetchInterval = Injekt.get(),
+    private val handler: DatabaseHandler = globalAppGraph.databaseHandler,
+    private val getCategories: GetCategories = globalAppGraph.getCategories,
+    private val getMangaByUrlAndSourceId: GetMangaByUrlAndSourceId = globalAppGraph.getMangaByUrlAndSourceId,
+    private val getChaptersByMangaId: GetChaptersByMangaId = globalAppGraph.getChaptersByMangaId,
+    private val updateManga: UpdateManga = globalAppGraph.updateManga,
+    private val getTracks: GetTracks = globalAppGraph.getTracks,
+    private val insertTrack: InsertTrack = globalAppGraph.insertTrack,
+    fetchInterval: FetchInterval = globalAppGraph.fetchInterval,
     // SY -->
-    private val setCustomMangaInfo: SetCustomMangaInfo = Injekt.get(),
-    private val insertFlatMetadata: InsertFlatMetadata = Injekt.get(),
-    private val getFlatMetadataById: GetFlatMetadataById = Injekt.get(),
+    private val setCustomMangaInfo: SetCustomMangaInfo = globalAppGraph.setCustomMangaInfo,
+    private val insertFlatMetadata: InsertFlatMetadata = globalAppGraph.insertFlatMetadata,
+    private val getFlatMetadataById: GetFlatMetadataById = globalAppGraph.getFlatMetadataById,
     // SY <--
 ) {
     private var now = ZonedDateTime.now()

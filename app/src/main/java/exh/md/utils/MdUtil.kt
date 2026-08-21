@@ -2,7 +2,6 @@
 
 package exh.md.utils
 
-import android.app.Application
 import eu.kanade.domain.source.service.SourcePreferences
 import eu.kanade.domain.track.service.TrackPreferences
 import eu.kanade.tachiyomi.data.track.mdlist.MdList
@@ -16,6 +15,7 @@ import exh.md.dto.MangaDataDto
 import exh.source.getMainSource
 import exh.util.nullIfZero
 import kotlinx.serialization.json.Json
+import mihon.app.di.globalAppGraph
 import okhttp3.FormBody
 import okhttp3.Headers
 import okhttp3.MediaType.Companion.toMediaType
@@ -26,8 +26,6 @@ import org.jsoup.parser.Parser
 import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.domain.source.service.SourceManager
 import tachiyomi.i18n.sy.SYMR
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 import java.text.SimpleDateFormat
 import java.util.Locale
 import java.util.TimeZone
@@ -194,8 +192,8 @@ class MdUtil {
         }
 
         fun getEnabledMangaDex(
-            sourcePreferences: SourcePreferences = Injekt.get(),
-            sourceManager: SourceManager = Injekt.get(),
+            sourcePreferences: SourcePreferences = globalAppGraph.sourcePreferences,
+            sourceManager: SourceManager = globalAppGraph.sourceManager,
         ): MangaDex? {
             return getEnabledMangaDexs(sourcePreferences, sourceManager).let { mangadexs ->
                 sourcePreferences.preferredMangaDexId().get().toLongOrNull()?.nullIfZero()
@@ -208,7 +206,7 @@ class MdUtil {
 
         fun getEnabledMangaDexs(
             preferences: SourcePreferences,
-            sourceManager: SourceManager = Injekt.get(),
+            sourceManager: SourceManager = globalAppGraph.sourceManager,
         ): List<MangaDex> {
             val languages = preferences.enabledLanguages().get()
             val disabledSourceIds = preferences.disabledSources().get()
@@ -233,7 +231,7 @@ class MdUtil {
                 val altTitlesDesc = altTitles
                     .joinToString(
                         "\n",
-                        "${Injekt.get<Application>().stringResource(SYMR.strings.alt_titles)}:\n",
+                        "${globalAppGraph.context.stringResource(SYMR.strings.alt_titles)}:\n",
                     ) { "• $it" }
                 description + (if (description.isBlank()) "" else "\n\n") + Parser.unescapeEntities(
                     altTitlesDesc,
@@ -253,7 +251,7 @@ class MdUtil {
             } else {
                 description + (if (description.isBlank()) "" else "\n\n") + parts.joinToString(
                     " ",
-                    "${Injekt.get<Application>().stringResource(SYMR.strings.final_chapter)}:\n",
+                    "${globalAppGraph.context.stringResource(SYMR.strings.final_chapter)}:\n",
                 )
             }
         }

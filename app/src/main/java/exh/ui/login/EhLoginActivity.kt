@@ -21,8 +21,8 @@ import eu.kanade.tachiyomi.util.system.toast
 import eu.kanade.tachiyomi.util.view.setComposeContent
 import exh.log.xLogD
 import exh.source.ExhPreferences
+import mihon.app.di.globalAppGraph
 import tachiyomi.i18n.MR
-import uy.kohesive.injekt.injectLazy
 import java.net.HttpCookie
 import java.util.Locale
 
@@ -30,7 +30,7 @@ import java.util.Locale
  * LoginController
  */
 class EhLoginActivity : BaseActivity() {
-    private val exhPreferences: ExhPreferences by injectLazy()
+    private val exhPreferences: ExhPreferences by lazy { globalAppGraph.exhPreferences }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {

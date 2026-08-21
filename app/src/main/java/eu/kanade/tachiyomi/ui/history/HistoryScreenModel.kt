@@ -28,6 +28,7 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import logcat.LogPriority
+import mihon.app.di.globalAppGraph
 import mihon.core.common.utils.mutate
 import tachiyomi.core.common.preference.CheckboxState
 import tachiyomi.core.common.preference.TriState
@@ -50,24 +51,22 @@ import tachiyomi.domain.manga.interactor.GetManga
 import tachiyomi.domain.manga.model.Manga
 import tachiyomi.domain.manga.model.MangaWithChapterCount
 import tachiyomi.domain.source.service.SourceManager
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 
 class HistoryScreenModel(
-    private val addTracks: AddTracks = Injekt.get(),
-    private val getCategories: GetCategories = Injekt.get(),
-    private val getDuplicateLibraryManga: GetDuplicateLibraryManga = Injekt.get(),
-    private val getHistory: GetHistory = Injekt.get(),
-    private val getManga: GetManga = Injekt.get(),
-    private val getNextChapters: GetNextChapters = Injekt.get(),
-    private val libraryPreferences: LibraryPreferences = Injekt.get(),
-    private val removeHistory: RemoveHistory = Injekt.get(),
-    private val setMangaCategories: SetMangaCategories = Injekt.get(),
-    private val updateManga: UpdateManga = Injekt.get(),
+    private val addTracks: AddTracks = globalAppGraph.addTracks,
+    private val getCategories: GetCategories = globalAppGraph.getCategories,
+    private val getDuplicateLibraryManga: GetDuplicateLibraryManga = globalAppGraph.getDuplicateLibraryManga,
+    private val getHistory: GetHistory = globalAppGraph.getHistory,
+    private val getManga: GetManga = globalAppGraph.getManga,
+    private val getNextChapters: GetNextChapters = globalAppGraph.getNextChapters,
+    private val libraryPreferences: LibraryPreferences = globalAppGraph.libraryPreferences,
+    private val removeHistory: RemoveHistory = globalAppGraph.removeHistory,
+    private val setMangaCategories: SetMangaCategories = globalAppGraph.setMangaCategories,
+    private val updateManga: UpdateManga = globalAppGraph.updateManga,
     val snackbarHostState: SnackbarHostState = SnackbarHostState(),
-    private val sourceManager: SourceManager = Injekt.get(),
+    private val sourceManager: SourceManager = globalAppGraph.sourceManager,
     // KMK -->
-    private val historyPreferences: HistoryPreferences = Injekt.get(),
+    private val historyPreferences: HistoryPreferences = globalAppGraph.historyPreferences,
     // KMK <--
 ) : StateScreenModel<HistoryScreenModel.State>(State()) {
 

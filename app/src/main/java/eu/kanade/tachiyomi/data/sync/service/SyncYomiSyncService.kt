@@ -18,6 +18,7 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.protobuf.ProtoBuf
 import logcat.LogPriority
 import logcat.logcat
+import mihon.app.di.globalAppGraph
 import okhttp3.Headers
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
@@ -25,8 +26,6 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import org.apache.http.HttpStatus
 import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.i18n.MR
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 
 class SyncYomiSyncService(
     context: Context,
@@ -34,7 +33,7 @@ class SyncYomiSyncService(
     syncPreferences: SyncPreferences,
     private val notifier: SyncNotifier,
 
-    private val protoBuf: ProtoBuf = Injekt.get(),
+    private val protoBuf: ProtoBuf = globalAppGraph.protoBuf,
 ) : SyncService(context, json, syncPreferences) {
 
     // KMK -->

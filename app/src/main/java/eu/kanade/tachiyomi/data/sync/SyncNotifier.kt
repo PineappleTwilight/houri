@@ -12,16 +12,14 @@ import eu.kanade.tachiyomi.data.notification.Notifications
 import eu.kanade.tachiyomi.util.system.cancelNotification
 import eu.kanade.tachiyomi.util.system.notificationBuilder
 import eu.kanade.tachiyomi.util.system.notify
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
-import uy.kohesive.injekt.injectLazy
+import mihon.app.di.globalAppGraph
 
 class SyncNotifier(private val context: Context) {
 
-    private val preferences: SecurityPreferences by injectLazy()
+    private val preferences: SecurityPreferences by lazy { globalAppGraph.securityPreferences }
 
     // KMK -->
-    private val syncStatus: SyncStatus = Injekt.get()
+    private val syncStatus: SyncStatus = globalAppGraph.syncStatus
     // KMK <--
 
     private val progressNotificationBuilder = context.notificationBuilder(

@@ -11,6 +11,7 @@ import eu.kanade.tachiyomi.source.sourcePreferences
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import logcat.LogPriority
+import mihon.app.di.globalAppGraph
 import okhttp3.Headers
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
@@ -19,7 +20,6 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import tachiyomi.core.common.util.lang.withIOContext
 import tachiyomi.core.common.util.system.logcat
 import tachiyomi.domain.source.service.SourceManager
-import uy.kohesive.injekt.injectLazy
 
 private const val READLIST_API = "/api/v1/readlists"
 
@@ -34,8 +34,8 @@ class KomgaApi(
             .build()
     }
 
-    private val json: Json by injectLazy()
-    private val sourceManager: SourceManager by injectLazy()
+    private val json: Json by lazy { globalAppGraph.json }
+    private val sourceManager: SourceManager by lazy { globalAppGraph.sourceManager }
 
     private val baseUrl: String by lazy {
         val source = sourceManager.get(trackId) as? HttpSource

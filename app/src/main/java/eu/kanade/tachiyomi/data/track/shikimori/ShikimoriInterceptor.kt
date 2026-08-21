@@ -4,13 +4,13 @@ import eu.kanade.tachiyomi.BuildConfig
 import eu.kanade.tachiyomi.data.track.shikimori.dto.SMOAuth
 import eu.kanade.tachiyomi.data.track.shikimori.dto.isExpired
 import kotlinx.serialization.json.Json
+import mihon.app.di.globalAppGraph
 import okhttp3.Interceptor
 import okhttp3.Response
-import uy.kohesive.injekt.injectLazy
 
 class ShikimoriInterceptor(private val shikimori: Shikimori) : Interceptor {
 
-    private val json: Json by injectLazy()
+    private val json: Json by lazy { globalAppGraph.json }
 
     /**
      * OAuth object used for authenticated requests.

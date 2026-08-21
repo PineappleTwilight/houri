@@ -1,6 +1,5 @@
 package eu.kanade.tachiyomi.ui.browse.extension
 
-import android.app.Application
 import androidx.compose.runtime.Immutable
 import cafe.adriel.voyager.core.model.StateScreenModel
 import cafe.adriel.voyager.core.model.screenModelScope
@@ -29,24 +28,23 @@ import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.takeWhile
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import mihon.app.di.globalAppGraph
 import tachiyomi.core.common.util.lang.launchIO
 import tachiyomi.i18n.MR
 import tachiyomi.i18n.kmk.KMR
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 import kotlin.time.Duration.Companion.seconds
 
 class ExtensionsScreenModel(
-    preferences: SourcePreferences = Injekt.get(),
-    basePreferences: BasePreferences = Injekt.get(),
-    private val extensionManager: ExtensionManager = Injekt.get(),
-    private val getExtensions: GetExtensionsByType = Injekt.get(),
+    preferences: SourcePreferences = globalAppGraph.sourcePreferences,
+    basePreferences: BasePreferences = globalAppGraph.basePreferences,
+    private val extensionManager: ExtensionManager = globalAppGraph.extensionManager,
+    private val getExtensions: GetExtensionsByType = globalAppGraph.getExtensionsByType,
 ) : StateScreenModel<ExtensionsScreenModel.State>(State()) {
 
     private val currentDownloads = MutableStateFlow<Map<String, InstallStep>>(hashMapOf())
 
     init {
-        val context = Injekt.get<Application>()
+        val context = globalAppGraph.context
         val extensionMapper: (Map<String, InstallStep>) -> ((Extension) -> ExtensionUiModel.Item) = { map ->
             {
                 ExtensionUiModel.Item(

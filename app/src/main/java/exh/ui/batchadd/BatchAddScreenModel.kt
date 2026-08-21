@@ -15,19 +15,18 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import mihon.app.di.globalAppGraph
 import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.core.common.util.lang.withIOContext
 import tachiyomi.i18n.sy.SYMR
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 
 class BatchAddScreenModel(
-    private val exhPreferences: ExhPreferences = Injekt.get(),
+    private val exhPreferences: ExhPreferences = globalAppGraph.exhPreferences,
 ) : StateScreenModel<BatchAddState>(BatchAddState()) {
     private val galleryAdder by lazy { GalleryAdder() }
 
     // KMK -->
-    val isHentaiEnabled by Injekt.get<ExhPreferences>().isHentaiEnabled().asState(screenModelScope)
+    val isHentaiEnabled by globalAppGraph.exhPreferences.isHentaiEnabled().asState(screenModelScope)
     // KMK <--
 
     fun addGalleries(context: Context) {

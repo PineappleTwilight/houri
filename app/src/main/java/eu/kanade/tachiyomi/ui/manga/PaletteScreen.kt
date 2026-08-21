@@ -17,12 +17,11 @@ import eu.kanade.domain.ui.UiPreferences
 import eu.kanade.presentation.components.AppBar
 import eu.kanade.presentation.theme.TachiyomiTheme
 import eu.kanade.presentation.util.Screen
+import mihon.app.di.globalAppGraph
 import tachiyomi.presentation.core.components.ScrollbarLazyColumn
 import tachiyomi.presentation.core.components.material.Button
 import tachiyomi.presentation.core.components.material.ButtonDefaults
 import tachiyomi.presentation.core.components.material.Scaffold
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 
 /**
  * A screen that displays a colors palette of current theme.
@@ -33,7 +32,7 @@ class PaletteScreen(
 
     @Composable
     override fun Content() {
-        val uiPreferences = Injekt.get<UiPreferences>()
+        val uiPreferences = globalAppGraph.uiPreferences
         val themeCoverBased = uiPreferences.themeCoverBased().get()
 
         val seedColor = seedColor?.let { Color(it) } ?: MaterialTheme.colorScheme.primary

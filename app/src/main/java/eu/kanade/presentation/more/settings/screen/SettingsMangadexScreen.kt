@@ -42,6 +42,7 @@ import exh.md.utils.MdConstants
 import exh.md.utils.MdUtil
 import kotlinx.collections.immutable.toImmutableMap
 import logcat.LogPriority
+import mihon.app.di.globalAppGraph
 import tachiyomi.core.common.util.lang.launchIO
 import tachiyomi.core.common.util.lang.withUIContext
 import tachiyomi.core.common.util.system.logcat
@@ -51,8 +52,6 @@ import tachiyomi.presentation.core.components.material.padding
 import tachiyomi.presentation.core.i18n.stringResource
 import tachiyomi.presentation.core.util.collectAsState
 import tachiyomi.presentation.core.util.secondaryItemAlpha
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 
 object SettingsMangadexScreen : SearchableSettings {
     @Suppress("unused")
@@ -62,12 +61,12 @@ object SettingsMangadexScreen : SearchableSettings {
     @Composable
     override fun getTitleRes() = SYMR.strings.pref_category_mangadex
 
-    override fun isEnabled(): Boolean = MdUtil.getEnabledMangaDexs(Injekt.get()).isNotEmpty()
+    override fun isEnabled(): Boolean = MdUtil.getEnabledMangaDexs(globalAppGraph.sourcePreferences).isNotEmpty()
 
     @Composable
     override fun getPreferences(): List<Preference> {
-        val sourcePreferences: SourcePreferences = remember { Injekt.get() }
-        val trackPreferences: TrackPreferences = remember { Injekt.get() }
+        val sourcePreferences: SourcePreferences = remember { globalAppGraph.sourcePreferences }
+        val trackPreferences: TrackPreferences = remember { globalAppGraph.trackPreferences }
         val mdex = remember { MdUtil.getEnabledMangaDex(sourcePreferences) } ?: return emptyList()
 
         return listOf(

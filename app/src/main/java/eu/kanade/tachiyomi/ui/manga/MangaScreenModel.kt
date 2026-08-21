@@ -104,6 +104,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import logcat.LogPriority
+import mihon.app.di.globalAppGraph
 import mihon.domain.chapter.interactor.FilterChaptersForDownload
 import mihon.domain.manga.model.toDomainManga
 import mihon.domain.source.interactor.UpdateMangaFromRemote
@@ -164,9 +165,6 @@ import tachiyomi.i18n.MR
 import tachiyomi.i18n.kmk.KMR
 import tachiyomi.source.local.LocalSource
 import tachiyomi.source.local.isLocal
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
-import uy.kohesive.injekt.injectLazy
 import kotlin.math.floor
 import androidx.compose.runtime.State as RuntimeState
 
@@ -179,58 +177,58 @@ class MangaScreenModel(
     private val isFromSource: Boolean,
     private val smartSearched: Boolean,
     // SY <--
-    private val libraryPreferences: LibraryPreferences = Injekt.get(),
-    private val trackPreferences: TrackPreferences = Injekt.get(),
-    readerPreferences: ReaderPreferences = Injekt.get(),
-    private val uiPreferences: UiPreferences = Injekt.get(),
+    private val libraryPreferences: LibraryPreferences = globalAppGraph.libraryPreferences,
+    private val trackPreferences: TrackPreferences = globalAppGraph.trackPreferences,
+    readerPreferences: ReaderPreferences = globalAppGraph.readerPreferences,
+    private val uiPreferences: UiPreferences = globalAppGraph.uiPreferences,
     // KMK -->
-    private val sourcePreferences: SourcePreferences = Injekt.get(),
-    private val downloadProvider: DownloadProvider = Injekt.get(),
+    private val sourcePreferences: SourcePreferences = globalAppGraph.sourcePreferences,
+    private val downloadProvider: DownloadProvider = globalAppGraph.downloadProvider,
     // KMK <--
-    private val trackerManager: TrackerManager = Injekt.get(),
-    private val trackChapter: TrackChapter = Injekt.get(),
-    private val downloadManager: DownloadManager = Injekt.get(),
-    private val downloadCache: DownloadCache = Injekt.get(),
-    private val getMangaAndChapters: GetMangaWithChapters = Injekt.get(),
+    private val trackerManager: TrackerManager = globalAppGraph.trackerManager,
+    private val trackChapter: TrackChapter = globalAppGraph.trackChapter,
+    private val downloadManager: DownloadManager = globalAppGraph.downloadManager,
+    private val downloadCache: DownloadCache = globalAppGraph.downloadCache,
+    private val getMangaAndChapters: GetMangaWithChapters = globalAppGraph.getMangaWithChapters,
     // SY -->
-    private val sourceManager: SourceManager = Injekt.get(),
-    private val getManga: GetManga = Injekt.get(),
-    private val getMergedChaptersByMangaId: GetMergedChaptersByMangaId = Injekt.get(),
-    private val getMergedMangaById: GetMergedMangaById = Injekt.get(),
-    private val getMergedReferencesById: GetMergedReferencesById = Injekt.get(),
+    private val sourceManager: SourceManager = globalAppGraph.sourceManager,
+    private val getManga: GetManga = globalAppGraph.getManga,
+    private val getMergedChaptersByMangaId: GetMergedChaptersByMangaId = globalAppGraph.getMergedChaptersByMangaId,
+    private val getMergedMangaById: GetMergedMangaById = globalAppGraph.getMergedMangaById,
+    private val getMergedReferencesById: GetMergedReferencesById = globalAppGraph.getMergedReferencesById,
     // KMK -->
-    private val mergeMangaBySmartSearch: MergeMangaBySmartSearch = Injekt.get(),
+    private val mergeMangaBySmartSearch: MergeMangaBySmartSearch = globalAppGraph.mergeMangaBySmartSearch,
     // KMK <--
-    private val updateMergedSettings: UpdateMergedSettings = Injekt.get(),
-    private val networkToLocalManga: NetworkToLocalManga = Injekt.get(),
-    private val deleteMergeById: DeleteMergeById = Injekt.get(),
-    private val getFlatMetadata: GetFlatMetadataById = Injekt.get(),
-    private val getPagePreviews: GetPagePreviews = Injekt.get(),
-    private val insertTrack: InsertTrack = Injekt.get(),
-    private val setCustomMangaInfo: SetCustomMangaInfo = Injekt.get(),
+    private val updateMergedSettings: UpdateMergedSettings = globalAppGraph.updateMergedSettings,
+    private val networkToLocalManga: NetworkToLocalManga = globalAppGraph.networkToLocalManga,
+    private val deleteMergeById: DeleteMergeById = globalAppGraph.deleteMergeById,
+    private val getFlatMetadata: GetFlatMetadataById = globalAppGraph.getFlatMetadataById,
+    private val getPagePreviews: GetPagePreviews = globalAppGraph.getPagePreviews,
+    private val insertTrack: InsertTrack = globalAppGraph.insertTrack,
+    private val setCustomMangaInfo: SetCustomMangaInfo = globalAppGraph.setCustomMangaInfo,
     // SY <--
-    private val getDuplicateLibraryManga: GetDuplicateLibraryManga = Injekt.get(),
-    private val getAvailableScanlators: GetAvailableScanlators = Injekt.get(),
-    private val getExcludedScanlators: GetExcludedScanlators = Injekt.get(),
-    private val setExcludedScanlators: SetExcludedScanlators = Injekt.get(),
-    private val setMangaChapterFlags: SetMangaChapterFlags = Injekt.get(),
-    private val setMangaDefaultChapterFlags: SetMangaDefaultChapterFlags = Injekt.get(),
-    private val setReadStatus: SetReadStatus = Injekt.get(),
-    private val updateChapter: UpdateChapter = Injekt.get(),
-    private val updateManga: UpdateManga = Injekt.get(),
-    private val getCategories: GetCategories = Injekt.get(),
-    private val getTracks: GetTracks = Injekt.get(),
-    private val addTracks: AddTracks = Injekt.get(),
-    private val setMangaCategories: SetMangaCategories = Injekt.get(),
-    private val mangaRepository: MangaRepository = Injekt.get(),
-    private val filterChaptersForDownload: FilterChaptersForDownload = Injekt.get(),
-    private val updateMangaFromRemote: UpdateMangaFromRemote = Injekt.get(),
+    private val getDuplicateLibraryManga: GetDuplicateLibraryManga = globalAppGraph.getDuplicateLibraryManga,
+    private val getAvailableScanlators: GetAvailableScanlators = globalAppGraph.getAvailableScanlators,
+    private val getExcludedScanlators: GetExcludedScanlators = globalAppGraph.getExcludedScanlators,
+    private val setExcludedScanlators: SetExcludedScanlators = globalAppGraph.setExcludedScanlators,
+    private val setMangaChapterFlags: SetMangaChapterFlags = globalAppGraph.setMangaChapterFlags,
+    private val setMangaDefaultChapterFlags: SetMangaDefaultChapterFlags = globalAppGraph.setMangaDefaultChapterFlags,
+    private val setReadStatus: SetReadStatus = globalAppGraph.setReadStatus,
+    private val updateChapter: UpdateChapter = globalAppGraph.updateChapter,
+    private val updateManga: UpdateManga = globalAppGraph.updateManga,
+    private val getCategories: GetCategories = globalAppGraph.getCategories,
+    private val getTracks: GetTracks = globalAppGraph.getTracks,
+    private val addTracks: AddTracks = globalAppGraph.addTracks,
+    private val setMangaCategories: SetMangaCategories = globalAppGraph.setMangaCategories,
+    private val mangaRepository: MangaRepository = globalAppGraph.mangaRepository,
+    private val filterChaptersForDownload: FilterChaptersForDownload = globalAppGraph.filterChaptersForDownload,
+    private val updateMangaFromRemote: UpdateMangaFromRemote = globalAppGraph.updateMangaFromRemote,
     val snackbarHostState: SnackbarHostState = SnackbarHostState(),
     // KMK -->
-    private val deleteLibraryUpdateErrors: DeleteLibraryUpdateErrors = Injekt.get(),
-    private val insertLibraryUpdateErrors: InsertLibraryUpdateErrors = Injekt.get(),
-    private val insertLibraryUpdateErrorMessages: InsertLibraryUpdateErrorMessages = Injekt.get(),
-    private val deleteChaptersFromDb: DeleteChapters = Injekt.get(),
+    private val deleteLibraryUpdateErrors: DeleteLibraryUpdateErrors = globalAppGraph.deleteLibraryUpdateErrors,
+    private val insertLibraryUpdateErrors: InsertLibraryUpdateErrors = globalAppGraph.insertLibraryUpdateErrors,
+    private val insertLibraryUpdateErrorMessages: InsertLibraryUpdateErrorMessages = globalAppGraph.insertLibraryUpdateErrorMessages,
+    private val deleteChaptersFromDb: DeleteChapters = globalAppGraph.deleteChapters,
     // KMK <--
 ) : StateScreenModel<MangaScreenModel.State>(State.Loading) {
 
@@ -275,7 +273,7 @@ class MangaScreenModel(
         get() = successState?.hasLoggedInTrackers == true && trackPreferences.trackOnAddingToLibrary().get()
 
     // EXH -->
-    private val updateHelper: EHentaiUpdateHelper by injectLazy()
+    private val updateHelper: EHentaiUpdateHelper by lazy { globalAppGraph.eHentaiUpdateHelper }
 
     val redirectFlow: MutableSharedFlow<EXHRedirect> = MutableSharedFlow()
 
@@ -1412,7 +1410,7 @@ class MangaScreenModel(
         // KMK -->
         enhancedTrackersOnly: Boolean = true,
         // KMK <--
-        refreshTracks: RefreshTracks = Injekt.get(),
+        refreshTracks: RefreshTracks = globalAppGraph.refreshTracks,
     ) {
         // KMK -->
         refreshTracks.await(mangaId, enhancedTrackersOnly = enhancedTrackersOnly)

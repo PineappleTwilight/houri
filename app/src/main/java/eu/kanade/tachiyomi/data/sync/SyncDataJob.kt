@@ -21,9 +21,8 @@ import eu.kanade.tachiyomi.util.system.setForegroundSafely
 import eu.kanade.tachiyomi.util.system.workManager
 import kotlinx.coroutines.runBlocking
 import logcat.LogPriority
+import mihon.app.di.globalAppGraph
 import tachiyomi.core.common.util.system.logcat
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 import java.util.concurrent.TimeUnit
 
 class SyncDataJob(private val context: Context, workerParams: WorkerParameters) :
@@ -32,7 +31,7 @@ class SyncDataJob(private val context: Context, workerParams: WorkerParameters) 
     private val notifier = SyncNotifier(context)
 
     // KMK -->
-    private val syncStatus: SyncStatus = Injekt.get()
+    private val syncStatus: SyncStatus = globalAppGraph.syncStatus
     // KMK <--
 
     override suspend fun doWork(): Result {
@@ -88,7 +87,7 @@ class SyncDataJob(private val context: Context, workerParams: WorkerParameters) 
         }
 
         fun setupTask(context: Context, prefInterval: Int? = null) {
-            val syncPreferences = Injekt.get<SyncPreferences>()
+            val syncPreferences = globalAppGraph.syncPreferences
             val interval = prefInterval ?: syncPreferences.syncInterval().get()
 
             if (interval > 0) {
@@ -124,7 +123,7 @@ class SyncDataJob(private val context: Context, workerParams: WorkerParameters) 
 
         fun stop(context: Context) {
             // KMK -->
-            val syncPreferences = Injekt.get<SyncPreferences>()
+            val syncPreferences = globalAppGraph.syncPreferences
             val syncEnabled = syncPreferences.isSyncEnabled()
             // KMK <--
             val wm = context.workManager
@@ -136,7 +135,7 @@ class SyncDataJob(private val context: Context, workerParams: WorkerParameters) 
                 .forEach {
                     wm.cancelWorkById(it.id)
                     // KMK -->
-                    val syncStatus: SyncStatus = Injekt.get()
+                    val syncStatus: SyncStatus = globalAppGraph.syncStatus
                     runBlocking { syncStatus.stop() }
                     // KMK <--
 

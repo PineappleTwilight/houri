@@ -5,10 +5,10 @@ import androidx.palette.graphics.Palette
 import eu.kanade.tachiyomi.data.cache.CoverCache
 import eu.kanade.tachiyomi.data.coil.MangaCoverMetadata.setRatioAndColors
 import eu.kanade.tachiyomi.ui.manga.MangaScreenModel
+import mihon.app.di.globalAppGraph
 import okio.BufferedSource
 import tachiyomi.domain.library.service.LibraryPreferences
 import tachiyomi.domain.manga.model.MangaCover
-import uy.kohesive.injekt.injectLazy
 import java.io.File
 import java.util.concurrent.ConcurrentHashMap
 
@@ -17,8 +17,8 @@ import java.util.concurrent.ConcurrentHashMap
  * @author Jays2Kings
  */
 object MangaCoverMetadata {
-    private val preferences by injectLazy<LibraryPreferences>()
-    private val coverCache by injectLazy<CoverCache>()
+    private val preferences by lazy { globalAppGraph.libraryPreferences }
+    private val coverCache by lazy { globalAppGraph.coverCache }
 
     fun load() {
         val ratios = preferences.coverRatios().get()

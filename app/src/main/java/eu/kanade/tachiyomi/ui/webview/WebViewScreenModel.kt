@@ -9,16 +9,15 @@ import eu.kanade.tachiyomi.util.system.openInBrowser
 import eu.kanade.tachiyomi.util.system.toShareIntent
 import eu.kanade.tachiyomi.util.system.toast
 import logcat.LogPriority
+import mihon.app.di.globalAppGraph
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import tachiyomi.core.common.util.system.logcat
 import tachiyomi.domain.source.service.SourceManager
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 
 class WebViewScreenModel(
     val sourceId: Long?,
-    private val sourceManager: SourceManager = Injekt.get(),
-    private val network: NetworkHelper = Injekt.get(),
+    private val sourceManager: SourceManager = globalAppGraph.sourceManager,
+    private val network: NetworkHelper = globalAppGraph.networkHelper,
 ) : StateScreenModel<WebViewScreenModel.State>(State.Loading) {
 
     sealed interface State {

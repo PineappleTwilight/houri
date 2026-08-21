@@ -40,14 +40,12 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import mihon.app.di.globalAppGraph
 import tachiyomi.domain.manga.interactor.GetMergedReferencesById
 import tachiyomi.domain.source.model.StubSource
 import tachiyomi.domain.source.repository.StubSourceRepository
 import tachiyomi.domain.source.service.SourceManager
 import tachiyomi.source.local.LocalSource
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
-import uy.kohesive.injekt.injectLazy
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.reflect.KClass
 
@@ -65,7 +63,7 @@ class AndroidSourceManager(
     private val _isInitialized = MutableStateFlow(false)
     override val isInitialized: StateFlow<Boolean> = _isInitialized.asStateFlow()
 
-    private val downloadManager: DownloadManager by injectLazy()
+    private val downloadManager: DownloadManager by lazy { globalAppGraph.downloadManager }
 
     private val scope = CoroutineScope(Job() + Dispatchers.IO)
 
@@ -78,7 +76,7 @@ class AndroidSourceManager(
     // SY -->
     // SY <--
     // KMK -->
-    private val getMergedReferencesById: GetMergedReferencesById by injectLazy()
+    private val getMergedReferencesById: GetMergedReferencesById by lazy { globalAppGraph.getMergedReferencesById }
     // KMK <--
 
     init {
@@ -102,8 +100,8 @@ class AndroidSourceManager(
                             mapOf(
                                 LocalSource.ID to LocalSource(
                                     context,
-                                    Injekt.get(),
-                                    Injekt.get(),
+                                    globalAppGraph.localSourceFileSystem,
+                                    globalAppGraph.localCoverManager,
                                     // SY -->
                                     sourcePreferences.allowLocalSourceHiddenFolders()::get,
                                     // SY <--

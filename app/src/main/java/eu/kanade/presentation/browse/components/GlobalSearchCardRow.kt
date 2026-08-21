@@ -21,6 +21,7 @@ import eu.kanade.domain.ui.UiPreferences
 import eu.kanade.presentation.library.components.CommonMangaItemDefaults
 import eu.kanade.presentation.library.components.MangaComfortableGridItem
 import eu.kanade.presentation.manga.components.RatioSwitchToPanorama
+import mihon.app.di.globalAppGraph
 import tachiyomi.domain.manga.model.Manga
 import tachiyomi.domain.manga.model.MangaCover
 import tachiyomi.domain.manga.model.asMangaCover
@@ -28,8 +29,6 @@ import tachiyomi.i18n.MR
 import tachiyomi.presentation.core.components.material.padding
 import tachiyomi.presentation.core.i18n.stringResource
 import tachiyomi.presentation.core.util.collectAsState
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 
 @Composable
 fun GlobalSearchCardRow(
@@ -79,7 +78,7 @@ internal fun MangaItem(
     // KMK <--
 ) {
     // KMK -->
-    val panoramaCover = usePanoramaCover ?: Injekt.get<UiPreferences>().usePanoramaCoverFlow().collectAsState().value
+    val panoramaCover = usePanoramaCover ?: globalAppGraph.uiPreferences.usePanoramaCoverFlow().collectAsState().value
     val coverRatio = remember { mutableFloatStateOf(1f) }
     // KMK <--
     Box(

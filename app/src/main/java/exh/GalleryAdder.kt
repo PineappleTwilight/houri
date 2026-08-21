@@ -9,6 +9,7 @@ import eu.kanade.tachiyomi.source.online.all.EHentai
 import exh.log.ResettableLogger
 import exh.log.safeXLogStackTag
 import exh.source.getMainSource
+import mihon.app.di.globalAppGraph
 import mihon.domain.source.interactor.UpdateMangaFromRemote
 import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.domain.chapter.interactor.GetChapter
@@ -17,18 +18,16 @@ import tachiyomi.domain.manga.interactor.NetworkToLocalManga
 import tachiyomi.domain.manga.model.Manga
 import tachiyomi.domain.source.service.SourceManager
 import tachiyomi.i18n.sy.SYMR
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 
 class GalleryAdder(
-    private val updateManga: UpdateManga = Injekt.get(),
-    private val updateMangaFromRemote: UpdateMangaFromRemote = Injekt.get(),
-    private val networkToLocalManga: NetworkToLocalManga = Injekt.get(),
-    private val getChapter: GetChapter = Injekt.get(),
-    private val sourceManager: SourceManager = Injekt.get(),
+    private val updateManga: UpdateManga = globalAppGraph.updateManga,
+    private val updateMangaFromRemote: UpdateMangaFromRemote = globalAppGraph.updateMangaFromRemote,
+    private val networkToLocalManga: NetworkToLocalManga = globalAppGraph.networkToLocalManga,
+    private val getChapter: GetChapter = globalAppGraph.getChapter,
+    private val sourceManager: SourceManager = globalAppGraph.sourceManager,
 ) {
 
-    private val filters: Pair<Set<String>, Set<Long>> = Injekt.get<SourcePreferences>().run {
+    private val filters: Pair<Set<String>, Set<Long>> = globalAppGraph.sourcePreferences.run {
         enabledLanguages().get() to disabledSources().get().map { it.toLong() }.toSet()
     }
 

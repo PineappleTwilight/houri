@@ -15,19 +15,18 @@ import kotlinx.collections.immutable.toImmutableMap
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import mihon.app.di.globalAppGraph
 import mihon.domain.upcoming.interactor.GetUpcomingManga
 import tachiyomi.domain.library.service.LibraryPreferences
 import tachiyomi.domain.manga.model.Manga
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 import java.time.LocalDate
 import java.time.YearMonth
 
 class UpcomingScreenModel(
-    private val getUpcomingManga: GetUpcomingManga = Injekt.get(),
+    private val getUpcomingManga: GetUpcomingManga = globalAppGraph.getUpcomingManga,
 ) : StateScreenModel<UpcomingScreenModel.State>(State()) {
     // KMK -->
-    private val libraryPreferences: LibraryPreferences = Injekt.get()
+    private val libraryPreferences: LibraryPreferences = globalAppGraph.libraryPreferences
     // KMK <--
 
     init {

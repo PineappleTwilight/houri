@@ -9,18 +9,18 @@ import exh.log.xLogD
 import exh.source.EH_SOURCE_ID
 import exh.source.EXH_SOURCE_ID
 import exh.source.ExhPreferences
+import mihon.app.di.globalAppGraph
 import okhttp3.FormBody
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.domain.source.service.SourceManager
 import tachiyomi.i18n.sy.SYMR
-import uy.kohesive.injekt.injectLazy
 import java.util.Locale
 
 class EHConfigurator(val context: Context) {
-    private val exhPreferences: ExhPreferences by injectLazy()
-    private val sourceManager: SourceManager by injectLazy()
+    private val exhPreferences: ExhPreferences by lazy { globalAppGraph.exhPreferences }
+    private val sourceManager: SourceManager by lazy { globalAppGraph.sourceManager }
 
     private val configuratorClient = OkHttpClient.Builder()
         .maybeInjectEHLogger()

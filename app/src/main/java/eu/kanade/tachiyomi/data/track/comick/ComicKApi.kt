@@ -5,12 +5,12 @@ import eu.kanade.tachiyomi.network.awaitSuccess
 import eu.kanade.tachiyomi.network.parseAs
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import mihon.app.di.globalAppGraph
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import tachiyomi.core.common.util.lang.withIOContext
-import uy.kohesive.injekt.injectLazy
 
 class ComicKApi(
     private val trackId: Long,
@@ -18,7 +18,7 @@ class ComicKApi(
     private val interceptor: ComicKInterceptor,
 ) {
 
-    private val json: Json by injectLazy()
+    private val json: Json by lazy { globalAppGraph.json }
 
     private val authClient by lazy {
         client.newBuilder()

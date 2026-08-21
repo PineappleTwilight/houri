@@ -8,6 +8,7 @@ import eu.kanade.domain.base.BasePreferences
 import eu.kanade.tachiyomi.data.track.TrackerManager
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.stateIn
+import mihon.app.di.globalAppGraph
 import tachiyomi.core.common.preference.Preference
 import tachiyomi.core.common.preference.TriState
 import tachiyomi.core.common.preference.getAndSet
@@ -18,16 +19,14 @@ import tachiyomi.domain.category.model.Category
 import tachiyomi.domain.library.model.LibraryDisplayMode
 import tachiyomi.domain.library.model.LibrarySort
 import tachiyomi.domain.library.service.LibraryPreferences
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 import kotlin.time.Duration.Companion.seconds
 
 class LibrarySettingsScreenModel(
-    val preferences: BasePreferences = Injekt.get(),
-    val libraryPreferences: LibraryPreferences = Injekt.get(),
-    private val setDisplayMode: SetDisplayMode = Injekt.get(),
-    private val setSortModeForCategory: SetSortModeForCategory = Injekt.get(),
-    trackerManager: TrackerManager = Injekt.get(),
+    val preferences: BasePreferences = globalAppGraph.basePreferences,
+    val libraryPreferences: LibraryPreferences = globalAppGraph.libraryPreferences,
+    private val setDisplayMode: SetDisplayMode = globalAppGraph.setDisplayMode,
+    private val setSortModeForCategory: SetSortModeForCategory = globalAppGraph.setSortModeForCategory,
+    trackerManager: TrackerManager = globalAppGraph.trackerManager,
 ) : ScreenModel {
 
     val trackersFlow = trackerManager.loggedInTrackersFlow()

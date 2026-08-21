@@ -7,6 +7,7 @@ import eu.kanade.tachiyomi.source.model.Page
 import exh.md.dto.MangaPlusPage
 import exh.md.dto.MangaPlusResponse
 import kotlinx.serialization.json.Json
+import mihon.app.di.globalAppGraph
 import okhttp3.Headers
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.Interceptor
@@ -15,11 +16,10 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.Response
 import okhttp3.ResponseBody.Companion.toResponseBody
-import uy.kohesive.injekt.injectLazy
 import java.util.UUID
 
 class MangaPlusHandler(currentClient: OkHttpClient) {
-    val json: Json by injectLazy()
+    val json: Json by lazy { globalAppGraph.json }
 
     val headers = Headers.Builder()
         .add("Origin", WEB_URL)

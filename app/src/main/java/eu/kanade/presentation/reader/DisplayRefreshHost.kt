@@ -13,16 +13,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import eu.kanade.tachiyomi.ui.reader.setting.ReaderPreferences
 import kotlinx.coroutines.delay
+import mihon.app.di.globalAppGraph
 import tachiyomi.presentation.core.util.collectAsState
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 import kotlin.time.Duration.Companion.milliseconds
 
 @Stable
 class DisplayRefreshHost {
 
     internal var currentDisplayRefresh by mutableStateOf(false)
-    private val readerPreferences = Injekt.get<ReaderPreferences>()
+    private val readerPreferences = globalAppGraph.readerPreferences
 
     internal val flashMillis = readerPreferences.flashDurationMillis()
     internal val flashMode = readerPreferences.flashColor()

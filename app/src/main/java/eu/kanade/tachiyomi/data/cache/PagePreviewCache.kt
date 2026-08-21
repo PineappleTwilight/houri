@@ -12,12 +12,12 @@ import eu.kanade.tachiyomi.util.storage.saveTo
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import logcat.LogPriority
+import mihon.app.di.globalAppGraph
 import okio.Source
 import okio.buffer
 import okio.sink
 import tachiyomi.core.common.util.system.logcat
 import tachiyomi.domain.manga.model.Manga
-import uy.kohesive.injekt.injectLazy
 import java.io.File
 import java.io.IOException
 
@@ -46,7 +46,7 @@ class PagePreviewCache(private val context: Context) {
     }
 
     /** Google Json class used for parsing JSON files.  */
-    private val json: Json by injectLazy()
+    private val json: Json by lazy { globalAppGraph.json }
 
     /** Cache class used for cache management.  */
     private var diskCache = setupDiskCache(75)

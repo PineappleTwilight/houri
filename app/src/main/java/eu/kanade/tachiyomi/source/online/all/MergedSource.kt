@@ -16,6 +16,7 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
+import mihon.app.di.globalAppGraph
 import mihon.domain.chapter.interactor.FilterChaptersForDownload
 import mihon.domain.source.interactor.UpdateMangaFromRemote
 import okhttp3.Response
@@ -27,16 +28,15 @@ import tachiyomi.domain.manga.interactor.NetworkToLocalManga
 import tachiyomi.domain.manga.model.Manga
 import tachiyomi.domain.manga.model.MergedMangaReference
 import tachiyomi.domain.source.service.SourceManager
-import uy.kohesive.injekt.injectLazy
 
 class MergedSource : HttpSource() {
-    private val getManga: GetManga by injectLazy()
-    private val getMergedReferencesById: GetMergedReferencesById by injectLazy()
-    private val networkToLocalManga: NetworkToLocalManga by injectLazy()
-    private val updateMangaFromRemote: UpdateMangaFromRemote by injectLazy()
-    private val sourceManager: SourceManager by injectLazy()
-    private val downloadManager: DownloadManager by injectLazy()
-    private val filterChaptersForDownload: FilterChaptersForDownload by injectLazy()
+    private val getManga: GetManga by lazy { globalAppGraph.getManga }
+    private val getMergedReferencesById: GetMergedReferencesById by lazy { globalAppGraph.getMergedReferencesById }
+    private val networkToLocalManga: NetworkToLocalManga by lazy { globalAppGraph.networkToLocalManga }
+    private val updateMangaFromRemote: UpdateMangaFromRemote by lazy { globalAppGraph.updateMangaFromRemote }
+    private val sourceManager: SourceManager by lazy { globalAppGraph.sourceManager }
+    private val downloadManager: DownloadManager by lazy { globalAppGraph.downloadManager }
+    private val filterChaptersForDownload: FilterChaptersForDownload by lazy { globalAppGraph.filterChaptersForDownload }
 
     override val id: Long = MERGED_SOURCE_ID
 

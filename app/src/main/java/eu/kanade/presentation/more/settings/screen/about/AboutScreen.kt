@@ -43,6 +43,7 @@ import eu.kanade.tachiyomi.util.system.toast
 import eu.kanade.tachiyomi.util.system.updaterEnabled
 import kotlinx.coroutines.launch
 import logcat.LogPriority
+import mihon.app.di.globalAppGraph
 import tachiyomi.core.common.util.lang.withIOContext
 import tachiyomi.core.common.util.lang.withUIContext
 import tachiyomi.core.common.util.system.logcat
@@ -56,8 +57,6 @@ import tachiyomi.presentation.core.i18n.stringResource
 import tachiyomi.presentation.core.icons.CustomIcons
 import tachiyomi.presentation.core.icons.Discord
 import tachiyomi.presentation.core.icons.Github
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 import java.time.Instant
 import java.time.LocalDateTime
 import java.time.ZoneId
@@ -342,7 +341,7 @@ class AboutScreen : Screen() {
                 )
                     .toDateTimestampString(
                         UiPreferences.dateFormat(
-                            Injekt.get<UiPreferences>().dateFormat().get(),
+                            globalAppGraph.uiPreferences.dateFormat().get(),
                         ),
                     )
             } catch (_: Exception) {

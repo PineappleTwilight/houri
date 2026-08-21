@@ -17,6 +17,7 @@ import exh.util.ThrottleManager
 import exh.util.jobScheduler
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.protobuf.schema.ProtoBufSchemaGenerator
+import mihon.app.di.globalAppGraph
 import mihon.core.migration.MigrationContext
 import mihon.core.migration.MigrationJobFactory
 import mihon.core.migration.MigrationStrategyFactory
@@ -31,23 +32,20 @@ import tachiyomi.domain.manga.interactor.GetFlatMetadataById
 import tachiyomi.domain.manga.interactor.GetSearchMetadata
 import tachiyomi.domain.manga.interactor.InsertFlatMetadata
 import tachiyomi.domain.source.service.SourceManager
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
-import uy.kohesive.injekt.injectLazy
 import java.util.UUID
 
 @Suppress("unused")
 object DebugFunctions {
-    private val app: Application by injectLazy()
-    private val handler: DatabaseHandler by injectLazy()
-    private val sourceManager: SourceManager by injectLazy()
-    private val updateMangaFromRemote: UpdateMangaFromRemote by injectLazy()
-    private val getFavorites: GetFavorites by injectLazy()
-    private val getFlatMetadataById: GetFlatMetadataById by injectLazy()
-    private val insertFlatMetadata: InsertFlatMetadata by injectLazy()
-    private val getExhFavoriteMangaWithMetadata: GetExhFavoriteMangaWithMetadata by injectLazy()
-    private val getSearchMetadata: GetSearchMetadata by injectLazy()
-    private val getAllManga: GetAllManga by injectLazy()
+    private val app: Application by lazy { globalAppGraph.context as Application }
+    private val handler: DatabaseHandler by lazy { globalAppGraph.databaseHandler }
+    private val sourceManager: SourceManager by lazy { globalAppGraph.sourceManager }
+    private val updateMangaFromRemote: UpdateMangaFromRemote by lazy { globalAppGraph.updateMangaFromRemote }
+    private val getFavorites: GetFavorites by lazy { globalAppGraph.getFavorites }
+    private val getFlatMetadataById: GetFlatMetadataById by lazy { globalAppGraph.getFlatMetadataById }
+    private val insertFlatMetadata: InsertFlatMetadata by lazy { globalAppGraph.insertFlatMetadata }
+    private val getExhFavoriteMangaWithMetadata: GetExhFavoriteMangaWithMetadata by lazy { globalAppGraph.getExhFavoriteMangaWithMetadata }
+    private val getSearchMetadata: GetSearchMetadata by lazy { globalAppGraph.getSearchMetadata }
+    private val getAllManga: GetAllManga by lazy { globalAppGraph.getAllManga }
 
     fun forceUpgradeMigration(): Boolean {
         val migrationContext = MigrationContext(dryrun = false)
@@ -314,12 +312,12 @@ object DebugFunctions {
     fun exportProtobufScheme() = ProtoBufSchemaGenerator.generateSchemaText(Backup.serializer().descriptor)
 
     fun killSyncJobs() {
-        val context = Injekt.get<Application>()
+        val context = globalAppGraph.context
         SyncDataJob.stop(context)
     }
 
     fun killLibraryJobs() {
-        val context = Injekt.get<Application>()
+        val context = globalAppGraph.context
         LibraryUpdateJob.stop(context)
     }
 }

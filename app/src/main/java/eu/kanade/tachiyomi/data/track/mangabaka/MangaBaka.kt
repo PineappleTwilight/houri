@@ -10,13 +10,13 @@ import eu.kanade.tachiyomi.data.track.model.TrackSearch
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.serialization.json.Json
+import mihon.app.di.globalAppGraph
 import tachiyomi.i18n.MR
-import uy.kohesive.injekt.injectLazy
 import tachiyomi.domain.track.model.Track as DomainTrack
 
 class MangaBaka(id: Long) : BaseTracker(id, "MangaBaka"), DeletableTracker {
 
-    private val json: Json by injectLazy()
+    private val json: Json by lazy { globalAppGraph.json }
 
     private val interceptor by lazy { MangaBakaInterceptor(this) }
     private val api by lazy { MangaBakaApi(id, client, interceptor) }

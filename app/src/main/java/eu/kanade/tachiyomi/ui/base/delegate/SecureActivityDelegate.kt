@@ -17,9 +17,7 @@ import eu.kanade.tachiyomi.util.view.setSecureScreen
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
-import uy.kohesive.injekt.injectLazy
+import mihon.app.di.globalAppGraph
 import java.util.Calendar
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.minutes
@@ -47,7 +45,7 @@ interface SecureActivityDelegate {
         var requireUnlock = true
 
         fun onApplicationStopped() {
-            val preferences = Injekt.get<SecurityPreferences>()
+            val preferences = globalAppGraph.securityPreferences
             if (!preferences.useAuthenticator().get()) return
 
             if (!AuthenticatorUtil.isAuthenticating) {
@@ -93,7 +91,7 @@ interface SecureActivityDelegate {
          * Checks if unlock is needed when app comes foreground.
          */
         fun onApplicationStart() {
-            val preferences = Injekt.get<SecurityPreferences>()
+            val preferences = globalAppGraph.securityPreferences
             if (!preferences.useAuthenticator().get()) return
 
             val lastClosedPref = preferences.lastAppClosed()
@@ -122,8 +120,8 @@ class SecureActivityDelegateImpl : SecureActivityDelegate, DefaultLifecycleObser
 
     private lateinit var activity: AppCompatActivity
 
-    private val preferences: BasePreferences by injectLazy()
-    private val securityPreferences: SecurityPreferences by injectLazy()
+    private val preferences: BasePreferences by lazy { globalAppGraph.basePreferences }
+    private val securityPreferences: SecurityPreferences by lazy { globalAppGraph.securityPreferences }
 
     override fun registerSecureActivity(activity: AppCompatActivity) {
         this.activity = activity

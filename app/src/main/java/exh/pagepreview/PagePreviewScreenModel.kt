@@ -13,21 +13,20 @@ import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
+import mihon.app.di.globalAppGraph
 import tachiyomi.core.common.util.lang.launchIO
 import tachiyomi.domain.chapter.interactor.GetChaptersByMangaId
 import tachiyomi.domain.chapter.model.Chapter
 import tachiyomi.domain.manga.interactor.GetManga
 import tachiyomi.domain.manga.model.Manga
 import tachiyomi.domain.source.service.SourceManager
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 
 class PagePreviewScreenModel(
     private val mangaId: Long,
-    private val getPagePreviews: GetPagePreviews = Injekt.get(),
-    private val getManga: GetManga = Injekt.get(),
-    private val getChaptersByMangaId: GetChaptersByMangaId = Injekt.get(),
-    private val sourceManager: SourceManager = Injekt.get(),
+    private val getPagePreviews: GetPagePreviews = globalAppGraph.getPagePreviews,
+    private val getManga: GetManga = globalAppGraph.getManga,
+    private val getChaptersByMangaId: GetChaptersByMangaId = globalAppGraph.getChaptersByMangaId,
+    private val sourceManager: SourceManager = globalAppGraph.sourceManager,
 ) : StateScreenModel<PagePreviewState>(PagePreviewState.Loading) {
 
     private val page = MutableStateFlow(1)

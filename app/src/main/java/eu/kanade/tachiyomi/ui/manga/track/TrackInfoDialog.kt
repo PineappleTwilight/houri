@@ -1,6 +1,5 @@
 package eu.kanade.tachiyomi.ui.manga.track
 
-import android.app.Application
 import android.content.Context
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.layout.Arrangement
@@ -77,6 +76,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import logcat.LogPriority
+import mihon.app.di.globalAppGraph
 import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.core.common.util.QuerySanitizer.sanitize
 import tachiyomi.core.common.util.lang.launchNonCancellable
@@ -96,9 +96,6 @@ import tachiyomi.presentation.core.components.LabeledCheckbox
 import tachiyomi.presentation.core.components.material.AlertDialogContent
 import tachiyomi.presentation.core.components.material.padding
 import tachiyomi.presentation.core.i18n.stringResource
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
-import uy.kohesive.injekt.injectLazy
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneOffset
@@ -115,7 +112,7 @@ data class TrackInfoDialogHomeScreen(
         val context = LocalContext.current
         val screenModel = rememberScreenModel { Model(mangaId, sourceId) }
 
-        val dateFormat = remember { UiPreferences.dateFormat(Injekt.get<UiPreferences>().dateFormat().get()) }
+        val dateFormat = remember { UiPreferences.dateFormat(globalAppGraph.uiPreferences.dateFormat().get()) }
         val state by screenModel.state.collectAsState()
 
         // SY -->
@@ -229,19 +226,19 @@ data class TrackInfoDialogHomeScreen(
     private class Model(
         private val mangaId: Long,
         private val sourceId: Long,
-        private val getTracks: GetTracks = Injekt.get(),
+        private val getTracks: GetTracks = globalAppGraph.getTracks,
         // SY -->
-        private val trackerManager: TrackerManager = Injekt.get(),
-        private val trackPreferences: TrackPreferences = Injekt.get(),
+        private val trackerManager: TrackerManager = globalAppGraph.trackerManager,
+        private val trackPreferences: TrackPreferences = globalAppGraph.trackPreferences,
         // SY <--
         // KMK -->
-        private val sourceManager: SourceManager = Injekt.get(),
+        private val sourceManager: SourceManager = globalAppGraph.sourceManager,
         // KMK <--
     ) : StateScreenModel<Model.State>(State()) {
         // KMK -->
-        private val getFlatMetadataById: GetFlatMetadataById by injectLazy()
-        private val getMangaById: GetManga by injectLazy()
-        private val getMergedReferencesById: GetMergedReferencesById by injectLazy()
+        private val getFlatMetadataById: GetFlatMetadataById by lazy { globalAppGraph.getFlatMetadataById }
+        private val getMangaById: GetManga by lazy { globalAppGraph.getManga }
+        private val getMergedReferencesById: GetMergedReferencesById by lazy { globalAppGraph.getMergedReferencesById }
         // KMK <--
 
         init {
@@ -281,7 +278,7 @@ data class TrackInfoDialogHomeScreen(
                     val matchResult = item.tracker.match(manga) ?: throw Exception()
                     item.tracker.register(matchResult, mangaId)
                 } catch (_: Exception) {
-                    withUIContext { Injekt.get<Application>().toast(MR.strings.error_no_match) }
+                    withUIContext { globalAppGraph.context.toast(MR.strings.error_no_match) }
                 }
             }
         }
@@ -358,8 +355,8 @@ data class TrackInfoDialogHomeScreen(
         // SY <--
 
         private suspend fun refreshTrackers() {
-            val refreshTracks = Injekt.get<RefreshTracks>()
-            val context = Injekt.get<Application>()
+            val refreshTracks = globalAppGraph.refreshTracks
+            val context = globalAppGraph.context
 
             refreshTracks.await(mangaId)
                 .filter { it.first != null }
@@ -426,7 +423,7 @@ private data class TrackStatusSelectorScreen(
         val screenModel = rememberScreenModel {
             Model(
                 track = track,
-                tracker = Injekt.get<TrackerManager>().get(serviceId)!!,
+                tracker = globalAppGraph.trackerManager.get(serviceId)!!,
             )
         }
         val state by screenModel.state.collectAsState()
@@ -479,7 +476,7 @@ private data class TrackChapterSelectorScreen(
         val screenModel = rememberScreenModel {
             Model(
                 track = track,
-                tracker = Injekt.get<TrackerManager>().get(serviceId)!!,
+                tracker = globalAppGraph.trackerManager.get(serviceId)!!,
             )
         }
         val state by screenModel.state.collectAsState()
@@ -538,7 +535,7 @@ private data class TrackScoreSelectorScreen(
         val screenModel = rememberScreenModel {
             Model(
                 track = track,
-                tracker = Injekt.get<TrackerManager>().get(serviceId)!!,
+                tracker = globalAppGraph.trackerManager.get(serviceId)!!,
             )
         }
         val state by screenModel.state.collectAsState()
@@ -640,7 +637,7 @@ private data class TrackDateSelectorScreen(
         val screenModel = rememberScreenModel {
             Model(
                 track = track,
-                tracker = Injekt.get<TrackerManager>().get(serviceId)!!,
+                tracker = globalAppGraph.trackerManager.get(serviceId)!!,
                 start = start,
             )
         }
@@ -713,7 +710,7 @@ private data class TrackDateRemoverScreen(
         val screenModel = rememberScreenModel {
             Model(
                 track = track,
-                tracker = Injekt.get<TrackerManager>().get(serviceId)!!,
+                tracker = globalAppGraph.trackerManager.get(serviceId)!!,
                 start = start,
             )
         }
@@ -801,7 +798,7 @@ data class TrackerSearchScreen(
                 mangaId = mangaId,
                 currentUrl = currentUrl,
                 initialQuery = initialQuery,
-                tracker = Injekt.get<TrackerManager>().get(serviceId)!!,
+                tracker = globalAppGraph.trackerManager.get(serviceId)!!,
             )
         }
 
@@ -892,7 +889,7 @@ private data class TrackerRemoveScreen(
             Model(
                 mangaId = mangaId,
                 track = track,
-                tracker = Injekt.get<TrackerManager>().get(serviceId)!!,
+                tracker = globalAppGraph.trackerManager.get(serviceId)!!,
             )
         }
         val serviceName = screenModel.getName()
@@ -961,7 +958,7 @@ private data class TrackerRemoveScreen(
         private val mangaId: Long,
         private val track: Track,
         private val tracker: Tracker,
-        private val deleteTrack: DeleteTrack = Injekt.get(),
+        private val deleteTrack: DeleteTrack = globalAppGraph.deleteTrack,
     ) : ScreenModel {
 
         fun getName() = tracker.name

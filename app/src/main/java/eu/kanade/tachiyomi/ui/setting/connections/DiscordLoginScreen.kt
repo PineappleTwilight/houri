@@ -54,14 +54,13 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import logcat.LogPriority
+import mihon.app.di.globalAppGraph
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import tachiyomi.core.common.util.lang.launchIO
 import tachiyomi.core.common.util.system.logcat
 import tachiyomi.i18n.MR
 import tachiyomi.i18n.kmk.KMR
 import tachiyomi.presentation.core.i18n.stringResource
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 
 private const val DISCORD_DOMAIN = "https://discord.com"
 private const val DISCORD_LOGIN_URL = "$DISCORD_DOMAIN/login"
@@ -268,10 +267,10 @@ class DiscordLoginScreen : Screen() {
     }
 
     private fun login(token: String, context: Context) {
-        val connectionsManager: ConnectionsManager by lazy { Injekt.get() }
-        val connectionsPreferences: ConnectionsPreferences by lazy { Injekt.get() }
-        val networkHelper: NetworkHelper by lazy { Injekt.get() }
-        val json: Json by lazy { Injekt.get<Json>() }
+        val connectionsManager: ConnectionsManager by lazy { globalAppGraph.connectionsManager }
+        val connectionsPreferences: ConnectionsPreferences by lazy { globalAppGraph.connectionsPreferences }
+        val networkHelper: NetworkHelper by lazy { globalAppGraph.networkHelper }
+        val json: Json by lazy { globalAppGraph.json }
 
         @Suppress("OPT_IN_USAGE")
         launchIO {
@@ -315,7 +314,7 @@ class DiscordLoginScreen : Screen() {
     }
 
     private fun clearCookies(url: String) {
-        val networkHelper: NetworkHelper by lazy { Injekt.get() }
+        val networkHelper: NetworkHelper by lazy { globalAppGraph.networkHelper }
 
         url.toHttpUrlOrNull()?.let {
             val cleared = networkHelper.cookieJar.remove(it)

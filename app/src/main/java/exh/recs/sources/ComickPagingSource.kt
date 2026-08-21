@@ -13,14 +13,12 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import mihon.app.di.globalAppGraph
 import okhttp3.Headers
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import tachiyomi.data.source.NoResultsException
 import tachiyomi.domain.manga.model.Manga
 import tachiyomi.i18n.sy.SYMR
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
-import uy.kohesive.injekt.injectLazy
 
 internal class ComickPagingSource(
     manga: Manga,
@@ -45,8 +43,8 @@ internal class ComickPagingSource(
         get() = recommendationSource.id
     // KMK <--
 
-    private val client by lazy { Injekt.get<NetworkHelper>().client }
-    private val json by injectLazy<Json>()
+    private val client by lazy { globalAppGraph.networkHelper.client }
+    private val json by lazy { globalAppGraph.json }
     private val thumbnailBaseUrl = "https://meo.comick.pictures/"
 
     override suspend fun requestNextPage(currentPage: Int): MangasPage {

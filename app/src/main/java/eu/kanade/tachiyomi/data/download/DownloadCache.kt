@@ -1,6 +1,5 @@
 package eu.kanade.tachiyomi.data.download
 
-import android.app.Application
 import android.content.Context
 import androidx.core.net.toUri
 import com.hippo.unifile.UniFile
@@ -43,6 +42,7 @@ import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
 import kotlinx.serialization.protobuf.ProtoBuf
 import logcat.LogPriority
+import mihon.app.di.globalAppGraph
 import tachiyomi.core.common.storage.extension
 import tachiyomi.core.common.storage.nameWithoutExtension
 import tachiyomi.core.common.util.lang.launchIO
@@ -53,8 +53,6 @@ import tachiyomi.domain.download.service.DownloadPreferences
 import tachiyomi.domain.manga.model.Manga
 import tachiyomi.domain.source.service.SourceManager
 import tachiyomi.domain.storage.service.StorageManager
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 import java.io.File
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.seconds
@@ -69,16 +67,16 @@ import kotlin.time.Duration.Companion.seconds
 @SingleIn(AppScope::class)
 class DownloadCache(
     private val context: Context,
-    private val provider: DownloadProvider = Injekt.get(),
-    private val sourceManager: SourceManager = Injekt.get(),
-    private val extensionManager: ExtensionManager = Injekt.get(),
-    private val storageManager: StorageManager = Injekt.get(),
+    private val provider: DownloadProvider = globalAppGraph.downloadProvider,
+    private val sourceManager: SourceManager = globalAppGraph.sourceManager,
+    private val extensionManager: ExtensionManager = globalAppGraph.extensionManager,
+    private val storageManager: StorageManager = globalAppGraph.storageManager,
 ) {
 
     private val scope = CoroutineScope(Dispatchers.IO)
 
     // KMK -->
-    private val downloadPreferences: DownloadPreferences = Injekt.get()
+    private val downloadPreferences: DownloadPreferences = globalAppGraph.downloadPreferences
     // KMK <--
 
     private val _changes: Channel<Unit> = Channel(Channel.UNLIMITED)
@@ -564,7 +562,7 @@ private object UniFileAsStringSerializer : KSerializer<UniFile?> {
 
     override fun deserialize(decoder: Decoder): UniFile? {
         return if (decoder.decodeNotNullMark()) {
-            UniFile.fromUri(Injekt.get<Application>(), decoder.decodeString().toUri())
+            UniFile.fromUri(globalAppGraph.context, decoder.decodeString().toUri())
         } else {
             decoder.decodeNull()
         }

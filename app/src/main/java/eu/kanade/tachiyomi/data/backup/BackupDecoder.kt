@@ -8,20 +8,19 @@ import dev.zacsweers.metro.SingleIn
 import eu.kanade.tachiyomi.data.backup.models.Backup
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.protobuf.ProtoBuf
+import mihon.app.di.globalAppGraph
 import okio.buffer
 import okio.gzip
 import okio.source
 import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.i18n.MR
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 import java.io.IOException
 
 @Inject
 @SingleIn(AppScope::class)
 class BackupDecoder(
     private val context: Context,
-    private val parser: ProtoBuf = Injekt.get(),
+    private val parser: ProtoBuf = globalAppGraph.protoBuf,
 ) {
     /**
      * Decode a potentially-gzipped backup.

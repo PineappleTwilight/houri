@@ -9,10 +9,9 @@ import eu.kanade.tachiyomi.R
 import eu.kanade.tachiyomi.data.connections.ConnectionsService
 import exh.log.xLogE
 import kotlinx.serialization.json.Json
+import mihon.app.di.globalAppGraph
 import tachiyomi.i18n.kmk.KMR
 import timber.log.Timber
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 
 class Discord(id: Long) : ConnectionsService(id) {
 
@@ -39,7 +38,7 @@ class Discord(id: Long) : ConnectionsService(id) {
         return connectionsPreferences.connectionsToken(this).get()
     }
 
-    private val json = Injekt.get<Json>()
+    private val json = globalAppGraph.json
 
     fun getAccounts(): List<DiscordAccount> {
         val accountsJson = connectionsPreferences.discordAccounts().get()

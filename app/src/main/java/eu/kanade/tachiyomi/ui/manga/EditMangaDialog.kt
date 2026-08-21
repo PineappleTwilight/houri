@@ -65,6 +65,7 @@ import exh.util.trimOrNull
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import logcat.LogPriority
+import mihon.app.di.globalAppGraph
 import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.core.common.util.system.logcat
 import tachiyomi.domain.manga.model.Manga
@@ -74,8 +75,6 @@ import tachiyomi.i18n.MR
 import tachiyomi.i18n.sy.SYMR
 import tachiyomi.presentation.core.i18n.stringResource
 import tachiyomi.source.local.isLocal
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 
 @Composable
 fun EditMangaDialog(
@@ -99,8 +98,8 @@ fun EditMangaDialog(
         mutableStateOf<EditMangaDialogBinding?>(null)
     }
     val showTrackerSelectionDialogue = remember { mutableStateOf(false) }
-    val getTracks = remember { Injekt.get<GetTracks>() }
-    val trackerManager = remember { Injekt.get<TrackerManager>() }
+    val getTracks = remember { globalAppGraph.getTracks }
+    val trackerManager = remember { globalAppGraph.trackerManager }
     val tracks = remember { mutableStateOf(emptyList<Pair<Track, Tracker>>()) }
 
     // KMK -->
@@ -462,7 +461,7 @@ private fun loadCover(
     // KMK <--
 ) {
     // KMK -->
-    if (Injekt.get<UiPreferences>().usePanoramaCoverAlways().get() && coverRatio.floatValue <= RatioSwitchToPanorama) {
+    if (globalAppGraph.uiPreferences.usePanoramaCoverAlways().get() && coverRatio.floatValue <= RatioSwitchToPanorama) {
         binding.mangaCover.visibility = View.GONE
         binding.mangaCoverPanorama.visibility = View.VISIBLE
         binding.mangaCoverPanorama.load(manga) {

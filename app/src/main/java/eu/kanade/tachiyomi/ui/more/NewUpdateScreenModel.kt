@@ -22,9 +22,9 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import logcat.LogPriority
+import mihon.app.di.globalAppGraph
 import tachiyomi.core.common.util.lang.withIOContext
 import tachiyomi.core.common.util.system.logcat
-import uy.kohesive.injekt.injectLazy
 import java.io.File
 
 class NewUpdateScreenModel(
@@ -32,8 +32,8 @@ class NewUpdateScreenModel(
     private val downloadLink: String,
 ) : ScreenModel {
 
-    private val context: Context by injectLazy()
-    private val network: NetworkHelper by injectLazy()
+    private val context: Context by lazy { globalAppGraph.context }
+    private val network: NetworkHelper by lazy { globalAppGraph.networkHelper }
 
     private val _state = MutableStateFlow(State(changelogInfo = changelogInfo))
     val state: StateFlow<State> = _state

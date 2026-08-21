@@ -4,19 +4,18 @@ import cafe.adriel.voyager.core.model.StateScreenModel
 import cafe.adriel.voyager.core.model.screenModelScope
 import eu.kanade.tachiyomi.ui.browse.source.SourcesScreen
 import kotlinx.coroutines.CancellationException
+import mihon.app.di.globalAppGraph
 import mihon.feature.migration.list.search.SmartSourceSearchEngine
 import tachiyomi.core.common.util.lang.launchIO
 import tachiyomi.domain.manga.interactor.NetworkToLocalManga
 import tachiyomi.domain.manga.model.Manga
 import tachiyomi.domain.source.service.SourceManager
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 
 class SmartSearchScreenModel(
     sourceId: Long,
     private val config: SourcesScreen.SmartSearchConfig,
-    private val networkToLocalManga: NetworkToLocalManga = Injekt.get(),
-    sourceManager: SourceManager = Injekt.get(),
+    private val networkToLocalManga: NetworkToLocalManga = globalAppGraph.networkToLocalManga,
+    sourceManager: SourceManager = globalAppGraph.sourceManager,
 ) : StateScreenModel<SmartSearchScreenModel.SearchResults?>(null) {
     private val smartSearchEngine = SmartSourceSearchEngine(null)
 

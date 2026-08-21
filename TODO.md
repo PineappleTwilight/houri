@@ -89,8 +89,9 @@
 - [ ] **Update Dependency**: Voyager (UI related)
 - [ ] **Update Dependency**: MaterialKolor (UI related)
 - [x] **Migration**: Injekt -> Metro
-- [ ] **Migration**: Remove remaining Injekt usage from app code (only keep for extensions)
+- [x] **Migration**: Remove remaining Injekt usage from app code (only keep for extensions)
 - [x] **Code Cleanup**: Fix compile warnings
+- [ ] **Tracker**: Update comick's icon to the website's unicorn logo
 
 ## Drawing Board
 - [ ] **New**: WebAssembly computation engine

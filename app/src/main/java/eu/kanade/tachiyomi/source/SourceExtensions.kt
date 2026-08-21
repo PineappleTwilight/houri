@@ -5,18 +5,17 @@ import eu.kanade.tachiyomi.extension.ExtensionManager
 import exh.source.EH_PACKAGE
 import exh.source.LOCAL_SOURCE_PACKAGE
 import exh.source.isEhBasedSource
+import mihon.app.di.globalAppGraph
 import tachiyomi.domain.source.model.StubSource
 import tachiyomi.presentation.core.icons.FlagEmoji
 import tachiyomi.source.local.isLocal
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 
 fun Source.getNameForMangaInfo(
     // SY -->
     mergeSources: List<Source>? = null,
     // SY <--
 ): String {
-    val preferences = Injekt.get<SourcePreferences>()
+    val preferences = globalAppGraph.sourcePreferences
     val enabledLanguages = preferences.enabledLanguages().get()
         .filterNot { it in listOf("all", "other") }
     val hasOneActiveLanguages = enabledLanguages.size == 1
@@ -87,8 +86,8 @@ fun Source.isIncognitoModeEnabled(incognitoExtensions: Set<String>? = null): Boo
     val extensionPackage = when {
         isLocal() -> LOCAL_SOURCE_PACKAGE
         isEhBasedSource() -> EH_PACKAGE
-        else -> Injekt.get<ExtensionManager>().getExtensionPackage(id)
+        else -> globalAppGraph.extensionManager.getExtensionPackage(id)
     }
-    return extensionPackage in (incognitoExtensions ?: Injekt.get<SourcePreferences>().incognitoExtensions().get())
+    return extensionPackage in (incognitoExtensions ?: globalAppGraph.sourcePreferences.incognitoExtensions().get())
 }
 // KMK <--

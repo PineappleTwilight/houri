@@ -1,11 +1,10 @@
 package eu.kanade.tachiyomi.ui.library
 
 import androidx.compose.runtime.Immutable
+import mihon.app.di.globalAppGraph
 import tachiyomi.domain.library.model.LibraryManga
 import tachiyomi.domain.source.model.Source
 import tachiyomi.domain.source.service.SourceManager
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 
 internal const val LOCAL_SOURCE_ID_ALIAS = "local"
 
@@ -20,7 +19,7 @@ data class LibraryItem(
     val useLangIcon: Boolean = true,
     val source: Source? = null,
     // KMK <--
-    private val sourceManager: SourceManager = Injekt.get(),
+    private val sourceManager: SourceManager = globalAppGraph.sourceManager,
 ) {
     val id: Long = libraryManga.id
 

@@ -35,6 +35,7 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
+import mihon.app.di.globalAppGraph
 import mihon.domain.manga.model.toDomainManga
 import tachiyomi.data.source.NoResultsException
 import tachiyomi.domain.library.model.LibraryManga
@@ -47,23 +48,22 @@ import tachiyomi.domain.recommendation.interactor.InsertCachedRecommendations
 import tachiyomi.domain.recommendation.model.CachedRecommendation
 import tachiyomi.domain.track.interactor.GetTracks
 import tachiyomi.domain.track.model.Track
-import uy.kohesive.injekt.injectLazy
 import java.util.Collections
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 class RecommendationSearchHelper(val context: Context) {
-    private val getLibraryManga: GetLibraryManga by injectLazy()
-    private val getTracks: GetTracks by injectLazy()
-    private val networkToLocalManga: NetworkToLocalManga by injectLazy()
-    private val preferences: SourcePreferences by injectLazy()
+    private val getLibraryManga: GetLibraryManga by lazy { globalAppGraph.getLibraryManga }
+    private val getTracks: GetTracks by lazy { globalAppGraph.getTracks }
+    private val networkToLocalManga: NetworkToLocalManga by lazy { globalAppGraph.networkToLocalManga }
+    private val preferences: SourcePreferences by lazy { globalAppGraph.sourcePreferences }
 
     // KMK -->
-    private val getCachedRecommendations: GetCachedRecommendations by injectLazy()
-    private val insertCachedRecommendations: InsertCachedRecommendations by injectLazy()
-    private val deleteCachedRecommendations: DeleteCachedRecommendations by injectLazy()
-    private val json: Json by injectLazy()
+    private val getCachedRecommendations: GetCachedRecommendations by lazy { globalAppGraph.getCachedRecommendations }
+    private val insertCachedRecommendations: InsertCachedRecommendations by lazy { globalAppGraph.insertCachedRecommendations }
+    private val deleteCachedRecommendations: DeleteCachedRecommendations by lazy { globalAppGraph.deleteCachedRecommendations }
+    private val json: Json by lazy { globalAppGraph.json }
     // KMK <--
 
     private val smartSearchEngine by lazy { SmartLibrarySearchEngine() }

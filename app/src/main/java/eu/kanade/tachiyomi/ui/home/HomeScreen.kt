@@ -55,6 +55,7 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
+import mihon.app.di.globalAppGraph
 import soup.compose.material.motion.animation.materialFadeThroughIn
 import soup.compose.material.motion.animation.materialFadeThroughOut
 import tachiyomi.domain.library.service.LibraryPreferences
@@ -63,8 +64,6 @@ import tachiyomi.presentation.core.components.material.NavigationBar
 import tachiyomi.presentation.core.components.material.NavigationRail
 import tachiyomi.presentation.core.components.material.Scaffold
 import tachiyomi.presentation.core.i18n.pluralStringResource
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 
 object HomeScreen : Screen() {
     private fun readResolve(): Any = HomeScreen
@@ -91,7 +90,7 @@ object HomeScreen : Screen() {
         // SY -->
         val scope = rememberCoroutineScope()
         val alwaysShowLabel by remember {
-            Injekt.get<UiPreferences>().bottomBarLabels().asState(scope)
+            globalAppGraph.uiPreferences.bottomBarLabels().asState(scope)
         }
         // SY <--
 
@@ -283,7 +282,7 @@ object HomeScreen : Screen() {
                 when {
                     tab is UpdatesTab -> {
                         val count by produceState(initialValue = 0) {
-                            val pref = Injekt.get<LibraryPreferences>()
+                            val pref = globalAppGraph.libraryPreferences
                             combine(
                                 pref.newShowUpdatesCount().changes(),
                                 pref.newUpdatesCount().changes(),
@@ -306,7 +305,7 @@ object HomeScreen : Screen() {
                     }
                     BrowseTab::class.isInstance(tab) -> {
                         val count by produceState(initialValue = 0) {
-                            Injekt.get<SourcePreferences>().extensionUpdatesCount().changes()
+                            globalAppGraph.sourcePreferences.extensionUpdatesCount().changes()
                                 .collectLatest { value = it }
                         }
                         if (count > 0) {

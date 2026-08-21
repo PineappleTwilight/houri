@@ -14,6 +14,7 @@ import eu.kanade.presentation.util.Screen
 import eu.kanade.tachiyomi.data.sync.models.SyncTriggerOptions
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.coroutines.flow.update
+import mihon.app.di.globalAppGraph
 import tachiyomi.i18n.MR
 import tachiyomi.i18n.sy.SYMR
 import tachiyomi.presentation.core.components.LabeledCheckbox
@@ -21,8 +22,6 @@ import tachiyomi.presentation.core.components.LazyColumnWithAction
 import tachiyomi.presentation.core.components.SectionCard
 import tachiyomi.presentation.core.components.material.Scaffold
 import tachiyomi.presentation.core.i18n.stringResource
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 
 class SyncTriggerOptionsScreen : Screen() {
 
@@ -78,7 +77,7 @@ class SyncTriggerOptionsScreen : Screen() {
 }
 
 private class SyncOptionsScreenModel(
-    val syncPreferences: SyncPreferences = Injekt.get(),
+    val syncPreferences: SyncPreferences = globalAppGraph.syncPreferences,
 ) : StateScreenModel<SyncOptionsScreenModel.State>(
     State(
         syncPreferences.getSyncTriggerOptions(),

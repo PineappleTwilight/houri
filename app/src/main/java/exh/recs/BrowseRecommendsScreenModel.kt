@@ -14,15 +14,14 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.runBlocking
+import mihon.app.di.globalAppGraph
 import tachiyomi.core.common.util.lang.launchIO
 import tachiyomi.domain.manga.interactor.GetManga
 import tachiyomi.domain.manga.model.Manga
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 
 class BrowseRecommendsScreenModel(
     private val args: BrowseRecommendsScreen.Args,
-    private val getManga: GetManga = Injekt.get(),
+    private val getManga: GetManga = globalAppGraph.getManga,
 ) : BrowseSourceScreenModel(
     sourceId = when (args) {
         is BrowseRecommendsScreen.Args.SingleSourceManga -> args.sourceId

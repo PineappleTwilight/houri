@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import mihon.app.di.globalAppGraph
 import tachiyomi.domain.category.interactor.CreateCategoryWithName
 import tachiyomi.domain.category.interactor.DeleteCategory
 import tachiyomi.domain.category.interactor.GetCategories
@@ -19,17 +20,15 @@ import tachiyomi.domain.category.interactor.RenameCategory
 import tachiyomi.domain.category.interactor.ReorderCategory
 import tachiyomi.domain.category.model.Category
 import tachiyomi.i18n.MR
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 
 class CategoryScreenModel(
-    private val getCategories: GetCategories = Injekt.get(),
-    private val createCategoryWithName: CreateCategoryWithName = Injekt.get(),
-    private val deleteCategory: DeleteCategory = Injekt.get(),
-    private val reorderCategory: ReorderCategory = Injekt.get(),
-    private val renameCategory: RenameCategory = Injekt.get(),
+    private val getCategories: GetCategories = globalAppGraph.getCategories,
+    private val createCategoryWithName: CreateCategoryWithName = globalAppGraph.createCategoryWithName,
+    private val deleteCategory: DeleteCategory = globalAppGraph.deleteCategory,
+    private val reorderCategory: ReorderCategory = globalAppGraph.reorderCategory,
+    private val renameCategory: RenameCategory = globalAppGraph.renameCategory,
     // KMK -->
-    private val hideCategory: HideCategory = Injekt.get(),
+    private val hideCategory: HideCategory = globalAppGraph.hideCategory,
     // KMK <--
 ) : StateScreenModel<CategoryScreenState>(CategoryScreenState.Loading) {
 

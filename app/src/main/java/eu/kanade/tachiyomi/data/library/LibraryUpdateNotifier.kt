@@ -31,6 +31,7 @@ import eu.kanade.tachiyomi.util.system.getBitmapOrNull
 import eu.kanade.tachiyomi.util.system.notificationBuilder
 import eu.kanade.tachiyomi.util.system.notify
 import kotlinx.coroutines.DelicateCoroutinesApi
+import mihon.app.di.globalAppGraph
 import tachiyomi.core.common.Constants
 import tachiyomi.core.common.i18n.pluralStringResource
 import tachiyomi.core.common.i18n.stringResource
@@ -40,8 +41,6 @@ import tachiyomi.domain.library.model.LibraryManga
 import tachiyomi.domain.manga.model.Manga
 import tachiyomi.domain.source.service.SourceManager
 import tachiyomi.i18n.MR
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 import java.math.RoundingMode
 import java.text.NumberFormat
 
@@ -51,11 +50,11 @@ import java.text.NumberFormat
 class LibraryUpdateNotifier(
     private val context: Context,
 
-    private val securityPreferences: SecurityPreferences = Injekt.get(),
-    private val sourceManager: SourceManager = Injekt.get(),
+    private val securityPreferences: SecurityPreferences = globalAppGraph.securityPreferences,
+    private val sourceManager: SourceManager = globalAppGraph.sourceManager,
 ) {
     // KMK -->
-    private val libraryUpdateStatus: LibraryUpdateStatus = Injekt.get()
+    private val libraryUpdateStatus: LibraryUpdateStatus = globalAppGraph.libraryUpdateStatus
     // KMK <--
 
     private val percentFormatter = NumberFormat.getPercentInstance().apply {

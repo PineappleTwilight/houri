@@ -17,13 +17,11 @@ import eu.kanade.tachiyomi.util.storage.getUriCompat
 import eu.kanade.tachiyomi.util.system.cancelNotification
 import eu.kanade.tachiyomi.util.system.notificationBuilder
 import eu.kanade.tachiyomi.util.system.notify
+import mihon.app.di.globalAppGraph
 import tachiyomi.core.common.i18n.pluralStringResource
 import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.core.common.storage.displayablePath
 import tachiyomi.i18n.MR
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
-import uy.kohesive.injekt.injectLazy
 import java.io.File
 import java.util.concurrent.TimeUnit
 
@@ -31,10 +29,10 @@ import java.util.concurrent.TimeUnit
 @SingleIn(AppScope::class)
 class BackupNotifier(private val context: Context) {
 
-    private val preferences: SecurityPreferences by injectLazy()
+    private val preferences: SecurityPreferences by lazy { globalAppGraph.securityPreferences }
 
     // KMK -->
-    private val backupRestoreStatus: BackupRestoreStatus = Injekt.get()
+    private val backupRestoreStatus: BackupRestoreStatus = globalAppGraph.backupRestoreStatus
     // KMK <--
 
     private val progressNotificationBuilder = context.notificationBuilder(

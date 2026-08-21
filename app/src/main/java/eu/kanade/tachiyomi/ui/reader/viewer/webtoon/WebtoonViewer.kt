@@ -24,10 +24,8 @@ import eu.kanade.tachiyomi.ui.reader.viewer.Viewer
 import eu.kanade.tachiyomi.ui.reader.viewer.ViewerNavigation.NavigationRegion
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.cancel
+import mihon.app.di.globalAppGraph
 import tachiyomi.core.common.util.system.logcat
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
-import uy.kohesive.injekt.injectLazy
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.time.Duration
@@ -41,11 +39,11 @@ class WebtoonViewer(
     private val tapByPage: Boolean = false,
     // KMK -->
     @param:ColorInt private val seedColor: Int? = null,
-    private val readerPreferences: ReaderPreferences = Injekt.get(),
+    private val readerPreferences: ReaderPreferences = globalAppGraph.readerPreferences,
     // KMK <--
 ) : Viewer {
 
-    val downloadManager: DownloadManager by injectLazy()
+    val downloadManager: DownloadManager by lazy { globalAppGraph.downloadManager }
 
     private val scope = MainScope()
 

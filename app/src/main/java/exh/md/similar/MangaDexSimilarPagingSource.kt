@@ -15,12 +15,11 @@ import exh.recs.sources.RecommendationPagingSource
 import exh.recs.sources.RecommendationSource
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
+import mihon.app.di.globalAppGraph
 import okhttp3.Headers
 import tachiyomi.data.source.NoResultsException
 import tachiyomi.domain.manga.model.Manga
 import tachiyomi.i18n.sy.SYMR
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 
 /**
  * MangaDexSimilarPagingSource inherited from the general Pager.
@@ -47,7 +46,7 @@ internal class MangaDexSimilarPagingSource(
         // KMK -->
         get() = recommendationSource.id
 
-    private val network by lazy { Injekt.get<NetworkHelper>() }
+    private val network by lazy { globalAppGraph.networkHelper }
     private val client by lazy { network.client }
     private val headers by lazy {
         Headers.Builder().apply {

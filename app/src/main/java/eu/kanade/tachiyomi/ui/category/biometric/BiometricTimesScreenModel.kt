@@ -1,6 +1,5 @@
 package eu.kanade.tachiyomi.ui.category.biometric
 
-import android.app.Application
 import androidx.compose.runtime.Immutable
 import cafe.adriel.voyager.core.model.StateScreenModel
 import cafe.adriel.voyager.core.model.screenModelScope
@@ -12,15 +11,14 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
+import mihon.app.di.globalAppGraph
 import tachiyomi.core.common.preference.plusAssign
 import tachiyomi.core.common.util.lang.launchIO
 import tachiyomi.i18n.MR
 import tachiyomi.i18n.sy.SYMR
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 
 class BiometricTimesScreenModel(
-    private val preferences: SecurityPreferences = Injekt.get(),
+    private val preferences: SecurityPreferences = globalAppGraph.securityPreferences,
 ) : StateScreenModel<BiometricTimesScreenState>(BiometricTimesScreenState.Loading) {
 
     private val _events: Channel<BiometricTimesEvent> = Channel(Int.MAX_VALUE)
@@ -31,7 +29,7 @@ class BiometricTimesScreenModel(
             // todo usecase
             preferences.authenticatorTimeRanges().changes()
                 .collectLatest { times ->
-                    val context = Injekt.get<Application>()
+                    val context = globalAppGraph.context
                     mutableState.update {
                         BiometricTimesScreenState.Success(
                             timeRanges = times.toList()

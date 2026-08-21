@@ -22,10 +22,9 @@ import eu.kanade.tachiyomi.ui.browse.BulkFavoriteScreenModel
 import eu.kanade.tachiyomi.ui.browse.source.browse.BrowseSourceScreen
 import eu.kanade.tachiyomi.ui.browse.source.globalsearch.GlobalSearchScreen
 import kotlinx.coroutines.CoroutineScope
+import mihon.app.di.globalAppGraph
 import tachiyomi.domain.library.service.LibraryPreferences
 import tachiyomi.presentation.core.components.material.Scaffold
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 
 @Composable
 fun RelatedMangasScreen(
@@ -36,7 +35,7 @@ fun RelatedMangasScreen(
     scope: CoroutineScope,
     successState: MangaScreenModel.State.Success,
 ) {
-    val sourcePreferences: SourcePreferences = Injekt.get()
+    val sourcePreferences: SourcePreferences = globalAppGraph.sourcePreferences
     var displayMode by sourcePreferences.sourceDisplayMode().asState(scope)
 
     val bulkFavoriteState by bulkFavoriteScreenModel.state.collectAsState()
@@ -114,7 +113,7 @@ fun RelatedMangasScreen(
 }
 
 private fun getColumnsPreference(orientation: Int): GridCells {
-    val libraryPreferences: LibraryPreferences = Injekt.get()
+    val libraryPreferences: LibraryPreferences = globalAppGraph.libraryPreferences
 
     val isLandscape = orientation == Configuration.ORIENTATION_LANDSCAPE
     val columns = if (isLandscape) {

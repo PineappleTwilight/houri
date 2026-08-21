@@ -23,8 +23,8 @@ import eu.kanade.tachiyomi.ui.reader.viewer.Viewer
 import eu.kanade.tachiyomi.ui.reader.viewer.ViewerNavigation.NavigationRegion
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.cancel
+import mihon.app.di.globalAppGraph
 import tachiyomi.core.common.util.system.logcat
-import uy.kohesive.injekt.injectLazy
 import kotlin.math.min
 
 /**
@@ -38,7 +38,7 @@ abstract class PagerViewer(
     // KMK <--
 ) : Viewer {
 
-    val downloadManager: DownloadManager by injectLazy()
+    val downloadManager: DownloadManager by lazy { globalAppGraph.downloadManager }
 
     val scope = MainScope()
 

@@ -1,6 +1,5 @@
 package eu.kanade.tachiyomi.ui.library
 
-import android.app.Application
 import android.content.Context
 import androidx.compose.runtime.Immutable
 import androidx.compose.ui.util.fastAll
@@ -82,6 +81,7 @@ import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.flow.updateAndGet
+import mihon.app.di.globalAppGraph
 import mihon.core.common.utils.mutate
 import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.core.common.preference.CheckboxState
@@ -124,43 +124,41 @@ import tachiyomi.i18n.MR
 import tachiyomi.i18n.sy.SYMR
 import tachiyomi.source.local.LocalSource
 import tachiyomi.source.local.isLocal
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 import kotlin.random.Random
 import tachiyomi.domain.source.model.Source as DomainSource
 
 class LibraryScreenModel(
-    private val getLibraryManga: GetLibraryManga = Injekt.get(),
-    private val getCategories: GetCategories = Injekt.get(),
-    private val getTracksPerManga: GetTracksPerManga = Injekt.get(),
-    private val getNextChapters: GetNextChapters = Injekt.get(),
-    private val getChaptersByMangaId: GetChaptersByMangaId = Injekt.get(),
-    private val getBookmarkedChaptersByMangaId: GetBookmarkedChaptersByMangaId = Injekt.get(),
-    private val setReadStatus: SetReadStatus = Injekt.get(),
-    private val updateManga: UpdateManga = Injekt.get(),
-    private val setMangaCategories: SetMangaCategories = Injekt.get(),
-    private val preferences: BasePreferences = Injekt.get(),
-    private val libraryPreferences: LibraryPreferences = Injekt.get(),
-    private val coverCache: CoverCache = Injekt.get(),
-    private val sourceManager: SourceManager = Injekt.get(),
-    private val downloadManager: DownloadManager = Injekt.get(),
-    private val downloadCache: DownloadCache = Injekt.get(),
-    private val trackerManager: TrackerManager = Injekt.get(),
+    private val getLibraryManga: GetLibraryManga = globalAppGraph.getLibraryManga,
+    private val getCategories: GetCategories = globalAppGraph.getCategories,
+    private val getTracksPerManga: GetTracksPerManga = globalAppGraph.getTracksPerManga,
+    private val getNextChapters: GetNextChapters = globalAppGraph.getNextChapters,
+    private val getChaptersByMangaId: GetChaptersByMangaId = globalAppGraph.getChaptersByMangaId,
+    private val getBookmarkedChaptersByMangaId: GetBookmarkedChaptersByMangaId = globalAppGraph.getBookmarkedChaptersByMangaId,
+    private val setReadStatus: SetReadStatus = globalAppGraph.setReadStatus,
+    private val updateManga: UpdateManga = globalAppGraph.updateManga,
+    private val setMangaCategories: SetMangaCategories = globalAppGraph.setMangaCategories,
+    private val preferences: BasePreferences = globalAppGraph.basePreferences,
+    private val libraryPreferences: LibraryPreferences = globalAppGraph.libraryPreferences,
+    private val coverCache: CoverCache = globalAppGraph.coverCache,
+    private val sourceManager: SourceManager = globalAppGraph.sourceManager,
+    private val downloadManager: DownloadManager = globalAppGraph.downloadManager,
+    private val downloadCache: DownloadCache = globalAppGraph.downloadCache,
+    private val trackerManager: TrackerManager = globalAppGraph.trackerManager,
     // SY -->
-    private val exhPreferences: ExhPreferences = Injekt.get(),
-    private val sourcePreferences: SourcePreferences = Injekt.get(),
-    private val getMergedMangaById: GetMergedMangaById = Injekt.get(),
-    private val getTracks: GetTracks = Injekt.get(),
-    private val getIdsOfFavoriteMangaWithMetadata: GetIdsOfFavoriteMangaWithMetadata = Injekt.get(),
-    private val getSearchTags: GetSearchTags = Injekt.get(),
-    private val getSearchTitles: GetSearchTitles = Injekt.get(),
-    private val searchEngine: SearchEngine = Injekt.get(),
-    private val setCustomMangaInfo: SetCustomMangaInfo = Injekt.get(),
-    private val getMergedChaptersByMangaId: GetMergedChaptersByMangaId = Injekt.get(),
-    syncPreferences: SyncPreferences = Injekt.get(),
+    private val exhPreferences: ExhPreferences = globalAppGraph.exhPreferences,
+    private val sourcePreferences: SourcePreferences = globalAppGraph.sourcePreferences,
+    private val getMergedMangaById: GetMergedMangaById = globalAppGraph.getMergedMangaById,
+    private val getTracks: GetTracks = globalAppGraph.getTracks,
+    private val getIdsOfFavoriteMangaWithMetadata: GetIdsOfFavoriteMangaWithMetadata = globalAppGraph.getIdsOfFavoriteMangaWithMetadata,
+    private val getSearchTags: GetSearchTags = globalAppGraph.getSearchTags,
+    private val getSearchTitles: GetSearchTitles = globalAppGraph.getSearchTitles,
+    private val searchEngine: SearchEngine = globalAppGraph.searchEngine,
+    private val setCustomMangaInfo: SetCustomMangaInfo = globalAppGraph.setCustomMangaInfo,
+    private val getMergedChaptersByMangaId: GetMergedChaptersByMangaId = globalAppGraph.getMergedChaptersByMangaId,
+    syncPreferences: SyncPreferences = globalAppGraph.syncPreferences,
     // SY <--
     // KMK -->
-    private val mergeMangaBySmartSearch: MergeMangaBySmartSearch = Injekt.get(),
+    private val mergeMangaBySmartSearch: MergeMangaBySmartSearch = globalAppGraph.mergeMangaBySmartSearch,
     // KMK <--
 ) : StateScreenModel<LibraryScreenModel.State>(State()) {
 
@@ -431,7 +429,7 @@ class LibraryScreenModel(
 
         screenModelScope.launchIO {
             if (mangaDexDmcaUuids.isEmpty()) {
-                mangaDexDmcaUuids = loadMangaDexDmcaUuids(context = Injekt.get<Application>())
+                mangaDexDmcaUuids = loadMangaDexDmcaUuids(context = globalAppGraph.context)
             }
         }
         // KMK <--
@@ -1334,7 +1332,7 @@ class LibraryScreenModel(
         val manga = libraryManga.manga
         val sourceIdString = manga.source.takeUnless { it == LocalSource.ID }?.toString()
         val genre = if (checkGenre) manga.genre.orEmpty() else emptyList()
-        val context = Injekt.get<Application>()
+        val context = globalAppGraph.context
         return queries.all { queryComponent ->
             when (queryComponent.excluded) {
                 false -> when (queryComponent) {

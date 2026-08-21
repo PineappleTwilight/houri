@@ -26,6 +26,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.serialization.json.Json
 import mihon.app.di.appGraph
+import mihon.app.di.globalAppGraph
 import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.core.common.util.lang.launchIO
 import tachiyomi.core.common.util.lang.withIOContext
@@ -34,15 +35,12 @@ import tachiyomi.domain.category.model.Category
 import tachiyomi.domain.category.model.Category.Companion.UNCATEGORIZED_ID
 import tachiyomi.i18n.MR
 import timber.log.Timber
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
-import uy.kohesive.injekt.injectLazy
 import kotlin.math.ceil
 import kotlin.math.floor
 
 class DiscordRPCService : Service() {
 
-    private val connectionsManager: ConnectionsManager by injectLazy()
+    private val connectionsManager: ConnectionsManager by lazy { globalAppGraph.connectionsManager }
 
     override fun onCreate() {
         super.onCreate()
@@ -167,7 +165,7 @@ class DiscordRPCService : Service() {
 
     companion object {
 
-        private val connectionsPreferences: ConnectionsPreferences by injectLazy()
+        private val connectionsPreferences: ConnectionsPreferences by lazy { globalAppGraph.connectionsPreferences }
 
         private var rpc: DiscordRPC? = null
         private val handler = Handler(Looper.getMainLooper())
@@ -177,7 +175,7 @@ class DiscordRPCService : Service() {
         private const val ACTION_RESTART = "eu.kanade.tachiyomi.DISCORD_RPC_RESTART"
         private const val STOP_SERVICE = "eu.kanade.tachiyomi.DISCORD_RPC_STOP"
 
-        fun start(context: Context, connectionsManager: ConnectionsManager = Injekt.get()) {
+        fun start(context: Context, connectionsManager: ConnectionsManager = globalAppGraph.connectionsManager) {
             handler.removeCallbacksAndMessages(null)
             val token = connectionsPreferences.connectionsToken(connectionsManager.discord).get()
             if (connectionsPreferences.enableDiscordRPC().get()) {
@@ -216,7 +214,7 @@ class DiscordRPCService : Service() {
             }
         }
 
-        fun restart(context: Context, connectionsManager: ConnectionsManager = Injekt.get()) {
+        fun restart(context: Context, connectionsManager: ConnectionsManager = globalAppGraph.connectionsManager) {
             val token = connectionsPreferences.connectionsToken(connectionsManager.discord).get()
             if (connectionsPreferences.enableDiscordRPC().get() && token.isNotBlank()) {
                 val restartIntent = Intent(context, DiscordRPCService::class.java).apply {
@@ -477,8 +475,8 @@ class DiscordRPCService : Service() {
             )
 
         private fun getRPCExternalAsset(): RPCExternalAsset {
-            val connectionsManager: ConnectionsManager by injectLazy()
-            val networkService: NetworkHelper by injectLazy()
+            val connectionsManager: ConnectionsManager by lazy { globalAppGraph.connectionsManager }
+            val networkService: NetworkHelper by lazy { globalAppGraph.networkHelper }
 
             return RPCExternalAsset(
                 applicationId = RICH_PRESENCE_APPLICATION_ID,

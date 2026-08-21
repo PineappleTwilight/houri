@@ -2,12 +2,11 @@ package exh.util
 
 import android.content.Context
 import eu.kanade.tachiyomi.ui.reader.setting.ReadingMode
+import mihon.app.di.globalAppGraph
 import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.domain.manga.model.Manga
 import tachiyomi.domain.source.service.SourceManager
 import tachiyomi.i18n.sy.SYMR
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 import java.util.Locale
 
 fun Manga.mangaType(context: Context): String {
@@ -25,7 +24,7 @@ fun Manga.mangaType(context: Context): String {
 /**
  * The type of comic the manga is (ie. manga, manhwa, manhua)
  */
-fun Manga.mangaType(sourceName: String? = Injekt.get<SourceManager>().get(source)?.name): MangaType {
+fun Manga.mangaType(sourceName: String? = globalAppGraph.sourceManager.get(source)?.name): MangaType {
     val currentTags = genre.orEmpty()
     return when {
         currentTags.any { tag -> isMangaTag(tag) } -> {

@@ -20,14 +20,13 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import logcat.LogPriority
+import mihon.app.di.globalAppGraph
 import tachiyomi.core.common.util.system.logcat
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 
 class ExtensionFilterScreenModel(
-    private val preferences: SourcePreferences = Injekt.get(),
-    private val getExtensionLanguages: GetExtensionLanguages = Injekt.get(),
-    private val toggleLanguage: ToggleLanguage = Injekt.get(),
+    private val preferences: SourcePreferences = globalAppGraph.sourcePreferences,
+    private val getExtensionLanguages: GetExtensionLanguages = globalAppGraph.getExtensionLanguages,
+    private val toggleLanguage: ToggleLanguage = globalAppGraph.toggleLanguage,
 ) : StateScreenModel<ExtensionFilterState>(ExtensionFilterState.Loading) {
 
     private val _events: Channel<ExtensionFilterEvent> = Channel()

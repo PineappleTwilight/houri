@@ -44,13 +44,11 @@ import exh.md.utils.MdLang
 import exh.md.utils.MdUtil
 import exh.metadata.metadata.MangaDexSearchMetadata
 import exh.source.DelegatedHttpSource
+import mihon.app.di.globalAppGraph
 import okhttp3.OkHttpClient
 import okhttp3.Response
 import rx.Observable
 import tachiyomi.core.common.util.lang.runAsObservable
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
-import uy.kohesive.injekt.injectLazy
 import kotlin.reflect.KClass
 
 @Suppress("OverridingDeprecatedMember")
@@ -70,8 +68,8 @@ class MangaDex(delegate: HttpSource, val context: Context) :
 
     override val matchingHosts: List<String> = listOf("mangadex.org", "www.mangadex.org")
 
-    val trackPreferences: TrackPreferences by injectLazy()
-    val mdList: MdList by lazy { Injekt.get<TrackerManager>().mdList }
+    val trackPreferences: TrackPreferences by lazy { globalAppGraph.trackPreferences }
+    val mdList: MdList by lazy { globalAppGraph.trackerManager.mdList }
 
     private val sourcePreferences: SharedPreferences by lazy {
         context.getSharedPreferences("source_$id", 0x0000)

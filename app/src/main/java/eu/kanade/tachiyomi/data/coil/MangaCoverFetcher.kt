@@ -21,6 +21,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import logcat.LogPriority
+import mihon.app.di.globalAppGraph
 import okhttp3.CacheControl
 import okhttp3.Call
 import okhttp3.Request
@@ -37,9 +38,6 @@ import tachiyomi.domain.manga.model.Manga
 import tachiyomi.domain.manga.model.MangaCover
 import tachiyomi.domain.manga.model.asMangaCover
 import tachiyomi.domain.source.service.SourceManager
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
-import uy.kohesive.injekt.injectLazy
 import java.io.File
 import java.io.IOException
 
@@ -71,7 +69,7 @@ class MangaCoverFetcher(
 
     // KMK -->
     private val scope by lazy { CoroutineScope(Dispatchers.IO) }
-    private val uiPreferences = Injekt.get<UiPreferences>()
+    private val uiPreferences = globalAppGraph.uiPreferences
     private val themeCoverBased = uiPreferences.themeCoverBased().get()
     private val preloadLibraryColor = uiPreferences.preloadLibraryColor().get()
     // KMK <--
@@ -367,8 +365,8 @@ class MangaCoverFetcher(
         private val callFactoryLazy: Lazy<Call.Factory>,
     ) : Fetcher.Factory<Manga> {
 
-        private val coverCache: CoverCache by injectLazy()
-        private val sourceManager: SourceManager by injectLazy()
+        private val coverCache: CoverCache by lazy { globalAppGraph.coverCache }
+        private val sourceManager: SourceManager by lazy { globalAppGraph.sourceManager }
 
         override fun create(data: Manga, options: Options, imageLoader: ImageLoader): Fetcher {
             return MangaCoverFetcher(
@@ -392,8 +390,8 @@ class MangaCoverFetcher(
         private val callFactoryLazy: Lazy<Call.Factory>,
     ) : Fetcher.Factory<MangaCover> {
 
-        private val coverCache: CoverCache by injectLazy()
-        private val sourceManager: SourceManager by injectLazy()
+        private val coverCache: CoverCache by lazy { globalAppGraph.coverCache }
+        private val sourceManager: SourceManager by lazy { globalAppGraph.sourceManager }
 
         override fun create(data: MangaCover, options: Options, imageLoader: ImageLoader): Fetcher {
             return MangaCoverFetcher(
