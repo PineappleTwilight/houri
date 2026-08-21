@@ -306,6 +306,9 @@ data object LibraryTab : Tab {
                         categories = state.displayedCategories,
                         // KMK -->
                         activeCategoryIndex = state.coercedActiveCategoryIndex,
+                        getSubcategoriesForCategory = screenModel::getSubcategoriesForCategory,
+                        activeSubCategoryId = state.activeSubCategoryId,
+                        onSelectSubcategory = screenModel::selectSubcategory,
                         // KMK <--
                         searchQuery = state.searchQuery,
                         selection = state.selection,

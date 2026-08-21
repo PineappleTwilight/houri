@@ -30,6 +30,9 @@ fun LibraryContent(
     categories: List<Category>,
     // KMK -->
     activeCategoryIndex: Int,
+    getSubcategoriesForCategory: (Category) -> List<Category>,
+    activeSubCategoryId: Long?,
+    onSelectSubcategory: (Long?) -> Unit,
     // KMK <--
     searchQuery: String?,
     selection: Set<Long>,
@@ -86,6 +89,23 @@ fun LibraryContent(
                 },
             )
         }
+
+        // KMK -->
+        val currentCategory = categories.getOrNull(pagerState.currentPage.coerceAtMost(categories.lastIndex))
+        val subcategories = remember(currentCategory) {
+            currentCategory
+                ?.let(getSubcategoriesForCategory)
+                .orEmpty()
+                .filterNot(Category::hidden)
+        }
+        if (showPageTabs && subcategories.isNotEmpty()) {
+            LibrarySubcategoryTabs(
+                subcategories = subcategories,
+                selectedSubcategoryId = activeSubCategoryId,
+                onSelectSubcategory = onSelectSubcategory,
+            )
+        }
+        // KMK <--
 
         PullRefresh(
             refreshing = isRefreshing,

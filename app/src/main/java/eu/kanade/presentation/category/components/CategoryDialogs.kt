@@ -25,6 +25,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.unit.dp
 import dev.icerock.moko.resources.StringResource
 import eu.kanade.core.preference.asToggleableState
 import eu.kanade.presentation.category.visualName
@@ -287,7 +288,23 @@ fun ChangeCategoryDialog(
             Column(
                 modifier = Modifier.verticalScroll(rememberScrollState()),
             ) {
-                selection.forEach { checkbox ->
+                // KMK -->
+                // Stable display order: each root category followed by its subcategories
+                val displayOrder = remember(initialSelection) {
+                    val roots = initialSelection.filter { it.value.parentId == 0L }.map { it.value.id }
+                    val subsByParent = initialSelection
+                        .filter { it.value.parentId != 0L }
+                        .associate { it.value.id to it.value.parentId }
+                    val ordered = mutableListOf<Long>()
+                    roots.forEach { rootId ->
+                        ordered.add(rootId)
+                        subsByParent.filterValues { it == rootId }.keys.forEach(ordered::add)
+                    }
+                    subsByParent.keys.forEach { subId -> if (subId !in ordered) ordered.add(subId) }
+                    ordered
+                }
+                // KMK <--
+                displayOrder.mapNotNull { id -> selection.find { it.value.id == id } }.forEach { checkbox ->
                     val onChange: (CheckboxState<Category>) -> Unit = {
                         val index = selection.indexOf(it)
                         if (index != -1) {
@@ -299,6 +316,9 @@ fun ChangeCategoryDialog(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
+                            // KMK -->
+                            .padding(start = if (checkbox.value.parentId != 0L) MaterialTheme.padding.medium else 0.dp)
+                            // KMK <--
                             .clickable { onChange(checkbox) },
                         verticalAlignment = Alignment.CenterVertically,
                     ) {

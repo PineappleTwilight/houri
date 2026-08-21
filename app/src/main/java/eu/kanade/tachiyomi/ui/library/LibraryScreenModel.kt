@@ -259,10 +259,20 @@ class LibraryScreenModel(
                 combine(
                     state.map { it.filterCategory }.distinctUntilChanged(),
                     state.map { it.includedCategories }.distinctUntilChanged(),
-                    ::Pair,
+                    // KMK -->
+                    combine(
+                        state.map { it.activeCategoryId }.distinctUntilChanged(),
+                        state.map { it.activeSubCategoryId }.distinctUntilChanged(),
+                        ::Pair,
+                    ),
+                    ::Triple,
+                    // KMK <--
                 ),
                 // KMK <--
-            ) { (data, groupType, noActiveFilterOrSearch), (sort, showHiddenCategories, showEmptyCategoriesSearch), (filterCategory, includedCategories) ->
+            ) { (data, groupType, noActiveFilterOrSearch), (sort, showHiddenCategories, showEmptyCategoriesSearch), (filterCategory, includedCategories, activeSelection) ->
+                // KMK -->
+                val (activeCategoryId, activeSubCategoryId) = activeSelection
+                // KMK <--
                 data.favorites
                     .applyGrouping(
                         data.categories,
@@ -273,6 +283,8 @@ class LibraryScreenModel(
                             groupType
                         },
                         showHiddenCategories,
+                        activeCategoryId = activeCategoryId,
+                        activeSubCategoryId = activeSubCategoryId,
                         // KMK <--
                     )
                     .applySort(
@@ -286,7 +298,9 @@ class LibraryScreenModel(
                     // KMK -->
                     .filter {
                         // Hide empty categories unless the setting is enabled or there are no active filters/search
-                        showEmptyCategoriesSearch || noActiveFilterOrSearch || it.value.isNotEmpty()
+                        showEmptyCategoriesSearch || noActiveFilterOrSearch || it.value.isNotEmpty() ||
+                            // Keep the active category visible when a selected subcategory is empty
+                            (it.key.id == activeCategoryId && activeSubCategoryId != null)
                     }
                     .let {
                         // Fall back to default category if no categories are present
@@ -557,6 +571,8 @@ class LibraryScreenModel(
         // KMK -->
         groupType: Int,
         showHiddenCategories: Boolean,
+        activeCategoryId: Long?,
+        activeSubCategoryId: Long?,
         // KMK <--
     ): Map<Category, List</* LibraryItem */ Long>> {
         // KMK -->
@@ -564,7 +580,11 @@ class LibraryScreenModel(
             LibraryGroup.BY_DEFAULT -> {
                 var showSystemCategory = false
                 // KMK <--
-                val groupCache = mutableMapOf</* Category.id */ Long, MutableList</* LibraryItem */ Long>>()
+                val categoriesById = categories.associateBy { it.id }
+                // Items assigned directly to each category
+                val directCache = mutableMapOf</* Category.id */ Long, MutableList</* LibraryItem */ Long>>()
+                // Items assigned to the root of each category's tree ("All" view)
+                val treeCache = mutableMapOf</* Root category.id */ Long, MutableList</* LibraryItem */ Long>>()
                 forEach { item ->
                     item.libraryManga.categories.forEach { categoryId ->
                         // KMK -->
@@ -572,21 +592,32 @@ class LibraryScreenModel(
                             showSystemCategory = true
                         }
                         // KMK <--
-                        groupCache.getOrPut(categoryId) { mutableListOf() }.add(item.id)
+                        directCache.getOrPut(categoryId) { mutableListOf() }.add(item.id)
+                        val rootId = categoriesById[categoryId]
+                            ?.takeIf { it.parentId != 0L }
+                            ?.parentId
+                            ?: categoryId
+                        treeCache.getOrPut(rootId) { mutableListOf() }.add(item.id)
                     }
                 }
+                // Only top-level categories are rendered as library tabs; subcategories are
+                // accessed through the subcategory row inside their parent category
                 return categories.fastFilter {
                     (showSystemCategory || !it.isSystemCategory) &&
                         // KMK -->
-                        (showHiddenCategories || !it.hidden)
+                        (showHiddenCategories || !it.hidden) &&
+                        it.parentId == 0L
                     // KMK <--
                 }
-                    .associateWith {
-                        groupCache[it.id]?.toList()
+                    .associateWith { category ->
+                        if (category.id == activeCategoryId && activeSubCategoryId != null) {
+                            directCache[activeSubCategoryId].orEmpty()
+                        } else {
+                            treeCache[category.id].orEmpty()
+                        }
                             // KMK -->
-                            ?.distinct()
-                            // KMK <--
-                            .orEmpty()
+                            .distinct()
+                        // KMK <--
                     }
             }
             // KMK -->
@@ -1478,6 +1509,7 @@ class LibraryScreenModel(
                 activeCategoryIndex = index,
                 // KMK -->
                 activeCategoryId = state.displayedCategories.getOrNull(index)?.id,
+                activeSubCategoryId = null,
                 // KMK <--
             )
         }
@@ -1485,6 +1517,16 @@ class LibraryScreenModel(
 
         libraryPreferences.lastUsedCategory().set(newIndex)
     }
+
+    // KMK -->
+    fun getSubcategoriesForCategory(category: Category): List<Category> {
+        return state.value.libraryData.categories.filter { it.parentId == category.id }
+    }
+
+    fun selectSubcategory(subCategoryId: Long?) {
+        mutableState.update { it.copy(activeSubCategoryId = subCategoryId) }
+    }
+    // KMK <--
 
     fun openChangeCategoryDialog() {
         screenModelScope.launchIO {
@@ -1745,7 +1787,8 @@ class LibraryScreenModel(
         val libraryData: LibraryData = LibraryData(),
         private val activeCategoryIndex: Int = 0,
         // KMK -->
-        private val activeCategoryId: Long? = null,
+        val activeCategoryId: Long? = null,
+        val activeSubCategoryId: Long? = null,
         // KMK <--
         private val groupedFavorites: Map<Category, List</* LibraryItem */ Long>> = emptyMap(),
         // SY -->
