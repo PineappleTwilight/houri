@@ -353,6 +353,15 @@ class ReaderViewModel @JvmOverloads constructor(
     val incognitoMode: Boolean by lazy { getIncognitoState.await(manga?.source) }
     private val downloadAheadAmount = downloadPreferences.autoDownloadWhileReading().get()
 
+    // KMK -->
+    private val chapterCompleteSoundPlayer: ChapterCompleteSoundPlayer by lazy {
+        ChapterCompleteSoundPlayer(
+            context = Injekt.get<Application>(),
+            readerPreferences = readerPreferences,
+        )
+    }
+    // KMK <--
+
     init {
         // To save state
         state.map { it.viewerChapters?.currChapter }
@@ -389,16 +398,15 @@ class ReaderViewModel @JvmOverloads constructor(
             }
             .launchIn(viewModelScope)
         // SY <--
-    }
 
-    // KMK -->
-    private val chapterCompleteSoundPlayer: ChapterCompleteSoundPlayer by lazy {
-        ChapterCompleteSoundPlayer(
-            context = Injekt.get<Application>(),
-            readerPreferences = readerPreferences,
-        )
+        // KMK -->
+        // Force player construction so sounds are decoded before the first
+        // chapter completes; lazy init on completion would skip playing.
+        if (readerPreferences.chapterCompletionSound().get()) {
+            chapterCompleteSoundPlayer
+        }
+        // KMK <--
     }
-    // KMK <--
 
     override fun onCleared() {
         // KMK -->

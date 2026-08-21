@@ -25,10 +25,12 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.serialization.json.Json
+import mihon.app.di.appGraph
 import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.core.common.util.lang.launchIO
 import tachiyomi.core.common.util.lang.withIOContext
 import tachiyomi.domain.category.interactor.GetCategories
+import tachiyomi.domain.category.model.Category
 import tachiyomi.domain.category.model.Category.Companion.UNCATEGORIZED_ID
 import tachiyomi.i18n.MR
 import timber.log.Timber
@@ -389,7 +391,7 @@ class DiscordRPCService : Service() {
             }
 
             try {
-                val categories = getCategories(readerData.mangaId)
+                val categories = getCategories(context, readerData.mangaId)
                 val discordIncognito = isIncognito(categories, readerData.incognitoMode)
 
                 val mangaTitle = readerData.mangaTitle.takeUnless { discordIncognito }
@@ -420,11 +422,30 @@ class DiscordRPCService : Service() {
         }
 
         // Helper functions
-        private suspend fun getCategories(id: Long): List<String> =
-            Injekt.get<GetCategories>()
-                .await(id)
-                .map { it.id.toString() }
-                .ifEmpty { listOf(UNCATEGORIZED_ID.toString()) }
+        private suspend fun getCategories(context: Context, id: Long): List<String> {
+            val getCategories: GetCategories = context.appGraph.getCategories
+            val mangaCategories = getCategories.await(id)
+            if (mangaCategories.isEmpty()) return listOf(UNCATEGORIZED_ID.toString())
+
+            // KMK -->
+            // Include ancestors from the subcategory hierarchy so incognito filtering
+            // also applies when a parent category is marked as incognito but the
+            // manga's direct subcategory is not explicitly selected.
+            val categoriesById = getCategories.await().associateBy { it.id }
+            val visited = mutableSetOf<Long>()
+            val categoryIds = mutableListOf<String>()
+            mangaCategories.forEach { category ->
+                var current: Category? = category
+                while (current != null && visited.add(current.id)) {
+                    categoryIds.add(current.id.toString())
+                    current = current.parentId
+                        .takeIf { it != UNCATEGORIZED_ID }
+                        ?.let { categoriesById[it] }
+                }
+            }
+            return categoryIds
+            // KMK <--
+        }
 
         private fun isIncognito(categories: List<String>, incognitoMode: Boolean): Boolean {
             val discordIncognitoMode = connectionsPreferences.discordRPCIncognito().get()

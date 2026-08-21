@@ -27,6 +27,14 @@
   - Should function visually and functionally to Android home screen folders
 - [ ] **Improvement**: Heavily improve the "Feed" feature
 - [ ] **New**: Webhook integration for app events similar to the Discord RPC, but for Discord webhooks and other webhook formats.
+- [ ] **Expansion**: Allow users to upload their own sound packs for the "chapter completion moan" feature
+- [ ] **New**: Achievements for various things throughout the app. Can the user collect them all?
+  - Include statistics in db file so users can re-import their progress
+  - Button with double confirmation allowing data wipe in case user wants to start fresh
+  - Rank tier system based on number of achievements unlocked
+    - Allows users to "flex" on others of lower rank
+    - Ranks should be overall statistics + # of achievements, e.g. 500 read chapters and 10 achievements etc
+      - Chapter statistics should exclude the "mark as read" feature and only track organically read chapters
 
 ## Bugfixes
 - [x] Fix UI transition choppiness.
@@ -63,9 +71,9 @@
 - [x] Fix subcategories being handled as root categories
 - [x] Modify "add to library" dialogue to support subcategories
 - [x] Modify library viewer to support viewing subcategories
-- [ ] Ensure Discord RPC handles subcategory filtering correctly
-- [ ] Fix chapter completion reading moan not working
-  - [ ] Improve chapter completion reading moan to make it dynamic so we can add more sounds in the future or custom sounds from the user
+- [x] Ensure Discord RPC handles subcategory filtering correctly
+- [x] Fix chapter completion reading moan not working
+  - [x] Improve chapter completion reading moan to make it dynamic so we can add more sounds in the future or custom sounds from the user
 
 ## Chores
 - [x] Replace all Komikku icons/branding with houri icons/branding
@@ -79,6 +87,7 @@
 - [ ] **Update Dependency**: Voyager (UI related)
 - [ ] **Update Dependency**: MaterialKolor (UI related)
 - [x] **Migration**: Injekt -> Metro
+- [ ] **Migration**: Remove remaining Injekt usage from app code (only keep for extensions)
 - [x] **Code Cleanup**: Fix compile warnings
 
 ## Drawing Board
@@ -90,11 +99,3 @@
   - Unsure if model would run locally or via free endpoint
     - Also unsure how to draw the translations over the content
     - Reference Code: [Here](https://github.com/mannu691/TachiyomiAT)
-- [ ] **Expansion**: Allow users to upload their own sound packs for the "chapter completion moan" feature
-- [ ] **New**: Achievements for various things throughout the app. Can the user collect them all?
-  - Include statistics in db file so users can re-import their progress
-  - Button with double confirmation allowing data wipe in case user wants to start fresh
-  - Rank tier system based on number of achievements unlocked
-    - Allows users to "flex" on others of lower rank
-    - Ranks should be overall statistics + # of achievements, e.g. 500 read chapters and 10 achievements etc
-      - Chapter statistics should exclude the "mark as read" feature and only track organically read chapters
