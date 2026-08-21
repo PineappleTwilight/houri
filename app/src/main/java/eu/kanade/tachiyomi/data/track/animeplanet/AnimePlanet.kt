@@ -10,6 +10,8 @@ import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
 import tachiyomi.i18n.MR
 import tachiyomi.domain.track.model.Track as DomainTrack
+import uy.kohesive.injekt.Injekt
+import uy.kohesive.injekt.api.get
 
 class AnimePlanet(id: Long) : BaseTracker(id, "AnimePlanet"), DeletableTracker {
 
@@ -31,8 +33,8 @@ class AnimePlanet(id: Long) : BaseTracker(id, "AnimePlanet"), DeletableTracker {
     }
 
     private val interceptor by lazy { AnimePlanetInterceptor(this) }
-
-    private val api by lazy { AnimePlanetApi(id, interceptor, client) }
+    private val webClient by lazy { AnimePlanetWebClient(Injekt.get()) }
+    private val api by lazy { AnimePlanetApi(id, interceptor, client, webClient) }
 
     override fun getLogo(): Int = R.drawable.brand_animeplanet
 

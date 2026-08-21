@@ -3,9 +3,9 @@ package eu.kanade.tachiyomi.data.track.animeplanet
 import eu.kanade.tachiyomi.data.track.model.TrackSearch
 import eu.kanade.tachiyomi.network.await
 import eu.kanade.tachiyomi.network.awaitSuccess
-import eu.kanade.tachiyomi.util.asJsoup
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import org.jsoup.Jsoup
 import tachiyomi.core.common.util.lang.withIOContext
 import java.net.URLEncoder
 
@@ -13,6 +13,7 @@ class AnimePlanetApi(
     private val trackId: Long,
     private val interceptor: AnimePlanetInterceptor,
     private val client: OkHttpClient,
+    private val webClient: AnimePlanetWebClient,
 ) {
 
     private val authClient by lazy {
@@ -28,9 +29,8 @@ class AnimePlanetApi(
         val encodedQuery = URLEncoder.encode(query, "UTF-8")
         val url = "$BASE_URL/manga/all?name=$encodedQuery"
 
-        val request = Request.Builder().url(url).build()
-        val response = authClient.newCall(request).awaitSuccess()
-        val document = response.asJsoup()
+        val html = webClient.fetchHtml(url)
+        val document = Jsoup.parse(html)
 
         document.select(".card").mapNotNull { card ->
             try {
@@ -63,9 +63,8 @@ class AnimePlanetApi(
 
     suspend fun getManga(slug: String): TrackSearch = withIOContext {
         val url = "$BASE_URL/manga/$slug"
-        val request = Request.Builder().url(url).build()
-        val response = client.newCall(request).awaitSuccess()
-        val document = response.asJsoup()
+        val html = webClient.fetchHtml(url)
+        val document = Jsoup.parse(html)
 
         val idScript = document.select("script").firstOrNull { script ->
             script.html().contains("AP_VARS") && script.html().contains("ENTRY_INFO")
@@ -91,9 +90,8 @@ class AnimePlanetApi(
 
     suspend fun getMangaId(slug: String): Long = withIOContext {
         val url = "$BASE_URL/manga/$slug"
-        val request = Request.Builder().url(url).build()
-        val response = client.newCall(request).awaitSuccess()
-        val document = response.asJsoup()
+        val html = webClient.fetchHtml(url)
+        val document = Jsoup.parse(html)
 
         val idScript = document.select("script").firstOrNull { script ->
             script.html().contains("AP_VARS") && script.html().contains("ENTRY_INFO")
@@ -151,9 +149,8 @@ class AnimePlanetApi(
     private suspend fun getToken(slug: String): String? = withIOContext {
         try {
             val url = "$BASE_URL/manga/$slug"
-            val request = Request.Builder().url(url).build()
-            val response = authClient.newCall(request).awaitSuccess()
-            val document = response.asJsoup()
+            val html = webClient.fetchHtml(url)
+            val document = Jsoup.parse(html)
 
             document.select("script").firstOrNull { script ->
                 script.html().contains("var TOKEN")
