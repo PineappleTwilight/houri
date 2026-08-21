@@ -74,6 +74,7 @@
 - [x] Ensure Discord RPC handles subcategory filtering correctly
 - [x] Fix chapter completion reading moan not working
   - [x] Improve chapter completion reading moan to make it dynamic so we can add more sounds in the future or custom sounds from the user
+- [ ] Modify all category selection UIs to be subcategory-aware.
 
 ## Chores
 - [x] Replace all Komikku icons/branding with houri icons/branding
