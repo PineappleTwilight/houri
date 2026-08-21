@@ -285,6 +285,14 @@ class ReaderActivity : BaseActivity() {
             .onEach(::setChapters)
             .launchIn(lifecycleScope)
 
+        preferences.highQualityRenderer().changes()
+            .drop(1)
+            .onEach {
+                updateViewer()
+                viewModel.state.value.viewerChapters?.let(::setChapters)
+            }
+            .launchIn(lifecycleScope)
+
         viewModel.eventFlow
             .onEach { event ->
                 when (event) {

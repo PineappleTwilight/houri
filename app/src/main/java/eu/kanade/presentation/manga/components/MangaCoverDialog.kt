@@ -25,6 +25,8 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.contentColorFor
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -65,6 +67,7 @@ import tachiyomi.i18n.MR
 import tachiyomi.presentation.core.components.material.Scaffold
 import tachiyomi.presentation.core.i18n.stringResource
 import tachiyomi.presentation.core.util.clickableNoIndication
+import tachiyomi.presentation.core.util.collectAsState
 
 @Composable
 fun MangaCoverDialog(
@@ -85,7 +88,7 @@ fun MangaCoverDialog(
     // KMK <--
     // Mihon -->
     val view = LocalView.current
-    val useNewRenderer = view.context.appGraph.basePreferences.highQualityRenderer().get()
+    val useNewRenderer by view.context.appGraph.basePreferences.highQualityRenderer().collectAsState()
     // Mihon <--
     Dialog(
         onDismissRequest = onDismissRequest,
@@ -201,35 +204,40 @@ fun MangaCoverDialog(
         ) { contentPadding ->
             // Mihon -->
             if (useNewRenderer) {
-                val state = ImageViewerState()
-
-                state.dpi = view.resources.displayMetrics.densityDpi / 100f
-
-                ImageRequest.Builder(view.context)
-                    .data(manga)
-                    .size(Size.ORIGINAL)
-                    .memoryCachePolicy(CachePolicy.DISABLED)
-                    .newDecoder(true)
-                    .target { result ->
-                        val res = (result as NewImageDecoder.DecodeResultImage).res
-                        val page = runBlocking(WebGpuRenderer.dispatcher) {
-                            ImagePage(res.image, res.width, res.height)
-                        }.apply {
-                            image?.backgroundColor = 0
-                        }
-                        state.apply {
-                            fetchPage = { index ->
-                                if (index == 0) {
-                                    page
-                                } else {
-                                    null
-                                }
-                            }
-                            invalidate()
-                        }
+                val state = remember(manga.id) { ImageViewerState() }
+                DisposableEffect(state) {
+                    onDispose {
+                        state.fetchPage = { null }
                     }
-                    .build()
-                    .let(view.context.imageLoader::enqueue)
+                }
+                LaunchedEffect(manga.id) {
+                    state.dpi = view.resources.displayMetrics.densityDpi / 100f
+                    ImageRequest.Builder(view.context)
+                        .data(manga)
+                        .size(Size.ORIGINAL)
+                        .memoryCachePolicy(CachePolicy.DISABLED)
+                        .newDecoder(true)
+                        .target { result ->
+                            val res = (result as NewImageDecoder.DecodeResultImage).res
+                            val page = runBlocking(WebGpuRenderer.dispatcher) {
+                                ImagePage(res.image, res.width, res.height)
+                            }.apply {
+                                image?.backgroundColor = 0
+                            }
+                            state.apply {
+                                fetchPage = { index ->
+                                    if (index == 0) {
+                                        page
+                                    } else {
+                                        null
+                                    }
+                                }
+                                invalidate()
+                            }
+                        }
+                        .build()
+                        .let(view.context.imageLoader::enqueue)
+                }
 
                 ImageViewer(state = state)
                 return@Scaffold
