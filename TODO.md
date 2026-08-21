@@ -56,7 +56,7 @@
 - [x] Change AnimePlanet and Comick trackers to use cookiejar storage instead of preference storage
 - [ ] Fix webgpu renderer not respecting preference toggle (does not load even when enabled)
 - [ ] Fix app crash when attempting to update through the new updater
-- [ ] Fix AnimePlanet search showing "WebView cannot be initialized on this thread because it has no looper" error
+- [x] Fix AnimePlanet search showing "WebView cannot be initialized on this thread because it has no looper" error
 - [ ] Fix rare AnimePlanet search crash
 
 ## Chores
