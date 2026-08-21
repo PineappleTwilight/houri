@@ -27,4 +27,14 @@ interface CategoryRepository {
     suspend fun updateAllFlags(flags: Long?)
 
     suspend fun delete(categoryId: Long)
+
+    // KMK -->
+    suspend fun getSubcategories(parentId: Long): List<Category>
+
+    fun getSubcategoriesAsFlow(parentId: Long): Flow<List<Category>>
+
+    suspend fun getTopLevelCategories(): List<Category>
+
+    suspend fun getMangaIdsInCategoryTree(categoryId: Long): List<Long>
+    // KMK <--
 }

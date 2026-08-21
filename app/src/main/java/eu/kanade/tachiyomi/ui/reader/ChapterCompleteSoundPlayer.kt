@@ -3,6 +3,7 @@ package eu.kanade.tachiyomi.ui.reader
 import android.content.Context
 import android.media.AudioAttributes
 import android.media.SoundPool
+import eu.kanade.tachiyomi.R
 import eu.kanade.tachiyomi.ui.reader.setting.ReaderPreferences
 import logcat.LogPriority
 import logcat.logcat
@@ -18,9 +19,18 @@ class ChapterCompleteSoundPlayer(
 
     private val soundIds = mutableMapOf<Int, Int>()
 
-    private val commonSounds = emptyList<Int>()
-    private val rareSounds = emptyList<Int>()
-    private val legendarySounds = emptyList<Int>()
+    private val commonSounds = listOf(
+        R.raw.moan_common_1,
+        R.raw.moan_common_2,
+        R.raw.moan_common_3,
+    )
+    private val rareSounds = listOf(
+        R.raw.moan_rare_1,
+        R.raw.moan_rare_2,
+    )
+    private val legendarySounds = listOf(
+        R.raw.moan_legendary_1,
+    )
 
     init {
         initializeSoundPool()

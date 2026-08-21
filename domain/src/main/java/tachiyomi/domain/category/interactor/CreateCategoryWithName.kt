@@ -20,7 +20,7 @@ class CreateCategoryWithName(
             return sort.type.flag or sort.direction.flag
         }
 
-    suspend fun await(name: String): Result = withNonCancellableContext {
+    suspend fun await(name: String, parentId: Long = 0L): Result = withNonCancellableContext {
         val categories = categoryRepository.getAll()
         val nextOrder = categories.maxOfOrNull { it.order }?.plus(1) ?: 0
         val newCategory = Category(
@@ -30,6 +30,7 @@ class CreateCategoryWithName(
             flags = initialFlags,
             // KMK -->
             hidden = false,
+            parentId = parentId,
             // KMK <--
         )
 

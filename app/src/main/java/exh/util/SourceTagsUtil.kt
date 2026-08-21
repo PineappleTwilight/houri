@@ -132,6 +132,8 @@ object SourceTagsUtil {
         CENSORED("#9e9e9e", "Censored"),
         DECENSORED("#ff9800", "Decensored"),
         UNCENSORED("#4caf50", "Uncensored"),
+        MOSAIC("#ff6f00", "Mosaic"),
+        FULL("#795548", "Full"),
         ;
 
         constructor(color: String, label: String) : this(color.toColorInt(), label)
@@ -140,6 +142,8 @@ object SourceTagsUtil {
     fun censorshipColor(status: String?): CensorshipStatus = when (status?.lowercase()) {
         EHentaiSearchMetadata.CENSORSHIP_STATUS_DECENSORED -> CensorshipStatus.DECENSORED
         EHentaiSearchMetadata.CENSORSHIP_STATUS_UNCENSORED -> CensorshipStatus.UNCENSORED
+        EHentaiSearchMetadata.CENSORSHIP_STATUS_MOSAIC -> CensorshipStatus.MOSAIC
+        EHentaiSearchMetadata.CENSORSHIP_STATUS_FULL -> CensorshipStatus.FULL
         else -> CensorshipStatus.CENSORED
     }
 
@@ -148,6 +152,8 @@ object SourceTagsUtil {
             CensorshipStatus.CENSORED -> Color.WHITE
             CensorshipStatus.DECENSORED -> Color.BLACK
             CensorshipStatus.UNCENSORED -> Color.BLACK
+            CensorshipStatus.MOSAIC -> Color.BLACK
+            CensorshipStatus.FULL -> Color.WHITE
         }
     }
 

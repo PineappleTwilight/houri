@@ -13,6 +13,7 @@ class BackupCategory(
     @ProtoNumber(100) var flags: Long = 0,
     // KMK -->
     @ProtoNumber(900) var hidden: Boolean = false,
+    @ProtoNumber(901) var parentId: Long = 0L,
     // KMK <--
     // SY specific values
     /*@ProtoNumber(600) var mangaOrder: List<Long> = emptyList(),*/
@@ -24,6 +25,7 @@ class BackupCategory(
         order = this@BackupCategory.order,
         // KMK -->
         hidden = this@BackupCategory.hidden,
+        parentId = this@BackupCategory.parentId,
         // KMK <--
         /*mangaOrder = this@BackupCategory.mangaOrder*/
     )
@@ -37,6 +39,7 @@ val backupCategoryMapper = { category: Category ->
         flags = category.flags,
         // KMK -->
         hidden = category.hidden,
+        parentId = category.parentId,
         // KMK <--
     )
 }

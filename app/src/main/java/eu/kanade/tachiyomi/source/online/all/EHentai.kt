@@ -38,6 +38,8 @@ import exh.metadata.MetadataUtil
 import exh.metadata.metadata.EHentaiSearchMetadata
 import exh.metadata.metadata.EHentaiSearchMetadata.Companion.CENSORSHIP_STATUS_CENSORED
 import exh.metadata.metadata.EHentaiSearchMetadata.Companion.CENSORSHIP_STATUS_DECENSORED
+import exh.metadata.metadata.EHentaiSearchMetadata.Companion.CENSORSHIP_STATUS_FULL
+import exh.metadata.metadata.EHentaiSearchMetadata.Companion.CENSORSHIP_STATUS_MOSAIC
 import exh.metadata.metadata.EHentaiSearchMetadata.Companion.CENSORSHIP_STATUS_UNCENSORED
 import exh.metadata.metadata.EHentaiSearchMetadata.Companion.EH_CENSORSHIP_NAMESPACE
 import exh.metadata.metadata.EHentaiSearchMetadata.Companion.EH_GENRE_NAMESPACE
@@ -672,7 +674,7 @@ class EHentai(
 
     private fun censorshipRank(metadata: RaisedSearchMetadata): Int {
         return when ((metadata as? EHentaiSearchMetadata)?.censorshipStatus?.lowercase()) {
-            CENSORSHIP_STATUS_DECENSORED -> 1
+            CENSORSHIP_STATUS_DECENSORED, CENSORSHIP_STATUS_MOSAIC, CENSORSHIP_STATUS_FULL -> 1
             CENSORSHIP_STATUS_UNCENSORED -> 2
             else -> 0
         }
@@ -1173,12 +1175,14 @@ class EHentai(
 
     class CensorshipFilter : Filter.Select<String>(
         "Censorship",
-        arrayOf("All", "Censored", "Decensored", "Uncensored"),
+        arrayOf("All", "Censored", "Decensored", "Mosaic", "Full", "Uncensored"),
     ) {
         fun query(): String = when (state) {
             1 -> "$EH_CENSORSHIP_NAMESPACE:$CENSORSHIP_STATUS_CENSORED"
             2 -> "$EH_CENSORSHIP_NAMESPACE:$CENSORSHIP_STATUS_DECENSORED"
-            3 -> "$EH_CENSORSHIP_NAMESPACE:$CENSORSHIP_STATUS_UNCENSORED"
+            3 -> "$EH_CENSORSHIP_NAMESPACE:$CENSORSHIP_STATUS_MOSAIC"
+            4 -> "$EH_CENSORSHIP_NAMESPACE:$CENSORSHIP_STATUS_FULL"
+            5 -> "$EH_CENSORSHIP_NAMESPACE:$CENSORSHIP_STATUS_UNCENSORED"
             else -> ""
         }
     }

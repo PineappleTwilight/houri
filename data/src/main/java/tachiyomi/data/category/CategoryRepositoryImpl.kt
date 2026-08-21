@@ -51,6 +51,7 @@ class CategoryRepositoryImpl(
                 flags = category.flags,
                 // KMK -->
                 hidden = if (category.hidden) 1L else 0L,
+                parentId = category.parentId,
                 // KMK <--
             )
             categoriesQueries.selectLastInsertedRowId()
@@ -79,6 +80,7 @@ class CategoryRepositoryImpl(
             flags = update.flags,
             // KMK -->
             hidden = update.hidden?.let { if (it) 1L else 0L },
+            parentId = update.parentId,
             // KMK <--
             categoryId = update.id,
         )
@@ -97,4 +99,22 @@ class CategoryRepositoryImpl(
             )
         }
     }
+
+    // KMK -->
+    override suspend fun getSubcategories(parentId: Long): List<Category> {
+        return handler.awaitList { categoriesQueries.getSubcategories(parentId, CategoryMapper::mapCategory) }
+    }
+
+    override fun getSubcategoriesAsFlow(parentId: Long): Flow<List<Category>> {
+        return handler.subscribeToList { categoriesQueries.getSubcategories(parentId, CategoryMapper::mapCategory) }
+    }
+
+    override suspend fun getTopLevelCategories(): List<Category> {
+        return handler.awaitList { categoriesQueries.getTopLevelCategories(CategoryMapper::mapCategory) }
+    }
+
+    override suspend fun getMangaIdsInCategoryTree(categoryId: Long): List<Long> {
+        return handler.awaitList { categoriesQueries.getMangaIdsInCategoryTree(categoryId) }
+    }
+    // KMK <--
 }

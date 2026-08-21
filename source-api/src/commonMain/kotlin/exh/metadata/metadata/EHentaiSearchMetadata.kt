@@ -113,10 +113,16 @@ class EHentaiSearchMetadata : RaisedSearchMetadata() {
     fun detectCensorshipStatus(): String {
         val otherTags = tags.ofNamespace(EH_OTHER_NAMESPACE).map { it.name.lowercase() }
         return when {
-            otherTags.any { it == "full censorship" || it == "mosaic censorship" } -> CENSORSHIP_STATUS_DECENSORED
+            otherTags.any { it == "full censorship" } -> CENSORSHIP_STATUS_FULL
+            otherTags.any { it == "mosaic censorship" } -> CENSORSHIP_STATUS_MOSAIC
             otherTags.any { it == "uncensored" } -> CENSORSHIP_STATUS_UNCENSORED
             else -> CENSORSHIP_STATUS_CENSORED
         }
+    }
+
+    fun isDecensored(status: String?): Boolean {
+        val s = status?.lowercase()
+        return s == CENSORSHIP_STATUS_DECENSORED || s == CENSORSHIP_STATUS_MOSAIC || s == CENSORSHIP_STATUS_FULL
     }
 
     override fun getExtraInfoPairs(context: Context): List<Pair<String, String>> {
@@ -182,6 +188,8 @@ class EHentaiSearchMetadata : RaisedSearchMetadata() {
         const val CENSORSHIP_STATUS_DECENSORED = "decensored"
         const val CENSORSHIP_STATUS_UNCENSORED = "uncensored"
         const val CENSORSHIP_STATUS_CENSORED = "censored"
+        const val CENSORSHIP_STATUS_MOSAIC = "mosaic"
+        const val CENSORSHIP_STATUS_FULL = "full"
         private const val CENSORSHIP_TITLE_DECENSORED = "[Decensored]"
         private const val CENSORSHIP_TITLE_UNCENSORED = "[Uncensored]"
 

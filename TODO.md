@@ -13,12 +13,12 @@
 - [x] **Mihon Backport**: Reader
 - [x] **Mihon Backport**: Decoder (experimental)
 - [x] **Mihon Backport**: Updater
-- [ ] **New**: Toggle to enable an anime girl moaning whenever a chapter is completed. Moans should be randomized and have different probabilities of appearing (gacha mechanic) **Partially implemented, pending audio files.**
+- [x] **New**: Toggle to enable an anime girl moaning whenever a chapter is completed. Moans should be randomized and have different probabilities of appearing (gacha mechanic) — 60/30/10 common/rare/legendary with synthesized wav assets
 - [x] **E-Hentai**: Add content censorship status as a tag next to the content type tag (doujinshi, manga, etc). Content defaults to censored (no title marking), decensored (marked as [Decensored] in the title), or uncensored (marked as [Uncensored] in the title).
     - [x] Add accompanying sort/filter options for this change
-- [ ] **E-Hentai**: Censorship type identification from manga tags (mosaic, full, etc)
+- [x] **E-Hentai**: Censorship type identification from manga tags (mosaic, full, etc) — distinct mosaic/full statuses with dedicated colors/filter/sort
 - [x] **New**: Add mango easter egg (?)
-- [ ] **New**: Library subcategories
+- [x] **New**: Library subcategories — parentId hierarchy with DB migration 48, folder UI with badges/indentation, "All" virtual view via category tree query, backup/restore support
   - Allows you to sort content even further inside a category, e.g. a category called "Manhua" could have a subcategory called "Favorites" or even a tag name like "Shounen" to allow for finer library customization.
   - User can create subcategories freely and assign media to them easily.
     - This requires modifying how manga is added to the library visually to accommodate assigning it to a subcategory

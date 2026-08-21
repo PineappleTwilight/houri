@@ -5,11 +5,16 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.CreateNewFolder
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.DragHandle
 import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.outlined.Folder
+import androidx.compose.material.icons.outlined.FolderOpen
 import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material.icons.outlined.VisibilityOff
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -34,6 +39,9 @@ fun ReorderableCollectionItemScope.CategoryListItem(
     onDelete: () -> Unit,
     // KMK -->
     onHide: () -> Unit,
+    onCreateSubcategory: (() -> Unit)? = null,
+    isTopLevel: Boolean = true,
+    subcategoryCount: Int = 0,
     // KMK <--
     modifier: Modifier = Modifier,
 ) {
@@ -49,13 +57,32 @@ fun ReorderableCollectionItemScope.CategoryListItem(
                 ),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Icon(
-                imageVector = Icons.Outlined.DragHandle,
-                contentDescription = null,
-                modifier = Modifier
-                    .padding(MaterialTheme.padding.medium)
-                    .draggableHandle(),
-            )
+            if (isTopLevel) {
+                Icon(
+                    imageVector = Icons.Outlined.DragHandle,
+                    contentDescription = null,
+                    modifier = Modifier
+                        .padding(MaterialTheme.padding.medium)
+                        .draggableHandle(),
+                )
+            } else {
+                Icon(
+                    imageVector = Icons.Outlined.FolderOpen,
+                    contentDescription = null,
+                    modifier = Modifier.padding(MaterialTheme.padding.medium),
+                )
+            }
+            if (isTopLevel && subcategoryCount > 0) {
+                BadgedBox(
+                    badge = { Badge { Text(subcategoryCount.toString()) } },
+                    modifier = Modifier.padding(end = MaterialTheme.padding.small),
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.Folder,
+                        contentDescription = null,
+                    )
+                }
+            }
             Text(
                 text = category.name,
                 // KMK -->
@@ -71,6 +98,14 @@ fun ReorderableCollectionItemScope.CategoryListItem(
                 )
             }
             // KMK -->
+            if (isTopLevel && onCreateSubcategory != null) {
+                IconButton(onClick = onCreateSubcategory) {
+                    Icon(
+                        imageVector = Icons.Outlined.CreateNewFolder,
+                        contentDescription = "Create subcategory",
+                    )
+                }
+            }
             IconButton(
                 onClick = onHide,
                 content = {

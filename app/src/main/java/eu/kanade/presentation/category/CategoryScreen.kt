@@ -1,6 +1,7 @@
 package eu.kanade.presentation.category
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -14,6 +15,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.toMutableStateList
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import eu.kanade.presentation.category.components.CategoryFloatingActionButton
 import eu.kanade.presentation.category.components.CategoryListItem
 import eu.kanade.presentation.components.AppBar
@@ -39,6 +41,7 @@ fun CategoryScreen(
     onChangeOrder: (Category, Int) -> Unit,
     // KMK -->
     onClickHide: (Category) -> Unit,
+    onCreateSubcategory: (Category) -> Unit,
     // KMK <--
     navigateUp: () -> Unit,
 ) {
@@ -75,6 +78,7 @@ fun CategoryScreen(
             onChangeOrder = onChangeOrder,
             // KMK -->
             onClickHide = onClickHide,
+            onCreateSubcategory = onCreateSubcategory,
             // KMK <--
         )
     }
@@ -90,19 +94,22 @@ private fun CategoryContent(
     onChangeOrder: (Category, Int) -> Unit,
     // KMK -->
     onClickHide: (Category) -> Unit,
+    onCreateSubcategory: (Category) -> Unit,
     // KMK <--
 ) {
-    val categoriesState = remember { categories.toMutableStateList() }
+    val topLevel = remember(categories) { categories.filter { it.parentId == 0L } }
+    val subMap = remember(categories) { categories.groupBy { it.parentId } }
+    val topLevelState = remember { topLevel.toMutableStateList() }
     val reorderableState = rememberReorderableLazyListState(lazyListState, paddingValues) { from, to ->
-        val item = categoriesState.removeAt(from.index)
-        categoriesState.add(to.index, item)
+        val item = topLevelState.removeAt(from.index)
+        topLevelState.add(to.index, item)
         onChangeOrder(item, to.index)
     }
 
-    LaunchedEffect(categories) {
+    LaunchedEffect(topLevel) {
         if (!reorderableState.isAnyItemDragging) {
-            categoriesState.clear()
-            categoriesState.addAll(categories)
+            topLevelState.clear()
+            topLevelState.addAll(topLevel)
         }
     }
 
@@ -115,19 +122,39 @@ private fun CategoryContent(
         verticalArrangement = Arrangement.spacedBy(MaterialTheme.padding.small),
     ) {
         items(
-            items = categoriesState,
+            items = topLevelState,
             key = { category -> category.key },
         ) { category ->
             ReorderableItem(reorderableState, category.key) {
-                CategoryListItem(
-                    modifier = Modifier.animateItem(),
-                    category = category,
-                    onRename = { onClickRename(category) },
-                    onDelete = { onClickDelete(category) },
-                    // KMK -->
-                    onHide = { onClickHide(category) },
-                    // KMK <--
-                )
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    CategoryListItem(
+                        modifier = Modifier.animateItem(),
+                        category = category,
+                        onRename = { onClickRename(category) },
+                        onDelete = { onClickDelete(category) },
+                        onHide = { onClickHide(category) },
+                        onCreateSubcategory = { onCreateSubcategory(category) },
+                        isTopLevel = true,
+                        subcategoryCount = subMap[category.id]?.size ?: 0,
+                    )
+                    val subs = subMap[category.id] ?: emptyList()
+                    if (subs.isNotEmpty()) {
+                        Column(
+                            modifier = Modifier.padding(start = 16.dp),
+                            verticalArrangement = Arrangement.spacedBy(4.dp),
+                        ) {
+                            subs.forEach { sub ->
+                                CategoryListItem(
+                                    category = sub,
+                                    onRename = { onClickRename(sub) },
+                                    onDelete = { onClickDelete(sub) },
+                                    onHide = { onClickHide(sub) },
+                                    isTopLevel = false,
+                                )
+                            }
+                        }
+                    }
+                }
             }
         }
     }

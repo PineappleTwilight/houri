@@ -61,6 +61,17 @@ class CategoryScreenModel(
     }
 
     // KMK -->
+    fun createSubcategory(name: String, parentId: Long) {
+        screenModelScope.launch {
+            when (createCategoryWithName.await(name, parentId)) {
+                is CreateCategoryWithName.Result.InternalError -> _events.send(CategoryEvent.InternalError)
+                else -> {}
+            }
+        }
+    }
+    // KMK <--
+
+    // KMK -->
     fun hideCategory(category: Category) {
         screenModelScope.launch {
             when (hideCategory.await(category)) {
@@ -119,6 +130,9 @@ class CategoryScreenModel(
 
 sealed interface CategoryDialog {
     data object Create : CategoryDialog
+    // KMK -->
+    data class CreateSubcategory(val parent: Category) : CategoryDialog
+    // KMK <--
     data class Rename(val category: Category) : CategoryDialog
     data class Delete(val category: Category) : CategoryDialog
 }

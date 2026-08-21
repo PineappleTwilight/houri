@@ -44,6 +44,7 @@ class CategoryScreen : Screen() {
             onChangeOrder = screenModel::changeOrder,
             // KMK -->
             onClickHide = screenModel::hideCategory,
+            onCreateSubcategory = { screenModel.showDialog(CategoryDialog.CreateSubcategory(it)) },
             // KMK <--
             navigateUp = navigator::pop,
         )
@@ -57,6 +58,17 @@ class CategoryScreen : Screen() {
                     categories = successState.categories.fastMap { it.name }.toImmutableList(),
                 )
             }
+            // KMK -->
+            is CategoryDialog.CreateSubcategory -> {
+                CategoryCreateDialog(
+                    onDismissRequest = screenModel::dismissDialog,
+                    onCreate = { name -> screenModel.createSubcategory(name, dialog.parent.id) },
+                    categories = successState.categories.filter { it.parentId == dialog.parent.id }.fastMap { it.name }.toImmutableList(),
+                    title = "Create subcategory in ${dialog.parent.name}",
+                    extraMessage = "Subcategory will be inside \"${dialog.parent.name}\" and follows all library filter rules. \"All\" shows content from all subcategories.",
+                )
+            }
+            // KMK <--
             is CategoryDialog.Rename -> {
                 CategoryRenameDialog(
                     onDismissRequest = screenModel::dismissDialog,

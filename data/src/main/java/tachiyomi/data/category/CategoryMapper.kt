@@ -10,6 +10,7 @@ object CategoryMapper {
         flags: Long,
         // KMK -->
         hidden: Long,
+        parentId: Long,
         // KMK <--
     ): Category {
         return Category(
@@ -19,6 +20,7 @@ object CategoryMapper {
             flags = flags,
             // KMK -->
             hidden = hidden == 1L,
+            parentId = parentId,
             // KMK <--
         )
     }

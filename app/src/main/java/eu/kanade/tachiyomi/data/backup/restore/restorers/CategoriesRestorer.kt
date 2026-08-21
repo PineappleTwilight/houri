@@ -32,6 +32,7 @@ class CategoriesRestorer(
                             it.flags,
                             // KMK -->
                             hidden = if (it.hidden) 1L else 0L,
+                            parentId = it.parentId,
                             // KMK <--
                         )
                         categoriesQueries.selectLastInsertedRowId()
