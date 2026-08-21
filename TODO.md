@@ -62,6 +62,7 @@
 - [x] Fix subcategories being handled as root categories
 - [x] Modify "add to library" dialogue to support subcategories
 - [x] Modify library viewer to support viewing subcategories
+- [ ] Ensure Discord RPC handles subcategory filtering correctly
 
 ## Chores
 - [x] Replace all Komikku icons/branding with houri icons/branding
