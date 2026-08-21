@@ -91,7 +91,7 @@
     - Reference Code: [Here](https://github.com/mannu691/TachiyomiAT)
 - [ ] **Expansion**: Allow users to upload their own sound packs for the "chapter completion moan" feature
 - [ ] **New**: Achievements for various things throughout the app. Can the user collect them all?
-  - [ ] Include statistics in db file so users can re-import their progress
-  - [ ] Button with double confirmation allowing data wipe in case user wants to start fresh
-  - [ ] Rank tier system based on number of achievements unlocked
-    - [ ] Allows users to "flex" on others of lower rank
+  - Include statistics in db file so users can re-import their progress
+  - Button with double confirmation allowing data wipe in case user wants to start fresh
+  - Rank tier system based on number of achievements unlocked
+    - Allows users to "flex" on others of lower rank
