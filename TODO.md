@@ -58,6 +58,9 @@
 - [x] Fix app crash when attempting to update through the new updater
 - [x] Fix AnimePlanet search showing "WebView cannot be initialized on this thread because it has no looper" error
 - [x] Fix rare AnimePlanet search crash
+- [ ] Fix subcategories being handled as root categories
+- [ ] Modify "add to library" dialogue to support subcategories
+- [ ] Modify library viewer to support viewing subcategories
 
 ## Chores
 - [x] Replace all Komikku icons/branding with houri icons/branding
