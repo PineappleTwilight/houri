@@ -87,3 +87,5 @@
   - Unsure if model would run locally or via free endpoint
     - Also unsure how to draw the translations over the content
     - Reference Code: [Here](https://github.com/mannu691/TachiyomiAT)
+- [ ] **Expansion**: Allow users to upload their own sound packs for the "chapter completion moan" feature
+- [ ] **New**: Achievements for various things throughout the app. Can the user collect them all?
