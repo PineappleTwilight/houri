@@ -6,11 +6,8 @@ import android.os.Looper
 import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.suspendCancellableCoroutine
-import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
-import tachiyomi.core.common.util.lang.withIOContext
 import java.io.IOException
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
@@ -36,69 +33,73 @@ class AnimePlanetWebClient(context: Context) {
      * Waits for the page to fully load (including CF challenge resolution).
      * Timeout: [timeoutMs] (default 20 s).
      */
-    suspend fun fetchHtml(url: String, timeoutMs: Long = 20_000): String = withIOContext {
-        withTimeoutOrNull(timeoutMs) {
+    suspend fun fetchHtml(url: String, timeoutMs: Long = 20_000): String {
+        return withTimeoutOrNull(timeoutMs) {
             suspendCancellableCoroutine { cont ->
-                val webView = WebView(appContext).apply {
-                    settings.apply {
-                        javaScriptEnabled = true
-                        domStorageEnabled = true
-                    }
-                }
-
-                var loadCount = 0
-                var done = false
-
-                fun finish(result: () -> Unit) {
-                    if (done) return
-                    done = true
-                    mainHandler.post {
-                        try {
-                            result()
-                        } finally {
-                            webView.stopLoading()
-                            webView.destroy()
+                val createAndLoad = Runnable {
+                    val webView = WebView(appContext).apply {
+                        settings.apply {
+                            javaScriptEnabled = true
+                            domStorageEnabled = true
                         }
                     }
-                }
 
-                cont.invokeOnCancellation {
-                    finish {}
-                }
+                    var loadCount = 0
+                    var done = false
 
-                webView.webViewClient = object : WebViewClient() {
-                    override fun onPageFinished(view: WebView, url: String?) {
-                        loadCount++
-                        // First load: wait a bit for CF challenge JS to execute.
-                        // Subsequent loads (CF redirects): shorter wait.
-                        val delay = if (loadCount == 1) 3_000L else 1_000L
-                        mainHandler.postDelayed({
-                            if (done) return@postDelayed
-                            view.evaluateJavascript(SCRIPT_EXTRACT_HTML) { html ->
+                    fun finish(result: () -> Unit) {
+                        if (done) return
+                        done = true
+                        mainHandler.post {
+                            try {
+                                result()
+                            } finally {
+                                webView.stopLoading()
+                                webView.destroy()
+                            }
+                        }
+                    }
+
+                    cont.invokeOnCancellation {
+                        finish {}
+                    }
+
+                    webView.webViewClient = object : WebViewClient() {
+                        override fun onPageFinished(view: WebView, url: String?) {
+                            loadCount++
+                            // First load: wait a bit for CF challenge JS to execute.
+                            // Subsequent loads (CF redirects): shorter wait.
+                            val delay = if (loadCount == 1) 3_000L else 1_000L
+                            mainHandler.postDelayed({
+                                if (done) return@postDelayed
+                                view.evaluateJavascript(SCRIPT_EXTRACT_HTML) { html ->
+                                    finish {
+                                        cont.resume(decodeJsString(html))
+                                    }
+                                }
+                            }, delay)
+                        }
+
+                        override fun onReceivedError(
+                            view: WebView,
+                            request: WebResourceRequest,
+                            error: android.webkit.WebResourceError,
+                        ) {
+                            // Only handle main-frame errors
+                            if (request.isForMainFrame && !done) {
                                 finish {
-                                    cont.resume(decodeJsString(html))
+                                    cont.resumeWithException(
+                                        IOException("WebView error: ${error.description}"),
+                                    )
                                 }
                             }
-                        }, delay)
-                    }
-
-                    override fun onReceivedError(
-                        view: WebView,
-                        request: WebResourceRequest,
-                        error: android.webkit.WebResourceError,
-                    ) {
-                        // Only handle main-frame errors
-                        if (request.isForMainFrame && !done) {
-                            finish {
-                                cont.resumeWithException(
-                                    IOException("WebView error: ${error.description}"),
-                                )
-                            }
                         }
                     }
+
+                    webView.loadUrl(url)
                 }
 
-                mainHandler.post { webView.loadUrl(url) }
+                mainHandler.post(createAndLoad)
             }
         } ?: throw IOException("WebView fetch timed out for $url")
     }
@@ -108,44 +109,46 @@ class AnimePlanetWebClient(context: Context) {
      * Loads [url] with the given form-encoded [body] and waits for the page to settle.
      * Returns the final URL (to detect redirects) or null on timeout.
      */
-    suspend fun postForm(url: String, body: String): String? = withIOContext {
-        withTimeoutOrNull(20_000) {
+    suspend fun postForm(url: String, body: String): String? {
+        return withTimeoutOrNull(20_000) {
             suspendCancellableCoroutine { cont ->
-                val webView = WebView(appContext).apply {
-                    settings.apply {
-                        javaScriptEnabled = true
-                        domStorageEnabled = true
-                    }
-                }
-
-                var done = false
-
-                fun finish(result: () -> Unit) {
-                    if (done) return
-                    done = true
-                    mainHandler.post {
-                        try {
-                            result()
-                        } finally {
-                            webView.stopLoading()
-                            webView.destroy()
+                val createAndPost = Runnable {
+                    val webView = WebView(appContext).apply {
+                        settings.apply {
+                            javaScriptEnabled = true
+                            domStorageEnabled = true
                         }
                     }
-                }
 
-                cont.invokeOnCancellation { finish {} }
+                    var done = false
 
-                webView.webViewClient = object : WebViewClient() {
-                    override fun onPageFinished(view: WebView, url: String?) {
-                        mainHandler.postDelayed({
-                            finish { cont.resume(url) }
-                        }, 1_000L)
+                    fun finish(result: () -> Unit) {
+                        if (done) return
+                        done = true
+                        mainHandler.post {
+                            try {
+                                result()
+                            } finally {
+                                webView.stopLoading()
+                                webView.destroy()
+                            }
+                        }
                     }
-                }
 
-                mainHandler.post {
+                    cont.invokeOnCancellation { finish {} }
+
+                    webView.webViewClient = object : WebViewClient() {
+                        override fun onPageFinished(view: WebView, url: String?) {
+                            mainHandler.postDelayed({
+                                finish { cont.resume(url) }
+                            }, 1_000L)
+                        }
+                    }
+
                     webView.postUrl(url, body.toByteArray())
                 }
+
+                mainHandler.post(createAndPost)
             }
         }
     }
