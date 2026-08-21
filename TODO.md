@@ -95,3 +95,4 @@
   - Button with double confirmation allowing data wipe in case user wants to start fresh
   - Rank tier system based on number of achievements unlocked
     - Allows users to "flex" on others of lower rank
+    - Ranks should be overall statistics + # of achievements
