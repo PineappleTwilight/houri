@@ -97,6 +97,7 @@
 - [x] **Tracker**: Update comick's icon to the website's unicorn logo
 - [x] **App**: Make icon better, expect sleek modern minimalist material pineapple icon
 - [ ] **App**: Add icon to webhooks connection and remove description on the selection screen (description is shown when tapped into anyway)
+- [ ] **Webhook Connection**: Improve Discord event embeds
 
 ## Drawing Board
 - [ ] **New**: WebAssembly computation engine
