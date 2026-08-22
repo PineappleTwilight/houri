@@ -7,6 +7,7 @@ sealed interface LibraryDisplayMode {
 
     // KMK -->
     data object ComfortableGridPanorama : LibraryDisplayMode
+    data object StaggeredGrid : LibraryDisplayMode
 
     // KMK <--
     data object List : LibraryDisplayMode
@@ -23,7 +24,7 @@ sealed interface LibraryDisplayMode {
     }
 
     companion object {
-        val values by lazy { setOf(CompactGrid, ComfortableGrid, ComfortableGridPanorama, List, CoverOnlyGrid) }
+        val values by lazy { setOf(CompactGrid, ComfortableGrid, ComfortableGridPanorama, StaggeredGrid, List, CoverOnlyGrid) }
         val default = CompactGrid
 
         fun deserialize(serialized: String): LibraryDisplayMode {
@@ -31,6 +32,7 @@ sealed interface LibraryDisplayMode {
                 "COMFORTABLE_GRID" -> ComfortableGrid
                 // KMK -->
                 "COMFORTABLE_GRID_PANORAMA" -> ComfortableGridPanorama
+                "STAGGERED_GRID" -> StaggeredGrid
                 // KMK <--
                 "COMPACT_GRID" -> CompactGrid
                 "COVER_ONLY_GRID" -> CoverOnlyGrid
@@ -45,6 +47,7 @@ sealed interface LibraryDisplayMode {
             ComfortableGrid -> "COMFORTABLE_GRID"
             // KMK -->
             ComfortableGridPanorama -> "COMFORTABLE_GRID_PANORAMA"
+            StaggeredGrid -> "STAGGERED_GRID"
             // KMK <--
             CompactGrid -> "COMPACT_GRID"
             CoverOnlyGrid -> "COVER_ONLY_GRID"

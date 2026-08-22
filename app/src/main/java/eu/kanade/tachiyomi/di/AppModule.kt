@@ -103,7 +103,10 @@ class AppModule(val app: Application) : InjektModule {
                         super.onOpen(db)
                         setPragma(db, "foreign_keys = ON")
                         setPragma(db, "journal_mode = WAL")
-                        setPragma(db, "synchronous = NORMAL")
+                        // KMK -->
+                        // FULL keeps every committed transaction durable across power loss
+                        setPragma(db, "synchronous = FULL")
+                        // KMK <--
                     }
                     private fun setPragma(db: SupportSQLiteDatabase, pragma: String) {
                         val cursor = db.query("PRAGMA $pragma")

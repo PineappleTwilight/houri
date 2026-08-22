@@ -463,6 +463,10 @@ class ReaderActivity : BaseActivity() {
                             }
                         },
                         hasExtraPage = (state.dialog as? ReaderViewModel.Dialog.PageActions)?.extraPage != null,
+                        // KMK -->
+                        getCoverEditUri = viewModel::getCoverEditUri,
+                        onSetAsCoverFromUri = viewModel::setCoverFromUri,
+                        // KMK <--
                     )
                 }
 

@@ -3,6 +3,7 @@ package eu.kanade.tachiyomi.ui.manga
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -52,6 +53,7 @@ import eu.kanade.presentation.manga.DuplicateMangaDialog
 import eu.kanade.presentation.manga.EditCoverAction
 import eu.kanade.presentation.manga.MangaScreen
 import eu.kanade.presentation.manga.components.ClearMangaDialog
+import eu.kanade.presentation.manga.components.CoverCropDialog
 import eu.kanade.presentation.manga.components.DeleteChaptersDialog
 import eu.kanade.presentation.manga.components.MangaCoverDialog
 import eu.kanade.presentation.manga.components.ScanlatorFilterDialog
@@ -548,10 +550,15 @@ class MangaScreen(
             MangaScreenModel.Dialog.FullCover -> {
                 val sm = rememberScreenModel { MangaCoverScreenModel(successState.manga.id) }
                 val manga by sm.state.collectAsState()
+                // KMK -->
+                var pendingCropUri by remember { mutableStateOf<Uri?>(null) }
+                // KMK <--
                 manga?.let { currentManga ->
                     val getContent = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) {
                         if (it == null) return@rememberLauncherForActivityResult
-                        sm.editCover(context, it)
+                        // KMK -->
+                        pendingCropUri = it
+                        // KMK <--
                     }
                     // KMK -->
                     val externalStoragePermissionNotGranted = Build.VERSION.SDK_INT < Build.VERSION_CODES.Q &&
@@ -597,6 +604,22 @@ class MangaScreen(
                             ),
                         // KMK <--
                     )
+                    // KMK -->
+                    pendingCropUri?.let { source ->
+                        CoverCropDialog(
+                            sourceUri = source,
+                            onDismissRequest = { pendingCropUri = null },
+                            onCropped = { cropped ->
+                                pendingCropUri = null
+                                sm.editCover(context, cropped)
+                            },
+                            onUseOriginal = {
+                                pendingCropUri = null
+                                sm.editCover(context, source)
+                            },
+                        )
+                    }
+                    // KMK <--
                 } ?: run {
                     LoadingScreen(Modifier.systemBarsPadding())
                 }

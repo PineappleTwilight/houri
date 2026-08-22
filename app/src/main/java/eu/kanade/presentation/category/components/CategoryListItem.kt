@@ -5,14 +5,11 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.ArrowDownward
-import androidx.compose.material.icons.outlined.ArrowUpward
 import androidx.compose.material.icons.outlined.CreateNewFolder
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.DragHandle
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Folder
-import androidx.compose.material.icons.outlined.FolderOpen
 import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.material3.Badge
@@ -44,8 +41,6 @@ fun ReorderableCollectionItemScope.CategoryListItem(
     onCreateSubcategory: (() -> Unit)? = null,
     isTopLevel: Boolean = true,
     subcategoryCount: Int = 0,
-    onMoveUp: (() -> Unit)? = null,
-    onMoveDown: (() -> Unit)? = null,
     // KMK <--
     modifier: Modifier = Modifier,
 ) {
@@ -61,21 +56,13 @@ fun ReorderableCollectionItemScope.CategoryListItem(
                 ),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            if (isTopLevel) {
-                Icon(
-                    imageVector = Icons.Outlined.DragHandle,
-                    contentDescription = null,
-                    modifier = Modifier
-                        .padding(MaterialTheme.padding.medium)
-                        .draggableHandle(),
-                )
-            } else {
-                Icon(
-                    imageVector = Icons.Outlined.FolderOpen,
-                    contentDescription = null,
-                    modifier = Modifier.padding(MaterialTheme.padding.medium),
-                )
-            }
+            Icon(
+                imageVector = Icons.Outlined.DragHandle,
+                contentDescription = null,
+                modifier = Modifier
+                    .padding(MaterialTheme.padding.medium)
+                    .draggableHandle(),
+            )
             if (isTopLevel && subcategoryCount > 0) {
                 BadgedBox(
                     badge = { Badge { Text(subcategoryCount.toString()) } },
@@ -95,28 +82,6 @@ fun ReorderableCollectionItemScope.CategoryListItem(
                 // KMK <--
                 modifier = Modifier.weight(1f),
             )
-            // KMK -->
-            if (!isTopLevel) {
-                IconButton(
-                    onClick = { onMoveUp?.invoke() },
-                    enabled = onMoveUp != null,
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.ArrowUpward,
-                        contentDescription = stringResource(KMR.strings.action_move_up),
-                    )
-                }
-                IconButton(
-                    onClick = { onMoveDown?.invoke() },
-                    enabled = onMoveDown != null,
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.ArrowDownward,
-                        contentDescription = stringResource(KMR.strings.action_move_down),
-                    )
-                }
-            }
-            // KMK <--
             IconButton(onClick = onRename) {
                 Icon(
                     imageVector = Icons.Outlined.Edit,

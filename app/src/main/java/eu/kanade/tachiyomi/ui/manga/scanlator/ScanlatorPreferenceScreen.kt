@@ -34,6 +34,8 @@ import cafe.adriel.voyager.core.model.StateScreenModel
 import cafe.adriel.voyager.core.model.screenModelScope
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
+import eu.kanade.domain.manga.interactor.GetExcludedScanlators
+import eu.kanade.domain.manga.interactor.SetExcludedScanlators
 import eu.kanade.domain.manga.interactor.UpdateManga
 import eu.kanade.presentation.components.AppBar
 import eu.kanade.presentation.util.Screen
@@ -45,9 +47,7 @@ import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
 import tachiyomi.domain.chapter.interactor.GetChaptersByMangaId
 import tachiyomi.domain.chapter.model.Chapter
-import eu.kanade.domain.manga.interactor.GetExcludedScanlators
 import tachiyomi.domain.manga.interactor.GetManga
-import eu.kanade.domain.manga.interactor.SetExcludedScanlators
 import tachiyomi.domain.manga.model.MangaUpdate
 import tachiyomi.i18n.MR
 import tachiyomi.i18n.kmk.KMR

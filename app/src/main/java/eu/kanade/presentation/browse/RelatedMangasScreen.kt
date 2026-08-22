@@ -119,6 +119,21 @@ fun RelatedMangasContent(
                 selection = selection,
             )
         }
+        // KMK -->
+        LibraryDisplayMode.StaggeredGrid -> {
+            RelatedMangasComfortableGrid(
+                relatedMangas = relatedMangas,
+                getManga = getMangaState,
+                columns = columns,
+                contentPadding = contentPadding,
+                onMangaClick = onMangaClick,
+                onMangaLongClick = onMangaLongClick,
+                onKeywordClick = onKeywordClick,
+                onKeywordLongClick = onKeywordLongClick,
+                selection = selection,
+            )
+        }
+        // KMK <--
     }
 }
 

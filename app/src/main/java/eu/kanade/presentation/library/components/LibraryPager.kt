@@ -42,6 +42,12 @@ fun LibraryPager(
     onClickManga: (Category, LibraryManga) -> Unit,
     onLongClickManga: (Category, LibraryManga) -> Unit,
     onClickContinueReading: ((LibraryManga) -> Unit)?,
+    // KMK -->
+    useFolderLayout: Boolean,
+    activeSubCategoryId: Long?,
+    getFolderData: (Category) -> Pair<List<Pair<Category, List<LibraryItem>>>, List<LibraryItem>>,
+    onSelectSubcategory: (Long) -> Unit,
+    // KMK <--
 ) {
     HorizontalPager(
         modifier = Modifier.fillMaxSize(),
@@ -74,6 +80,30 @@ fun LibraryPager(
         } else {
             remember { mutableIntStateOf(0) }
         }
+
+        // KMK -->
+        // Home-screen-style folder view: subcategories render as folders while
+        // manga outside any subcategory are mixed in alongside them.
+        if (useFolderLayout && activeSubCategoryId == null && searchQuery.isNullOrEmpty()) {
+            val (folders, looseItems) = getFolderData(category)
+            if (folders.isNotEmpty()) {
+                LibraryFolderGrid(
+                    folders = folders,
+                    looseItems = looseItems,
+                    columns = columns,
+                    contentPadding = contentPadding,
+                    selection = selection,
+                    searchQuery = searchQuery,
+                    onGlobalSearchClicked = onGlobalSearchClicked,
+                    onClickFolder = { onSelectSubcategory(it.id) },
+                    onClickManga = { onClickManga(category, it) },
+                    onLongClickManga = { onLongClickManga(category, it) },
+                    onClickContinueReading = onClickContinueReading,
+                )
+                return@HorizontalPager
+            }
+        }
+        // KMK <--
 
         val onClickManga: (LibraryManga) -> Unit = { onClickManga(category, it) }
         val onLongClickManga: (LibraryManga) -> Unit = { onLongClickManga(category, it) }
@@ -131,6 +161,18 @@ fun LibraryPager(
                     searchQuery = searchQuery,
                     onGlobalSearchClicked = onGlobalSearchClicked,
                     usePanoramaCover = true,
+                )
+            }
+            LibraryDisplayMode.StaggeredGrid -> {
+                LibraryStaggeredGrid(
+                    items = items,
+                    columns = columns,
+                    contentPadding = contentPadding,
+                    selection = selection,
+                    searchQuery = searchQuery,
+                    onGlobalSearchClicked = onGlobalSearchClicked,
+                    onClick = onClickManga,
+                    onLongClick = onLongClickManga,
                 )
             }
             // KMK <--

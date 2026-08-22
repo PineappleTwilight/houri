@@ -13,8 +13,8 @@ import exh.source.MERGED_SOURCE_ID
 import mihon.app.di.globalAppGraph
 import tachiyomi.data.DatabaseHandler
 import tachiyomi.data.MemoColumnAdapter
-import tachiyomi.data.UpdateStrategyColumnAdapter
 import tachiyomi.data.StringListColumnAdapter
+import tachiyomi.data.UpdateStrategyColumnAdapter
 import tachiyomi.data.manga.MangaMapper
 import tachiyomi.data.manga.MergedMangaMapper
 import tachiyomi.domain.category.interactor.GetCategories

@@ -33,6 +33,9 @@ fun LibraryContent(
     getSubcategoriesForCategory: (Category) -> List<Category>,
     activeSubCategoryId: Long?,
     onSelectSubcategory: (Long?) -> Unit,
+    useFolderLayout: Boolean,
+    getFolderData: (Category) -> Pair<List<Pair<Category, List<LibraryItem>>>, List<LibraryItem>>,
+    showAllChip: Boolean,
     // KMK <--
     searchQuery: String?,
     selection: Set<Long>,
@@ -103,6 +106,7 @@ fun LibraryContent(
                 subcategories = subcategories,
                 selectedSubcategoryId = activeSubCategoryId,
                 onSelectSubcategory = onSelectSubcategory,
+                showAllChip = showAllChip,
             )
         }
         // KMK <--
@@ -141,6 +145,12 @@ fun LibraryContent(
                 },
                 onLongClickManga = onToggleRangeSelection,
                 onClickContinueReading = onContinueReadingClicked,
+                // KMK -->
+                useFolderLayout = useFolderLayout,
+                activeSubCategoryId = activeSubCategoryId,
+                getFolderData = getFolderData,
+                onSelectSubcategory = { onSelectSubcategory(it) },
+                // KMK <--
             )
         }
 

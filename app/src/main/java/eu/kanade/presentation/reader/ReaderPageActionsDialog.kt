@@ -1,5 +1,6 @@
 package eu.kanade.presentation.reader
 
+import android.net.Uri
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -17,10 +18,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import eu.kanade.presentation.components.AdaptiveSheet
+import eu.kanade.presentation.manga.components.CoverCropDialog
+import kotlinx.coroutines.launch
 import tachiyomi.i18n.MR
 import tachiyomi.i18n.kmk.KMR
 import tachiyomi.i18n.sy.SYMR
@@ -39,11 +43,19 @@ fun ReaderPageActionsDialog(
     onSaveCombined: () -> Unit,
     hasExtraPage: Boolean,
     // SY <--
+    // KMK -->
+    getCoverEditUri: suspend (Boolean) -> Uri?,
+    onSetAsCoverFromUri: (Uri) -> Unit,
+    // KMK <--
 ) {
     var showSetCoverDialog by remember { mutableStateOf(false) }
     // SY -->
     var useExtraPage by remember { mutableStateOf(false) }
     // SY <--
+    // KMK -->
+    val scope = rememberCoroutineScope()
+    var pendingCropSource by remember { mutableStateOf<Pair<Uri, Boolean>?>(null) }
+    // KMK <--
 
     AdaptiveSheet(onDismissRequest = onDismissRequest) {
         Column(modifier = Modifier.padding(vertical = 16.dp)) {
@@ -200,15 +212,40 @@ fun ReaderPageActionsDialog(
     if (showSetCoverDialog) {
         SetCoverDialog(
             onConfirm = {
-                // SY -->
-                onSetAsCover(useExtraPage)
-                showSetCoverDialog = false
-                useExtraPage = false
-                // SY <--
+                // KMK -->
+                scope.launch {
+                    val forExtraPage = useExtraPage
+                    val sourceUri = getCoverEditUri(forExtraPage)
+                    showSetCoverDialog = false
+                    useExtraPage = false
+                    if (sourceUri != null) {
+                        pendingCropSource = sourceUri to forExtraPage
+                    } else {
+                        onSetAsCover(forExtraPage)
+                    }
+                }
+                // KMK <--
             },
             onDismiss = { showSetCoverDialog = false },
         )
     }
+
+    // KMK -->
+    pendingCropSource?.let { (source, forExtraPage) ->
+        CoverCropDialog(
+            sourceUri = source,
+            onDismissRequest = { pendingCropSource = null },
+            onCropped = { cropped ->
+                pendingCropSource = null
+                onSetAsCoverFromUri(cropped)
+            },
+            onUseOriginal = {
+                pendingCropSource = null
+                onSetAsCover(forExtraPage)
+            },
+        )
+    }
+    // KMK <--
 }
 
 @Composable

@@ -72,6 +72,7 @@
     <string name="pref_top_align_cover">Align Cover to Top</string>
     <string name="pref_top_align_cover_summary">Show the cover aligned to the top alongside manga info</string>
     <string name="action_display_comfortable_grid_panorama">Panorama comfortable grid</string>
+    <string name="action_display_staggered_grid">Staggered grid</string>
     <string name="pref_expand_related_mangas">Expand Suggestions</string>
     <string name="pref_expand_related_mangas_summary">If turned off, Suggestions won\'t automatically load &amp; show expanded</string>
     <string name="put_related_mangas_in_overflow">Suggestions in overflow</string>
@@ -112,6 +113,16 @@
     <string name="pref_fetch_manga_metadata_on_add_description">Automatically fetches the metadata of a new manga when adding it to the library</string>
     <string name="pref_fetch_manga_chapters_on_add">Fetch chapters when adding to library</string>
     <string name="pref_fetch_manga_chapters_on_add_description">Automatically fetches the chapter list of a new manga when adding it to the library</string>
+    <string name="pref_subcategory_update_scope">Subcategory refresh scope</string>
+    <string name="pref_subcategory_update_scope_whole_category">Entire category (default)</string>
+    <string name="pref_subcategory_update_scope_subcategory_only">Selected subcategory only</string>
+    <string name="pref_subcategory_folder_layout">Use folder layout for subcategories</string>
+    <string name="pref_subcategory_folder_layout_summary">Show subcategories as home-screen style folders inside their category. Entries not in a subcategory stay mixed in alongside the folders.</string>
+    <string name="pref_hide_subcategory_all_chip">Hide the \"All\" subcategory</string>
+    <string name="action_crop_use_original">Use original</string>
+    <string name="crop_ratio_portrait">Portrait</string>
+    <string name="crop_ratio_square">Square</string>
+    <string name="crop_ratio_wide">Wide</string>
     <!-- Extension section -->
     <string name="extensions_page_need_refresh">Refresh extension page to update list.</string>
     <string name="extensions_page_more">More extensions...</string>

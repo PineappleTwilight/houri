@@ -56,6 +56,7 @@ import eu.kanade.tachiyomi.data.coil.PagePreviewFetcher
 import eu.kanade.tachiyomi.data.coil.PagePreviewKeyer
 import eu.kanade.tachiyomi.data.coil.TachiyomiImageDecoder
 import eu.kanade.tachiyomi.data.connections.discord.DiscordRPCService
+import eu.kanade.tachiyomi.data.database.DatabaseMaintenanceManager
 import eu.kanade.tachiyomi.data.notification.Notifications
 import eu.kanade.tachiyomi.data.sync.SyncDataJob
 import eu.kanade.tachiyomi.data.webhook.WebhookEvent
@@ -79,6 +80,7 @@ import exh.log.EHLogLevel
 import exh.log.EnhancedFilePrinter
 import exh.log.XLogLogcatLogger
 import exh.log.xLogD
+import exh.log.xLogE
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
@@ -88,6 +90,7 @@ import logcat.LogcatLogger
 import mihon.app.di.AppGraph
 import mihon.app.di.globalAppGraph
 import mihon.app.di.injekt.MetroInteropModule
+import mihon.core.archive.CbzCrypto
 import mihon.core.metro.GraphProvider
 import mihon.core.migration.Migrator
 import mihon.core.migration.migrations.migrations
@@ -96,6 +99,7 @@ import org.conscrypt.Conscrypt
 import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.core.common.preference.Preference
 import tachiyomi.core.common.preference.PreferenceStore
+import tachiyomi.core.common.util.lang.launchIO
 import tachiyomi.core.common.util.system.ImageUtil
 import tachiyomi.core.common.util.system.logcat
 import tachiyomi.domain.storage.service.StorageManager
@@ -152,6 +156,18 @@ class App : Application(), DefaultLifecycleObserver, SingletonImageLoader.Factor
 
         graph.inject(this)
 
+        // KMK -->
+        // Probe/backup the database file (plaintext or SQLCipher) before anything opens it
+        ProcessLifecycleOwner.get().lifecycleScope.launchIO {
+            val manager = if (globalAppGraph.securityPreferences.encryptDatabase().get()) {
+                DatabaseMaintenanceManager(this@App, CbzCrypto.DATABASE_NAME, CbzCrypto.getDecryptedPasswordSql())
+            } else {
+                DatabaseMaintenanceManager(this@App)
+            }
+            runCatching { manager.performStartupMaintenance() }
+                .onFailure { xLogE("Database startup maintenance failed", it) }
+        }
+        // KMK <--
         // MetroInteropModule bridges Metro singletons to Injekt for extension backwards compat;
         // must be imported AFTER graph.inject() so Metro graph is built
         Injekt.importModule(injektMetroInteropModule)

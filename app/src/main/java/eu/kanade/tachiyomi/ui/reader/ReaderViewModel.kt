@@ -116,6 +116,7 @@ import tachiyomi.domain.manga.model.Manga
 import tachiyomi.domain.source.service.SourceManager
 import tachiyomi.source.local.image.LocalCoverManager
 import tachiyomi.source.local.isLocal
+import java.io.File
 import java.time.Instant
 import java.util.Date
 
@@ -1524,6 +1525,46 @@ class ReaderViewModel(
             eventChannel.send(Event.SetCoverResult(result))
         }
     }
+
+    // KMK -->
+    /**
+     * Writes the image of the selected page to a temporary cache file so it can
+     * be cropped before being applied as cover. Returns null on failure.
+     */
+    suspend fun getCoverEditUri(useExtraPage: Boolean): Uri? = withIOContext {
+        val dialog = state.value.dialog as? Dialog.PageActions
+        val page = if (useExtraPage) dialog?.extraPage else dialog?.page
+        if (page?.status != Page.State.Ready) return@withIOContext null
+        val stream = page.stream ?: return@withIOContext null
+
+        runCatching {
+            val dir = File(context.cacheDir, "cover_edit").apply { mkdirs() }
+            dir.listFiles()?.forEach { it.delete() }
+            val file = File(dir, "source")
+            file.outputStream().use { output -> stream().copyTo(output) }
+            Uri.fromFile(file)
+        }.getOrNull()
+    }
+
+    fun setCoverFromUri(uri: Uri) {
+        val currentManga = manga ?: return
+        viewModelScope.launchNonCancellable {
+            val result = try {
+                context.contentResolver.openInputStream(uri)?.use { stream ->
+                    currentManga.editCover(coverManager, stream, updateManga, coverCache)
+                }
+                if (currentManga.isLocal() || currentManga.favorite) {
+                    SetAsCoverResult.Success
+                } else {
+                    SetAsCoverResult.AddToLibraryFirst
+                }
+            } catch (_: Exception) {
+                SetAsCoverResult.Error
+            }
+            eventChannel.send(Event.SetCoverResult(result))
+        }
+    }
+    // KMK <--
 
     enum class SetAsCoverResult {
         Success,

@@ -181,6 +181,16 @@ fun BrowseSourceContent(
                 // KMK <--
             )
         }
+        LibraryDisplayMode.StaggeredGrid -> {
+            BrowseSourceComfortableGrid(
+                mangaList = mangaList,
+                columns = columns,
+                contentPadding = contentPadding,
+                onMangaClick = onMangaClick,
+                onMangaLongClick = onMangaLongClick,
+                selection = selection,
+            )
+        }
         // KMK <--
         LibraryDisplayMode.List -> {
             BrowseSourceList(

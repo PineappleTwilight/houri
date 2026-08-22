@@ -1,7 +1,6 @@
 package eu.kanade.presentation.category
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -105,18 +104,38 @@ private fun CategoryContent(
             .groupBy { it.parentId }
             .mapValues { (_, subs) -> subs.sortedBy { it.order } }
     }
+
+    // Single flat list so every row is an individually reorderable item
+    val rows = remember(topLevel, subMap) {
+        buildList {
+            topLevel.forEach { parent ->
+                add(CategoryRow(parent, isTopLevel = true))
+                subMap[parent.id]?.forEach { add(CategoryRow(it, isTopLevel = false)) }
+            }
+        }
+    }
     // KMK <--
-    val topLevelState = remember { topLevel.toMutableStateList() }
+    val rowState = remember { rows.toMutableStateList() }
     val reorderableState = rememberReorderableLazyListState(lazyListState, paddingValues) { from, to ->
-        val item = topLevelState.removeAt(from.index)
-        topLevelState.add(to.index, item)
-        onChangeOrder(item, to.index)
+        val moved = rowState.removeAt(from.index)
+        rowState.add(to.index, moved)
+        // KMK -->
+        // ReorderCategory scopes updates to the moved row's sibling group, so
+        // only the index within that group is relevant here
+        val siblingIndex = if (moved.isTopLevel) {
+            rowState.take(to.index).count { it.isTopLevel }
+        } else {
+            val parentId = moved.category.parentId
+            rowState.take(to.index).count { !it.isTopLevel && it.category.parentId == parentId }
+        }
+        onChangeOrder(moved.category, siblingIndex.coerceAtLeast(0))
+        // KMK <--
     }
 
-    LaunchedEffect(topLevel) {
+    LaunchedEffect(rows) {
         if (!reorderableState.isAnyItemDragging) {
-            topLevelState.clear()
-            topLevelState.addAll(topLevel)
+            rowState.clear()
+            rowState.addAll(rows)
         }
     }
 
@@ -129,54 +148,34 @@ private fun CategoryContent(
         verticalArrangement = Arrangement.spacedBy(MaterialTheme.padding.small),
     ) {
         items(
-            items = topLevelState,
-            key = { category -> category.key },
-        ) { category ->
-            ReorderableItem(reorderableState, category.key) {
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    CategoryListItem(
-                        modifier = Modifier.animateItem(),
-                        category = category,
-                        onRename = { onClickRename(category) },
-                        onDelete = { onClickDelete(category) },
-                        onHide = { onClickHide(category) },
-                        onCreateSubcategory = { onCreateSubcategory(category) },
-                        isTopLevel = true,
-                        subcategoryCount = subMap[category.id]?.size ?: 0,
-                    )
-                    val subs = subMap[category.id] ?: emptyList()
-                    if (subs.isNotEmpty()) {
-                        Column(
-                            modifier = Modifier.padding(start = 16.dp),
-                            verticalArrangement = Arrangement.spacedBy(4.dp),
-                        ) {
-                            subs.forEachIndexed { subIndex, sub ->
-                                CategoryListItem(
-                                    category = sub,
-                                    onRename = { onClickRename(sub) },
-                                    onDelete = { onClickDelete(sub) },
-                                    onHide = { onClickHide(sub) },
-                                    // KMK -->
-                                    onMoveUp = if (subIndex > 0) {
-                                        { onChangeOrder(sub, subIndex - 1) }
-                                    } else {
-                                        null
-                                    },
-                                    onMoveDown = if (subIndex < subs.lastIndex) {
-                                        { onChangeOrder(sub, subIndex + 1) }
-                                    } else {
-                                        null
-                                    },
-                                    isTopLevel = false,
-                                    // KMK <--
-                                )
-                            }
-                        }
-                    }
+            items = rowState,
+            key = { it.category.key },
+        ) { row ->
+            ReorderableItem(reorderableState, row.category.key) {
+                // KMK -->
+                val itemModifier = if (row.isTopLevel) {
+                    Modifier.animateItem()
+                } else {
+                    Modifier.animateItem().padding(start = 16.dp)
                 }
+                CategoryListItem(
+                    modifier = itemModifier,
+                    category = row.category,
+                    onRename = { onClickRename(row.category) },
+                    onDelete = { onClickDelete(row.category) },
+                    onHide = { onClickHide(row.category) },
+                    onCreateSubcategory = ({ onCreateSubcategory(row.category) }).takeIf { row.isTopLevel },
+                    isTopLevel = row.isTopLevel,
+                    subcategoryCount = if (row.isTopLevel) subMap[row.category.id]?.size ?: 0 else 0,
+                )
+                // KMK <--
             }
         }
     }
 }
 
 private val Category.key inline get() = "category-$id"
+
+// KMK -->
+private data class CategoryRow(val category: Category, val isTopLevel: Boolean)
+// KMK <--

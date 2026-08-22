@@ -25,6 +25,7 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import tachiyomi.core.common.util.lang.launchIO
 import tachiyomi.domain.category.interactor.GetCategories
+import tachiyomi.domain.manga.interactor.GetManga
 import java.time.Instant
 
 enum class WebhookEvent(val id: String, val title: String, val color: Long) {
@@ -62,6 +63,7 @@ class WebhookNotifier(
     // KMK -->
     private val getCategories: GetCategories by lazy { globalAppGraph.getCategories }
     private val getIncognitoState: GetIncognitoState by lazy { globalAppGraph.getIncognitoState }
+    private val getManga: GetManga by lazy { globalAppGraph.getManga }
     // KMK <--
 
     fun notify(
@@ -95,8 +97,9 @@ class WebhookNotifier(
         launchIO {
             // KMK -->
             if (isSuppressed(sourceId, mangaId)) return@launchIO
+            val coverUrl = mangaId?.let { resolveCoverUrl(it) }
+            sendToAll(event, data, coverUrl)
             // KMK <--
-            sendToAll(event, data)
         }
     }
 
@@ -117,6 +120,12 @@ class WebhookNotifier(
                     .any { it in excludedIds }
         }
     }
+
+    /** Null when the cover is not a remote URL (local/custom file covers are unreachable by consumers). */
+    private suspend fun resolveCoverUrl(mangaId: Long): String? = runCatching {
+        getManga.await(mangaId)?.thumbnailUrl
+            ?.takeIf { it.startsWith("http://", ignoreCase = true) || it.startsWith("https://", ignoreCase = true) }
+    }.getOrNull()
     // KMK <--
 
     suspend fun sendTest() {
@@ -127,18 +136,31 @@ class WebhookNotifier(
                 "manga" to "Test manga",
                 "chapter" to "Test chapter",
             ),
+            // KMK -->
+            null,
+            // KMK <--
         )
     }
 
-    private suspend fun sendToAll(event: WebhookEvent, data: Map<String, String>) {
+    private suspend fun sendToAll(
+        event: WebhookEvent,
+        data: Map<String, String>,
+        // KMK -->
+        coverUrl: String?,
+        // KMK <--
+    ) {
         val discordUrl = webhookPreferences.discordWebhookUrl().get()
         val genericUrl = webhookPreferences.genericWebhookUrl().get()
 
         if (discordUrl.isNotBlank()) {
-            post(discordUrl, json.encodeToString(buildDiscordPayload(event, data)))
+            // KMK -->
+            post(discordUrl, json.encodeToString(buildDiscordPayload(event, data, coverUrl)))
+            // KMK <--
         }
         if (genericUrl.isNotBlank()) {
-            post(genericUrl, json.encodeToString(buildGenericPayload(event, data)))
+            // KMK -->
+            post(genericUrl, json.encodeToString(buildGenericPayload(event, data, coverUrl)))
+            // KMK <--
         }
     }
 
@@ -155,7 +177,13 @@ class WebhookNotifier(
         }
     }
 
-    private fun buildDiscordPayload(event: WebhookEvent, data: Map<String, String>): JsonObject {
+    private fun buildDiscordPayload(
+        event: WebhookEvent,
+        data: Map<String, String>,
+        // KMK -->
+        coverUrl: String?,
+        // KMK <--
+    ): JsonObject {
         // KMK -->
         val description = embedDescription(event, data)
         val fields = embedFields(data)
@@ -170,6 +198,11 @@ class WebhookNotifier(
                         put("timestamp", Instant.now().toString())
                         // KMK -->
                         description?.let { put("description", it) }
+                        coverUrl?.let { cover ->
+                            putJsonObject("thumbnail") {
+                                put("url", cover)
+                            }
+                        }
                         if (fields.isNotEmpty()) {
                             putJsonArray("fields") {
                                 fields.forEach { add(it) }
@@ -241,11 +274,20 @@ class WebhookNotifier(
     }
     // KMK <--
 
-    private fun buildGenericPayload(event: WebhookEvent, data: Map<String, String>): JsonObject {
+    private fun buildGenericPayload(
+        event: WebhookEvent,
+        data: Map<String, String>,
+        // KMK -->
+        coverUrl: String?,
+        // KMK <--
+    ): JsonObject {
         return buildJsonObject {
             put("event", event.id)
             put("title", event.title)
             put("timestamp", Instant.now().toString())
+            // KMK -->
+            coverUrl?.let { put("cover_url", it) }
+            // KMK <--
             data.forEach { (key, value) -> put(key, value) }
         }
     }

@@ -18,26 +18,53 @@ class CategoriesRestorer(
             val dbCategoriesByName = dbCategories.associateBy { it.name }
             var nextOrder = dbCategories.maxOfOrNull { it.order }?.plus(1) ?: 0
 
+            // KMK -->
+            // Restored rows get fresh ids, so parent references from the backup file
+            // have to be remapped instead of being copied verbatim
+            val restoredIdsByBackupId = mutableMapOf<Long, Long>()
+            val pendingParents = mutableMapOf<Long, Long>()
+
             val categories = backupCategories
                 .sortedBy { it.order }
                 .map {
                     val dbCategory = dbCategoriesByName[it.name]
-                    if (dbCategory != null) return@map dbCategory
+                    if (dbCategory != null) {
+                        if (it.id != 0L) restoredIdsByBackupId[it.id] = dbCategory.id
+                        return@map dbCategory
+                    }
                     val order = nextOrder++
-                    handler.awaitOneExecutable {
+                    val newId = handler.awaitOneExecutable {
                         categoriesQueries.insert(
                             it.name,
                             order,
                             it.flags,
                             // KMK -->
                             hidden = if (it.hidden) 1L else 0L,
-                            parentId = it.parentId,
+                            parentId = 0L,
                             // KMK <--
                         )
                         categoriesQueries.selectLastInsertedRowId()
                     }
-                        .let { id -> it.toCategory(id).copy(order = order) }
+                    if (it.id != 0L) restoredIdsByBackupId[it.id] = newId
+                    if (it.parentId != 0L) pendingParents[newId] = it.parentId
+                    it.toCategory(newId).copy(order = order)
                 }
+
+            pendingParents.forEach { (categoryId, backupParentId) ->
+                // Parents missing from both the backup and the library promote to top level
+                val parentId = restoredIdsByBackupId[backupParentId] ?: return@forEach
+                handler.await {
+                    categoriesQueries.update(
+                        name = null,
+                        order = null,
+                        flags = null,
+                        hidden = null,
+                        parentId = parentId,
+                        categoryId = categoryId,
+                    )
+                }
+            }
+            // KMK <--
 
             libraryPreferences.categorizedDisplaySettings().set(
                 (dbCategories + categories)

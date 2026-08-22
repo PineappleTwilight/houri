@@ -9,6 +9,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.OpenInNew
 import androidx.compose.material.icons.outlined.NewReleases
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -58,6 +59,16 @@ fun NewUpdateScreen(
                 .fillMaxWidth()
                 .padding(vertical = MaterialTheme.padding.large),
         ) {
+            // KMK -->
+            if (stage == NewUpdateScreenModel.Stage.Downloading) {
+                LinearProgressIndicator(
+                    progress = { downloadProgress() / 100f },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = MaterialTheme.padding.large),
+                )
+            }
+            // KMK <--
             MarkdownRender(
                 content = changelogInfo,
                 flavour = remember { GFMFlavourDescriptor() },

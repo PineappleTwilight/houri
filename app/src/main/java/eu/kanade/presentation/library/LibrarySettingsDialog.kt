@@ -322,6 +322,7 @@ private val displayModes = listOf(
     MR.strings.action_display_cover_only_grid to LibraryDisplayMode.CoverOnlyGrid,
     // KMK -->
     KMR.strings.action_display_comfortable_grid_panorama to LibraryDisplayMode.ComfortableGridPanorama,
+    KMR.strings.action_display_staggered_grid to LibraryDisplayMode.StaggeredGrid,
     // KMK <--
 )
 

@@ -11,6 +11,7 @@ import tachiyomi.domain.library.model.GroupLibraryMode
 import tachiyomi.domain.library.model.LibraryDisplayMode
 import tachiyomi.domain.library.model.LibraryGroup
 import tachiyomi.domain.library.model.LibrarySort
+import tachiyomi.domain.library.model.SubcategoryUpdateScope
 import tachiyomi.domain.manga.model.Manga
 
 @SingleIn(AppScope::class)
@@ -183,11 +184,22 @@ class LibraryPreferences(
 
     // KMK -->
     fun showHiddenCategories() = preferenceStore.getBoolean("hide_hidden_categories", false)
+
+    fun subcategoryFolderLayout() = preferenceStore.getBoolean("pref_subcategory_folder_layout", false)
+
+    fun hideSubcategoryAllChip() = preferenceStore.getBoolean("pref_hide_subcategory_all_chip", false)
     // KMK <--
 
     fun updateCategories() = preferenceStore.getStringSet(LIBRARY_UPDATE_CATEGORIES_PREF_KEY, emptySet())
 
     fun updateCategoriesExclude() = preferenceStore.getStringSet(LIBRARY_UPDATE_CATEGORIES_EXCLUDE_PREF_KEY, emptySet())
+
+    // KMK -->
+    fun subcategoryUpdateScope() = preferenceStore.getEnum(
+        "pref_library_update_subcategory_scope",
+        SubcategoryUpdateScope.WHOLE_CATEGORY,
+    )
+    // KMK <--
 
     // endregion
 

@@ -66,7 +66,10 @@ internal fun LibrarySubcategoryTabs(
     subcategories: List<Category>,
     selectedSubcategoryId: Long?,
     onSelectSubcategory: (Long?) -> Unit,
+    showAllChip: Boolean = true,
 ) {
+    if (subcategories.isEmpty()) return
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -75,11 +78,13 @@ internal fun LibrarySubcategoryTabs(
             .padding(horizontal = MaterialTheme.padding.small, vertical = MaterialTheme.padding.extraSmall),
         horizontalArrangement = Arrangement.spacedBy(MaterialTheme.padding.extraSmall),
     ) {
-        FilterChip(
-            selected = selectedSubcategoryId == null,
-            onClick = { onSelectSubcategory(null) },
-            label = { Text(text = stringResource(MR.strings.all)) },
-        )
+        if (showAllChip) {
+            FilterChip(
+                selected = selectedSubcategoryId == null,
+                onClick = { onSelectSubcategory(null) },
+                label = { Text(text = stringResource(MR.strings.all)) },
+            )
+        }
         subcategories.forEach { subcategory ->
             FilterChip(
                 selected = selectedSubcategoryId == subcategory.id,

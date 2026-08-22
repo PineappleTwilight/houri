@@ -41,17 +41,21 @@
 - [x] **Subcategories**: Subcategory reordering
 - [x] **Discord RPC**: Majorly improve the Discord RPC feature and what information it shows
   - Subcategory exclusion also needs to be properly wired into it
-- [ ] **Subcategories**: Add option to use separate layout that closely mirrors Android's home screen
+- [x] **Subcategories**: Add option to use separate layout that closely mirrors Android's home screen
   - Subcategories inside a category should show up as "folders" with the content inside.
   - Any content not in a subcategory is mixed in alongside the subcategory folders
   - Disabled by default
-- [ ] **Webhook Connection**: Add cover of current series to webhook event embeds where applicable (all manga-related events)
-- [ ] **Subcategories**: Option to update only the subcategory or the entire category (default behavior) when refreshing the library
-- [ ] **Updater**: Add download progress bar
-- [ ] **Database**: Harden database against corruption and wipes
-- [ ] **Library**: Staggered library grid
-- [ ] **Library**: Allow user to crop image when setting a custom cover
+- [x] **Webhook Connection**: Add cover of current series to webhook event embeds where applicable (all manga-related events)
+- [x] **Subcategories**: Option to update only the subcategory or the entire category (default behavior) when refreshing the library
+- [x] **Updater**: Add download progress bar
+- [x] **Database**: Harden database against corruption and wipes
+  - Startup integrity check with automatic restore from rolling local backups, corrupt-file quarantine, synchronous=FULL durability
+  - Supports SQLCipher-encrypted databases
+- [x] **Library**: Staggered library grid
+- [x] **Library**: Allow user to crop image when setting a custom cover
   - This should apply to covers from pages and from custom images
+- [x] **Subcategories**: Option to hide the default "All" subcategory
+- [x] **Subcategories**: Hide the "All" subcategory when a category has no subcategories
 
 ## Bugfixes
 - [x] Fix UI transition choppiness.
@@ -93,8 +97,10 @@
   - [x] Improve chapter completion reading moan to make it dynamic so we can add more sounds in the future or custom sounds from the user
 - [x] Modify all category selection UIs to be subcategory-aware
 - [x] Add chapter completion moan option to global reader settings
+- [x] **Subcategories**: Replace folder icon in the category editor with a hamburger dragger like the parent categories and remove the arrow buttons
+- [x] **Subcategories**: Fix db import bug where all imported categories are imported as subcategories under "Default"
 
-## ChoresAdd
+## Chores
 - [x] Replace all Komikku icons/branding with houri icons/branding
 - [x] Update ancient test framework
 - [x] Streamline gradle tasks
@@ -110,8 +116,8 @@
 - [x] **Code Cleanup**: Fix compile warnings
 - [x] **Tracker**: Update comick's icon to the website's unicorn logo
 - [x] **App**: Make icon better, expect sleek modern minimalist material pineapple icon
-- [ ] **App**: Add icon to webhooks connection and remove description on the selection screen (description is shown when tapped into anyway)
-- [ ] **Webhook Connection**: Improve Discord event embeds
+- [x] **App**: Add icon to webhooks connection and remove description on the selection screen (description is shown when tapped into anyway)
+- [x] **Webhook Connection**: Improve Discord event embeds
 
 ## Drawing Board
 - [ ] **New**: WebAssembly computation engine

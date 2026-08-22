@@ -62,6 +62,7 @@ import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.core.common.preference.getAndSet
 import tachiyomi.core.common.util.lang.withIOContext
 import tachiyomi.core.common.util.system.logcat
+import tachiyomi.domain.category.interactor.GetCategories
 import tachiyomi.domain.category.model.Category
 import tachiyomi.domain.chapter.model.Chapter
 import tachiyomi.domain.chapter.model.NoChaptersException
@@ -118,6 +119,7 @@ class LibraryUpdateJob(private val context: Context, workerParams: WorkerParamet
 
     // KMK -->
     private val webhookNotifier: WebhookNotifier = globalAppGraph.webhookNotifier
+    private val getCategories: GetCategories = globalAppGraph.getCategories
     // KMK <--
 
     // SY -->
@@ -253,8 +255,11 @@ class LibraryUpdateJob(private val context: Context, workerParams: WorkerParamet
         }
         // KMK <--
 
+        // KMK -->
         val listToUpdate = if (categoryId != -1L) {
-            libraryManga.filter { categoryId in it.categories }
+            val categoryIds = getCategoryTreeIds(categoryId)
+            libraryManga.filter { manga -> manga.categories.any { it in categoryIds } }
+            // KMK <--
             // SY -->
         } else if (
             group == LibraryGroup.BY_DEFAULT ||
@@ -385,6 +390,28 @@ class LibraryUpdateJob(private val context: Context, workerParams: WorkerParamet
             }
         }
     }
+
+    // KMK -->
+    /**
+     * Returns the given category id plus every id in its subcategory tree, so an
+     * "entire category" update also refreshes manga filed directly under subcategories.
+     */
+    private suspend fun getCategoryTreeIds(rootId: Long): Set<Long> {
+        val categories = runCatching { getCategories.await() }.getOrDefault(emptyList())
+        if (categories.isEmpty()) return setOf(rootId)
+        val childrenByParentId = categories.groupBy(Category::parentId)
+        val ids = HashSet<Long>().apply { add(rootId) }
+        val queue = ArrayDeque<Long>()
+        queue.add(rootId)
+        while (queue.isNotEmpty()) {
+            val parentId = queue.removeFirst()
+            for (child in childrenByParentId[parentId].orEmpty()) {
+                if (ids.add(child.id)) queue.addLast(child.id)
+            }
+        }
+        return ids
+    }
+    // KMK <--
 
     /**
      * Method that updates manga in [mangaToUpdate]. It's called in a background thread, so it's safe

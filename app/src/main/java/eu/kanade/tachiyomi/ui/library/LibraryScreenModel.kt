@@ -103,6 +103,7 @@ import tachiyomi.domain.library.model.LibraryDisplayMode
 import tachiyomi.domain.library.model.LibraryGroup
 import tachiyomi.domain.library.model.LibraryManga
 import tachiyomi.domain.library.model.LibrarySort
+import tachiyomi.domain.library.model.SubcategoryUpdateScope
 import tachiyomi.domain.library.model.sort
 import tachiyomi.domain.library.service.LibraryPreferences
 import tachiyomi.domain.manga.interactor.GetIdsOfFavoriteMangaWithMetadata
@@ -270,6 +271,18 @@ class LibraryScreenModel(
             ) { (data, groupType, noActiveFilterOrSearch), (sort, showHiddenCategories, showEmptyCategoriesSearch), (filterCategory, includedCategories, activeSelection) ->
                 // KMK -->
                 val (activeCategoryId, activeSubCategoryId) = activeSelection
+                val subcategoryMangaMap = if (groupType == LibraryGroup.BY_DEFAULT) {
+                    val subCategoryIds = data.categories.filter { it.parentId != 0L }.mapTo(HashSet()) { it.id }
+                    buildMap {
+                        for (item in data.favorites) {
+                            for (categoryId in item.libraryManga.categories) {
+                                if (categoryId in subCategoryIds) getOrPut(categoryId) { mutableListOf() }.add(item.id)
+                            }
+                        }
+                    }
+                } else {
+                    emptyMap()
+                }
                 // KMK <--
                 data.favorites
                     .applyGrouping(
@@ -314,13 +327,18 @@ class LibraryScreenModel(
                             )
                         }
                     }
+                    // KMK -->
+                    .let { it to subcategoryMangaMap }
                 // KMK <--
             }
-                .collectLatest {
+                .collectLatest { (grouped, subMap) ->
                     mutableState.update { state ->
                         state.copy(
                             isLoading = false,
-                            groupedFavorites = it,
+                            groupedFavorites = grouped,
+                            // KMK -->
+                            subcategoryMangaMap = subMap,
+                            // KMK <--
                         )
                     }
                 }
@@ -1524,6 +1542,20 @@ class LibraryScreenModel(
     fun selectSubcategory(subCategoryId: Long?) {
         mutableState.update { it.copy(activeSubCategoryId = subCategoryId) }
     }
+
+    /**
+     * Resolves the [Category] a manual refresh should target: the selected
+     * subcategory when the update scope is SUBCATEGORY_ONLY and one is active,
+     * otherwise the given top-level category.
+     */
+    fun getRefreshCategory(category: Category?): Category? {
+        if (category == null) return null
+        if (libraryPreferences.subcategoryUpdateScope().get() != SubcategoryUpdateScope.SUBCATEGORY_ONLY) {
+            return category
+        }
+        val subCategoryId = state.value.activeSubCategoryId ?: return category
+        return state.value.libraryData.categories.firstOrNull { it.id == subCategoryId } ?: category
+    }
     // KMK <--
 
     fun openChangeCategoryDialog() {
@@ -1789,6 +1821,10 @@ class LibraryScreenModel(
         val activeSubCategoryId: Long? = null,
         // KMK <--
         private val groupedFavorites: Map<Category, List</* LibraryItem */ Long>> = emptyMap(),
+        // KMK -->
+        /** Manga ids assigned directly to each subcategory, used by the folder layout. */
+        val subcategoryMangaMap: Map</* Subcategory */ Long, List</* LibraryItem */ Long>> = emptyMap(),
+        // KMK <--
         // SY -->
         val showSyncExh: Boolean = false,
         val isSyncEnabled: Boolean = false,
@@ -1856,6 +1892,33 @@ class LibraryScreenModel(
         fun getItemsForCategory(category: Category): List<LibraryItem> {
             return groupedFavorites[category].orEmpty().fastMapNotNull { libraryData.favoritesById[it] }
         }
+
+        // KMK -->
+        fun getItemsForSubcategory(subcategoryId: Long): List<LibraryItem> {
+            return subcategoryMangaMap[subcategoryId].orEmpty().fastMapNotNull { libraryData.favoritesById[it] }
+        }
+
+        /**
+         * Splits a category's tree content into non-empty subcategory folders plus
+         * the manga living directly in the category for the folder layout.
+         */
+        fun getFolderViewData(category: Category): Pair<List<Pair<Category, List<LibraryItem>>>, List<LibraryItem>> {
+            val folders = libraryData.categories
+                .filter { it.parentId == category.id }
+                .filterNot(Category::hidden)
+                .sortedBy { it.order }
+                .mapNotNull { subcategory ->
+                    getItemsForSubcategory(subcategory.id)
+                        .takeIf { items -> items.isNotEmpty() }
+                        ?.let { items -> subcategory to items }
+                }
+            val folderIds = folders.mapTo(HashSet()) { it.first.id }
+            val loose = getItemsForCategory(category).filterNot { item ->
+                item.libraryManga.categories.fastAny { it in folderIds }
+            }
+            return folders to loose
+        }
+        // KMK <--
 
         fun getItemCountForCategory(category: Category): Int? {
             return if (showMangaCount || !searchQuery.isNullOrEmpty()) groupedFavorites[category]?.size else null

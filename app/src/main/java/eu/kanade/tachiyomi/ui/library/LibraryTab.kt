@@ -82,6 +82,7 @@ import tachiyomi.presentation.core.i18n.stringResource
 import tachiyomi.presentation.core.screens.EmptyScreen
 import tachiyomi.presentation.core.screens.EmptyScreenAction
 import tachiyomi.presentation.core.screens.LoadingScreen
+import tachiyomi.presentation.core.util.collectAsState
 import tachiyomi.source.local.isLocal
 
 data object LibraryTab : Tab {
@@ -115,13 +116,24 @@ data object LibraryTab : Tab {
         val settingsScreenModel = rememberScreenModel { LibrarySettingsScreenModel() }
         val state by screenModel.state.collectAsState()
 
+        // KMK -->
+        val useFolderLayout by settingsScreenModel.libraryPreferences.subcategoryFolderLayout().collectAsState()
+        val hideAllChip by settingsScreenModel.libraryPreferences.hideSubcategoryAllChip().collectAsState()
+        // KMK <--
+
         val snackbarHostState = remember { SnackbarHostState() }
 
         val onClickRefresh: (Category?) -> Boolean = { category ->
             // SY -->
             val started = LibraryUpdateJob.startNow(
                 context = context,
-                category = if (state.groupType == LibraryGroup.BY_DEFAULT) category else null,
+                category = if (state.groupType == LibraryGroup.BY_DEFAULT) {
+                    // KMK -->
+                    screenModel.getRefreshCategory(category)
+                    // KMK <--
+                } else {
+                    null
+                },
                 group = state.groupType,
                 groupExtra = when (state.groupType) {
                     LibraryGroup.BY_DEFAULT -> null
@@ -308,6 +320,9 @@ data object LibraryTab : Tab {
                         getSubcategoriesForCategory = screenModel::getSubcategoriesForCategory,
                         activeSubCategoryId = state.activeSubCategoryId,
                         onSelectSubcategory = screenModel::selectSubcategory,
+                        useFolderLayout = useFolderLayout,
+                        getFolderData = { state.getFolderViewData(it) },
+                        showAllChip = !hideAllChip,
                         // KMK <--
                         searchQuery = state.searchQuery,
                         selection = state.selection,
