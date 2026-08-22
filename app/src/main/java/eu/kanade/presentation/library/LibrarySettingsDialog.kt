@@ -31,7 +31,8 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastForEach
 import dev.icerock.moko.resources.StringResource
-import eu.kanade.presentation.category.visualName
+import eu.kanade.presentation.category.hierarchicalVisualName
+import eu.kanade.presentation.category.sortedByHierarchy
 import eu.kanade.presentation.components.TabbedDialog
 import eu.kanade.presentation.components.TabbedDialogPaddings
 import eu.kanade.presentation.more.settings.widget.TriStateListDialog
@@ -489,13 +490,18 @@ private fun CategoriesFilter(
 
     var showCategoriesDialog by rememberSaveable { mutableStateOf(false) }
     if (showCategoriesDialog) {
+        // KMK -->
+        val orderedCategories = categories.sortedByHierarchy()
+        // KMK <--
         TriStateListDialog(
             title = stringResource(MR.strings.categories),
             message = stringResource(KMR.strings.pref_library_filter_categories_details),
-            items = categories,
+            items = orderedCategories,
             initialChecked = included.mapNotNull { id -> categories.find { it.id.toString() == id } },
             initialInversed = excluded.mapNotNull { id -> categories.find { it.id.toString() == id } },
-            itemLabel = { it.visualName },
+            // KMK -->
+            itemLabel = { it.hierarchicalVisualName },
+            // KMK <--
             onDismissRequest = { showCategoriesDialog = false },
             onValueChanged = { newIncluded, newExcluded ->
                 filterCategoriesInclude.set(newIncluded.map { it.id.toString() }.toSet())

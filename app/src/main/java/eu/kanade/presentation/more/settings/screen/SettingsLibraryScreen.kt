@@ -15,7 +15,8 @@ import androidx.core.content.ContextCompat
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.Navigator
 import cafe.adriel.voyager.navigator.currentOrThrow
-import eu.kanade.presentation.category.visualName
+import eu.kanade.presentation.category.hierarchicalVisualName
+import eu.kanade.presentation.category.sortedByHierarchy
 import eu.kanade.presentation.more.settings.Preference
 import eu.kanade.presentation.more.settings.widget.TriStateListDialog
 import eu.kanade.tachiyomi.data.library.LibraryUpdateJob
@@ -81,10 +82,13 @@ object SettingsLibraryScreen : SearchableSettings {
         val userCategoriesCount = allCategories.filterNot(Category::isSystemCategory).size
 
         // For default category
+        // KMK -->
+        val orderedCategories = allCategories.sortedByHierarchy()
         val ids = listOf(libraryPreferences.defaultCategory().defaultValue()) +
-            allCategories.fastMap { it.id.toInt() }
+            orderedCategories.fastMap { it.id.toInt() }
         val labels = listOf(stringResource(MR.strings.default_category_summary)) +
-            allCategories.fastMap { it.visualName }
+            orderedCategories.fastMap { it.hierarchicalVisualName }
+        // KMK <--
 
         return Preference.PreferenceGroup(
             title = stringResource(MR.strings.categories),
@@ -136,13 +140,18 @@ object SettingsLibraryScreen : SearchableSettings {
         val excluded by autoUpdateCategoriesExcludePref.collectAsState()
         var showCategoriesDialog by rememberSaveable { mutableStateOf(false) }
         if (showCategoriesDialog) {
+            // KMK -->
+            val orderedCategories = allCategories.sortedByHierarchy()
+            // KMK <--
             TriStateListDialog(
                 title = stringResource(MR.strings.categories),
                 message = stringResource(MR.strings.pref_library_update_categories_details),
-                items = allCategories,
+                items = orderedCategories,
                 initialChecked = included.mapNotNull { id -> allCategories.find { it.id.toString() == id } },
                 initialInversed = excluded.mapNotNull { id -> allCategories.find { it.id.toString() == id } },
-                itemLabel = { it.visualName },
+                // KMK -->
+                itemLabel = { it.hierarchicalVisualName },
+                // KMK <--
                 onDismissRequest = { showCategoriesDialog = false },
                 onValueChanged = { newIncluded, newExcluded ->
                     autoUpdateCategoriesPref.set(newIncluded.map { it.id.toString() }.toSet())

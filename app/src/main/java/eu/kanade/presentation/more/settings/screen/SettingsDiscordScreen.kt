@@ -29,7 +29,8 @@ import androidx.compose.ui.platform.LocalUriHandler
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
 import eu.kanade.domain.connections.service.ConnectionsPreferences
-import eu.kanade.presentation.category.visualName
+import eu.kanade.presentation.category.hierarchicalVisualName
+import eu.kanade.presentation.category.sortedByHierarchy
 import eu.kanade.presentation.more.settings.Preference
 import eu.kanade.presentation.more.settings.widget.TextPreferenceWidget
 import eu.kanade.tachiyomi.data.connections.ConnectionsManager
@@ -267,9 +268,12 @@ object SettingsDiscordScreen : SearchableSettings {
                 ),
                 Preference.PreferenceItem.MultiSelectListPreference(
                     preference = discordRPCIncognitoCategoriesPref,
+                    // KMK -->
                     entries = allCategories
-                        .associate { it.id.toString() to it.visualName }
+                        .sortedByHierarchy()
+                        .associate { it.id.toString() to it.hierarchicalVisualName }
                         .toImmutableMap(),
+                    // KMK <--
                     title = stringResource(MR.strings.categories),
                 ),
                 Preference.PreferenceItem.InfoPreference(

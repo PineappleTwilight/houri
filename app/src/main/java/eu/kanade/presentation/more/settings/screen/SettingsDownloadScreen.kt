@@ -9,7 +9,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.util.fastMap
-import eu.kanade.presentation.category.visualName
+import eu.kanade.presentation.category.hierarchicalVisualName
+import eu.kanade.presentation.category.sortedByHierarchy
 import eu.kanade.presentation.more.settings.Preference
 import eu.kanade.presentation.more.settings.widget.TriStateListDialog
 import kotlinx.collections.immutable.persistentListOf
@@ -125,9 +126,12 @@ object SettingsDownloadScreen : SearchableSettings {
     ): Preference.PreferenceItem.MultiSelectListPreference {
         return Preference.PreferenceItem.MultiSelectListPreference(
             preference = downloadPreferences.removeExcludeCategories(),
+            // KMK -->
             entries = categories()
-                .associate { it.id.toString() to it.visualName }
+                .sortedByHierarchy()
+                .associate { it.id.toString() to it.hierarchicalVisualName }
                 .toImmutableMap(),
+            // KMK <--
             title = stringResource(MR.strings.pref_remove_exclude_categories),
         )
     }
@@ -148,13 +152,18 @@ object SettingsDownloadScreen : SearchableSettings {
         val excluded by downloadNewChapterCategoriesExcludePref.collectAsState()
         var showDialog by rememberSaveable { mutableStateOf(false) }
         if (showDialog) {
+            // KMK -->
+            val orderedCategories = allCategories.sortedByHierarchy()
+            // KMK <--
             TriStateListDialog(
                 title = stringResource(MR.strings.categories),
                 message = stringResource(MR.strings.pref_download_new_categories_details),
-                items = allCategories,
+                items = orderedCategories,
                 initialChecked = included.mapNotNull { id -> allCategories.find { it.id.toString() == id } },
                 initialInversed = excluded.mapNotNull { id -> allCategories.find { it.id.toString() == id } },
-                itemLabel = { it.visualName },
+                // KMK -->
+                itemLabel = { it.hierarchicalVisualName },
+                // KMK <--
                 onDismissRequest = { showDialog = false },
                 onValueChanged = { newIncluded, newExcluded ->
                     downloadNewChapterCategoriesPref.set(newIncluded.fastMap { it.id.toString() }.toSet())
