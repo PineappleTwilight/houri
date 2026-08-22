@@ -175,7 +175,14 @@ class App : Application(), DefaultLifecycleObserver, SingletonImageLoader.Factor
         // Avoid potential crashes
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             val process = getProcessName()
-            if (packageName != process) WebView.setDataDirectorySuffix(process)
+            if (packageName != process) {
+                // KMK -->
+                // The :error_handler process re-runs onCreate and can reach this
+                // with WebView already initialized; setDataDirectorySuffix then
+                // throws and would kill the crash screen itself.
+                runCatching { WebView.setDataDirectorySuffix(process) }
+                // KMK <--
+            }
         }
 
         setupExhLogging() // EXH logging
