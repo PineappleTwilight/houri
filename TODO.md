@@ -99,6 +99,7 @@
 - [x] Add chapter completion moan option to global reader settings
 - [x] **Subcategories**: Replace folder icon in the category editor with a hamburger dragger like the parent categories and remove the arrow buttons
 - [x] **Subcategories**: Fix db import bug where all imported categories are imported as subcategories under "Default"
+- [ ] **Comick Tracker**: Fix cookies not saving and the tracker just generally not working
 
 ## Chores
 - [x] Replace all Komikku icons/branding with houri icons/branding
