@@ -38,6 +38,7 @@
     - Allows users to "flex" on others of lower rank
     - Ranks should be overall statistics + # of achievements, e.g. 500 read chapters and 10 achievements etc
       - Chapter statistics should exclude the "mark as read" feature and only track organically read chapters
+- [ ] **Subcategories**: Subcategory reordering
 
 ## Bugfixes
 - [x] Fix UI transition choppiness.
