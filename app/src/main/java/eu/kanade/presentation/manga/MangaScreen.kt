@@ -808,21 +808,21 @@ private fun MangaScreenSmallImpl(
                                 text = stringResource(KMR.strings.scanlator_priority),
                                 style = MaterialTheme.typography.titleMedium,
                             )
-                            val priorityNames = state.manga.scanlatorPriority.take(2)
-                            Row(verticalAlignment = Alignment.Bottom) {
-                                Text(
-                                    text = priorityNames.firstOrNull() ?: stringResource(KMR.strings.scanlator_priority),
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    modifier = Modifier.weight(1f, fill = false),
-                                )
-                                priorityNames.getOrNull(1)?.let { second ->
-                                    Text(
-                                        text = second,
-                                        style = MaterialTheme.typography.bodySmall,
-                                        modifier = Modifier.padding(start = MaterialTheme.padding.small),
-                                    )
+                            val priorityNames = state.manga.scanlatorPriority
+                            val subtitle = if (priorityNames.isEmpty()) {
+                                stringResource(KMR.strings.scanlator_priority_description)
+                            } else {
+                                buildString {
+                                    append(priorityNames.take(2).joinToString(separator = ", "))
+                                    val remaining = priorityNames.size - 2
+                                    if (remaining > 0) append(" +$remaining")
                                 }
                             }
+                            Text(
+                                text = subtitle,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
                         }
                     }
                     // KMK <--

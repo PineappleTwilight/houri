@@ -286,6 +286,7 @@
     <string name="discord_page_progress">Page %1$s of %2$s</string>
     <string name="scanlator_preference">Scanlator Preference</string>
     <string name="scanlator_priority">Scanlator priority</string>
+    <string name="scanlator_priority_description">Prefer chapters from your prioritized scanlators</string>
     <string name="blacklisted_chapters">Blacklisted chapters</string>
     <string name="scanlator_chapter_count">%1$d chapters</string>
     <string name="action_exclude_scanlator">Exclude scanlator</string>
