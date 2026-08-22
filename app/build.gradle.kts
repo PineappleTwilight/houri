@@ -181,6 +181,22 @@ kotlin {
     }
 }
 
+// KMK -->
+// MaterialKolor 5.x transitively requires JetBrains Compose Material3
+// 1.11.0-alphas, which resolve to androidx.compose.material3 1.5.0-alphas and
+// override the Compose BOM through highest-version-wins. Those alphas are not
+// binary compatible with the BOM's foundation build (AbstractMethodError on
+// CustomStyle.applyStyle inside TextFieldDefaults), crashing minified builds
+// on any screen with a text field. Force the BOM-tested pairing until
+// MaterialKolor aligns with stable androidx material3 again.
+configurations.all {
+    resolutionStrategy {
+        force("androidx.compose.material3:material3:1.4.0")
+        force("androidx.compose.material3:material3-android:1.4.0")
+    }
+}
+// KMK <--
+
 dependencies {
     implementation(projects.i18n)
     // KMK -->
