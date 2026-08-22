@@ -107,18 +107,11 @@ open class FeedScreenModel(
 
     fun init() {
         pushed = false
-        screenModelScope.launchIO {
-            val newItems = state.value.items?.map { it.copy(results = null) } ?: return@launchIO
-            mutableState.update { state ->
-                state.copy(
-                    items = newItems
-                        // KMK -->
-                        .toImmutableList(),
-                    // KMK <--
-                )
-            }
-            getFeed(newItems)
-        }
+        // KMK -->
+        // Refetch without clearing results so stale rows stay visible while loading.
+        val currentItems = state.value.items ?: return
+        getFeed(currentItems)
+        // KMK <--
     }
 
     fun openAddDialog() {
@@ -271,58 +264,86 @@ open class FeedScreenModel(
         screenModelScope.launch {
             feedSavedSearch.map { itemUI ->
                 async {
-                    val page = try {
-                        if (itemUI.source != null) {
-                            withContext(coroutineDispatcher) {
-                                if (itemUI.savedSearch == null) {
-                                    // KMK -->
-                                    if (itemUI.source.supportsLatest) {
-                                        // KMK <--
-                                        itemUI.source.getLatestUpdates(1)
-                                        // KMK -->
-                                    } else {
-                                        itemUI.source.getPopularManga(1)
-                                    }
-                                    // KMK <--
-                                } else {
-                                    itemUI.source.getSearchManga(
-                                        1,
-                                        itemUI.savedSearch.query?.sanitize().orEmpty(),
-                                        getFilterList(itemUI.savedSearch, itemUI.source),
-                                    )
-                                }
-                            }.mangas
-                        } else {
-                            emptyList()
-                        }
-                    } catch (_: Exception) {
-                        emptyList()
-                    }
-
-                    val result = withIOContext {
-                        itemUI.copy(
-                            results = page
-                                .mapNotNull { itemUI.source?.let { source -> it.toDomainManga(source.id) } }
-                                .distinctBy { it.url }
-                                .let { networkToLocalManga(it) }
-                                // KMK -->
-                                .filter { !hideInLibraryFeedItems.get() || !it.favorite },
-                            // KMK <--
-                        )
-                    }
-
-                    mutableState.update { state ->
-                        state.copy(
-                            items = state.items?.map { if (it.feed.id == result.feed.id) result else it }
-                                // KMK -->
-                                ?.toImmutableList(),
-                            // KMK <--
-                        )
-                    }
+                    updateFeedItem(fetchFeedItem(itemUI))
                 }
             }.awaitAll()
         }
     }
+
+    // KMK -->
+    fun retryFeed(item: FeedItemUI) {
+        screenModelScope.launchIO {
+            if (state.value.items?.none { it.feed.id == item.feed.id } != false) return@launchIO
+            updateFeedItem(item.copy(results = null, failed = false))
+            updateFeedItem(fetchFeedItem(item))
+        }
+    }
+
+    fun refreshFeed(feed: FeedSavedSearch) {
+        state.value.items
+            ?.firstOrNull { it.feed.id == feed.id }
+            ?.let { retryFeed(it) }
+    }
+    // KMK <--
+
+    private suspend fun fetchFeedItem(itemUI: FeedItemUI): FeedItemUI {
+        val page = try {
+            if (itemUI.source != null) {
+                withContext(coroutineDispatcher) {
+                    if (itemUI.savedSearch == null) {
+                        // KMK -->
+                        if (itemUI.source.supportsLatest) {
+                            // KMK <--
+                            itemUI.source.getLatestUpdates(1)
+                            // KMK -->
+                        } else {
+                            itemUI.source.getPopularManga(1)
+                        }
+                        // KMK <--
+                    } else {
+                        itemUI.source.getSearchManga(
+                            1,
+                            itemUI.savedSearch.query?.sanitize().orEmpty(),
+                            getFilterList(itemUI.savedSearch, itemUI.source),
+                        )
+                    }
+                }.mangas
+            } else {
+                emptyList()
+            }
+        } catch (_: Exception) {
+            // KMK -->
+            // Keep stale results on failure so the row doesn't blank out.
+            return itemUI.copy(failed = true)
+            // KMK <--
+        }
+
+        val result = withIOContext {
+            itemUI.copy(
+                results = page
+                    .mapNotNull { itemUI.source?.let { source -> it.toDomainManga(source.id) } }
+                    .distinctBy { it.url }
+                    .let { networkToLocalManga(it) }
+                    // KMK -->
+                    .filter { !hideInLibraryFeedItems.get() || !it.favorite },
+                failed = false,
+                // KMK <--
+            )
+        }
+
+        return result
+    }
+
+    // KMK -->
+    private fun updateFeedItem(result: FeedItemUI) {
+        mutableState.update { state ->
+            state.copy(
+                items = state.items?.map { if (it.feed.id == result.feed.id) result else it }
+                    ?.toImmutableList(),
+            )
+        }
+    }
+    // KMK <--
 
     private val filterSerializer = FilterSerializer()
 

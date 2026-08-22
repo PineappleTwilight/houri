@@ -29,6 +29,8 @@ import eu.kanade.tachiyomi.data.notification.Notifications
 import eu.kanade.tachiyomi.data.sync.SyncDataJob
 import eu.kanade.tachiyomi.data.track.TrackStatus
 import eu.kanade.tachiyomi.data.track.TrackerManager
+import eu.kanade.tachiyomi.data.webhook.WebhookEvent
+import eu.kanade.tachiyomi.data.webhook.WebhookNotifier
 import eu.kanade.tachiyomi.source.model.SManga
 import eu.kanade.tachiyomi.source.model.UpdateStrategy
 import eu.kanade.tachiyomi.util.system.isConnectedToWifi
@@ -113,6 +115,10 @@ class LibraryUpdateJob(private val context: Context, workerParams: WorkerParamet
     private val fetchInterval: FetchInterval = globalAppGraph.fetchInterval
     private val filterChaptersForDownload: FilterChaptersForDownload = globalAppGraph.filterChaptersForDownload
     private val updateMangaFromRemote: UpdateMangaFromRemote = globalAppGraph.updateMangaFromRemote
+
+    // KMK -->
+    private val webhookNotifier: WebhookNotifier = globalAppGraph.webhookNotifier
+    // KMK <--
 
     // SY -->
     private val updateManga: UpdateManga = globalAppGraph.updateManga
@@ -495,6 +501,17 @@ class LibraryUpdateJob(private val context: Context, workerParams: WorkerParamet
                 downloadManager.startDownloads()
             }
         }
+
+        // KMK -->
+        webhookNotifier.notify(
+            WebhookEvent.LIBRARY_UPDATE,
+            mapOf(
+                "mangas_updated" to newUpdates.size.toString(),
+                "new_chapters" to newUpdates.sumOf { it.second.size }.toString(),
+                "failed" to failedUpdates.size.toString(),
+            ),
+        )
+        // KMK <--
 
         if (failedUpdates.isNotEmpty()) {
             notifier.showUpdateErrorNotification(

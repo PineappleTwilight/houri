@@ -121,11 +121,14 @@ jobs:
       - name: Commit logs
         id: commit_logs
         run: |
+          # Skip commits that only touch TODO files so they don't flood release notes
           echo "COMMIT_LOGS<<{delimiter}
-          $(curl -H "Accept: application/vnd.github.v3+json" \
-            "https://api.github.com/repos/${{ github.repository }}/compare/${{ steps.previous_commit.outputs.PREV_RELEASE_SHA }}...${{ steps.current_commit.outputs.CURRENT_SHA }}" \
-            | jq '[.commits[] | select(.files | map(.filename) | if length > 0 then all(. == "TODO.md" or . == "docs/TODO.md") | not else true end) | {message:(.commit.message | split("\n")), username:.author.login}]' \
-            | jq -r '.[]|"- \(.message | first) (@\(.username))"')
+          $(git log --no-merges --pretty=format:"%H|%an|%s" "${{ steps.previous_commit.outputs.PREV_RELEASE_SHA }}..${{ steps.current_commit.outputs.CURRENT_SHA }}" \
+            | while IFS='|' read -r hash author subject; do
+                if git diff-tree --no-commit-id --name-only -r "$hash" < /dev/null | grep -qviE '^(todo\.md|docs/todo\.md)$'; then
+                  printf -- "- %s (@%s)\n" "$subject" "$author"
+                fi
+              done)
           {delimiter}" >> $GITHUB_OUTPUT
 
   build-app:

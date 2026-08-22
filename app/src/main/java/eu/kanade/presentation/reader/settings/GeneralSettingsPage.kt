@@ -1,20 +1,50 @@
 package eu.kanade.presentation.reader.settings
 
+import android.net.Uri
 import androidx.activity.compose.LocalActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.width
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.LibraryMusic
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
+import eu.kanade.tachiyomi.ui.reader.ChapterCompleteSoundPackManager
+import eu.kanade.tachiyomi.ui.reader.SoundTier
 import eu.kanade.tachiyomi.ui.reader.setting.ReaderPreferences
 import eu.kanade.tachiyomi.ui.reader.setting.ReaderSettingsScreenModel
 import eu.kanade.tachiyomi.util.system.hasDisplayCutout
+import eu.kanade.tachiyomi.util.system.toast
+import tachiyomi.core.common.i18n.stringResource as contextStringResource
 import tachiyomi.i18n.MR
 import tachiyomi.i18n.kmk.KMR
 import tachiyomi.i18n.sy.SYMR
 import tachiyomi.presentation.core.components.CheckboxItem
+import tachiyomi.presentation.core.components.IconItem
 import tachiyomi.presentation.core.components.SettingsChipRow
 import tachiyomi.presentation.core.components.SliderItem
+import tachiyomi.presentation.core.components.material.padding
 import tachiyomi.presentation.core.i18n.pluralStringResource
 import tachiyomi.presentation.core.i18n.stringResource
 import tachiyomi.presentation.core.util.collectAsState
@@ -123,10 +153,14 @@ internal fun GeneralPage(screenModel: ReaderSettingsScreenModel) {
     )
 
     // KMK -->
+    val chapterCompletionSoundEnabled by screenModel.preferences.chapterCompletionSound().collectAsState()
     CheckboxItem(
         label = stringResource(KMR.strings.pref_chapter_completion_sound),
         pref = screenModel.preferences.chapterCompletionSound(),
     )
+    if (chapterCompletionSoundEnabled) {
+        ChapterCompleteSoundSettings()
+    }
     // KMK <--
 
     // SY -->
@@ -177,3 +211,104 @@ internal fun GeneralPage(screenModel: ReaderSettingsScreenModel) {
     )
     // SY <--
 }
+
+// KMK -->
+@Composable
+private fun ChapterCompleteSoundSettings() {
+    val context = LocalContext.current
+    var pendingUris by remember { mutableStateOf<List<Uri>?>(null) }
+    var showRemoveConfirm by remember { mutableStateOf(false) }
+    var importVersion by remember { mutableIntStateOf(0) }
+
+    val customCounts = remember(importVersion) {
+        ChapterCompleteSoundPackManager.customCounts(context)
+    }
+
+    val importLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenMultipleDocuments(),
+    ) { uris ->
+        if (!uris.isNullOrEmpty()) pendingUris = uris
+    }
+
+    IconItem(
+        label = stringResource(KMR.strings.pref_chapter_completion_sound_import),
+        icon = Icons.Outlined.LibraryMusic,
+        onClick = { importLauncher.launch(arrayOf("audio/*")) },
+    )
+
+    if (customCounts.values.any { it > 0 }) {
+        IconItem(
+            label = stringResource(KMR.strings.pref_chapter_completion_sound_remove),
+            icon = Icons.Outlined.Delete,
+            onClick = { showRemoveConfirm = true },
+        )
+    }
+
+    pendingUris?.let { uris ->
+        AlertDialog(
+            onDismissRequest = { pendingUris = null },
+            title = { Text(text = stringResource(KMR.strings.pref_chapter_completion_sound_import_tier)) },
+            text = {
+                Column {
+                    SoundTier.entries.forEach { tier ->
+                        val labelRes = when (tier) {
+                            SoundTier.COMMON -> KMR.strings.pref_chapter_completion_sound_tier_common
+                            SoundTier.RARE -> KMR.strings.pref_chapter_completion_sound_tier_rare
+                            SoundTier.LEGENDARY -> KMR.strings.pref_chapter_completion_sound_tier_legendary
+                        }
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(48.dp)
+                                .clickable {
+                                    val imported = ChapterCompleteSoundPackManager.import(context, uris, tier)
+                                    importVersion++
+                                    context.toast(
+                                        if (imported > 0) {
+                                            context.contextStringResource(
+                                                KMR.strings.pref_chapter_completion_sound_imported,
+                                                imported,
+                                            )
+                                        } else {
+                                            context.contextStringResource(KMR.strings.pref_chapter_completion_sound_import_failed)
+                                        },
+                                    )
+                                    pendingUris = null
+                                },
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            RadioButton(selected = false, onClick = null)
+                            Spacer(Modifier.width(MaterialTheme.padding.extraSmall))
+                            Text(text = stringResource(labelRes))
+                        }
+                    }
+                }
+            },
+            confirmButton = {},
+        )
+    }
+
+    if (showRemoveConfirm) {
+        AlertDialog(
+            onDismissRequest = { showRemoveConfirm = false },
+            title = { Text(text = stringResource(KMR.strings.pref_chapter_completion_sound_remove)) },
+            text = { Text(text = stringResource(KMR.strings.pref_chapter_completion_sound_remove_confirm)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    ChapterCompleteSoundPackManager.clearAll(context)
+                    importVersion++
+                    context.toast(context.contextStringResource(KMR.strings.pref_chapter_completion_sound_removed))
+                    showRemoveConfirm = false
+                }) {
+                    Text(text = stringResource(MR.strings.action_ok))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showRemoveConfirm = false }) {
+                    Text(text = stringResource(MR.strings.action_cancel))
+                }
+            },
+        )
+    }
+}
+// KMK <--

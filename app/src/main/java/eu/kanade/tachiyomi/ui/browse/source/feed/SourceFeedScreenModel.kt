@@ -180,6 +180,12 @@ open class SourceFeedScreenModel(
             reorderFeed.changeOrder(feed, newIndex, false)
         }
     }
+
+    fun refreshFeed(feed: FeedSavedSearch) {
+        state.value.items
+            .firstOrNull { it.id == feed.id }
+            ?.let { getFeed(listOf(it)) }
+    }
     // KMK <--
 
     private suspend fun getSourcesToGetFeed(feedSavedSearch: List<FeedSavedSearch>): ImmutableList<SourceFeedUI> {

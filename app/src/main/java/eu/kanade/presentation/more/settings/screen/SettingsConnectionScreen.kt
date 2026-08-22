@@ -95,6 +95,13 @@ object SettingsConnectionScreen : SearchableSettings {
                         },
                         openSettings = { navigator.push(SettingsDiscordScreen) },
                     ),
+                    // KMK -->
+                    Preference.PreferenceItem.TextPreference(
+                        title = stringResource(KMR.strings.webhook_title),
+                        subtitle = stringResource(KMR.strings.webhook_info),
+                        onClick = { navigator.push(SettingsWebhookScreen) },
+                    ),
+                    // KMK <--
                     Preference.PreferenceItem.InfoPreference(
                         stringResource(KMR.strings.connections_discord_info, stringResource(MR.strings.app_name)),
                     ),

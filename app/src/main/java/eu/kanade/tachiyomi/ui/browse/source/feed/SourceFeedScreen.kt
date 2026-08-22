@@ -202,6 +202,7 @@ class SourceFeedScreen(val sourceId: Long) : Screen() {
                     feed = dialog.feedItem.feed,
                     title = dialog.feedItem.title,
                     onDismissRequest = screenModel::dismissDialog,
+                    onClickRefresh = { screenModel.refreshFeed(dialog.feedItem.feed) },
                     onClickDelete = { screenModel.openDeleteFeed(it) },
                 )
             }

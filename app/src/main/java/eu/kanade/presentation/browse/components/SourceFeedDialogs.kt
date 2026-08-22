@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -29,6 +30,7 @@ import eu.kanade.presentation.more.settings.LocalPreferenceMinHeight
 import eu.kanade.presentation.more.settings.widget.TextPreferenceWidget
 import tachiyomi.domain.source.model.FeedSavedSearch
 import tachiyomi.i18n.MR
+import tachiyomi.i18n.kmk.KMR
 import tachiyomi.i18n.sy.SYMR
 import tachiyomi.presentation.core.i18n.stringResource
 
@@ -96,6 +98,9 @@ fun FeedActionsDialog(
     feed: FeedSavedSearch,
     title: String,
     onDismissRequest: () -> Unit,
+    // KMK -->
+    onClickRefresh: (FeedSavedSearch) -> Unit,
+    // KMK <--
     onClickDelete: (FeedSavedSearch) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -120,6 +125,17 @@ fun FeedActionsDialog(
             )
 
             Spacer(Modifier.height(PaddingSize))
+
+            // KMK -->
+            TextPreferenceWidget(
+                title = stringResource(KMR.strings.action_refresh),
+                icon = Icons.Outlined.Refresh,
+                onPreferenceClick = {
+                    onDismissRequest()
+                    onClickRefresh(feed)
+                },
+            )
+            // KMK <--
 
             TextPreferenceWidget(
                 title = stringResource(MR.strings.action_delete),
@@ -167,6 +183,7 @@ private fun FeedActionsDialogPreview() {
         ),
         title = "Feed 1",
         onDismissRequest = { },
+        onClickRefresh = { },
         onClickDelete = { },
     )
 }

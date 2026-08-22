@@ -2,6 +2,7 @@ package eu.kanade.presentation.browse
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -14,7 +15,10 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Error
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
@@ -29,6 +33,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import eu.kanade.presentation.browse.components.GlobalSearchCardRow
 import eu.kanade.presentation.browse.components.GlobalSearchErrorResultItem
@@ -66,6 +71,9 @@ data class FeedItemUI(
     val title: String,
     val subtitle: String,
     val results: List<Manga>?,
+    // KMK -->
+    val failed: Boolean = false,
+    // KMK <--
 )
 
 @Composable
@@ -76,6 +84,7 @@ fun FeedScreen(
     onClickSource: (Source) -> Unit,
     // KMK -->
     onLongClickFeed: (FeedItemUI) -> Unit,
+    onRetryFeed: (FeedItemUI) -> Unit,
     // KMK <--
     onClickManga: (Manga) -> Unit,
     // KMK -->
@@ -142,6 +151,7 @@ fun FeedScreen(
                                 // KMK -->
                                 onLongClickManga = onLongClickManga,
                                 selection = selection,
+                                onRetryFeed = onRetryFeed,
                                 // KMK <--
                             )
                         }
@@ -160,15 +170,23 @@ fun FeedItem(
     // KMK -->
     onLongClickManga: (Manga) -> Unit,
     selection: List<Manga>,
+    onRetryFeed: (FeedItemUI) -> Unit,
     // KMK <--
 ) {
     when {
+        // KMK -->
+        item.failed && item.results.isNullOrEmpty() -> FeedErrorResultItem(
+            onRetry = { onRetryFeed(item) },
+        )
+        // KMK <--
         item.results == null -> {
             GlobalSearchLoadingResultItem()
         }
-        item.results.isEmpty() -> {
+        // KMK -->
+        item.results.isEmpty() && !item.failed -> {
             GlobalSearchErrorResultItem(message = stringResource(MR.strings.no_results_found))
         }
+        // KMK <--
         else -> {
             GlobalSearchCardRow(
                 titles = item.results,
@@ -182,6 +200,33 @@ fun FeedItem(
         }
     }
 }
+
+// KMK -->
+@Composable
+private fun FeedErrorResultItem(onRetry: () -> Unit) {
+    Column(
+        modifier = Modifier
+            .padding(
+                horizontal = MaterialTheme.padding.medium,
+                vertical = MaterialTheme.padding.small,
+            )
+            .fillMaxWidth()
+            .clickable(onClick = onRetry),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+    ) {
+        Icon(imageVector = Icons.Outlined.Error, contentDescription = null)
+        Spacer(Modifier.height(4.dp))
+        Text(
+            text = stringResource(MR.strings.internal_error),
+            textAlign = TextAlign.Center,
+        )
+        TextButton(onClick = onRetry) {
+            Text(text = stringResource(MR.strings.action_retry))
+        }
+    }
+}
+// KMK <--
 
 @Composable
 fun FeedAddDialog(

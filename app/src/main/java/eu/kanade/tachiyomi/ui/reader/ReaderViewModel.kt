@@ -19,6 +19,7 @@ import dev.zacsweers.metrox.viewmodel.ViewModelAssistedFactory
 import dev.zacsweers.metrox.viewmodel.ViewModelAssistedFactoryKey
 import eu.kanade.domain.base.BasePreferences
 import eu.kanade.domain.chapter.model.toDbChapter
+import eu.kanade.domain.connections.service.WebhookPreferences
 import eu.kanade.domain.manga.interactor.SetMangaViewerFlags
 import eu.kanade.domain.manga.interactor.UpdateManga
 import eu.kanade.domain.manga.model.readerOrientation
@@ -38,6 +39,8 @@ import eu.kanade.tachiyomi.data.saver.Image
 import eu.kanade.tachiyomi.data.saver.ImageSaver
 import eu.kanade.tachiyomi.data.saver.Location
 import eu.kanade.tachiyomi.data.sync.SyncDataJob
+import eu.kanade.tachiyomi.data.webhook.WebhookEvent
+import eu.kanade.tachiyomi.data.webhook.WebhookNotifier
 import eu.kanade.tachiyomi.source.model.Page
 import eu.kanade.tachiyomi.source.online.HttpSource
 import eu.kanade.tachiyomi.source.online.MetadataSource
@@ -152,6 +155,10 @@ class ReaderViewModel(
     private val coverManager: LocalCoverManager,
     private val updateManga: UpdateManga,
     private val coverCache: CoverCache,
+    // KMK -->
+    private val webhookNotifier: WebhookNotifier,
+    private val webhookPreferences: WebhookPreferences,
+    // KMK <--
 ) : ViewModel() {
 
     @AssistedFactory
@@ -626,6 +633,20 @@ class ReaderViewModel(
             updateHistory()
             restartReadTimer()
 
+            // KMK -->
+            if (chapter.chapter.last_page_read == 0 && !chapter.chapter.read) {
+                manga?.let { currentManga ->
+                    webhookNotifier.notify(
+                        WebhookEvent.CHAPTER_STARTED,
+                        mapOf(
+                            "manga" to currentManga.title,
+                            "chapter" to chapter.chapter.name,
+                        ),
+                    )
+                }
+            }
+            // KMK <--
+
             try {
                 loadChapter(loader, chapter)
             } catch (e: Throwable) {
@@ -913,6 +934,37 @@ class ReaderViewModel(
         readerChapter.chapter.read = true
         // KMK -->
         chapterCompleteSoundPlayer.playChapterCompleteSound()
+        manga?.let { currentManga ->
+            val wasFirstReadChapter = unfilteredChapterList
+                .count { it.read && it.id != readerChapter.chapter.id } == 0
+            val chapterData = buildMap {
+                put("manga", currentManga.title)
+                put("chapter", readerChapter.chapter.name)
+                if (webhookPreferences.includeReadingTime().get()) {
+                    chapterReadStartTime?.let { start ->
+                        val totalSeconds = ((System.currentTimeMillis() - start) / 1000).coerceAtLeast(0)
+                        put("time_spent", WebhookNotifier.formatReadingDuration(totalSeconds))
+                        put("time_spent_seconds", totalSeconds.toString())
+                    }
+                }
+            }
+            webhookNotifier.notify(WebhookEvent.CHAPTER_READ, chapterData)
+            if (wasFirstReadChapter) {
+                webhookNotifier.notify(
+                    WebhookEvent.NEW_MANGA_STARTED,
+                    mapOf(
+                        "manga" to currentManga.title,
+                        "chapter" to readerChapter.chapter.name,
+                    ),
+                )
+            }
+            if (unfilteredChapterList.isNotEmpty() && unfilteredChapterList.all { it.read }) {
+                webhookNotifier.notify(
+                    WebhookEvent.MANGA_FINISHED,
+                    mapOf("manga" to currentManga.title),
+                )
+            }
+        }
         // KMK <--
         // SY -->
         if (manga?.isEhBasedManga() == true) {

@@ -11,15 +11,27 @@ import java.io.File
 import kotlin.random.Random
 
 /**
+ * Rarity tiers of the chapter completion sounds, rolled as 60% common / 30%
+ * rare / 10% legendary. Each tier maps to a folder inside the external sounds
+ * directory that can hold user-imported replacements.
+ */
+enum class SoundTier(val folderName: String) {
+    COMMON("common"),
+    RARE("rare"),
+    LEGENDARY("legendary"),
+}
+
+val SupportedSoundExtensions = setOf("mp3", "wav", "ogg", "oga", "m4a", "flac")
+
+/**
  * Plays a randomized sound when a chapter is completed while reading.
  *
- * Sounds are grouped into rarity tiers rolled as 60% common / 30% rare /
- * 10% legendary. Each tier uses bundled assets by default and can be replaced
- * with custom audio by placing files in:
+ * Each tier uses bundled assets by default and can be replaced with custom
+ * audio by placing files in:
  *
  *   <filesDir>/chapter_complete_sounds/<tier>/
  *
- * where <tier> is "common", "rare" or "legendary". Any files found in a tier
+ * where <tier> is the [SoundTier] folder name. Any files found in a tier
  * folder fully replace that tier's bundled sounds, so packs can be extended or
  * customized without code changes. Call [reload] after modifying folder contents.
  */
@@ -27,12 +39,6 @@ class ChapterCompleteSoundPlayer(
     private val context: Context,
     private val readerPreferences: ReaderPreferences,
 ) {
-
-    private enum class Rarity(val folderName: String) {
-        COMMON("common"),
-        RARE("rare"),
-        LEGENDARY("legendary"),
-    }
 
     private data class SoundSource(val key: String, val resId: Int? = null, val path: String? = null)
 
@@ -42,19 +48,19 @@ class ChapterCompleteSoundPlayer(
     /** Loaded SoundPool sample ids keyed by their source descriptor. */
     private val soundIds = mutableMapOf<SoundSource, Int>()
 
-    private val sourcesByRarity = mutableMapOf<Rarity, List<SoundSource>>()
+    private val sourcesByRarity = mutableMapOf<SoundTier, List<SoundSource>>()
 
     private val builtinSounds = mapOf(
-        Rarity.COMMON to listOf(
+        SoundTier.COMMON to listOf(
             R.raw.moan_common_1,
             R.raw.moan_common_2,
             R.raw.moan_common_3,
         ),
-        Rarity.RARE to listOf(
+        SoundTier.RARE to listOf(
             R.raw.moan_rare_1,
             R.raw.moan_rare_2,
         ),
-        Rarity.LEGENDARY to listOf(
+        SoundTier.LEGENDARY to listOf(
             R.raw.moan_legendary_1,
         ),
     )
@@ -91,7 +97,7 @@ class ChapterCompleteSoundPlayer(
         soundIds.clear()
         sourcesByRarity.clear()
 
-        Rarity.entries.forEach { rarity ->
+        SoundTier.entries.forEach { rarity ->
             val sources = resolveSources(rarity)
             sourcesByRarity[rarity] = sources
             sources.forEach { source ->
@@ -110,16 +116,16 @@ class ChapterCompleteSoundPlayer(
         }
     }
 
-    private fun resolveSources(rarity: Rarity): List<SoundSource> {
+    private fun resolveSources(rarity: SoundTier): List<SoundSource> {
         scanExternalSounds(rarity).takeIf { it.isNotEmpty() }?.let { return it }
         return builtinSounds[rarity].orEmpty().map { resId ->
             SoundSource(key = "res:$resId", resId = resId)
         }
     }
 
-    private fun scanExternalSounds(rarity: Rarity): List<SoundSource> {
+    private fun scanExternalSounds(rarity: SoundTier): List<SoundSource> {
         val tierDir = File(File(context.filesDir, EXTERNAL_SOUNDS_DIR), rarity.folderName)
-        return tierDir.listFiles { file -> file.isFile && file.extension.lowercase() in SUPPORTED_EXTENSIONS }
+        return tierDir.listFiles { file -> file.isFile && file.extension.lowercase() in SupportedSoundExtensions }
             ?.sortedBy { it.name.lowercase() }
             ?.map { SoundSource(key = it.absolutePath, path = it.absolutePath) }
             ?: emptyList()
@@ -137,12 +143,12 @@ class ChapterCompleteSoundPlayer(
 
         val roll = Random.nextInt(100)
         val targetRarity = when {
-            roll < 60 -> Rarity.COMMON
-            roll < 90 -> Rarity.RARE
-            else -> Rarity.LEGENDARY
+            roll < 60 -> SoundTier.COMMON
+            roll < 90 -> SoundTier.RARE
+            else -> SoundTier.LEGENDARY
         }
 
-        val fallbackOrder = listOf(targetRarity, Rarity.COMMON, Rarity.RARE, Rarity.LEGENDARY).distinct()
+        val fallbackOrder = listOf(targetRarity, SoundTier.COMMON, SoundTier.RARE, SoundTier.LEGENDARY).distinct()
         for (rarity in fallbackOrder) {
             val loadedIds = sourcesByRarity[rarity].orEmpty().mapNotNull { soundIds[it] }
             if (loadedIds.isNotEmpty()) {
@@ -179,7 +185,5 @@ class ChapterCompleteSoundPlayer(
 
     companion object {
         const val EXTERNAL_SOUNDS_DIR = "chapter_complete_sounds"
-
-        private val SUPPORTED_EXTENSIONS = setOf("mp3", "wav", "ogg", "oga", "m4a", "flac")
     }
 }

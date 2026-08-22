@@ -163,6 +163,7 @@ fun Screen.feedTab(
                         },
                         // KMK -->
                         onLongClickFeed = screenModel::openActionsDialog,
+                        onRetryFeed = screenModel::retryFeed,
                         // KMK <--
                         onClickManga = { manga ->
                             // KMK -->
@@ -230,6 +231,7 @@ fun Screen.feedTab(
                             feed = dialog.feedItem.feed,
                             title = dialog.feedItem.title,
                             onDismissRequest = onDismissRequest,
+                            onClickRefresh = screenModel::refreshFeed,
                             onClickDelete = { screenModel.openDeleteDialog(it) },
                         )
                     }

@@ -25,9 +25,12 @@
   - Subcategories follow all library filter rules
   - Should include default subcategory "All", which displays content from all subcategories in that category
   - Should function visually and functionally to Android home screen folders
-- [ ] **Improvement**: Heavily improve the "Feed" feature
-- [ ] **New**: Webhook integration for app events similar to the Discord RPC, but for Discord webhooks and other webhook formats.
-- [ ] **Expansion**: Allow users to upload their own sound packs for the "chapter completion moan" feature
+- [x] **Improvement**: Heavily improve the "Feed" feature
+- [x] **New**: Webhook integration for app events similar to the Discord RPC, but for Discord webhooks and other webhook formats.
+  - Events: chapter started, chapter finished (with optional per-chapter reading time), new manga started, manga finished, library update finished, backup created
+  - Formats: Discord webhook embeds + generic flat JSON endpoint
+  - Settings under Connections > Webhooks, with test notification button
+- [x] **Expansion**: Allow users to upload their own sound packs for the "chapter completion moan" feature
 - [ ] **New**: Achievements for various things throughout the app. Can the user collect them all?
   - Include statistics in db file so users can re-import their progress
   - Button with double confirmation allowing data wipe in case user wants to start fresh
@@ -77,7 +80,7 @@
 - [ ] Modify all category selection UIs to be subcategory-aware
 - [ ] Add chapter completion moan option to global reader settings
 
-## Chores
+## ChoresAdd
 - [x] Replace all Komikku icons/branding with houri icons/branding
 - [x] Update ancient test framework
 - [x] Streamline gradle tasks
@@ -86,12 +89,13 @@
 - [x] Fix GitHub actions
 - [x] Fine-tune GitHub actions (add compile, auto-release if version changed, etc)
 - [ ] Replace Material UI framework with more stable library
-- [ ] **Update Dependency**: Voyager (UI related)
-- [ ] **Update Dependency**: MaterialKolor (UI related)
+- [x] **Update Dependency**: Voyager (UI related)
+- [x] **Update Dependency**: MaterialKolor (UI related)
 - [x] **Migration**: Injekt -> Metro
 - [x] **Migration**: Remove remaining Injekt usage from app code (only keep for extensions)
 - [x] **Code Cleanup**: Fix compile warnings
-- [ ] **Tracker**: Update comick's icon to the website's unicorn logo
+- [x] **Tracker**: Update comick's icon to the website's unicorn logo
+- [x] **App**: Make icon better, expect sleek modern minimalist material pineapple icon
 
 ## Drawing Board
 - [ ] **New**: WebAssembly computation engine

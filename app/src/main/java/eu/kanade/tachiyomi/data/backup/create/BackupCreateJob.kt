@@ -19,6 +19,7 @@ import com.hippo.unifile.UniFile
 import eu.kanade.tachiyomi.data.backup.BackupNotifier
 import eu.kanade.tachiyomi.data.backup.restore.BackupRestoreJob
 import eu.kanade.tachiyomi.data.notification.Notifications
+import eu.kanade.tachiyomi.data.webhook.WebhookEvent
 import eu.kanade.tachiyomi.util.system.cancelNotification
 import eu.kanade.tachiyomi.util.system.isRunning
 import eu.kanade.tachiyomi.util.system.setForegroundSafely
@@ -54,6 +55,15 @@ class BackupCreateJob(private val context: Context, workerParams: WorkerParamete
             val location = BackupCreator(context, isAutoBackup).backup(uri, options)
             if (!isAutoBackup) {
                 notifier.showBackupComplete(UniFile.fromUri(context, location.toUri())!!)
+                // KMK -->
+                globalAppGraph.webhookNotifier.notify(
+                    WebhookEvent.BACKUP_CREATED,
+                    mapOf(
+                        "location" to location.toString(),
+                        "automatic" to isAutoBackup.toString(),
+                    ),
+                )
+                // KMK <--
             }
             Result.success()
         } catch (e: Exception) {

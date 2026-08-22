@@ -34,6 +34,16 @@
     <string name="scale_type_double">Double zoom</string>
     <string name="pref_chapter_completion_sound">NSFW chapter completion sound</string>
     <string name="pref_chapter_completion_sound_summary">Play a random NSFW sound when finishing a chapter (gacha mechanic)</string>
+    <string name="pref_chapter_completion_sound_import">Import custom sounds</string>
+    <string name="pref_chapter_completion_sound_import_tier">Choose a rarity tier for the imported sounds</string>
+    <string name="pref_chapter_completion_sound_tier_common">Common (60%)</string>
+    <string name="pref_chapter_completion_sound_tier_rare">Rare (30%)</string>
+    <string name="pref_chapter_completion_sound_tier_legendary">Legendary (10%)</string>
+    <string name="pref_chapter_completion_sound_remove">Remove imported sounds</string>
+    <string name="pref_chapter_completion_sound_remove_confirm">Remove all imported sounds? The bundled sounds will be used again.</string>
+    <string name="pref_chapter_completion_sound_imported">Imported %1$d sound(s)</string>
+    <string name="pref_chapter_completion_sound_removed">Imported sounds removed</string>
+    <string name="pref_chapter_completion_sound_import_failed">Couldn\'t import some sounds</string>
     <string name="pref_webtoon_scale_type">Smart scale on wide screen</string>
     <string name="pref_smart_scale_long_strip_gap">Apply Smart scale to Long strip with gaps</string>
     <string name="scale_type_16_9">16:9</string>
@@ -185,6 +195,24 @@
     <string name="too_many_in_feed">Too many sources in your feed, cannot add more than 20</string>
     <string name="action_sort_feed">Sort feeds</string>
     <string name="sort_feed_confirmation">Would you like to sort the feeds alphabetically?</string>
+    <string name="action_refresh">Refresh</string>
+    <!-- Webhooks -->
+    <string name="webhook_title">Webhooks</string>
+    <string name="pref_webhook_enabled">Enable webhooks</string>
+    <string name="pref_webhook_discord_url">Discord webhook URL</string>
+    <string name="pref_webhook_generic_url">Generic webhook URL</string>
+    <string name="pref_webhook_test">Send test notification</string>
+    <string name="webhook_test_sent">Test notification sent</string>
+    <string name="webhook_events">Events</string>
+    <string name="pref_webhook_chapter_started">Chapter started reading</string>
+    <string name="pref_webhook_chapter_read">Chapter finished reading</string>
+    <string name="pref_webhook_include_reading_time">Include time spent reading</string>
+    <string name="pref_webhook_include_reading_time_summary">Add the time spent reading a chapter to chapter events</string>
+    <string name="pref_webhook_new_manga_started">New manga started</string>
+    <string name="pref_webhook_manga_finished">Manga finished</string>
+    <string name="pref_webhook_library_update">Library update finished</string>
+    <string name="pref_webhook_backup_created">Backup created</string>
+    <string name="webhook_info">Send app events as notifications to a Discord webhook or any custom JSON endpoint. Webhook URLs are stored privately and are not included in backups.</string>
     <string name="pref_ignore_articles_in_sort">Ignore articles in sort</string>
     <string name="pref_ignore_articles_in_sort_summary">Sort "A Sign of Affection" under S, "The Apothecary Diaries" under A</string>
     <!-- Migration -->
