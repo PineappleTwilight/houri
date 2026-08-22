@@ -233,6 +233,13 @@ object SettingsReaderScreen : SearchableSettings {
                     preference = readerPreferences.alwaysShowChapterTransition(),
                     title = stringResource(MR.strings.pref_always_show_chapter_transition),
                 ),
+                // KMK -->
+                Preference.PreferenceItem.SwitchPreference(
+                    preference = readerPreferences.chapterCompletionSound(),
+                    title = stringResource(KMR.strings.pref_chapter_completion_sound),
+                    subtitle = stringResource(KMR.strings.pref_chapter_completion_sound_summary),
+                ),
+                // KMK <--
             ),
         )
     }
