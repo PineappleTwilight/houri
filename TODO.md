@@ -45,6 +45,7 @@
   - Subcategories inside a category should show up as "folders" with the content inside.
   - Any content not in a subcategory is mixed in alongside the subcategory folders
   - Disabled by default
+- [ ] **Webhook Connection**: Add cover of current series to webhook event embeds where applicable (all manga-related events)
 
 ## Bugfixes
 - [x] Fix UI transition choppiness.
