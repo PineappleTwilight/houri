@@ -142,12 +142,14 @@ class App : Application(), DefaultLifecycleObserver, SingletonImageLoader.Factor
         Injekt.importModule(SYDomainModule())
         // SY <--
 
-        graph.inject(this)
-
         // KMK -->
         // Expose the graph to non-Context classes (tracker services, etc.)
+        // Must be set BEFORE graph.inject(): eager construction during injection
+        // (TrackerManager -> MdList -> BaseTracker) reads globalAppGraph.
         globalAppGraph = graph
         // KMK <--
+
+        graph.inject(this)
 
         // MetroInteropModule bridges Metro singletons to Injekt for extension backwards compat;
         // must be imported AFTER graph.inject() so Metro graph is built
