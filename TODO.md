@@ -41,6 +41,10 @@
 - [x] **Subcategories**: Subcategory reordering
 - [x] **Discord RPC**: Majorly improve the Discord RPC feature and what information it shows
   - Subcategory exclusion also needs to be properly wired into it
+- [ ] **Subcategories**: Add option to use separate layout that closely mirrors Android's home screen
+  - Subcategories inside a category should show up as "folders" with the content inside.
+  - Any content not in a subcategory is mixed in alongside the subcategory folders
+  - Disabled by default
 
 ## Bugfixes
 - [x] Fix UI transition choppiness.
