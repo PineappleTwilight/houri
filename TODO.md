@@ -129,3 +129,8 @@
   - Unsure if model would run locally or via free endpoint
     - Also unsure how to draw the translations over the content
     - Reference Code: [Here](https://github.com/mannu691/TachiyomiAT)
+- [ ] **New**: Manga rereading support
+  - Would need tracker wiring
+  - Would require core manga handling changes
+  - DB exports to other forks wouldn't include reread count, may be handled dangerously
+  - Area of impact is unknown, could be deeply entrenched in the core of the app and cause bugs
