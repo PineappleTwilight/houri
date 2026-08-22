@@ -8,7 +8,10 @@ import eu.kanade.tachiyomi.data.cache.CoverCache
 import eu.kanade.tachiyomi.data.download.DownloadManager
 import eu.kanade.tachiyomi.data.track.EnhancedTracker
 import eu.kanade.tachiyomi.data.track.TrackerManager
+import eu.kanade.tachiyomi.data.webhook.WebhookEvent
+import eu.kanade.tachiyomi.data.webhook.WebhookNotifier
 import kotlinx.coroutines.CancellationException
+import mihon.app.di.globalAppGraph
 import mihon.domain.migration.models.MigrationFlag
 import mihon.domain.source.interactor.UpdateMangaFromRemote
 import tachiyomi.domain.category.interactor.GetCategories
@@ -46,6 +49,9 @@ class MigrateMangaUseCase(
     private val upsertHistory: UpsertHistory,
     // KMK <--
 ) {
+    // KMK -->
+    private val webhookNotifier: WebhookNotifier get() = globalAppGraph.webhookNotifier
+    // KMK <--
     private val enhancedServices by lazy { trackerManager.trackers.filterIsInstance<EnhancedTracker>() }
 
     suspend operator fun invoke(
@@ -192,6 +198,18 @@ class MigrateMangaUseCase(
             )
 
             updateManga.awaitAll(listOfNotNull(currentMangaUpdate, targetMangaUpdate))
+            // KMK -->
+            webhookNotifier.notify(
+                WebhookEvent.MANGA_MIGRATED,
+                mapOf(
+                    "manga" to target.title,
+                    "from_source" to (currentSource?.name ?: current.source.toString()),
+                    "to_source" to targetSource.name,
+                ),
+                sourceId = target.source,
+                mangaId = target.id,
+            )
+            // KMK <--
         } catch (e: Throwable) {
             if (e is CancellationException) {
                 throw e

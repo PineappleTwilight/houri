@@ -31,9 +31,9 @@ sealed class Preference {
             override val title: String,
             override val subtitle: CharSequence? = null,
             override val enabled: Boolean = true,
+            override val icon: ImageVector? = null,
             val onClick: (() -> Unit)? = null,
         ) : PreferenceItem<String, Unit>() {
-            override val icon: ImageVector? = null
             override val onValueChanged: suspend (value: String) -> Unit = {}
         }
 

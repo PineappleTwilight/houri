@@ -98,7 +98,14 @@ private fun CategoryContent(
     // KMK <--
 ) {
     val topLevel = remember(categories) { categories.filter { it.parentId == 0L } }
-    val subMap = remember(categories) { categories.groupBy { it.parentId } }
+    // KMK -->
+    val subMap = remember(categories) {
+        categories
+            .filter { it.parentId != 0L }
+            .groupBy { it.parentId }
+            .mapValues { (_, subs) -> subs.sortedBy { it.order } }
+    }
+    // KMK <--
     val topLevelState = remember { topLevel.toMutableStateList() }
     val reorderableState = rememberReorderableLazyListState(lazyListState, paddingValues) { from, to ->
         val item = topLevelState.removeAt(from.index)
@@ -143,13 +150,25 @@ private fun CategoryContent(
                             modifier = Modifier.padding(start = 16.dp),
                             verticalArrangement = Arrangement.spacedBy(4.dp),
                         ) {
-                            subs.forEach { sub ->
+                            subs.forEachIndexed { subIndex, sub ->
                                 CategoryListItem(
                                     category = sub,
                                     onRename = { onClickRename(sub) },
                                     onDelete = { onClickDelete(sub) },
                                     onHide = { onClickHide(sub) },
+                                    // KMK -->
+                                    onMoveUp = if (subIndex > 0) {
+                                        { onChangeOrder(sub, subIndex - 1) }
+                                    } else {
+                                        null
+                                    },
+                                    onMoveDown = if (subIndex < subs.lastIndex) {
+                                        { onChangeOrder(sub, subIndex + 1) }
+                                    } else {
+                                        null
+                                    },
                                     isTopLevel = false,
+                                    // KMK <--
                                 )
                             }
                         }

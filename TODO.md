@@ -38,8 +38,8 @@
     - Allows users to "flex" on others of lower rank
     - Ranks should be overall statistics + # of achievements, e.g. 500 read chapters and 10 achievements etc
       - Chapter statistics should exclude the "mark as read" feature and only track organically read chapters
-- [ ] **Subcategories**: Subcategory reordering
-- [ ] **Discord RPC**: Majorly improve the Discord RPC feature and what information it shows
+- [x] **Subcategories**: Subcategory reordering
+- [x] **Discord RPC**: Majorly improve the Discord RPC feature and what information it shows
   - Subcategory exclusion also needs to be properly wired into it
 
 ## Bugfixes

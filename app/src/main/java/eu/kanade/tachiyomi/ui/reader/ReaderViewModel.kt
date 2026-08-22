@@ -642,6 +642,8 @@ class ReaderViewModel(
                             "manga" to currentManga.title,
                             "chapter" to chapter.chapter.name,
                         ),
+                        sourceId = currentManga.source,
+                        mangaId = currentManga.id,
                     )
                 }
             }
@@ -948,7 +950,12 @@ class ReaderViewModel(
                     }
                 }
             }
-            webhookNotifier.notify(WebhookEvent.CHAPTER_READ, chapterData)
+            webhookNotifier.notify(
+                WebhookEvent.CHAPTER_READ,
+                chapterData,
+                sourceId = currentManga.source,
+                mangaId = currentManga.id,
+            )
             if (wasFirstReadChapter) {
                 webhookNotifier.notify(
                     WebhookEvent.NEW_MANGA_STARTED,
@@ -956,12 +963,16 @@ class ReaderViewModel(
                         "manga" to currentManga.title,
                         "chapter" to readerChapter.chapter.name,
                     ),
+                    sourceId = currentManga.source,
+                    mangaId = currentManga.id,
                 )
             }
             if (unfilteredChapterList.isNotEmpty() && unfilteredChapterList.all { it.read }) {
                 webhookNotifier.notify(
                     WebhookEvent.MANGA_FINISHED,
                     mapOf("manga" to currentManga.title),
+                    sourceId = currentManga.source,
+                    mangaId = currentManga.id,
                 )
             }
         }

@@ -213,6 +213,14 @@
     <string name="pref_webhook_library_update">Library update finished</string>
     <string name="pref_webhook_backup_created">Backup created</string>
     <string name="webhook_info">Send app events as notifications to a Discord webhook or any custom JSON endpoint. Webhook URLs are stored privately and are not included in backups.</string>
+    <string name="pref_webhook_manga_added">Manga added to library</string>
+    <string name="pref_webhook_manga_removed">Manga removed from library</string>
+    <string name="pref_webhook_downloads_finished">Downloads finished</string>
+    <string name="pref_webhook_backup_restored">Backup restored</string>
+    <string name="pref_webhook_manga_migrated">Manga migrated</string>
+    <string name="pref_webhook_app_updated">App updated</string>
+    <string name="pref_webhook_excluded_categories">Excluded categories</string>
+    <string name="pref_webhook_excluded_categories_summary">Events are not sent for manga in these categories or subcategories</string>
     <string name="pref_ignore_articles_in_sort">Ignore articles in sort</string>
     <string name="pref_ignore_articles_in_sort_summary">Sort "A Sign of Affection" under S, "The Apothecary Diaries" under A</string>
     <!-- Migration -->
@@ -262,6 +270,9 @@
     <string name="pref_discord_custom_message_summary">Custom message that will be displayed on Discord</string>
     <string name="pref_discord_show_progress">Show Progress</string>
     <string name="pref_discord_show_progress_summary">Display the current reading chapter</string>
+    <string name="pref_discord_show_page_progress">Show page progress</string>
+    <string name="pref_discord_show_page_progress_summary">Display the current page within the chapter</string>
+    <string name="discord_page_progress">Page %1$s of %2$s</string>
     <string name="pref_discord_show_timestamp">Show Time</string>
     <string name="pref_discord_show_timestamp_summary">Display activity time</string>
     <string name="pref_discord_show_buttons">Show Buttons</string>

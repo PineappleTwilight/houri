@@ -1559,6 +1559,11 @@ class ReaderActivity : BaseActivity() {
                                 chapter.chapterNumber.toString()
                             },
                             startTimestamp = System.currentTimeMillis(),
+                            // KMK -->
+                            currentPage = viewModel.state.value.currentPage?.plus(1),
+                            totalPages = viewModel.state.value.viewerChapters?.currChapter?.pages?.size,
+                            sourceName = sourceManager.get(manga.source)?.name,
+                            // KMK <--
                         ),
                     )
                 } else {

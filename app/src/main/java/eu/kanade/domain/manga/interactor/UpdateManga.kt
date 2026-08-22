@@ -1,6 +1,9 @@
 package eu.kanade.domain.manga.interactor
 
 import dev.zacsweers.metro.Inject
+import eu.kanade.tachiyomi.data.webhook.WebhookEvent
+import eu.kanade.tachiyomi.data.webhook.WebhookNotifier
+import mihon.app.di.globalAppGraph
 import tachiyomi.domain.manga.interactor.FetchInterval
 import tachiyomi.domain.manga.model.Manga
 import tachiyomi.domain.manga.model.MangaUpdate
@@ -13,6 +16,9 @@ class UpdateManga(
     private val mangaRepository: MangaRepository,
     private val fetchInterval: FetchInterval,
 ) {
+    // KMK -->
+    private val webhookNotifier: WebhookNotifier get() = globalAppGraph.webhookNotifier
+    // KMK <--
 
     suspend fun await(mangaUpdate: MangaUpdate): Boolean {
         return mangaRepository.update(mangaUpdate)
@@ -45,8 +51,22 @@ class UpdateManga(
             true -> Instant.now().toEpochMilli()
             false -> 0
         }
-        return mangaRepository.update(
+        val result = mangaRepository.update(
             MangaUpdate(id = mangaId, favorite = favorite, dateAdded = dateAdded),
         )
+        // KMK -->
+        if (result) {
+            val manga = mangaRepository.getMangaById(mangaId)
+            if (manga != null) {
+                webhookNotifier.notify(
+                    if (favorite) WebhookEvent.MANGA_ADDED else WebhookEvent.MANGA_REMOVED,
+                    mapOf("manga" to manga.title),
+                    sourceId = manga.source,
+                    mangaId = manga.id,
+                )
+            }
+        }
+        // KMK <--
+        return result
     }
 }

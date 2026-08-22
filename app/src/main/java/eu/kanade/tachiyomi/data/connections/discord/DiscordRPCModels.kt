@@ -178,6 +178,11 @@ data class ReaderData(
     val chapterNumber: String? = null,
     val thumbnailUrl: String? = null,
     val startTimestamp: Long? = null,
+    // KMK -->
+    val currentPage: Int? = null,
+    val totalPages: Int? = null,
+    val sourceName: String? = null,
+    // KMK <--
 )
 
 // Enum class for standard Rich Presence in-app screens

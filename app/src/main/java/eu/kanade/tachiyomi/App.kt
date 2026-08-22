@@ -58,6 +58,7 @@ import eu.kanade.tachiyomi.data.coil.TachiyomiImageDecoder
 import eu.kanade.tachiyomi.data.connections.discord.DiscordRPCService
 import eu.kanade.tachiyomi.data.notification.Notifications
 import eu.kanade.tachiyomi.data.sync.SyncDataJob
+import eu.kanade.tachiyomi.data.webhook.WebhookEvent
 import eu.kanade.tachiyomi.di.AppModule
 import eu.kanade.tachiyomi.di.PreferenceModule
 import eu.kanade.tachiyomi.di.SYPreferenceModule
@@ -288,7 +289,8 @@ class App : Application(), DefaultLifecycleObserver, SingletonImageLoader.Factor
         // SY -->
         val preference = preferenceStore.getInt(Preference.appStateKey("eh_last_version_code"), 0)
         // SY <--
-        logcat { "Migration from ${preference.get()} to ${BuildConfig.VERSION_CODE}" }
+        val oldVersionCode = preference.get()
+        logcat { "Migration from $oldVersionCode to ${BuildConfig.VERSION_CODE}" }
         Migrator.initialize(
             old = preference.get(),
             new = BuildConfig.VERSION_CODE,
@@ -296,6 +298,15 @@ class App : Application(), DefaultLifecycleObserver, SingletonImageLoader.Factor
             onMigrationComplete = {
                 logcat { "Updating last version to ${BuildConfig.VERSION_CODE}" }
                 preference.set(BuildConfig.VERSION_CODE)
+                // KMK -->
+                globalAppGraph.webhookNotifier.notify(
+                    WebhookEvent.APP_UPDATED,
+                    mapOf(
+                        "previous_version_code" to oldVersionCode.toString(),
+                        "new_version_code" to BuildConfig.VERSION_CODE.toString(),
+                    ),
+                )
+                // KMK <--
             },
         )
     }

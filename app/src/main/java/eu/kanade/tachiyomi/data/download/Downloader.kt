@@ -12,6 +12,8 @@ import eu.kanade.tachiyomi.data.cache.ChapterCache
 import eu.kanade.tachiyomi.data.download.model.Download
 import eu.kanade.tachiyomi.data.library.LibraryUpdateNotifier
 import eu.kanade.tachiyomi.data.notification.NotificationHandler
+import eu.kanade.tachiyomi.data.webhook.WebhookEvent
+import eu.kanade.tachiyomi.data.webhook.WebhookNotifier
 import eu.kanade.tachiyomi.source.UnmeteredSource
 import eu.kanade.tachiyomi.source.model.Page
 import eu.kanade.tachiyomi.source.online.HttpSource
@@ -109,6 +111,23 @@ class Downloader(
      * Notifier for the downloader state and progress.
      */
     private val notifier by lazy { DownloadNotifier(context) }
+
+    // KMK -->
+    private val webhookNotifier by lazy { globalAppGraph.webhookNotifier }
+
+    private var completedDownloadsCount = 0
+
+    private fun notifyDownloadsFinished() {
+        val count = completedDownloadsCount
+        completedDownloadsCount = 0
+        if (count > 0) {
+            webhookNotifier.notify(
+                WebhookEvent.DOWNLOADS_FINISHED,
+                mapOf("chapters_downloaded" to count.toString()),
+            )
+        }
+    }
+    // KMK <--
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var downloaderJob: Job? = null
@@ -262,8 +281,14 @@ class Downloader(
             // Remove successful download from queue
             if (download.status == Download.State.DOWNLOADED) {
                 removeFromQueue(download)
+                // KMK -->
+                completedDownloadsCount++
+                // KMK <--
             }
             if (areAllDownloadsFinished()) {
+                // KMK -->
+                notifyDownloadsFinished()
+                // KMK <--
                 stop()
             }
         } catch (e: Throwable) {

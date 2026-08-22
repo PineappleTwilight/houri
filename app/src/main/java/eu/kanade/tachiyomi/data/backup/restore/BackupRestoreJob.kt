@@ -14,6 +14,7 @@ import androidx.work.workDataOf
 import eu.kanade.tachiyomi.data.BackupRestoreStatus
 import eu.kanade.tachiyomi.data.backup.BackupNotifier
 import eu.kanade.tachiyomi.data.notification.Notifications
+import eu.kanade.tachiyomi.data.webhook.WebhookEvent
 import eu.kanade.tachiyomi.util.system.cancelNotification
 import eu.kanade.tachiyomi.util.system.isRunning
 import eu.kanade.tachiyomi.util.system.setForegroundSafely
@@ -53,6 +54,12 @@ class BackupRestoreJob(private val context: Context, workerParams: WorkerParamet
 
         return try {
             BackupRestorer(context, notifier, isSync).restore(uri, options)
+            // KMK -->
+            globalAppGraph.webhookNotifier.notify(
+                WebhookEvent.BACKUP_RESTORED,
+                mapOf("mode" to if (isSync) "sync" else "manual"),
+            )
+            // KMK <--
             Result.success()
         } catch (e: Exception) {
             if (e is CancellationException) {

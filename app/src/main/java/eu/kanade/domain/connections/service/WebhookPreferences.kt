@@ -36,6 +36,25 @@ class WebhookPreferences(
 
     fun notifyOnBackupCreated() = preferenceStore.getBoolean("pref_webhook_backup_created", false)
 
+    // KMK -->
+    fun notifyOnMangaAdded() = preferenceStore.getBoolean("pref_webhook_manga_added", true)
+
+    fun notifyOnMangaRemoved() = preferenceStore.getBoolean("pref_webhook_manga_removed", false)
+
+    fun notifyOnDownloadsFinished() = preferenceStore.getBoolean("pref_webhook_downloads_finished", false)
+
+    fun notifyOnBackupRestored() = preferenceStore.getBoolean("pref_webhook_backup_restored", false)
+
+    fun notifyOnMangaMigrated() = preferenceStore.getBoolean("pref_webhook_manga_migrated", false)
+
+    fun notifyOnAppUpdated() = preferenceStore.getBoolean("pref_webhook_app_updated", true)
+
+    fun excludedCategories() = preferenceStore.getStringSet(
+        "pref_webhook_excluded_categories",
+        emptySet(),
+    )
+    // KMK <--
+
     fun includeReadingTime() = preferenceStore.getBoolean("pref_webhook_include_reading_time", true)
 }
 // <-- AM (CONNECTIONS)

@@ -11,6 +11,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.Webhook
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -98,7 +99,7 @@ object SettingsConnectionScreen : SearchableSettings {
                     // KMK -->
                     Preference.PreferenceItem.TextPreference(
                         title = stringResource(KMR.strings.webhook_title),
-                        subtitle = stringResource(KMR.strings.webhook_info),
+                        icon = Icons.Outlined.Webhook,
                         onClick = { navigator.push(SettingsWebhookScreen) },
                     ),
                     // KMK <--

@@ -18,9 +18,12 @@ class ReorderCategory(
 
     suspend fun await(category: Category, newIndex: Int) = withNonCancellableContext {
         mutex.withLock {
+            // KMK -->
             val categories = categoryRepository.getAll()
                 .filterNot(Category::isSystemCategory)
+                .filter { it.parentId == category.parentId }
                 .toMutableList()
+            // KMK <--
 
             val currentIndex = categories.indexOfFirst { it.id == category.id }
             if (currentIndex == -1) {

@@ -34,6 +34,7 @@ import tachiyomi.domain.category.interactor.GetCategories
 import tachiyomi.domain.category.model.Category
 import tachiyomi.domain.category.model.Category.Companion.UNCATEGORIZED_ID
 import tachiyomi.i18n.MR
+import tachiyomi.i18n.kmk.KMR
 import timber.log.Timber
 import kotlin.math.ceil
 import kotlin.math.floor
@@ -272,7 +273,9 @@ class DiscordRPCService : Service() {
             val (title, state, imageUrl) = when (discordScreen) {
                 DiscordScreen.MANGA -> Triple(
                     readerData.mangaTitle,
-                    readerData.chapterNumber.takeIf { showProgress },
+                    // KMK -->
+                    buildReadingState(context, readerData, showProgress),
+                    // KMK <--
                     readerData.thumbnailUrl ?: discordScreen.imageUrl,
                 )
                 else -> Triple(
@@ -302,6 +305,7 @@ class DiscordRPCService : Service() {
                 state = state,
                 imageUrl = imageUrl,
                 timestamps = timestamps,
+                sourceName = readerData.sourceName,
                 // KMK <--
             )
         }
@@ -314,6 +318,9 @@ class DiscordRPCService : Service() {
             state: String?,
             imageUrl: String,
             timestamps: Activity.Timestamps?,
+            // KMK -->
+            sourceName: String? = null,
+            // KMK <--
             sinceTime: Long = since,
             appName: String = context.getString(R.string.app_name),
             // KMK <--
@@ -359,11 +366,18 @@ class DiscordRPCService : Service() {
                     assets = Activity.Assets(
                         largeImage = "$MP_PREFIX$imageUrl",
                         smallImage = "$MP_PREFIX${DiscordScreen.APP.imageUrl}",
-                        largeText = context.getString(
-                            R.string.discord_status_description,
-                            context.getString(discordScreen.details),
-                            title ?: context.getString(discordScreen.text),
-                        ),
+                        largeText = buildString {
+                            append(
+                                context.getString(
+                                    R.string.discord_status_description,
+                                    context.getString(discordScreen.details),
+                                    title ?: context.getString(discordScreen.text),
+                                ),
+                            )
+                            // KMK -->
+                            if (!sourceName.isNullOrBlank()) append(" · ").append(sourceName)
+                            // KMK <--
+                        },
                         smallText = context.getString(R.string.discord_app_description),
                     ),
                     buttons = buttonLabels.takeIf { it.isNotEmpty() },
@@ -410,6 +424,11 @@ class DiscordRPCService : Service() {
                                 chapterNumber = chapterNumber,
                                 thumbnailUrl = mangaThumbnail,
                                 startTimestamp = startTime,
+                                // KMK -->
+                                currentPage = readerData.currentPage.takeUnless { discordIncognito },
+                                totalPages = readerData.totalPages.takeUnless { discordIncognito },
+                                sourceName = readerData.sourceName.takeUnless { discordIncognito },
+                                // KMK <--
                             ),
                         )
                     }
@@ -467,6 +486,24 @@ class DiscordRPCService : Service() {
                 else -> context.stringResource(MR.strings.notification_chapters_single, chapterNumber)
             }
         }
+
+        // KMK -->
+        private fun buildReadingState(context: Context, readerData: ReaderData, showChapter: Boolean): String? {
+            val pagePart = when {
+                !connectionsPreferences.discordShowPageProgress().get() -> null
+                readerData.currentPage == null || readerData.totalPages == null -> null
+                else -> context.stringResource(
+                    KMR.strings.discord_page_progress,
+                    readerData.currentPage,
+                    readerData.totalPages,
+                )
+            }
+            val chapterPart = readerData.chapterNumber.takeIf { showChapter }
+            return listOfNotNull(chapterPart, pagePart)
+                .joinToString(" · ")
+                .ifEmpty { null }
+        }
+        // KMK <--
 
         private fun getTimestamps(readerData: ReaderData): Pair<Long?, Long?> =
             Pair(

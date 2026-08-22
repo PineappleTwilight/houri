@@ -5,6 +5,8 @@ import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
 import eu.kanade.domain.connections.service.WebhookPreferences
+import eu.kanade.domain.source.interactor.GetIncognitoState
+import eu.kanade.tachiyomi.BuildConfig
 import eu.kanade.tachiyomi.network.NetworkHelper
 import eu.kanade.tachiyomi.network.awaitSuccess
 import kotlinx.serialization.encodeToString
@@ -14,12 +16,15 @@ import kotlinx.serialization.json.add
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
+import kotlinx.serialization.json.putJsonObject
 import logcat.LogPriority
 import logcat.logcat
+import mihon.app.di.globalAppGraph
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import tachiyomi.core.common.util.lang.launchIO
+import tachiyomi.domain.category.interactor.GetCategories
 import java.time.Instant
 
 enum class WebhookEvent(val id: String, val title: String, val color: Long) {
@@ -29,6 +34,14 @@ enum class WebhookEvent(val id: String, val title: String, val color: Long) {
     MANGA_FINISHED("manga_finished", "Manga finished", 0xFAA61A),
     LIBRARY_UPDATE("library_update", "Library updated", 0x3BA55D),
     BACKUP_CREATED("backup_created", "Backup created", 0xE67E22),
+    // KMK -->
+    MANGA_ADDED("manga_added", "Manga added", 0x2ECC71),
+    MANGA_REMOVED("manga_removed", "Manga removed", 0xE74C3C),
+    DOWNLOADS_FINISHED("downloads_finished", "Downloads finished", 0x9B59B6),
+    BACKUP_RESTORED("backup_restored", "Backup restored", 0xF1C40F),
+    MANGA_MIGRATED("manga_migrated", "Manga migrated", 0x1ABC9C),
+    APP_UPDATED("app_updated", "App updated", 0x95A5A6),
+    // KMK <--
 }
 
 /**
@@ -46,7 +59,19 @@ class WebhookNotifier(
     private val json = Json
     private val jsonMediaType = "application/json; charset=utf-8".toMediaType()
 
-    fun notify(event: WebhookEvent, data: Map<String, String>) {
+    // KMK -->
+    private val getCategories: GetCategories by lazy { globalAppGraph.getCategories }
+    private val getIncognitoState: GetIncognitoState by lazy { globalAppGraph.getIncognitoState }
+    // KMK <--
+
+    fun notify(
+        event: WebhookEvent,
+        data: Map<String, String>,
+        // KMK -->
+        sourceId: Long? = null,
+        mangaId: Long? = null,
+        // KMK <--
+    ) {
         if (!webhookPreferences.enabled().get()) return
 
         val enabledForEvent = when (event) {
@@ -56,13 +81,43 @@ class WebhookNotifier(
             WebhookEvent.MANGA_FINISHED -> webhookPreferences.notifyOnMangaFinished()
             WebhookEvent.LIBRARY_UPDATE -> webhookPreferences.notifyOnLibraryUpdate()
             WebhookEvent.BACKUP_CREATED -> webhookPreferences.notifyOnBackupCreated()
+            // KMK -->
+            WebhookEvent.MANGA_ADDED -> webhookPreferences.notifyOnMangaAdded()
+            WebhookEvent.MANGA_REMOVED -> webhookPreferences.notifyOnMangaRemoved()
+            WebhookEvent.DOWNLOADS_FINISHED -> webhookPreferences.notifyOnDownloadsFinished()
+            WebhookEvent.BACKUP_RESTORED -> webhookPreferences.notifyOnBackupRestored()
+            WebhookEvent.MANGA_MIGRATED -> webhookPreferences.notifyOnMangaMigrated()
+            WebhookEvent.APP_UPDATED -> webhookPreferences.notifyOnAppUpdated()
+            // KMK <--
         }
         if (!enabledForEvent.get()) return
 
         launchIO {
+            // KMK -->
+            if (isSuppressed(sourceId, mangaId)) return@launchIO
+            // KMK <--
             sendToAll(event, data)
         }
     }
+
+    // KMK -->
+    private suspend fun isSuppressed(sourceId: Long?, mangaId: Long?): Boolean {
+        if (sourceId != null && getIncognitoState.await(sourceId)) return true
+
+        val excludedIds = webhookPreferences.excludedCategories().get()
+            .mapNotNull(String::toLongOrNull)
+            .toSet()
+        if (mangaId == null || excludedIds.isEmpty()) return false
+
+        val parentById = getCategories.await().associate { it.id to it.parentId }
+        return getCategories.await(mangaId).any { category ->
+            category.id in excludedIds ||
+                generateSequence(category.parentId) { parentById[it] }
+                    .takeWhile { it != 0L }
+                    .any { it in excludedIds }
+        }
+    }
+    // KMK <--
 
     suspend fun sendTest() {
         sendToAll(
@@ -101,28 +156,90 @@ class WebhookNotifier(
     }
 
     private fun buildDiscordPayload(event: WebhookEvent, data: Map<String, String>): JsonObject {
+        // KMK -->
+        val description = embedDescription(event, data)
+        val fields = embedFields(data)
+        // KMK <--
+
         return buildJsonObject {
             putJsonArray("embeds") {
                 add(
                     buildJsonObject {
                         put("title", event.title)
                         put("color", event.color)
-                        putJsonArray("fields") {
-                            data.forEach { (key, value) ->
-                                add(
-                                    buildJsonObject {
-                                        put("name", key)
-                                        put("value", value)
-                                        put("inline", true)
-                                    },
-                                )
+                        put("timestamp", Instant.now().toString())
+                        // KMK -->
+                        description?.let { put("description", it) }
+                        if (fields.isNotEmpty()) {
+                            putJsonArray("fields") {
+                                fields.forEach { add(it) }
                             }
                         }
+                        putJsonObject("footer") {
+                            put("text", "Houri v${BuildConfig.VERSION_NAME}")
+                        }
+                        // KMK <--
                     },
                 )
             }
         }
     }
+
+    // KMK -->
+    private val baseDescriptionKeys = setOf("manga", "chapter", "message")
+
+    private fun consumedKeys(data: Map<String, String>): Set<String> = if (
+        data.containsKey("manga") &&
+        data.containsKey("from_source") &&
+        data.containsKey("to_source")
+    ) {
+        baseDescriptionKeys + setOf("from_source", "to_source")
+    } else {
+        baseDescriptionKeys
+    }
+
+    private val hiddenEmbedFields = setOf("time_spent_seconds")
+
+    private val fullWidthEmbedFields = setOf("location")
+
+    private fun embedDescription(event: WebhookEvent, data: Map<String, String>): String? {
+        val parts = buildList {
+            data["manga"]?.let { manga ->
+                add("**$manga**")
+                val subtitle = when {
+                    data["chapter"] != null -> data["chapter"]
+                    data.containsKey("from_source") && data.containsKey("to_source") ->
+                        "${data["from_source"]} → ${data["to_source"]}"
+                    event == WebhookEvent.MANGA_FINISHED -> "All chapters read"
+                    else -> null
+                }
+                subtitle?.let(::add)
+            }
+            data["message"]?.let(::add)
+        }
+        return parts.joinToString("\n\n").ifEmpty { null }
+    }
+
+    private fun embedFields(data: Map<String, String>): List<JsonObject> = data
+        .filterNot { (key, _) -> key in consumedKeys(data) || key in hiddenEmbedFields }
+        .filterNot { (key, value) -> key == "failed" && value == "0" }
+        .map { (key, value) ->
+            buildJsonObject {
+                put("name", key.toEmbedFieldLabel())
+                put("value", value.toEmbedFieldValue(key))
+                put("inline", key !in fullWidthEmbedFields)
+            }
+        }
+
+    private fun String.toEmbedFieldLabel(): String = replace('_', ' ').replaceFirstChar { it.uppercase() }
+
+    private fun String.toEmbedFieldValue(key: String): String = when {
+        key == "location" -> "`$this`"
+        this == "true" -> "Yes"
+        this == "false" -> "No"
+        else -> this
+    }
+    // KMK <--
 
     private fun buildGenericPayload(event: WebhookEvent, data: Map<String, String>): JsonObject {
         return buildJsonObject {

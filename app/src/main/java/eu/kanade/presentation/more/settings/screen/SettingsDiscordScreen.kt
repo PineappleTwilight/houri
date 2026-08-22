@@ -199,6 +199,14 @@ object SettingsDiscordScreen : SearchableSettings {
                         title = stringResource(KMR.strings.pref_discord_show_progress),
                         subtitle = stringResource(KMR.strings.pref_discord_show_progress_summary),
                     ),
+                    // KMK -->
+                    Preference.PreferenceItem.SwitchPreference(
+                        preference = connectionsPreferences.discordShowPageProgress(),
+                        title = stringResource(KMR.strings.pref_discord_show_page_progress),
+                        subtitle = stringResource(KMR.strings.pref_discord_show_page_progress_summary),
+                        enabled = showProgressEnabled,
+                    ),
+                    // KMK <--
                     Preference.PreferenceItem.SwitchPreference(
                         preference = useChapterTitlesPref,
                         title = stringResource(KMR.strings.show_chapters_titles_title),

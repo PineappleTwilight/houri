@@ -50,6 +50,10 @@ class ConnectionsPreferences(
 
     fun discordShowProgress() = preferenceStore.getBoolean("pref_discord_show_progress", true)
 
+    // KMK -->
+    fun discordShowPageProgress() = preferenceStore.getBoolean("pref_discord_show_page_progress", true)
+    // KMK <--
+
     fun discordShowTimestamp() = preferenceStore.getBoolean("pref_discord_show_timestamp", true)
 
     fun discordShowButtons() = preferenceStore.getBoolean("pref_discord_show_buttons", true)
