@@ -258,6 +258,10 @@ class LibraryPreferences(
 
     fun updateMangaTitles() = preferenceStore.getBoolean("pref_update_library_manga_titles", false)
 
+    // KMK -->
+    fun smartScanlatorMerge() = preferenceStore.getBoolean("pref_smart_scanlator_merge", true)
+    // KMK <--
+
     fun disallowNonAsciiFilenames() = preferenceStore.getBoolean("disallow_non_ascii_filenames", false)
 
     // endregion

@@ -273,6 +273,13 @@
     <string name="pref_discord_show_page_progress">Show page progress</string>
     <string name="pref_discord_show_page_progress_summary">Display the current page within the chapter</string>
     <string name="discord_page_progress">Page %1$s of %2$s</string>
+    <string name="scanlator_preference">Scanlator Preference</string>
+    <string name="scanlator_priority">Scanlator priority</string>
+    <string name="blacklisted_chapters">Blacklisted chapters</string>
+    <string name="scanlator_chapter_count">%1$d chapters</string>
+    <string name="action_exclude_scanlator">Exclude scanlator</string>
+    <string name="blacklist_empty">No blacklisted chapters</string>
+    <string name="action_blacklist_chapter">Blacklist chapter</string>
     <string name="pref_discord_show_timestamp">Show Time</string>
     <string name="pref_discord_show_timestamp_summary">Display activity time</string>
     <string name="pref_discord_show_buttons">Show Buttons</string>

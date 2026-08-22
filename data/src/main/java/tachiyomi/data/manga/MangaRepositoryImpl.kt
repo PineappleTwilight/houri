@@ -202,6 +202,10 @@ class MangaRepositoryImpl(
                     isSyncing = 0,
                     notes = value.notes,
                     memo = value.memo?.let(MemoColumnAdapter::encode),
+                    // KMK -->
+                    scanlatorPriority = value.scanlatorPriority?.let(StringListColumnAdapter::encode),
+                    blacklistedChapters = value.blacklistedChapters?.let(StringListColumnAdapter::encode),
+                    // KMK <--
                 )
             }
         }

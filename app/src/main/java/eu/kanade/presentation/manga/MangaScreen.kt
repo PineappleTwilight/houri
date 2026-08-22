@@ -8,10 +8,12 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.asPaddingValues
@@ -67,6 +69,8 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.util.fastAll
 import androidx.compose.ui.util.fastAny
 import androidx.compose.ui.util.fastMap
+import cafe.adriel.voyager.navigator.LocalNavigator
+import cafe.adriel.voyager.navigator.currentOrThrow
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.hazeSource
 import eu.kanade.domain.source.service.SourcePreferences
@@ -104,6 +108,7 @@ import eu.kanade.tachiyomi.ui.manga.ChapterList
 import eu.kanade.tachiyomi.ui.manga.MangaScreenModel
 import eu.kanade.tachiyomi.ui.manga.MergedMangaData
 import eu.kanade.tachiyomi.ui.manga.PagePreviewState
+import eu.kanade.tachiyomi.ui.manga.scanlator.ScanlatorPreferenceScreen
 import eu.kanade.tachiyomi.util.system.copyToClipboard
 import exh.metadata.MetadataUtil
 import exh.source.MERGED_SOURCE_ID
@@ -189,6 +194,9 @@ fun MangaScreen(
     onMultiMarkAsReadClicked: (List<Chapter>, markAsRead: Boolean) -> Unit,
     onMarkPreviousAsReadClicked: (Chapter) -> Unit,
     onMultiDeleteClicked: (List<Chapter>) -> Unit,
+    // KMK -->
+    onBlacklistClicked: (List<Chapter>) -> Unit,
+    // KMK <--
 
     // For chapter swipe
     onChapterSwipe: (ChapterList.Item, LibraryPreferences.ChapterSwipeAction) -> Unit,
@@ -281,6 +289,7 @@ fun MangaScreen(
             coverRatio = coverRatio,
             onPaletteScreenClick = onPaletteScreenClick,
             hazeState = hazeState,
+            onBlacklistClicked = onBlacklistClicked,
             // KMK <--
         )
     } else {
@@ -343,6 +352,7 @@ fun MangaScreen(
             coverRatio = coverRatio,
             onPaletteScreenClick = onPaletteScreenClick,
             hazeState = hazeState,
+            onBlacklistClicked = onBlacklistClicked,
             // KMK <--
         )
     }
@@ -399,6 +409,9 @@ private fun MangaScreenSmallImpl(
     onMultiMarkAsReadClicked: (List<Chapter>, markAsRead: Boolean) -> Unit,
     onMarkPreviousAsReadClicked: (Chapter) -> Unit,
     onMultiDeleteClicked: (List<Chapter>) -> Unit,
+    // KMK -->
+    onBlacklistClicked: (List<Chapter>) -> Unit,
+    // KMK <--
 
     // For chapter swipe
     onChapterSwipe: (ChapterList.Item, LibraryPreferences.ChapterSwipeAction) -> Unit,
@@ -529,6 +542,7 @@ private fun MangaScreenSmallImpl(
                 onMarkPreviousAsReadClicked = onMarkPreviousAsReadClicked,
                 onDownloadChapter = onDownloadChapter,
                 onMultiDeleteClicked = onMultiDeleteClicked,
+                onBlacklistClicked = onBlacklistClicked,
                 fillFraction = 1f,
             )
         },
@@ -779,6 +793,40 @@ private fun MangaScreenSmallImpl(
                     }
                     // SY <--
 
+                    // KMK -->
+                    item(key = "scanlator-preference") {
+                        val entryNavigator = LocalNavigator.currentOrThrow
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    entryNavigator.push(ScanlatorPreferenceScreen(state.manga.id))
+                                }
+                                .padding(vertical = MaterialTheme.padding.small),
+                        ) {
+                            Text(
+                                text = stringResource(KMR.strings.scanlator_priority),
+                                style = MaterialTheme.typography.titleMedium,
+                            )
+                            val priorityNames = state.manga.scanlatorPriority.take(2)
+                            Row(verticalAlignment = Alignment.Bottom) {
+                                Text(
+                                    text = priorityNames.firstOrNull() ?: stringResource(KMR.strings.scanlator_priority),
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    modifier = Modifier.weight(1f, fill = false),
+                                )
+                                priorityNames.getOrNull(1)?.let { second ->
+                                    Text(
+                                        text = second,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        modifier = Modifier.padding(start = MaterialTheme.padding.small),
+                                    )
+                                }
+                            }
+                        }
+                    }
+                    // KMK <--
+
                     item(
                         key = MangaScreenItem.CHAPTER_HEADER,
                         contentType = MangaScreenItem.CHAPTER_HEADER,
@@ -866,6 +914,9 @@ private fun MangaScreenLargeImpl(
     onMultiMarkAsReadClicked: (List<Chapter>, markAsRead: Boolean) -> Unit,
     onMarkPreviousAsReadClicked: (Chapter) -> Unit,
     onMultiDeleteClicked: (List<Chapter>) -> Unit,
+    // KMK -->
+    onBlacklistClicked: (List<Chapter>) -> Unit,
+    // KMK <--
 
     // For swipe actions
     onChapterSwipe: (ChapterList.Item, LibraryPreferences.ChapterSwipeAction) -> Unit,
@@ -991,6 +1042,7 @@ private fun MangaScreenLargeImpl(
                     onMarkPreviousAsReadClicked = onMarkPreviousAsReadClicked,
                     onDownloadChapter = onDownloadChapter,
                     onMultiDeleteClicked = onMultiDeleteClicked,
+                    onBlacklistClicked = onBlacklistClicked,
                     fillFraction = 0.5f,
                 )
             }
@@ -1267,6 +1319,9 @@ private fun SharedMangaBottomActionMenu(
     onMarkPreviousAsReadClicked: (Chapter) -> Unit,
     onDownloadChapter: ((List<ChapterList.Item>, ChapterDownloadAction) -> Unit)?,
     onMultiDeleteClicked: (List<Chapter>) -> Unit,
+    // KMK -->
+    onBlacklistClicked: (List<Chapter>) -> Unit,
+    // KMK <--
     fillFraction: Float,
     modifier: Modifier = Modifier,
 ) {
@@ -1298,6 +1353,11 @@ private fun SharedMangaBottomActionMenu(
         }.takeIf {
             selected.fastAny { it.downloadState == Download.State.DOWNLOADED }
         },
+        // KMK -->
+        onBlacklistClicked = {
+            onBlacklistClicked(selected.fastMap { it.chapter })
+        },
+        // KMK <--
     )
 }
 

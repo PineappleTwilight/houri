@@ -66,7 +66,9 @@ import eu.kanade.tachiyomi.ui.manga.RelatedManga.Companion.isLoading
 import eu.kanade.tachiyomi.ui.manga.RelatedManga.Companion.removeDuplicates
 import eu.kanade.tachiyomi.ui.manga.RelatedManga.Companion.sorted
 import eu.kanade.tachiyomi.ui.reader.setting.ReaderPreferences
+import eu.kanade.tachiyomi.util.chapter.applyScanlatorPriority
 import eu.kanade.tachiyomi.util.chapter.getNextUnread
+import eu.kanade.tachiyomi.util.chapter.scanlatorBlacklistKey
 import eu.kanade.tachiyomi.util.removeCovers
 import eu.kanade.tachiyomi.util.system.getBitmapOrNull
 import eu.kanade.tachiyomi.util.system.toast
@@ -375,7 +377,20 @@ class MangaScreenModel(
                 // SY <--
                 .flowWithLifecycle(lifecycle)
                 .collectLatest { (manga, chapters /* SY --> */, flatMetadata, mergedData /* SY <-- */) ->
-                    val chapterItems = chapters.toChapterListItems(manga /* SY --> */, mergedData /* SY <-- */)
+                    // KMK -->
+                    val chapterItems = chapters
+                        .let { list ->
+                            if (libraryPreferences.smartScanlatorMerge().get() && manga.scanlatorPriority.isNotEmpty()) {
+                                list.applyScanlatorPriority(
+                                    manga.scanlatorPriority,
+                                    manga.blacklistedChapters.toSet(),
+                                )
+                            } else {
+                                list
+                            }
+                        }
+                        // KMK <--
+                        .toChapterListItems(manga /* SY --> */, mergedData /* SY <-- */)
                     updateSuccessState {
                         it.copy(
                             manga = manga,
@@ -1938,6 +1953,47 @@ class MangaScreenModel(
             setExcludedScanlators.await(mangaId, excludedScanlators)
         }
     }
+
+    // KMK -->
+    fun setScanlatorPriority(priority: List<String>) {
+        screenModelScope.launchIO {
+            updateManga.await(MangaUpdate(id = mangaId, scanlatorPriority = priority))
+        }
+    }
+
+    fun setBlacklistedChapters(blacklistedChapters: List<String>) {
+        screenModelScope.launchIO {
+            updateManga.await(MangaUpdate(id = mangaId, blacklistedChapters = blacklistedChapters))
+        }
+    }
+
+    fun blacklistChapters(chapters: List<Chapter>) {
+        if (chapters.isEmpty()) return
+        screenModelScope.launchIO {
+            val newEntries = chapters.map { scanlatorBlacklistKey(it.chapterNumber, it.scanlator) }
+            val current = successState?.manga?.blacklistedChapters ?: emptyList()
+            updateManga.await(
+                MangaUpdate(
+                    id = mangaId,
+                    blacklistedChapters = (current + newEntries).distinct(),
+                ),
+            )
+        }
+    }
+
+    fun removeBlacklistedChapters(keys: List<String>) {
+        if (keys.isEmpty()) return
+        screenModelScope.launchIO {
+            val current = successState?.manga?.blacklistedChapters ?: emptyList()
+            updateManga.await(
+                MangaUpdate(
+                    id = mangaId,
+                    blacklistedChapters = current - keys.toSet(),
+                ),
+            )
+        }
+    }
+    // KMK <--
 
     // SY -->
     fun showEditMangaInfoDialog() {

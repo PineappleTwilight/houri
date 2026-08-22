@@ -46,6 +46,12 @@
   - Any content not in a subcategory is mixed in alongside the subcategory folders
   - Disabled by default
 - [ ] **Webhook Connection**: Add cover of current series to webhook event embeds where applicable (all manga-related events)
+- [ ] **Subcategories**: Option to update only the subcategory or the entire category (default behavior) when refreshing the library
+- [ ] **Updater**: Add download progress bar
+- [ ] **Database**: Harden database against corruption and wipes
+- [ ] **Library**: Staggered library grid
+- [ ] **Library**: Allow user to crop image when setting a custom cover
+  - This should apply to covers from pages and from custom images
 
 ## Bugfixes
 - [x] Fix UI transition choppiness.

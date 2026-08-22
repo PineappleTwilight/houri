@@ -14,6 +14,7 @@ import mihon.app.di.globalAppGraph
 import tachiyomi.data.DatabaseHandler
 import tachiyomi.data.MemoColumnAdapter
 import tachiyomi.data.UpdateStrategyColumnAdapter
+import tachiyomi.data.StringListColumnAdapter
 import tachiyomi.data.manga.MangaMapper
 import tachiyomi.data.manga.MergedMangaMapper
 import tachiyomi.domain.category.interactor.GetCategories
@@ -171,6 +172,10 @@ class MangaRestorer(
                 isSyncing = 1,
                 notes = manga.notes,
                 memo = manga.memo.let(MemoColumnAdapter::encode),
+                // KMK -->
+                scanlatorPriority = manga.scanlatorPriority.let(StringListColumnAdapter::encode),
+                blacklistedChapters = manga.blacklistedChapters.let(StringListColumnAdapter::encode),
+                // KMK <--
             )
         }
         return manga

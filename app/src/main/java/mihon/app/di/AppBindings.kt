@@ -99,6 +99,10 @@ object AppBindings {
                 genreAdapter = StringListColumnAdapter,
                 update_strategyAdapter = UpdateStrategyColumnAdapter,
                 memoAdapter = MemoColumnAdapter,
+                // KMK -->
+                scanlator_priorityAdapter = StringListColumnAdapter,
+                blacklisted_chaptersAdapter = StringListColumnAdapter,
+                // KMK <--
             ),
             chaptersAdapter = Chapters.Adapter(
                 memoAdapter = MemoColumnAdapter,

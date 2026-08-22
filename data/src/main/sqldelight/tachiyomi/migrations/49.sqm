@@ -1,0 +1,4 @@
+-- KMK -->
+ALTER TABLE mangas ADD COLUMN scanlator_priority TEXT AS List<String> NOT NULL DEFAULT '';
+ALTER TABLE mangas ADD COLUMN blacklisted_chapters TEXT AS List<String> NOT NULL DEFAULT '';
+-- KMK <--

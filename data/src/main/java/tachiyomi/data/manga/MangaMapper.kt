@@ -39,6 +39,10 @@ object MangaMapper {
         isSyncing: Long,
         notes: String,
         memo: JsonObject,
+        // KMK -->
+        scanlatorPriority: List<String>,
+        blacklistedChapters: List<String>,
+        // KMK <--
     ): Manga = Manga(
         id = id,
         source = source,
@@ -67,6 +71,10 @@ object MangaMapper {
         version = version,
         notes = notes,
         memo = memo,
+        // KMK -->
+        scanlatorPriority = scanlatorPriority,
+        blacklistedChapters = blacklistedChapters,
+        // KMK <--
     )
 
     fun mapLibraryManga(
@@ -99,6 +107,10 @@ object MangaMapper {
         isSyncing: Long,
         notes: String,
         memo: JsonObject,
+        // KMK -->
+        scanlatorPriority: List<String>,
+        blacklistedChapters: List<String>,
+        // KMK <--
         totalCount: Long,
         readCount: Double,
         latestUpload: Long,
@@ -140,6 +152,10 @@ object MangaMapper {
             isSyncing,
             notes,
             memo,
+            // KMK -->
+            scanlatorPriority,
+            blacklistedChapters,
+            // KMK <--
         ),
         categories = categories.split(",").map { it.toLong() },
         totalChapters = totalCount,
@@ -184,6 +200,10 @@ object MangaMapper {
         isSyncing: Long,
         notes: String,
         memo: JsonObject,
+        // KMK -->
+        scanlatorPriority: List<String>,
+        blacklistedChapters: List<String>,
+        // KMK <--
         totalCount: Long,
     ): MangaWithChapterCount = MangaWithChapterCount(
         manga = mapManga(
@@ -216,6 +236,10 @@ object MangaMapper {
             isSyncing,
             notes,
             memo,
+            // KMK -->
+            scanlatorPriority,
+            blacklistedChapters,
+            // KMK <--
         ),
         chapterCount = totalCount,
     )
