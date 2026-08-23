@@ -37,11 +37,17 @@ class TrackChapter(
 
             tracks.mapNotNull { track ->
                 val service = trackerManager.get(track.trackerId)
+                // KMK -->
+                // Allow chapter progress regressions while the entry is being re-read
+                val isRereadingTrack = track.status == service?.getRereadingStatus()
+                // KMK <--
                 if (
                     service == null ||
                     !service.isLoggedIn ||
-                    chapterNumber <= track.lastChapterRead /* SY --> */ ||
-                    (service is MdList && track.status == FollowStatus.UNFOLLOWED.long)/* SY <-- */
+                    // KMK -->
+                    (chapterNumber <= track.lastChapterRead && !isRereadingTrack) ||
+                    // KMK <--
+                    /* SY --> */ (service is MdList && track.status == FollowStatus.UNFOLLOWED.long)/* SY <-- */
                 ) {
                     return@mapNotNull null
                 }

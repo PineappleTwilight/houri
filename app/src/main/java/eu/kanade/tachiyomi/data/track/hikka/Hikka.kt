@@ -66,6 +66,10 @@ class Hikka(id: Long) : BaseTracker(id, "Hikka"), DeletableTracker {
 
     override fun getRereadingStatus(): Long = REREADING
 
+    // KMK -->
+    override val supportsRereadCount: Boolean = true
+    // KMK <--
+
     override fun getCompletionStatus(): Long = COMPLETED
 
     override fun getScoreList(): ImmutableList<String> = SCORE_LIST

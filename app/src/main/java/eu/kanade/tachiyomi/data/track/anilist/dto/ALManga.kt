@@ -56,6 +56,9 @@ data class ALUserManga(
     val completedDateFuzzy: Long,
     val manga: ALManga,
     val private: Boolean,
+    // KMK -->
+    val repeat: Int = 0,
+    // KMK <--
 ) {
     fun toTrack() = Track.create(TrackerManager.ANILIST).apply {
         remote_id = manga.remoteId
@@ -68,6 +71,9 @@ data class ALUserManga(
         library_id = libraryId
         total_chapters = manga.totalChapters
         private = this@ALUserManga.private
+        // KMK -->
+        reread_count = this@ALUserManga.repeat
+        // KMK <--
     }
 
     private fun toTrackStatus() = when (listStatus) {

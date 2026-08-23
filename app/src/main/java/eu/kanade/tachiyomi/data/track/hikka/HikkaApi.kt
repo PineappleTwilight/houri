@@ -173,10 +173,12 @@ class HikkaApi(
             val url = "$BASE_API_URL/read/manga/$slug".toUri().buildUpon()
                 .build()
 
-            var rereads = getRead(track)?.rereads ?: 0
+            // KMK -->
+            var rereads = track.reread_count.coerceAtLeast(getRead(track)?.rereads ?: 0)
             if (track.status == Hikka.REREADING && rereads == 0) {
                 rereads = 1
             }
+            // KMK <--
 
             val payload = buildJsonObject {
                 put("note", "")

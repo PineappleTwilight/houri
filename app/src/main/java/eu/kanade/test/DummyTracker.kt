@@ -113,6 +113,13 @@ data class DummyTracker(
         epochMillis: Long,
     ) = Unit
 
+    // KMK -->
+    override suspend fun setRemoteRereadCount(
+        track: eu.kanade.tachiyomi.data.database.models.Track,
+        rereadCount: Int,
+    ) = Unit
+    // KMK <--
+
     override suspend fun setRemoteFinishDate(
         track: eu.kanade.tachiyomi.data.database.models.Track,
         epochMillis: Long,

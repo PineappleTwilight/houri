@@ -92,5 +92,10 @@ interface Tracker {
 
     // KMK -->
     fun hasNotStartedReading(status: Long): Boolean
+
+    val supportsRereadCount: Boolean
+        get() = false
+
+    suspend fun setRemoteRereadCount(track: Track, rereadCount: Int)
     // KMK <--
 }

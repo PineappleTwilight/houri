@@ -99,6 +99,10 @@ class KitsuApi(private val client: OkHttpClient, interceptor: KitsuInterceptor) 
                         put("startedAt", KitsuDateHelper.convert(track.started_reading_date))
                         put("finishedAt", KitsuDateHelper.convert(track.finished_reading_date))
                         put("private", track.private)
+                        // KMK -->
+                        put("reconsuming", track.status == Kitsu.REREADING)
+                        put("reconsumeCount", track.reread_count)
+                        // KMK <--
                     }
                 }
             }

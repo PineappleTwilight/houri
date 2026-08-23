@@ -114,6 +114,9 @@ class MyAnimeListApi(
                 .add("is_rereading", (track.status == MyAnimeList.REREADING).toString())
                 .add("score", track.score.toString())
                 .add("num_chapters_read", track.last_chapter_read.toInt().toString())
+                // KMK -->
+                .add("num_times_reread", track.reread_count.toString())
+            // KMK <--
             convertToIsoDate(track.started_reading_date)?.let {
                 formBodyBuilder.add("start_date", it)
             }
@@ -161,7 +164,12 @@ class MyAnimeListApi(
         return withIOContext {
             val uri = "$BASE_API_URL/manga".toUri().buildUpon()
                 .appendPath(track.remote_id.toString())
-                .appendQueryParameter("fields", "num_chapters,my_list_status{start_date,finish_date}")
+                .appendQueryParameter(
+                    "fields",
+                    // KMK -->
+                    "num_chapters,my_list_status{start_date,finish_date,num_times_reread}",
+                    // KMK <--
+                )
                 .build()
             with(json) {
                 authClient.newCall(GET(uri.toString()))
@@ -259,6 +267,9 @@ class MyAnimeListApi(
             score = listStatus.score.toDouble()
             listStatus.startDate?.let { started_reading_date = parseDate(it) }
             listStatus.finishDate?.let { finished_reading_date = parseDate(it) }
+            // KMK -->
+            reread_count = listStatus.numTimesReread
+            // KMK <--
         }
     }
 

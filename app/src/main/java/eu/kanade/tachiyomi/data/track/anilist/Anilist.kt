@@ -45,6 +45,10 @@ class Anilist(id: Long) : BaseTracker(id, "AniList"), DeletableTracker {
 
     override val supportsPrivateTracking: Boolean = true
 
+    // KMK -->
+    override val supportsRereadCount: Boolean = true
+    // KMK <--
+
     private val scorePreference = trackPreferences.anilistScoreType()
 
     init {

@@ -136,6 +136,15 @@ abstract class BaseTracker(
         updateRemote(track)
     }
 
+    // KMK -->
+    override val supportsRereadCount: Boolean = false
+
+    override suspend fun setRemoteRereadCount(track: Track, rereadCount: Int) {
+        track.reread_count = rereadCount
+        updateRemote(track)
+    }
+    // KMK <--
+
     override suspend fun getMangaMetadata(track: DomainTrack): TrackMangaMetadata {
         throw NotImplementedError("Not implemented.")
     }

@@ -41,6 +41,10 @@ data class HKRead(
 
             started_reading_date = startDate?.let { it * 1000 } ?: 0L
             finished_reading_date = endDate?.let { it * 1000 } ?: 0L
+
+            // KMK -->
+            reread_count = this@HKRead.rereads
+            // KMK <--
         }
     }
 }

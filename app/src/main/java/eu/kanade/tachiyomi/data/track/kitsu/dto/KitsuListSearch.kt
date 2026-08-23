@@ -44,6 +44,9 @@ data class KitsuListSearchResult(
             score = userDataAttrs.ratingTwenty?.let { it / 2.0 } ?: 0.0
             last_chapter_read = userDataAttrs.progress.toDouble()
             private = userDataAttrs.private
+            // KMK -->
+            reread_count = userDataAttrs.reconsumeCount
+            // KMK <--
         }
     }
 }
@@ -62,6 +65,9 @@ data class KitsuListSearchItemDataAttributes(
     val ratingTwenty: Int?,
     val progress: Int,
     val private: Boolean,
+    // KMK -->
+    val reconsumeCount: Int = 0,
+    // KMK <--
 )
 
 @Serializable

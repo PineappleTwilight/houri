@@ -11,6 +11,9 @@ data class SMUserListEntry(
     val chapters: Double,
     val score: Int,
     val status: String,
+    // KMK -->
+    val rewatches: Int = 0,
+    // KMK <--
 ) {
     fun toTrack(trackId: Long, manga: SMManga): Track {
         return Track.create(trackId).apply {
@@ -22,6 +25,9 @@ data class SMUserListEntry(
             score = this@SMUserListEntry.score.toDouble()
             status = toTrackStatus(this@SMUserListEntry.status)
             tracking_url = ShikimoriApi.BASE_URL + manga.url
+            // KMK -->
+            reread_count = this@SMUserListEntry.rewatches
+            // KMK <--
         }
     }
 }

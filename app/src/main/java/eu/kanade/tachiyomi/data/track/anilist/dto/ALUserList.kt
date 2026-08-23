@@ -29,6 +29,9 @@ data class ALUserListItem(
     val completedAt: ALFuzzyDate,
     val media: ALSearchItem,
     val private: Boolean,
+    // KMK -->
+    val repeat: Int = 0,
+    // KMK <--
 ) {
     fun toALUserManga(): ALUserManga {
         return ALUserManga(
@@ -40,6 +43,9 @@ data class ALUserListItem(
             completedDateFuzzy = completedAt.toEpochMilli(),
             manga = media.toALManga(),
             private = private,
+            // KMK -->
+            repeat = repeat,
+            // KMK <--
         )
     }
 }

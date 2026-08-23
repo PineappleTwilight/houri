@@ -136,11 +136,13 @@ class AnilistApi(val client: OkHttpClient, interceptor: AnilistInterceptor) {
             val query = $$"""
             |mutation UpdateManga(
                 |$listId: Int, $progress: Int, $status: MediaListStatus, $private: Boolean,
-                |$score: Int, $startedAt: FuzzyDateInput, $completedAt: FuzzyDateInput
+                |$score: Int, $startedAt: FuzzyDateInput, $completedAt: FuzzyDateInput,
+                |$repeat: Int
             |) {
                 |SaveMediaListEntry(
                     |id: $listId, progress: $progress, status: $status, private: $private,
-                    |scoreRaw: $score, startedAt: $startedAt, completedAt: $completedAt
+                    |scoreRaw: $score, startedAt: $startedAt, completedAt: $completedAt,
+                    |repeat: $repeat
                 |) {
                     |id
                     |status
@@ -159,6 +161,9 @@ class AnilistApi(val client: OkHttpClient, interceptor: AnilistInterceptor) {
                     put("startedAt", createDate(track.started_reading_date))
                     put("completedAt", createDate(track.finished_reading_date))
                     put("private", track.private)
+                    // KMK -->
+                    put("repeat", track.reread_count)
+                    // KMK <--
                 }
             }
             authClient.newCall(POST(API_URL, body = payload.toString().toRequestBody(jsonMime)))

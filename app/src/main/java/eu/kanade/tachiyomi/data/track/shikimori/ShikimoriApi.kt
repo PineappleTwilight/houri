@@ -50,6 +50,9 @@ class ShikimoriApi(
                         put("chapters", track.last_chapter_read.toInt())
                         put("score", track.score.toInt())
                         put("status", track.toShikimoriStatus())
+                        // KMK -->
+                        put("rewatches", track.reread_count)
+                        // KMK <--
                     }
                 }
                 authClient.newCall(

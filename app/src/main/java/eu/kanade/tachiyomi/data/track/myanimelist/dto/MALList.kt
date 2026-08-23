@@ -23,4 +23,8 @@ data class MALListItemStatus(
     val startDate: String?,
     @SerialName("finish_date")
     val finishDate: String?,
+    // KMK -->
+    @SerialName("num_times_reread")
+    val numTimesReread: Int = 0,
+    // KMK <--
 )

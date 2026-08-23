@@ -24,6 +24,11 @@ class Kitsu(id: Long) : BaseTracker(id, "Kitsu"), DeletableTracker {
         const val ON_HOLD = 3L
         const val DROPPED = 4L
         const val PLAN_TO_READ = 5L
+
+        // KMK -->
+        // Not part of [getStatusList]; Kitsu models rereads via the reconsuming attribute
+        const val REREADING = 6L
+        // KMK <--
     }
 
     override val supportsReadingDates: Boolean = true
@@ -54,6 +59,10 @@ class Kitsu(id: Long) : BaseTracker(id, "Kitsu"), DeletableTracker {
     override fun getReadingStatus(): Long = READING
 
     override fun getRereadingStatus(): Long = -1
+
+    // KMK -->
+    override val supportsRereadCount: Boolean = true
+    // KMK <--
 
     override fun getCompletionStatus(): Long = COMPLETED
 
