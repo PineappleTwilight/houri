@@ -1,6 +1,9 @@
 package eu.kanade.tachiyomi.ui.manga.scanlator
 
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -9,15 +12,22 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.DragHandle
 import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material.icons.outlined.VisibilityOff
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ElevatedCard
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Tab
@@ -26,10 +36,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.input.KeyboardType
 import cafe.adriel.voyager.core.model.StateScreenModel
 import cafe.adriel.voyager.core.model.screenModelScope
 import cafe.adriel.voyager.navigator.LocalNavigator
@@ -39,6 +51,9 @@ import eu.kanade.domain.manga.interactor.SetExcludedScanlators
 import eu.kanade.domain.manga.interactor.UpdateManga
 import eu.kanade.presentation.components.AppBar
 import eu.kanade.presentation.util.Screen
+import eu.kanade.tachiyomi.util.chapter.ScanlatorRangeRule
+import eu.kanade.tachiyomi.util.chapter.encodeScanlatorRangeRule
+import eu.kanade.tachiyomi.util.chapter.parseScanlatorRangeRule
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -51,6 +66,7 @@ import tachiyomi.domain.manga.interactor.GetManga
 import tachiyomi.domain.manga.model.MangaUpdate
 import tachiyomi.i18n.MR
 import tachiyomi.i18n.kmk.KMR
+import tachiyomi.presentation.core.components.material.TextButton
 import tachiyomi.presentation.core.components.material.padding
 import tachiyomi.presentation.core.i18n.stringResource
 
@@ -90,8 +106,17 @@ class ScanlatorPreferenceScreen(
                         onClick = { selectedTab = 1 },
                         text = { Text(stringResource(KMR.strings.blacklisted_chapters)) },
                     )
+                    Tab(
+                        selected = selectedTab == 2,
+                        onClick = { selectedTab = 2 },
+                        text = { Text(stringResource(KMR.strings.scanlator_ranges)) },
+                    )
                 }
-                if (selectedTab == 0) PriorityTab(state, model) else BlacklistTab(state, model)
+                when (selectedTab) {
+                    0 -> PriorityTab(state, model)
+                    1 -> BlacklistTab(state, model)
+                    else -> RangesTab(state, model)
+                }
             }
         }
     }
@@ -210,7 +235,172 @@ class ScanlatorPreferenceScreen(
             }
         }
     }
+
+    @Composable
+    private fun RangesTab(
+        state: ScanlatorPreferenceModel.State,
+        model: ScanlatorPreferenceModel,
+    ) {
+        var showAddDialog by remember { mutableStateOf(false) }
+
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(MaterialTheme.padding.small),
+        ) {
+            item(key = "add_range") {
+                OutlinedButton(
+                    onClick = { showAddDialog = true },
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(text = stringResource(KMR.strings.scanlator_range_add))
+                }
+            }
+
+            if (state.rangeRules.isEmpty()) {
+                item(key = "ranges_empty") {
+                    Text(
+                        text = stringResource(KMR.strings.scanlator_ranges_empty),
+                        modifier = Modifier.padding(MaterialTheme.padding.medium),
+                    )
+                }
+            }
+
+            items(state.rangeRules, key = { it }) { raw ->
+                val rule = remember(raw) { parseScanlatorRangeRule(raw) }
+                if (rule != null) {
+                    RangeRuleItem(
+                        rule = rule,
+                        onRemove = { model.removeRangeRule(raw) },
+                    )
+                }
+            }
+        }
+
+        if (showAddDialog) {
+            RangeRuleDialog(
+                scanlators = state.orderedScanlators.map { it.name },
+                onConfirm = { from, to, scanlator ->
+                    model.addRangeRule(from, to, scanlator)
+                    showAddDialog = false
+                },
+                onDismiss = { showAddDialog = false },
+            )
+        }
+    }
+
+    @Composable
+    private fun RangeRuleItem(
+        rule: ScanlatorRangeRule,
+        onRemove: () -> Unit,
+    ) {
+        ElevatedCard(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = MaterialTheme.padding.extraSmall),
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = MaterialTheme.padding.small),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "${rule.from.asChapterLabel()} – ${rule.to.asChapterLabel()}",
+                        style = MaterialTheme.typography.bodyLarge,
+                    )
+                    Text(
+                        text = rule.scanlator,
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                }
+                IconButton(onClick = onRemove) {
+                    Icon(
+                        imageVector = Icons.Outlined.Delete,
+                        contentDescription = stringResource(MR.strings.action_remove),
+                    )
+                }
+            }
+        }
+    }
+
+    @OptIn(ExperimentalLayoutApi::class)
+    @Composable
+    private fun RangeRuleDialog(
+        scanlators: List<String>,
+        onConfirm: (Double, Double, String) -> Unit,
+        onDismiss: () -> Unit,
+    ) {
+        var fromText by remember { mutableStateOf("") }
+        var toText by remember { mutableStateOf("") }
+        var selectedScanlator by remember { mutableStateOf<String?>(null) }
+
+        val from = fromText.toDoubleOrNull()
+        val to = toText.toDoubleOrNull()
+        val valid = from != null && to != null && from <= to && !selectedScanlator.isNullOrEmpty()
+
+        AlertDialog(
+            onDismissRequest = onDismiss,
+            title = { Text(text = stringResource(KMR.strings.scanlator_range_add)) },
+            text = {
+                Column(
+                    modifier = Modifier.verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(MaterialTheme.padding.small),
+                ) {
+                    OutlinedTextField(
+                        value = fromText,
+                        onValueChange = { fromText = it },
+                        label = { Text(text = stringResource(KMR.strings.scanlator_range_from)) },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        singleLine = true,
+                    )
+                    OutlinedTextField(
+                        value = toText,
+                        onValueChange = { toText = it },
+                        label = { Text(text = stringResource(KMR.strings.scanlator_range_to)) },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        singleLine = true,
+                    )
+                    Text(
+                        text = stringResource(KMR.strings.scanlator_range_scanlator),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(MaterialTheme.padding.extraSmall),
+                    ) {
+                        scanlators.forEach { name ->
+                            FilterChip(
+                                selected = name == selectedScanlator,
+                                onClick = { selectedScanlator = name },
+                                label = { Text(text = name) },
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                val scanlator = selectedScanlator
+                TextButton(
+                    enabled = valid,
+                    onClick = {
+                        if (from != null && to != null && scanlator != null) {
+                            onConfirm(from, to, scanlator)
+                        }
+                    },
+                ) {
+                    Text(text = stringResource(MR.strings.action_ok))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = onDismiss) {
+                    Text(text = stringResource(MR.strings.action_cancel))
+                }
+            },
+        )
+    }
 }
+
+private fun Double.asChapterLabel(): String =
+    if (this % 1.0 == 0.0) toInt().toString() else toString()
 
 // KMK -->
 class ScanlatorPreferenceModel(
@@ -221,6 +411,7 @@ class ScanlatorPreferenceModel(
         val orderedScanlators: List<ScanlatorEntry> = emptyList(),
         val excludedScanlators: Set<String> = emptySet(),
         val blacklist: List<String> = emptyList(),
+        val rangeRules: List<String> = emptyList(),
     )
 
     data class ScanlatorEntry(
@@ -238,7 +429,7 @@ class ScanlatorPreferenceModel(
         screenModelScope.launch {
             getManga.subscribe(mangaId).collectLatest { manga ->
                 val chapters = getChaptersByMangaId.await(mangaId)
-                updateState(manga.scanlatorPriority, chapters, manga.blacklistedChapters)
+                updateState(manga.scanlatorPriority, chapters, manga.blacklistedChapters, manga.scanlatorRangeRules)
             }
         }
         screenModelScope.launch {
@@ -248,7 +439,12 @@ class ScanlatorPreferenceModel(
         }
     }
 
-    private suspend fun updateState(priority: List<String>, chapters: List<Chapter>, blacklist: List<String>) {
+    private suspend fun updateState(
+        priority: List<String>,
+        chapters: List<Chapter>,
+        blacklist: List<String>,
+        rangeRules: List<String>,
+    ) {
         val counts = chapters
             .filter { !it.scanlator.isNullOrBlank() }
             .groupingBy { it.scanlator!! }
@@ -259,6 +455,7 @@ class ScanlatorPreferenceModel(
             it.copy(
                 orderedScanlators = (known + unconfigured).map { name -> ScanlatorEntry(name, counts[name] ?: 0) },
                 blacklist = blacklist.sorted(),
+                rangeRules = rangeRules,
             )
         }
     }
@@ -281,6 +478,25 @@ class ScanlatorPreferenceModel(
         screenModelScope.launch {
             updateManga.await(
                 MangaUpdate(id = mangaId, blacklistedChapters = state.value.blacklist - key),
+            )
+        }
+    }
+
+    fun addRangeRule(from: Double, to: Double, scanlator: String) {
+        screenModelScope.launch {
+            val rule = encodeScanlatorRangeRule(ScanlatorRangeRule(from, to, scanlator))
+            val current = state.value.rangeRules
+            if (rule in current) return@launch
+            updateManga.await(
+                MangaUpdate(id = mangaId, scanlatorRangeRules = current + rule),
+            )
+        }
+    }
+
+    fun removeRangeRule(raw: String) {
+        screenModelScope.launch {
+            updateManga.await(
+                MangaUpdate(id = mangaId, scanlatorRangeRules = state.value.rangeRules - raw),
             )
         }
     }

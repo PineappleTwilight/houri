@@ -102,6 +102,7 @@ object AppBindings {
                 // KMK -->
                 scanlator_priorityAdapter = StringListColumnAdapter,
                 blacklisted_chaptersAdapter = StringListColumnAdapter,
+                scanlator_range_rulesAdapter = StringListColumnAdapter,
                 // KMK <--
             ),
             chaptersAdapter = Chapters.Adapter(

@@ -32,6 +32,7 @@ import eu.kanade.tachiyomi.source.Source
 import eu.kanade.tachiyomi.source.model.SManga
 import eu.kanade.tachiyomi.source.online.HttpSource
 import eu.kanade.tachiyomi.source.online.all.MergedSource
+import eu.kanade.tachiyomi.util.chapter.applyScanlatorPriority
 import eu.kanade.tachiyomi.util.chapter.getNextUnread
 import eu.kanade.tachiyomi.util.removeCovers
 import exh.favorites.FavoritesSyncHelper
@@ -940,7 +941,28 @@ class LibraryScreenModel(
             getMergedChaptersByMangaId.await(manga.id, applyFilter = true)
         } else {
             getChaptersByMangaId.await(manga.id, applyFilter = true)
-        }.getNextUnread(manga, downloadManager, mergedManga)
+        }
+            // KMK -->
+            .let { chapters ->
+                if (
+                    libraryPreferences.smartScanlatorMerge().get() &&
+                    (
+                        manga.scanlatorPriority.isNotEmpty() ||
+                            manga.blacklistedChapters.isNotEmpty() ||
+                            manga.scanlatorRangeRules.isNotEmpty()
+                        )
+                ) {
+                    chapters.applyScanlatorPriority(
+                        manga.scanlatorPriority,
+                        manga.blacklistedChapters.toSet(),
+                        manga.scanlatorRangeRules,
+                    )
+                } else {
+                    chapters
+                }
+            }
+            // KMK <--
+            .getNextUnread(manga, downloadManager, mergedManga)
         // SY <--
     }
 

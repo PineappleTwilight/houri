@@ -815,6 +815,7 @@ private fun MangaScreenSmallImpl(
                                 .clickable {
                                     entryNavigator.push(ScanlatorPreferenceScreen(state.manga.id))
                                 }
+                                .padding(horizontal = MaterialTheme.padding.medium)
                                 .padding(vertical = MaterialTheme.padding.small),
                         ) {
                             Text(

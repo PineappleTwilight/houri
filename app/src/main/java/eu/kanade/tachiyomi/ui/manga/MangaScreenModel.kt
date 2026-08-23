@@ -380,16 +380,28 @@ class MangaScreenModel(
                 }
                 .combine(downloadCache.changes) { state, _ -> state }
                 .combine(downloadManager.queueState) { state, _ -> state }
+                // KMK -->
+                // Value discarded; re-emission on toggle is what refreshes the chapter list
+                .combine(libraryPreferences.smartScanlatorMerge().changes()) { state, _ -> state }
+                // KMK <--
                 // SY <--
                 .flowWithLifecycle(lifecycle)
                 .collectLatest { (manga, chapters /* SY --> */, flatMetadata, mergedData /* SY <-- */) ->
                     // KMK -->
                     val chapterItems = chapters
                         .let { list ->
-                            if (libraryPreferences.smartScanlatorMerge().get() && manga.scanlatorPriority.isNotEmpty()) {
+                            if (
+                                libraryPreferences.smartScanlatorMerge().get() &&
+                                (
+                                    manga.scanlatorPriority.isNotEmpty() ||
+                                        manga.blacklistedChapters.isNotEmpty() ||
+                                        manga.scanlatorRangeRules.isNotEmpty()
+                                    )
+                            ) {
                                 list.applyScanlatorPriority(
                                     manga.scanlatorPriority,
                                     manga.blacklistedChapters.toSet(),
+                                    manga.scanlatorRangeRules,
                                 )
                             } else {
                                 list

@@ -208,6 +208,7 @@ class MangaRepositoryImpl(
                     rereadCount = value.rereadCount?.toLong(),
                     rereading = value.rereading,
                     rereadStartedAt = value.rereadStartedAt,
+                    scanlatorRangeRules = value.scanlatorRangeRules?.let(StringListColumnAdapter::encode),
                     // KMK <--
                 )
             }

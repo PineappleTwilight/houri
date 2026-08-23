@@ -292,6 +292,12 @@
     <string name="action_exclude_scanlator">Exclude scanlator</string>
     <string name="blacklist_empty">No blacklisted chapters</string>
     <string name="action_blacklist_chapter">Blacklist chapter</string>
+    <string name="scanlator_ranges">Chapter ranges</string>
+    <string name="scanlator_ranges_empty">No chapter ranges. A range pins one scanlator over a span of chapters during smart merge.</string>
+    <string name="scanlator_range_add">Add range</string>
+    <string name="scanlator_range_from">From chapter</string>
+    <string name="scanlator_range_to">To chapter</string>
+    <string name="scanlator_range_scanlator">Preferred scanlator</string>
     <string name="pref_discord_show_timestamp">Show Time</string>
     <string name="pref_discord_show_timestamp_summary">Display activity time</string>
     <string name="pref_discord_show_buttons">Show Buttons</string>

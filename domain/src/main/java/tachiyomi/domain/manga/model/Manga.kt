@@ -52,6 +52,7 @@ data class Manga(
     val rereadCount: Int = 0,
     val rereading: Boolean = false,
     val rereadStartedAt: Long = 0,
+    val scanlatorRangeRules: List<String> = emptyList(),
     // KMK <--
 ) : JavaSerializable {
 

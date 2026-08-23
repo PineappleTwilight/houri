@@ -1,0 +1,4 @@
+-- KMK -->
+-- Smart scanlator chapter range rules
+ALTER TABLE mangas ADD COLUMN scanlator_range_rules TEXT AS List<String> NOT NULL DEFAULT '';
+-- KMK <--
