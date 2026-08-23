@@ -4,7 +4,7 @@
 
 - [x] **Yokai Backport**: Library sort option to ignore articles (A, An, The, etc.) — like J2K/Yokai. Example: "A Sign of Affection" sorts under S, "The Apothecary Diaries" sorts under A instead of T.
 - [x] **Tracker**: MangaBaka (Mihon backport)
-- [~] **Tracker**: Anime-Planet (scraping method, no api)
+- [x] **Tracker**: Anime-Planet (scraping method, no api)
   - [x] Implement cookie scanning and storage for "ap" and "REMEMBER ME" (both are login auth cookies)
   - [x] Implement cookie caching for all cf_* cookies
   - [x] Cache "xf_user" and "xf_session" cookies
@@ -56,6 +56,12 @@
   - This should apply to covers from pages and from custom images
 - [x] **Subcategories**: Option to hide the default "All" subcategory
 - [x] **Subcategories**: Hide the "All" subcategory when a category has no subcategories
+- [x] **New**: Smart Scanlator Preference & Chapter Deduplication
+- [x] **New**: Manga rereading support
+  - Would need tracker wiring
+  - Would require core manga handling changes
+  - DB exports to other forks wouldn't include reread count, may be handled dangerously
+  - Area of impact is unknown, could be deeply entrenched in the core of the app and cause bugs
 
 ## Bugfixes
 - [x] Fix UI transition choppiness.
@@ -100,6 +106,7 @@
 - [x] **Subcategories**: Replace folder icon in the category editor with a hamburger dragger like the parent categories and remove the arrow buttons
 - [x] **Subcategories**: Fix db import bug where all imported categories are imported as subcategories under "Default"
 - [ ] **Comick Tracker**: Fix cookies not saving and the tracker just generally not working
+- [ ] **Reader**: Fix double-paged second pages being smaller than the first page
 
 ## Chores
 - [x] Replace all Komikku icons/branding with houri icons/branding
@@ -129,8 +136,3 @@
   - Unsure if model would run locally or via free endpoint
     - Also unsure how to draw the translations over the content
     - Reference Code: [Here](https://github.com/mannu691/TachiyomiAT)
-- [ ] **New**: Manga rereading support
-  - Would need tracker wiring
-  - Would require core manga handling changes
-  - DB exports to other forks wouldn't include reread count, may be handled dangerously
-  - Area of impact is unknown, could be deeply entrenched in the core of the app and cause bugs
