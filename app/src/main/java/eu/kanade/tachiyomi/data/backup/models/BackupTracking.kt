@@ -27,6 +27,9 @@ data class BackupTracking(
     @ProtoNumber(11) var finishedReadingDate: Long = 0,
     @ProtoNumber(12) var private: Boolean = false,
     @ProtoNumber(100) var mediaId: Long = 0,
+    // KMK -->
+    @ProtoNumber(102) var rereadCount: Int = 0,
+    // KMK <--
 ) {
 
     @Suppress("DEPRECATION")
@@ -50,6 +53,9 @@ data class BackupTracking(
             finishDate = this@BackupTracking.finishedReadingDate,
             remoteUrl = this@BackupTracking.trackingUrl,
             private = this@BackupTracking.private,
+            // KMK -->
+            rereadCount = this@BackupTracking.rereadCount,
+            // KMK <--
         )
     }
 }
@@ -69,6 +75,7 @@ val backupTrackMapper = {
         startDate: Long,
         finishDate: Long,
         private: Boolean,
+        rereadCount: Long,
     ->
     BackupTracking(
         syncId = syncId.toInt(),
@@ -84,5 +91,8 @@ val backupTrackMapper = {
         finishedReadingDate = finishDate,
         trackingUrl = remoteUrl,
         private = private,
+        // KMK -->
+        rereadCount = rereadCount.toInt(),
+        // KMK <--
     )
 }

@@ -49,6 +49,9 @@ data class Manga(
     // KMK -->
     val scanlatorPriority: List<String> = emptyList(),
     val blacklistedChapters: List<String> = emptyList(),
+    val rereadCount: Int = 0,
+    val rereading: Boolean = false,
+    val rereadStartedAt: Long = 0,
     // KMK <--
 ) : JavaSerializable {
 

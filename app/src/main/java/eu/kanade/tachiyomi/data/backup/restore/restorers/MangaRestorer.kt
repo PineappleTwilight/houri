@@ -175,6 +175,9 @@ class MangaRestorer(
                 // KMK -->
                 scanlatorPriority = manga.scanlatorPriority.let(StringListColumnAdapter::encode),
                 blacklistedChapters = manga.blacklistedChapters.let(StringListColumnAdapter::encode),
+                rereadCount = manga.rereadCount.toLong(),
+                rereading = manga.rereading,
+                rereadStartedAt = manga.rereadStartedAt,
                 // KMK <--
             )
         }
@@ -184,9 +187,14 @@ class MangaRestorer(
     private suspend fun restoreNewManga(
         manga: Manga,
     ): Manga {
-        return manga.copy(
+        val newManga = manga.copy(
             id = insertManga(manga),
         )
+        // KMK -->
+        // Persist columns that are not part of the insert statement (rereading support)
+        updateManga(newManga)
+        // KMK <--
+        return newManga
     }
 
     private suspend fun restoreChapters(manga: Manga, backupChapters: List<BackupChapter>) {
@@ -475,6 +483,9 @@ class MangaRestorer(
                     remoteId = track.remoteId,
                     libraryId = track.libraryId,
                     lastChapterRead = max(dbTrack.lastChapterRead, track.lastChapterRead),
+                    // KMK -->
+                    rereadCount = max(dbTrack.rereadCount, track.rereadCount),
+                    // KMK <--
                 )
             }
             .partition { it.id > 0 }
@@ -499,6 +510,9 @@ class MangaRestorer(
                         track.startDate,
                         track.finishDate,
                         track.private,
+                        // KMK -->
+                        track.rereadCount.toLong(),
+                        // KMK <--
                         track.id,
                     )
                 }

@@ -34,6 +34,10 @@ interface Track : Serializable {
 
     var private: Boolean
 
+    // KMK -->
+    var reread_count: Int
+    // KMK <--
+
     fun copyPersonalFrom(other: Track, copyRemotePrivate: Boolean = true) {
         last_chapter_read = other.last_chapter_read
         score = other.score
@@ -41,6 +45,9 @@ interface Track : Serializable {
         started_reading_date = other.started_reading_date
         finished_reading_date = other.finished_reading_date
         if (copyRemotePrivate) private = other.private
+        // KMK -->
+        reread_count = other.reread_count
+        // KMK <--
     }
 
     companion object {

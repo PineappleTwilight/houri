@@ -34,7 +34,10 @@ CREATE TABLE mangas(
     memo BLOB AS JsonObject NOT NULL DEFAULT (CAST('{}' AS BLOB)),
     -- KMK -->
     scanlator_priority TEXT AS List<String> NOT NULL DEFAULT '',
-    blacklisted_chapters TEXT AS List<String> NOT NULL DEFAULT ''
+    blacklisted_chapters TEXT AS List<String> NOT NULL DEFAULT '',
+    reread_count INTEGER NOT NULL DEFAULT 0,
+    rereading INTEGER AS Boolean NOT NULL DEFAULT 0,
+    reread_started_at INTEGER NOT NULL DEFAULT 0
     -- KMK <--
 );
 
@@ -233,7 +236,10 @@ UPDATE mangas SET
     memo = coalesce(:memo, memo),
     -- KMK -->
     scanlator_priority = coalesce(:scanlatorPriority, scanlator_priority),
-    blacklisted_chapters = coalesce(:blacklistedChapters, blacklisted_chapters)
+    blacklisted_chapters = coalesce(:blacklistedChapters, blacklisted_chapters),
+    reread_count = coalesce(:rereadCount, reread_count),
+    rereading = coalesce(:rereading, rereading),
+    reread_started_at = coalesce(:rereadStartedAt, reread_started_at)
     -- KMK <--
 WHERE _id = :mangaId;
 

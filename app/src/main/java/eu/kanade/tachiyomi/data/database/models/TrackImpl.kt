@@ -31,4 +31,8 @@ class TrackImpl : Track {
     override var tracking_url: String = ""
 
     override var private: Boolean = false
+
+    // KMK -->
+    override var reread_count: Int = 0
+    // KMK <--
 }

@@ -205,6 +205,9 @@ class MangaRepositoryImpl(
                     // KMK -->
                     scanlatorPriority = value.scanlatorPriority?.let(StringListColumnAdapter::encode),
                     blacklistedChapters = value.blacklistedChapters?.let(StringListColumnAdapter::encode),
+                    rereadCount = value.rereadCount?.toLong(),
+                    rereading = value.rereading,
+                    rereadStartedAt = value.rereadStartedAt,
                     // KMK <--
                 )
             }

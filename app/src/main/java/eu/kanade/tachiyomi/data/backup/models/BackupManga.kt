@@ -47,6 +47,11 @@ class BackupManga(
     @ProtoNumber(111) var initialized: Boolean = false,
     @ProtoNumber(112) var memo: ByteArray = JsonObjectEmptyBytes,
 
+    // KMK specific values
+    @ProtoNumber(610) var rereadCount: Int = 0,
+    @ProtoNumber(611) var rereading: Boolean = false,
+    @ProtoNumber(612) var rereadStartedAt: Long = 0,
+
     // SY specific values
     @ProtoNumber(600) var mergedMangaReferences: List<BackupMergedMangaReference> = emptyList(),
     @ProtoNumber(601) var flatMetadata: BackupFlatMetadata? = null,
@@ -86,6 +91,11 @@ class BackupManga(
             notes = this@BackupManga.notes,
             initialized = this@BackupManga.initialized,
             memo = MemoColumnAdapter.decode(this@BackupManga.memo),
+            // KMK -->
+            rereadCount = this@BackupManga.rereadCount,
+            rereading = this@BackupManga.rereading,
+            rereadStartedAt = this@BackupManga.rereadStartedAt,
+            // KMK <--
         )
     }
 }

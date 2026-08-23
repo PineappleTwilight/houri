@@ -86,6 +86,9 @@ class TrackRepositoryImpl(
                     startDate = mangaTrack.startDate,
                     finishDate = mangaTrack.finishDate,
                     private = mangaTrack.private,
+                    // KMK -->
+                    rereadCount = mangaTrack.rereadCount.toLong(),
+                    // KMK <--
                 )
             }
         }

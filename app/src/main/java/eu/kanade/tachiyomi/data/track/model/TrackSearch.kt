@@ -32,6 +32,10 @@ class TrackSearch : Track {
 
     override var private: Boolean = false
 
+    // KMK -->
+    override var reread_count: Int = 0
+    // KMK <--
+
     override lateinit var tracking_url: String
 
     var authors: List<String> = emptyList()

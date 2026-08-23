@@ -33,6 +33,9 @@ data class MangaUpdate(
     // KMK -->
     val scanlatorPriority: List<String>? = null,
     val blacklistedChapters: List<String>? = null,
+    val rereadCount: Int? = null,
+    val rereading: Boolean? = null,
+    val rereadStartedAt: Long? = null,
     // KMK <--
 )
 

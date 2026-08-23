@@ -145,6 +145,11 @@ private fun Manga.toBackupManga(/* SY --> */customMangaInfo: CustomMangaInfo?/* 
         notes = this.notes,
         initialized = this.initialized,
         memo = MemoColumnAdapter.encode(this.memo),
+        // KMK -->
+        rereadCount = this.rereadCount,
+        rereading = this.rereading,
+        rereadStartedAt = this.rereadStartedAt,
+        // KMK <--
         // SY -->
     ).also { backupManga ->
         customMangaInfo?.let {
