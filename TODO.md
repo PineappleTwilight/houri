@@ -62,7 +62,7 @@
   - Would require core manga handling changes
   - DB exports to other forks wouldn't include reread count, may be handled dangerously
   - Area of impact is unknown, could be deeply entrenched in the core of the app and cause bugs
-- [ ] **Smart Scanlator Filter**: Improve with new features such as chapter count, ranges, and enable/disable specific scanlators
+- [x] **Smart Scanlator Filter**: Improve with new features such as chapter count, ranges, and enable/disable specific scanlators
 
 ## Bugfixes
 - [x] Fix UI transition choppiness.
@@ -108,10 +108,10 @@
 - [x] **Subcategories**: Fix db import bug where all imported categories are imported as subcategories under "Default"
 - [x] **Comick Tracker**: Fix cookies not saving and the tracker just generally not working
 - [x] **Reader**: Fix double-paged second pages being smaller than the first page
-- [ ] **Subcategories**: Standard subcategory view not showing chips on eReaders (affected device runs Android 14, Meebook M8 by Haoqing)
-- [ ] **WebGPU Reader**: Fix "double-tap to zoom" toggle not doing anything
-- [ ] **Subcategories**: Make folder view folders the same height as manga entries
-- [ ] **Smart Scanlator Filter**: Add padding to the manga details text on the lefthand side
+- [x] **Subcategories**: Standard subcategory view not showing chips on eReaders (affected device runs Android 14, Meebook M8 by Haoqing)
+- [x] **WebGPU Reader**: Fix "double-tap to zoom" toggle not doing anything
+- [x] **Subcategories**: Make folder view folders the same height as manga entries
+- [x] **Smart Scanlator Filter**: Add padding to the manga details text on the lefthand side
 
 ## Chores
 - [x] Replace all Komikku icons/branding with houri icons/branding
