@@ -65,6 +65,7 @@
 - [x] **Smart Scanlator Filter**: Improve with new features such as chapter count, ranges, and enable/disable specific scanlators
 - [ ] **Reader**: Properly invert progress bar and page counter between RTL and LTR reading modes
 - [ ] **Smart Scanlator Filter**: Make toggleable with an option in Advanced settings (defaults to disabled)
+- [ ] **Smart Scanlator Filter**: Show what chapters a scanlator covers
 
 ## Bugfixes
 - [x] Fix UI transition choppiness.
