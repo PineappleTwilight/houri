@@ -4,11 +4,14 @@ import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import com.google.api.client.auth.oauth2.BearerToken
+import com.google.api.client.auth.oauth2.ClientParametersAuthentication
+import com.google.api.client.auth.oauth2.Credential
 import com.google.api.client.auth.oauth2.TokenResponseException
 import com.google.api.client.googleapis.auth.oauth2.GoogleAuthorizationCodeFlow
 import com.google.api.client.googleapis.auth.oauth2.GoogleAuthorizationCodeTokenRequest
 import com.google.api.client.googleapis.auth.oauth2.GoogleClientSecrets
-import com.google.api.client.googleapis.auth.oauth2.GoogleCredential
+import com.google.api.client.googleapis.auth.oauth2.GoogleRefreshTokenRequest
 import com.google.api.client.googleapis.auth.oauth2.GoogleTokenResponse
 import com.google.api.client.http.InputStreamContent
 import com.google.api.client.http.javanet.NetHttpTransport
@@ -38,7 +41,6 @@ import java.io.PipedOutputStream
 import java.util.zip.GZIPInputStream
 import java.util.zip.GZIPOutputStream
 
-@Suppress("DEPRECATION")
 class GoogleDriveSyncService(context: Context, json: Json, syncPreferences: SyncPreferences) : SyncService(
     context,
     json,
@@ -318,7 +320,6 @@ class GoogleDriveService(
             .build()
     }
 
-    @Suppress("DEPRECATION")
     internal suspend fun refreshToken() = withIOContext {
         val refreshToken = syncPreferences.googleDriveRefreshToken().get()
 
@@ -328,24 +329,22 @@ class GoogleDriveService(
             context.assets.open("client_secrets.json").reader(),
         )
 
-        val credential = GoogleCredential.Builder()
-            .setJsonFactory(jsonFactory)
-            .setTransport(NetHttpTransport())
-            .setClientSecrets(secrets)
-            .build()
-
         if (refreshToken == "") {
             throw Exception(context.stringResource(SYMR.strings.google_drive_not_signed_in))
         }
 
-        credential.refreshToken = refreshToken
-
         try {
-            credential.refreshToken()
-            val newAccessToken = credential.accessToken
+            val tokenResponse = GoogleRefreshTokenRequest(
+                NetHttpTransport(),
+                jsonFactory,
+                refreshToken,
+                secrets.installed.clientId,
+                secrets.installed.clientSecret,
+            ).execute()
+            val newAccessToken = tokenResponse.accessToken
             // Save the new access token
             syncPreferences.googleDriveAccessToken().set(newAccessToken)
-            setupGoogleDriveService(newAccessToken, credential.refreshToken)
+            setupGoogleDriveService(newAccessToken, tokenResponse.refreshToken ?: refreshToken)
         } catch (e: TokenResponseException) {
             if (e.details.error == "invalid_grant") {
                 // The refresh token is invalid, prompt the user to sign in again
@@ -372,7 +371,6 @@ class GoogleDriveService(
      * @param accessToken The access token obtained from the SyncPreferences.
      * @param refreshToken The refresh token obtained from the SyncPreferences.
      */
-    @Suppress("DEPRECATION")
     private fun setupGoogleDriveService(accessToken: String, refreshToken: String) {
         val jsonFactory: GsonFactory = GsonFactory.getDefaultInstance()
         val secrets = GoogleClientSecrets.load(
@@ -380,10 +378,12 @@ class GoogleDriveService(
             context.assets.open("client_secrets.json").reader(),
         )
 
-        val credential = GoogleCredential.Builder()
+        val credential = Credential.Builder(BearerToken.authorizationHeaderAccessMethod())
             .setJsonFactory(jsonFactory)
             .setTransport(NetHttpTransport())
-            .setClientSecrets(secrets)
+            .setClientAuthentication(
+                ClientParametersAuthentication(secrets.installed.clientId, secrets.installed.clientSecret),
+            )
             .build()
 
         credential.accessToken = accessToken

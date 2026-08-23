@@ -1564,7 +1564,7 @@ class ReaderActivity : BaseActivity() {
                             },
                             startTimestamp = System.currentTimeMillis(),
                             // KMK -->
-                            currentPage = viewModel.state.value.currentPage?.plus(1),
+                            currentPage = viewModel.state.value.currentPage + 1,
                             totalPages = viewModel.state.value.viewerChapters?.currChapter?.pages?.size,
                             sourceName = sourceManager.get(manga.source)?.name,
                             // KMK <--

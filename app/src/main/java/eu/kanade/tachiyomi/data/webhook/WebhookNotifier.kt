@@ -9,6 +9,10 @@ import eu.kanade.domain.source.interactor.GetIncognitoState
 import eu.kanade.tachiyomi.BuildConfig
 import eu.kanade.tachiyomi.network.NetworkHelper
 import eu.kanade.tachiyomi.network.awaitSuccess
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
@@ -23,7 +27,6 @@ import mihon.app.di.globalAppGraph
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
-import tachiyomi.core.common.util.lang.launchIO
 import tachiyomi.domain.category.interactor.GetCategories
 import tachiyomi.domain.manga.interactor.GetManga
 import java.time.Instant
@@ -61,6 +64,10 @@ class WebhookNotifier(
     private val jsonMediaType = "application/json; charset=utf-8".toMediaType()
 
     // KMK -->
+    private val notifyScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    // KMK <--
+
+    // KMK -->
     private val getCategories: GetCategories by lazy { globalAppGraph.getCategories }
     private val getIncognitoState: GetIncognitoState by lazy { globalAppGraph.getIncognitoState }
     private val getManga: GetManga by lazy { globalAppGraph.getManga }
@@ -94,12 +101,10 @@ class WebhookNotifier(
         }
         if (!enabledForEvent.get()) return
 
-        launchIO {
-            // KMK -->
-            if (isSuppressed(sourceId, mangaId)) return@launchIO
+        notifyScope.launch {
+            if (isSuppressed(sourceId, mangaId)) return@launch
             val coverUrl = mangaId?.let { resolveCoverUrl(it) }
             sendToAll(event, data, coverUrl)
-            // KMK <--
         }
     }
 

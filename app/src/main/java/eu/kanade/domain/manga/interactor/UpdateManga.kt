@@ -57,14 +57,12 @@ class UpdateManga(
         // KMK -->
         if (result) {
             val manga = mangaRepository.getMangaById(mangaId)
-            if (manga != null) {
-                webhookNotifier.notify(
-                    if (favorite) WebhookEvent.MANGA_ADDED else WebhookEvent.MANGA_REMOVED,
-                    mapOf("manga" to manga.title),
-                    sourceId = manga.source,
-                    mangaId = manga.id,
-                )
-            }
+            webhookNotifier.notify(
+                if (favorite) WebhookEvent.MANGA_ADDED else WebhookEvent.MANGA_REMOVED,
+                mapOf("manga" to manga.title),
+                sourceId = manga.source,
+                mangaId = manga.id,
+            )
         }
         // KMK <--
         return result
