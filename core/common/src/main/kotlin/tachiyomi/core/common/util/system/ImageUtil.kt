@@ -37,6 +37,7 @@ import java.util.Locale
 import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
+import kotlin.math.roundToInt
 
 object ImageUtil {
 
@@ -774,8 +775,25 @@ object ImageUtil {
     ): BufferedSource {
         val height = imageBitmap.height
         val width = imageBitmap.width
-        val height2 = imageBitmap2.height
-        val width2 = imageBitmap2.width
+
+        // KMK -->
+        // Scale the second page to the first page's height, preserving aspect ratio,
+        // so paired pages render at the same size instead of the second one
+        // appearing smaller when the sources have different dimensions
+        val scaledImageBitmap2 = if (imageBitmap2.height != height) {
+            val scaledWidth = (imageBitmap2.width.toFloat() * height / imageBitmap2.height)
+                .roundToInt()
+                .coerceAtLeast(1)
+            Bitmap.createScaledBitmap(imageBitmap2, scaledWidth, height, true).also { scaled ->
+                if (scaled != imageBitmap2 && !imageBitmap2.isRecycled) imageBitmap2.recycle()
+            }
+        } else {
+            imageBitmap2
+        }
+        // KMK <--
+
+        val height2 = scaledImageBitmap2.height
+        val width2 = scaledImageBitmap2.width
 
         val maxHeight = max(height, height2)
 
@@ -798,7 +816,7 @@ object ImageUtil {
             height2 + (maxHeight - height2) / 2,
         )
 
-        canvas.drawBitmap(imageBitmap2, imageBitmap2.rect, bottomPart, null)
+        canvas.drawBitmap(scaledImageBitmap2, scaledImageBitmap2.rect, bottomPart, null)
         progressCallback?.invoke(99)
 
         val output = Buffer()
