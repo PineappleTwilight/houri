@@ -219,6 +219,8 @@ fun MangaScreen(
     onCoverLoaded: (MangaCover) -> Unit,
     coverRatio: MutableFloatState,
     onPaletteScreenClick: () -> Unit,
+    onStartRereadingClick: (() -> Unit)?,
+    onStopRereadingClick: (() -> Unit)?,
     hazeState: HazeState,
     // KMK <--
 ) {
@@ -288,6 +290,8 @@ fun MangaScreen(
             onCoverLoaded = onCoverLoaded,
             coverRatio = coverRatio,
             onPaletteScreenClick = onPaletteScreenClick,
+            onStartRereadingClick = onStartRereadingClick,
+            onStopRereadingClick = onStopRereadingClick,
             hazeState = hazeState,
             onBlacklistClicked = onBlacklistClicked,
             // KMK <--
@@ -351,6 +355,8 @@ fun MangaScreen(
             onCoverLoaded = onCoverLoaded,
             coverRatio = coverRatio,
             onPaletteScreenClick = onPaletteScreenClick,
+            onStartRereadingClick = onStartRereadingClick,
+            onStopRereadingClick = onStopRereadingClick,
             hazeState = hazeState,
             onBlacklistClicked = onBlacklistClicked,
             // KMK <--
@@ -434,6 +440,8 @@ private fun MangaScreenSmallImpl(
     onCoverLoaded: (MangaCover) -> Unit,
     coverRatio: MutableFloatState,
     onPaletteScreenClick: () -> Unit,
+    onStartRereadingClick: (() -> Unit)?,
+    onStopRereadingClick: (() -> Unit)?,
     hazeState: HazeState,
     // KMK <--
 ) {
@@ -528,6 +536,8 @@ private fun MangaScreenSmallImpl(
                 backgroundAlphaProvider = { backgroundAlpha },
                 // KMK -->
                 onPaletteScreenClick = onPaletteScreenClick,
+                onStartRereadingClick = onStartRereadingClick?.takeIf { !state.manga.rereading },
+                onStopRereadingClick = onStopRereadingClick?.takeIf { state.manga.rereading },
                 // KMK <--
             )
         },
@@ -679,6 +689,9 @@ private fun MangaScreenSmallImpl(
                             // KMK -->
                             status = state.manga.status,
                             interval = state.manga.fetchInterval,
+                            rereadCount = state.manga.rereadCount,
+                            isRereading = state.manga.rereading,
+                            onRereadClicked = onStartRereadingClick ?: onStopRereadingClick,
                             // KMK <--
                         )
                     }
@@ -939,6 +952,8 @@ private fun MangaScreenLargeImpl(
     onCoverLoaded: (MangaCover) -> Unit,
     coverRatio: MutableFloatState,
     onPaletteScreenClick: () -> Unit,
+    onStartRereadingClick: (() -> Unit)?,
+    onStopRereadingClick: (() -> Unit)?,
     hazeState: HazeState,
     // KMK <--
 ) {
@@ -1024,6 +1039,8 @@ private fun MangaScreenLargeImpl(
                 backgroundAlphaProvider = { 1f },
                 // KMK -->
                 onPaletteScreenClick = onPaletteScreenClick,
+                onStartRereadingClick = onStartRereadingClick?.takeIf { !state.manga.rereading },
+                onStopRereadingClick = onStopRereadingClick?.takeIf { state.manga.rereading },
                 // KMK <--
             )
         },
@@ -1170,6 +1187,9 @@ private fun MangaScreenLargeImpl(
                             // KMK -->
                             status = state.manga.status,
                             interval = state.manga.fetchInterval,
+                            rereadCount = state.manga.rereadCount,
+                            isRereading = state.manga.rereading,
+                            onRereadClicked = onStartRereadingClick ?: onStopRereadingClick,
                             // KMK <--
                         )
                         // SY -->

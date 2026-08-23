@@ -70,6 +70,8 @@ fun MangaToolbar(
     backgroundAlphaProvider: () -> Float,
     // KMK -->
     onPaletteScreenClick: () -> Unit,
+    onStartRereadingClick: (() -> Unit)?,
+    onStopRereadingClick: (() -> Unit)?,
     // KMK <--
     modifier: Modifier = Modifier,
 ) {
@@ -234,6 +236,22 @@ fun MangaToolbar(
                     }
                     // SY <--
                     // KMK -->
+                    if (onStartRereadingClick != null) {
+                        add(
+                            AppBar.OverflowAction(
+                                title = stringResource(KMR.strings.action_start_rereading),
+                                onClick = onStartRereadingClick,
+                            ),
+                        )
+                    }
+                    if (onStopRereadingClick != null) {
+                        add(
+                            AppBar.OverflowAction(
+                                title = stringResource(KMR.strings.action_stop_rereading),
+                                onClick = onStopRereadingClick,
+                            ),
+                        )
+                    }
                     if (onOpenMangaFolder != null) {
                         add(
                             AppBar.OverflowAction(

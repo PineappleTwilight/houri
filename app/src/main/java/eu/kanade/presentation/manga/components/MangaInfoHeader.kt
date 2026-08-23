@@ -41,6 +41,7 @@ import androidx.compose.material.icons.outlined.DoneAll
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.outlined.Pause
 import androidx.compose.material.icons.outlined.Public
+import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.outlined.Sync
 import androidx.compose.material3.DropdownMenuItem
@@ -246,6 +247,9 @@ fun MangaActionRow(
     // KMK -->
     status: Long,
     interval: Int,
+    rereadCount: Int,
+    isRereading: Boolean,
+    onRereadClicked: (() -> Unit)?,
     // KMK <--
     modifier: Modifier = Modifier,
 ) {
@@ -326,6 +330,18 @@ fun MangaActionRow(
             color = if (trackingCount == 0) defaultActionButtonColor else MaterialTheme.colorScheme.primary,
             onClick = onTrackingClicked,
         )
+        if (onRereadClicked != null && (isRereading || rereadCount > 0)) {
+            MangaActionButton(
+                title = if (isRereading) {
+                    stringResource(KMR.strings.rereading_label)
+                } else {
+                    stringResource(KMR.strings.manga_reread_count_button, rereadCount)
+                },
+                icon = Icons.Outlined.Refresh,
+                color = if (isRereading) MaterialTheme.colorScheme.primary else defaultActionButtonColor,
+                onClick = onRereadClicked,
+            )
+        }
         if (onWebViewClicked != null) {
             MangaActionButton(
                 title = stringResource(MR.strings.action_web_view),

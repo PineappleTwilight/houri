@@ -58,6 +58,8 @@ import eu.kanade.presentation.manga.components.DeleteChaptersDialog
 import eu.kanade.presentation.manga.components.MangaCoverDialog
 import eu.kanade.presentation.manga.components.ScanlatorFilterDialog
 import eu.kanade.presentation.manga.components.SetIntervalDialog
+import eu.kanade.presentation.manga.components.StartRereadDialog
+import eu.kanade.presentation.manga.components.StopRereadDialog
 import eu.kanade.presentation.more.settings.screen.SettingsEhScreen
 import eu.kanade.presentation.theme.TachiyomiTheme
 import eu.kanade.presentation.util.AssistContentScreen
@@ -464,6 +466,8 @@ class MangaScreen(
             },
             coverRatio = coverRatio,
             onPaletteScreenClick = { navigator.push(PaletteScreen(successState.seedColor?.toArgb())) },
+            onStartRereadingClick = screenModel::showStartRereadDialog.takeIf { successState.manga.favorite },
+            onStopRereadingClick = screenModel::showStopRereadDialog.takeIf { successState.manga.favorite },
             hazeState = hazeState,
             // KMK <--
         )
@@ -664,6 +668,20 @@ class MangaScreen(
                 ClearMangaDialog(
                     onDismissRequest = onDismissRequest,
                     onConfirm = screenModel::clearManga,
+                )
+            }
+            // KMK -->
+            is MangaScreenModel.Dialog.ConfirmStartReread -> {
+                StartRereadDialog(
+                    rereadCount = successState.manga.rereadCount,
+                    onDismissRequest = onDismissRequest,
+                    onConfirm = screenModel::startRereading,
+                )
+            }
+            is MangaScreenModel.Dialog.ConfirmStopReread -> {
+                StopRereadDialog(
+                    onDismissRequest = onDismissRequest,
+                    onConfirm = screenModel::stopRereading,
                 )
             }
             // KMK <--

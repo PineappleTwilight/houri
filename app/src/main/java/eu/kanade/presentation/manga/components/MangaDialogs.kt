@@ -69,6 +69,78 @@ fun DeleteChaptersDialog(
 
 // KMK -->
 @Composable
+fun StartRereadDialog(
+    rereadCount: Int,
+    onDismissRequest: () -> Unit,
+    onConfirm: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismissRequest,
+        dismissButton = {
+            TextButton(onClick = onDismissRequest) {
+                Text(text = stringResource(MR.strings.action_cancel))
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    onDismissRequest()
+                    onConfirm()
+                },
+            ) {
+                Text(text = stringResource(MR.strings.action_ok))
+            }
+        },
+        title = {
+            Text(text = stringResource(KMR.strings.action_start_rereading))
+        },
+        text = {
+            Text(
+                text = buildString {
+                    append(stringResource(KMR.strings.confirm_start_rereading))
+                    if (rereadCount > 0) {
+                        append('\n')
+                        append(pluralStringResource(KMR.plurals.reread_count, rereadCount, rereadCount))
+                    }
+                },
+            )
+        },
+    )
+}
+
+@Composable
+fun StopRereadDialog(
+    onDismissRequest: () -> Unit,
+    onConfirm: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismissRequest,
+        dismissButton = {
+            TextButton(onClick = onDismissRequest) {
+                Text(text = stringResource(MR.strings.action_cancel))
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    onDismissRequest()
+                    onConfirm()
+                },
+            ) {
+                Text(text = stringResource(MR.strings.action_ok))
+            }
+        },
+        title = {
+            Text(text = stringResource(KMR.strings.action_stop_rereading))
+        },
+        text = {
+            Text(text = stringResource(KMR.strings.confirm_stop_rereading))
+        },
+    )
+}
+// KMK <--
+
+@Composable
 fun ClearMangaDialog(
     onDismissRequest: () -> Unit,
     onConfirm: (Boolean, Boolean) -> Unit,

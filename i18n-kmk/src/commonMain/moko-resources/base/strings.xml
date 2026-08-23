@@ -300,4 +300,13 @@
     <string name="pref_discord_show_download_button_summary">Displays a button to download the app</string>
     <string name="pref_discord_show_discord_button">Show Discord Button</string>
     <string name="pref_discord_show_discord_button_summary">Displays a button to join the Discord server</string>
+    <!-- Manga rereading -->
+    <string name="action_start_rereading">Start rereading</string>
+    <string name="action_stop_rereading">Stop rereading</string>
+    <string name="confirm_start_rereading">All chapters will be marked as unread so you can read them again. Tracked services will be switched to their rereading state.</string>
+    <string name="confirm_stop_rereading">Chapters that existed when the reread started will be marked as read again. Chapters released while rereading are left unread.</string>
+    <string name="started_rereading">Started rereading</string>
+    <string name="stopped_rereading">Stopped rereading</string>
+    <string name="rereading_label">Rereading</string>
+    <string name="manga_reread_count_button">Reread ×%1$d</string>
 </resources>
