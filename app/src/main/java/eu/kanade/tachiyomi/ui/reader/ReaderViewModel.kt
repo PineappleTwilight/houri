@@ -20,6 +20,7 @@ import dev.zacsweers.metrox.viewmodel.ViewModelAssistedFactoryKey
 import eu.kanade.domain.base.BasePreferences
 import eu.kanade.domain.chapter.model.toDbChapter
 import eu.kanade.domain.connections.service.WebhookPreferences
+import eu.kanade.domain.manga.interactor.CompleteRereadIfNeeded
 import eu.kanade.domain.manga.interactor.SetMangaViewerFlags
 import eu.kanade.domain.manga.interactor.UpdateManga
 import eu.kanade.domain.manga.model.readerOrientation
@@ -142,6 +143,9 @@ class ReaderViewModel(
     private val getNextChapters: GetNextChapters,
     private val upsertHistory: UpsertHistory,
     private val updateChapter: UpdateChapter,
+    // KMK -->
+    private val completeRereadIfNeeded: CompleteRereadIfNeeded,
+    // KMK <--
     private val setMangaViewerFlags: SetMangaViewerFlags,
     private val getIncognitoState: GetIncognitoState,
     private val libraryPreferences: LibraryPreferences,
@@ -924,6 +928,13 @@ class ReaderViewModel(
                 ),
             )
 
+            // KMK -->
+            if (readerChapter.chapter.read) {
+                manga?.let { currentManga ->
+                    viewModelScope.launchNonCancellable { completeRereadIfNeeded.await(currentManga.id) }
+                }
+            }
+            // KMK <--
             // SY -->
             // Check if syncing is enabled for chapter open:
             if (isSyncEnabled && syncTriggerOpt.syncOnChapterOpen && readerChapter.chapter.last_page_read == 0) {
@@ -968,7 +979,12 @@ class ReaderViewModel(
                     mangaId = currentManga.id,
                 )
             }
-            if (unfilteredChapterList.isNotEmpty() && unfilteredChapterList.all { it.read }) {
+            if (unfilteredChapterList.isNotEmpty() &&
+                unfilteredChapterList.all { it.read } &&
+                // KMK -->
+                !currentManga.rereading
+                // KMK <--
+            ) {
                 webhookNotifier.notify(
                     WebhookEvent.MANGA_FINISHED,
                     mapOf("manga" to currentManga.title),

@@ -32,6 +32,8 @@ import eu.kanade.domain.manga.interactor.GetExcludedScanlators
 import eu.kanade.domain.manga.interactor.GetPagePreviews
 import eu.kanade.domain.manga.interactor.MergeMangaBySmartSearch
 import eu.kanade.domain.manga.interactor.SetExcludedScanlators
+import eu.kanade.domain.manga.interactor.StartRereading
+import eu.kanade.domain.manga.interactor.StopRereading
 import eu.kanade.domain.manga.interactor.UpdateManga
 import eu.kanade.domain.manga.model.PagePreview
 import eu.kanade.domain.manga.model.chaptersFiltered
@@ -216,6 +218,10 @@ class MangaScreenModel(
     private val setMangaChapterFlags: SetMangaChapterFlags = globalAppGraph.setMangaChapterFlags,
     private val setMangaDefaultChapterFlags: SetMangaDefaultChapterFlags = globalAppGraph.setMangaDefaultChapterFlags,
     private val setReadStatus: SetReadStatus = globalAppGraph.setReadStatus,
+    // KMK -->
+    private val startRereading: StartRereading = globalAppGraph.startRereading,
+    private val stopRereading: StopRereading = globalAppGraph.stopRereading,
+    // KMK <--
     private val updateChapter: UpdateChapter = globalAppGraph.updateChapter,
     private val updateManga: UpdateManga = globalAppGraph.updateManga,
     private val getCategories: GetCategories = globalAppGraph.getCategories,
@@ -1447,6 +1453,33 @@ class MangaScreenModel(
             }
     }
 
+    // KMK -->
+    fun startRereading() {
+        val manga = successState?.manga ?: return
+        screenModelScope.launchIO {
+            when (startRereading.await(manga)) {
+                is StartRereading.Result.Success -> {
+                    withUIContext {
+                        context.toast(context.stringResource(KMR.strings.started_rereading))
+                    }
+                }
+                StartRereading.Result.Failure -> Unit
+            }
+        }
+    }
+
+    fun stopRereading() {
+        val manga = successState?.manga ?: return
+        screenModelScope.launchIO {
+            if (stopRereading.await(manga) == StopRereading.Result.Success) {
+                withUIContext {
+                    context.toast(context.stringResource(KMR.strings.stopped_rereading))
+                }
+            }
+        }
+    }
+    // KMK <--
+
     /**
      * Downloads the given list of chapters with the manager.
      * @param chapters the list of chapters to download.
@@ -1916,6 +1949,11 @@ class MangaScreenModel(
 
         // KMK -->
         data object ClearManga : Dialog
+
+        // KMK -->
+        data object ConfirmStartReread : Dialog
+        data object ConfirmStopReread : Dialog
+        // KMK <--
         // KMK <--
 
         data object SettingsSheet : Dialog
@@ -2021,6 +2059,16 @@ class MangaScreenModel(
     // SY <--
 
     // KMK -->
+    // KMK -->
+    fun showStartRereadDialog() {
+        updateSuccessState { it.copy(dialog = Dialog.ConfirmStartReread) }
+    }
+
+    fun showStopRereadDialog() {
+        updateSuccessState { it.copy(dialog = Dialog.ConfirmStopReread) }
+    }
+    // KMK <--
+
     fun showClearMangaDialog() {
         updateSuccessState { it.copy(dialog = Dialog.ClearManga) }
     }

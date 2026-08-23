@@ -2,6 +2,7 @@ package eu.kanade.domain.chapter.interactor
 
 import dev.zacsweers.metro.Inject
 import eu.kanade.domain.download.interactor.DeleteDownload
+import eu.kanade.domain.manga.interactor.CompleteRereadIfNeeded
 import eu.kanade.tachiyomi.data.library.LibraryUpdateJob
 import eu.kanade.tachiyomi.ui.library.LibraryScreenModel
 import eu.kanade.tachiyomi.ui.manga.MangaScreenModel
@@ -28,6 +29,9 @@ class SetReadStatus(
     // SY -->
     private val getMergedChaptersByMangaId: GetMergedChaptersByMangaId,
     // SY <--
+    // KMK -->
+    private val completeRereadIfNeeded: CompleteRereadIfNeeded,
+    // KMK <--
 ) {
 
     private val mapper = { chapter: Chapter, read: Boolean ->
@@ -76,6 +80,18 @@ class SetReadStatus(
             logcat(LogPriority.ERROR, e)
             return@withNonCancellableContext Result.InternalError(e)
         }
+
+        // KMK -->
+        if (read) {
+            chaptersToUpdate
+                .map { it.mangaId }
+                .distinct()
+                .forEach { mangaId ->
+                    runCatching { completeRereadIfNeeded.await(mangaId) }
+                        .onFailure { logcat(LogPriority.WARN, it) { "Reread completion check failed" } }
+                }
+        }
+        // KMK <--
 
         if (
             // KMK -->

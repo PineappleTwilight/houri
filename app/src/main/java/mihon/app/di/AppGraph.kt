@@ -15,6 +15,7 @@ import eu.kanade.domain.extension.interactor.GetExtensionLanguages
 import eu.kanade.domain.extension.interactor.GetExtensionSources
 import eu.kanade.domain.extension.interactor.GetExtensionsByType
 import eu.kanade.domain.extension.interactor.TrustExtension
+import eu.kanade.domain.manga.interactor.CompleteRereadIfNeeded
 import eu.kanade.domain.manga.interactor.CreateSortTag
 import eu.kanade.domain.manga.interactor.DeleteSortTag
 import eu.kanade.domain.manga.interactor.GetExcludedScanlators
@@ -23,6 +24,8 @@ import eu.kanade.domain.manga.interactor.GetSortTag
 import eu.kanade.domain.manga.interactor.MergeMangaBySmartSearch
 import eu.kanade.domain.manga.interactor.ReorderSortTag
 import eu.kanade.domain.manga.interactor.SetExcludedScanlators
+import eu.kanade.domain.manga.interactor.StartRereading
+import eu.kanade.domain.manga.interactor.StopRereading
 import eu.kanade.domain.manga.interactor.UpdateManga
 import eu.kanade.domain.source.interactor.CreateSourceCategory
 import eu.kanade.domain.source.interactor.DeleteSourceCategory
@@ -394,6 +397,9 @@ interface AppGraph : ViewModelGraph {
     val setMangaChapterFlags: SetMangaChapterFlags
     val setMangaDefaultChapterFlags: SetMangaDefaultChapterFlags
     val setMigrateSorting: SetMigrateSorting
+    val completeRereadIfNeeded: CompleteRereadIfNeeded
+    val startRereading: StartRereading
+    val stopRereading: StopRereading
     val setReadStatus: SetReadStatus
     val setSortModeForCategory: SetSortModeForCategory
     val setSourceCategories: SetSourceCategories

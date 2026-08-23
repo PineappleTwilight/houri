@@ -8,9 +8,12 @@ import eu.kanade.domain.extension.interactor.GetExtensionLanguages
 import eu.kanade.domain.extension.interactor.GetExtensionSources
 import eu.kanade.domain.extension.interactor.GetExtensionsByType
 import eu.kanade.domain.extension.interactor.TrustExtension
+import eu.kanade.domain.manga.interactor.CompleteRereadIfNeeded
 import eu.kanade.domain.manga.interactor.GetExcludedScanlators
 import eu.kanade.domain.manga.interactor.SetExcludedScanlators
 import eu.kanade.domain.manga.interactor.SetMangaViewerFlags
+import eu.kanade.domain.manga.interactor.StartRereading
+import eu.kanade.domain.manga.interactor.StopRereading
 import eu.kanade.domain.manga.interactor.UpdateManga
 import eu.kanade.domain.source.interactor.GetEnabledSources
 import eu.kanade.domain.source.interactor.GetIncognitoState
@@ -141,6 +144,11 @@ class DomainModule : InjektModule {
         addFactory { UpdateManga(get(), get()) }
         addFactory { UpdateMangaNotes(get()) }
         addFactory { SetMangaCategories(get()) }
+        // KMK -->
+        addFactory { StartRereading(get(), get(), get(), get(), get(), get(), get(), get()) }
+        addFactory { StopRereading(get(), get(), get(), get(), get(), get(), get(), get()) }
+        addFactory { CompleteRereadIfNeeded(get(), get(), get(), get(), get(), get(), get(), get()) }
+        // KMK <--
         addFactory { GetExcludedScanlators(get()) }
         addFactory { SetExcludedScanlators(get()) }
         addFactory {
@@ -168,7 +176,9 @@ class DomainModule : InjektModule {
         addFactory { GetBookmarkedChaptersByMangaId(get(), get(), get()) }
         addFactory { GetChapterByUrlAndMangaId(get()) }
         addFactory { UpdateChapter(get()) }
-        addFactory { SetReadStatus(get(), get(), get(), get(), get()) }
+        // KMK -->
+        addFactory { SetReadStatus(get(), get(), get(), get(), get(), get()) }
+        // KMK <--
         addFactory { NeedsChapterUpdate() }
         addFactory { SyncChaptersWithSource(get(), get(), get(), get(), get(), get(), get(), get(), get()) }
         addFactory { GetAvailableScanlators(get()) }
