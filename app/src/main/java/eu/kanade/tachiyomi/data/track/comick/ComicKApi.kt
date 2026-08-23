@@ -1,10 +1,13 @@
 package eu.kanade.tachiyomi.data.track.comick
 
 import eu.kanade.tachiyomi.data.track.model.TrackSearch
+import eu.kanade.tachiyomi.network.HttpException
 import eu.kanade.tachiyomi.network.awaitSuccess
 import eu.kanade.tachiyomi.network.parseAs
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import logcat.LogPriority
+import logcat.logcat
 import mihon.app.di.globalAppGraph
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
@@ -115,7 +118,10 @@ class ComicKApi(
 
             val response = authClient.newCall(request).awaitSuccess()
             response.code in 200..299
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            // KMK -->
+            logcat(LogPriority.WARN, e) { "ComicK follow update failed for comic $comicId" }
+            // KMK <--
             false
         }
     }
@@ -136,7 +142,13 @@ class ComicKApi(
 
             val response = authClient.newCall(request).awaitSuccess()
             with(json) { response.parseAs<ComicKFollowResponse>() }
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            if (e !is HttpException || e.code != 404) {
+                // KMK -->
+                // A 404 simply means the comic is not followed; anything else is a real failure
+                logcat(LogPriority.WARN, e) { "ComicK follow status fetch failed for comic $comicId" }
+                // KMK <--
+            }
             null
         }
     }

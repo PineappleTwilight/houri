@@ -31,7 +31,15 @@ class ComicKInterceptor(
         }
 
         override fun loadForRequest(url: HttpUrl): List<Cookie> {
-            return cookieStore[url.host].orEmpty()
+            // KMK -->
+            // Match subdomains too: session cookies are captured on comick.dev but
+            // authenticated requests go to api.comick.dev
+            return cookieStore.values
+                .flatten()
+                .filter { cookie ->
+                    url.host == cookie.domain || url.host.endsWith(".${cookie.domain}")
+                }
+            // KMK <--
         }
     }
 
