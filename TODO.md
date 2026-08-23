@@ -63,6 +63,7 @@
   - DB exports to other forks wouldn't include reread count, may be handled dangerously
   - Area of impact is unknown, could be deeply entrenched in the core of the app and cause bugs
 - [x] **Smart Scanlator Filter**: Improve with new features such as chapter count, ranges, and enable/disable specific scanlators
+- [ ] **Reader**: Properly invert progress bar and page counter between RTL and LTR reading modes
 
 ## Bugfixes
 - [x] Fix UI transition choppiness.
