@@ -105,8 +105,9 @@
 - [x] Add chapter completion moan option to global reader settings
 - [x] **Subcategories**: Replace folder icon in the category editor with a hamburger dragger like the parent categories and remove the arrow buttons
 - [x] **Subcategories**: Fix db import bug where all imported categories are imported as subcategories under "Default"
-- [ ] **Comick Tracker**: Fix cookies not saving and the tracker just generally not working
-- [ ] **Reader**: Fix double-paged second pages being smaller than the first page
+- [x] **Comick Tracker**: Fix cookies not saving and the tracker just generally not working
+- [x] **Reader**: Fix double-paged second pages being smaller than the first page
+- [ ] **Subcategories**: Standard subcategory view not showing chips on eReaders (affected device runs Android 14, Meebook M8 by Haoqing)
 
 ## Chores
 - [x] Replace all Komikku icons/branding with houri icons/branding
