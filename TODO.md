@@ -113,6 +113,8 @@
 - [x] **WebGPU Reader**: Fix "double-tap to zoom" toggle not doing anything
 - [x] **Subcategories**: Make folder view folders the same height as manga entries
 - [x] **Smart Scanlator Filter**: Add padding to the manga details text on the lefthand side
+- [ ] **Subcategories**: Routine on startup to delete subcategories not associated with a category (orphaned)
+  - Handling for this should also be present when performing category operations, especially deletes
 
 ## Chores
 - [x] Replace all Komikku icons/branding with houri icons/branding
