@@ -528,6 +528,7 @@ open class WebGpuViewer(
                 // Create new spread: [anchor, partner]
                 val spread = ImagePage(image, partnerImage)
                 spread.ownsImages = false
+                applyDoubleTapZoomPolicy(spread)
                 page.spreadPage = spread
                 return spread
             }
@@ -536,6 +537,17 @@ open class WebGpuViewer(
         // Single page or no spread partner - clear any cached spread
         page.spreadPage = null
         return page.imagePage
+    }
+
+    /**
+     * The viewer library always performs its built-in double-tap zoom, so when the
+     * preference is disabled the page's max scale is clamped to its home scale - the
+     * zoom animation then lands where it started. Pinch zoom sets scale directly and
+     * never consults this value. The library sentinel -1f restores the computed default.
+     */
+    private fun applyDoubleTapZoomPolicy(page: ImagePage) {
+        if (isContinuous) return
+        page.maxScale = if (config.doubleTapZoom) -1f else page.homeScale
     }
 
     init {
@@ -647,6 +659,18 @@ open class WebGpuViewer(
             val showOnStart = config.navigationOverlayOnStart || config.forceNavigationOverlay
             activity.binding.navigationOverlay.setNavigation(config.navigator, showOnStart)
         }
+
+        // KMK -->
+        config.doubleTapZoomChangedListener = {
+            synchronized(lock) {
+                pageCache.values.forEach { page ->
+                    applyDoubleTapZoomPolicy(page.imagePage)
+                    (page as? ViewerReaderPage)?.spreadPage?.let(::applyDoubleTapZoomPolicy)
+                }
+            }
+            pager.state.invalidate()
+        }
+        // KMK <--
     }
 
     override fun destroy() {
@@ -951,6 +975,7 @@ open class WebGpuViewer(
                         }
                         applyWideZoomIfNeeded(page)
                         applyFitModeAnchor(page.imagePage)
+                        applyDoubleTapZoomPolicy(page.imagePage)
                         pager.state.invalidate()
                     } else {
                         if (pageInCache(page)) page.state = PageState.IDLE

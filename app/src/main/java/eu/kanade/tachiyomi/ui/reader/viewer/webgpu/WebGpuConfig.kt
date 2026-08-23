@@ -12,6 +12,7 @@ import eu.kanade.tachiyomi.ui.reader.viewer.navigation.RightAndLeftNavigation
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.onEach
 
 /**
@@ -54,6 +55,34 @@ class WebGpuConfig(
 
     var dualPageView = ReaderPreferences.DualPageView.NEVER
         private set
+
+    // KMK -->
+    private val pagedDoubleTapZoomPref = readerPreferences.pagedDoubleTapZoomEnabled()
+    private val webtoonDoubleTapZoomPref = readerPreferences.webtoonDoubleTapZoomEnabled()
+
+    /**
+     * Resolved at access time instead of init: [WebGpuViewer.isContinuous] is
+     * overridden by subclasses whose properties are not assigned while this config's
+     * init runs during super construction.
+     */
+    val doubleTapZoom: Boolean
+        get() = if (viewer.isContinuous) {
+            webtoonDoubleTapZoomPref.get()
+        } else {
+            pagedDoubleTapZoomPref.get()
+        }
+
+    var doubleTapZoomChangedListener: ((Boolean) -> Unit)? = null
+
+    init {
+        merge(
+            pagedDoubleTapZoomPref.changes(),
+            webtoonDoubleTapZoomPref.changes(),
+        )
+            .onEach { doubleTapZoomChangedListener?.invoke(it) }
+            .launchIn(scope)
+    }
+    // KMK <--
 
     init {
         readerPreferences.readerTheme()
