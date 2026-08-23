@@ -108,6 +108,7 @@
 - [x] **Comick Tracker**: Fix cookies not saving and the tracker just generally not working
 - [x] **Reader**: Fix double-paged second pages being smaller than the first page
 - [ ] **Subcategories**: Standard subcategory view not showing chips on eReaders (affected device runs Android 14, Meebook M8 by Haoqing)
+- [ ] **WebGPU Reader**: Add option to toggle double-tap to zoom
 
 ## Chores
 - [x] Replace all Komikku icons/branding with houri icons/branding
