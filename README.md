@@ -11,7 +11,7 @@
 
 *Requires Android 8.0 or higher.*
 
-[![Discord](https://img.shields.io/discord/1242381704459452488.svg?label=&labelColor=6A7EC2&color=7389D8&logo=discord&logoColor=FFFFFF)](https://discord.gg/85jB7V5AJR)
+[![Discord](https://img.shields.io/discord/1540509997719355545.svg?label=&labelColor=6A7EC2&color=7389D8&logo=discord&logoColor=FFFFFF)](https://discord.gg/JcQZYvCbYH)
 [![CI](https://img.shields.io/github/actions/workflow/status/PineappleTwilight/komikku-pineapple/build_push.yml?labelColor=27303D&label=CI)](https://github.com/PineappleTwilight/komikku-pineapple/actions/workflows/build_push.yml)
 [![License: Apache-2.0](https://img.shields.io/github/license/PineappleTwilight/komikku-pineapple?labelColor=27303D&color=0877d2)](/LICENSE)
 
@@ -102,7 +102,7 @@ Pull requests are welcome. For major changes, please open an issue first to disc
 <details><summary>Issues</summary>
 
 1. **Before reporting a new issue, take a look at the [changelog](https://github.com/PineappleTwilight/komikku-pineapple/releases) and the already opened [issues](https://github.com/PineappleTwilight/komikku-pineapple/issues).**
-2. If you are unsure, ask here: [![Discord](https://img.shields.io/discord/1242381704459452488.svg?label=&labelColor=6A7EC2&color=7389D8&logo=discord&logoColor=FFFFFF)](https://discord.gg/85jB7V5AJR)
+2. If you are unsure, ask here: [![Discord](https://img.shields.io/discord/1540509997719355545.svg?label=&labelColor=6A7EC2&color=7389D8&logo=discord&logoColor=FFFFFF)](https://discord.gg/JcQZYvCbYH)
 
 </details>
 
