@@ -1,0 +1,33 @@
+name: TODO Discord Notifier
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - 'TODO.md'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  notify:
+    name: Report TODO changes
+    runs-on: 'ubuntu-24.04'
+    steps:
+      - name: Clone repo
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 2
+
+      - name: Evaluate TODO.md changes and notify Discord
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
+          COMMIT_AUTHOR: ${{ github.event.head_commit.author.username }}
+          COMMIT_AUTHOR_NAME: ${{ github.event.head_commit.author.name }}
+        run: python3 .github/scripts/todo_discord_notify.py
