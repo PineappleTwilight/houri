@@ -118,6 +118,7 @@
 - [ ] **Subcategories**: Routine on startup to delete subcategories not associated with a category (orphaned)
   - Handling for this should also be present when performing category operations, especially deletes
 - [ ] **WebGPU Reader**: Fix extremely small pages on ereaders when navigating to previous page or resuming from sleep
+- [ ] **Manga Details**: Remember subcategory state when exiting manga details (take us back to the subcategory if we were in one, etc) 
 
 ## Chores
 - [x] Replace all Komikku icons/branding with houri icons/branding
