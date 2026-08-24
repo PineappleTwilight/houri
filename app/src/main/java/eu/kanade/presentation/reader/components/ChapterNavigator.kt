@@ -70,6 +70,7 @@ fun ChapterNavigator(
     // SY -->
     if (isVerticalSlider) {
         ChapterNavigatorVert(
+            isRtl = isRtl,
             onNextChapter = onNextChapter,
             enabledNext = enabledNext,
             onPreviousChapter = onPreviousChapter,
@@ -200,6 +201,7 @@ fun ChapterNavigator(
 
 @Composable
 fun ChapterNavigatorVert(
+    isRtl: Boolean,
     onNextChapter: () -> Unit,
     enabledNext: Boolean,
     onPreviousChapter: () -> Unit,
@@ -275,38 +277,43 @@ fun ChapterNavigatorVert(
                         haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                     }
                 }
-                Slider(
-                    modifier = Modifier
-                        .padding(vertical = 8.dp)
-                        .graphicsLayer {
-                            rotationZ = 90f
-                            transformOrigin = TransformOrigin(0f, 0f)
-                        }
-                        .layout { measurable, constraints ->
-                            val placeable = measurable.measure(
-                                Constraints(
-                                    minWidth = constraints.minHeight,
-                                    maxWidth = constraints.maxHeight,
-                                    minHeight = constraints.minWidth,
-                                    maxHeight = constraints.maxWidth,
-                                ),
-                            )
-                            layout(placeable.height, placeable.width) {
-                                placeable.place(0, -placeable.height)
+                // KMK -->
+                // Mirroring via RTL before the 90° rotation is what inverts vertical progression for RTL.
+                CompositionLocalProvider(LocalLayoutDirection provides if (isRtl) LayoutDirection.Rtl else LayoutDirection.Ltr) {
+                    Slider(
+                        modifier = Modifier
+                            .padding(vertical = 8.dp)
+                            .graphicsLayer {
+                                rotationZ = 90f
+                                transformOrigin = TransformOrigin(0f, 0f)
                             }
-                        }
-                        .weight(1f),
-                    value = currentPage,
-                    valueRange = 1..totalPages,
-                    onValueChange = f@{
-                        if (it == currentPage) return@f
-                        onPageIndexChange(it - 1)
-                    },
-                    // Mihon -->
-                    onValueChangeFinished = onPageIndexChangeFinished,
-                    // Mihon <--
-                    interactionSource = interactionSource,
-                )
+                            .layout { measurable, constraints ->
+                                val placeable = measurable.measure(
+                                    Constraints(
+                                        minWidth = constraints.minHeight,
+                                        maxWidth = constraints.maxHeight,
+                                        minHeight = constraints.minWidth,
+                                        maxHeight = constraints.maxWidth,
+                                    ),
+                                )
+                                layout(placeable.height, placeable.width) {
+                                    placeable.place(0, -placeable.height)
+                                }
+                            }
+                            .weight(1f),
+                        value = currentPage,
+                        valueRange = 1..totalPages,
+                        onValueChange = f@{
+                            if (it == currentPage) return@f
+                            onPageIndexChange(it - 1)
+                        },
+                        // Mihon -->
+                        onValueChangeFinished = onPageIndexChangeFinished,
+                        // Mihon <--
+                        interactionSource = interactionSource,
+                    )
+                }
+                // KMK <--
 
                 Text(
                     text = totalPages.toString(),
@@ -355,6 +362,18 @@ private fun ChapterNavigatorPreview() {
         // KMK -->
         ChapterNavigator(
             isRtl = false,
+            onNextChapter = {},
+            enabledNext = true,
+            onPreviousChapter = {},
+            enabledPrevious = true,
+            currentPage = currentPage,
+            totalPages = 10,
+            onPageIndexChange = { currentPage = (it + 1) },
+            currentPageText = "1",
+            isVerticalSlider = true,
+        )
+        ChapterNavigator(
+            isRtl = true,
             onNextChapter = {},
             enabledNext = true,
             onPreviousChapter = {},
