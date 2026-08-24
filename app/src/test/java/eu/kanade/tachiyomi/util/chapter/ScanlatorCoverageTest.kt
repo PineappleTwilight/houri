@@ -55,4 +55,28 @@ class ScanlatorCoverageTest {
             hiddenCount = 5,
         )
     }
+
+    @Test
+    fun `rounds floating point noise out of labels`() {
+        scanlatorCoverage(listOf(0.6999999999999999, 1.5)) shouldBe ScanlatorCoverage(
+            groups = listOf("0.7", "1.5"),
+            hiddenCount = 0,
+        )
+    }
+
+    @Test
+    fun `merges consecutive chapters whose values carry float noise`() {
+        scanlatorCoverage(listOf(1.1000000000000001, 2.0999999999999996)) shouldBe ScanlatorCoverage(
+            groups = listOf("1.1–2.1"),
+            hiddenCount = 0,
+        )
+    }
+
+    @Test
+    fun `merges half-step chapters into one run`() {
+        scanlatorCoverage(listOf(0.5, 1.5, 2.5)) shouldBe ScanlatorCoverage(
+            groups = listOf("0.5–2.5"),
+            hiddenCount = 0,
+        )
+    }
 }
