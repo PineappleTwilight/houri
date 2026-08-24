@@ -5,7 +5,7 @@
 <br/>
  <h1 align="center"> Houri </h1>
 
-<div align="center"> [![GitHub downloads](https://img.shields.io/github/downloads/PineappleTwilight/komikku-pineapple/latest/total?label=Latest%20Downloads&labelColor=27303D&color=0D1117&logo=github&logoColor=FFFFFF&style=flat)](https://github.com/PineappleTwilight/komikku-pineapple/releases/latest)] [![GitHub downloads](https://img.shields.io/github/downloads/PineappleTwilight/komikku-pineapple/total?label=Total%20Downloads&labelColor=27303D&color=0D1117&logo=github&logoColor=FFFFFF&style=flat)](https://github.com/PineappleTwilight/komikku-pineapple/releases)] [![Stable build](https://img.shields.io/github/actions/workflow/status/PineappleTwilight/komikku-pineapple/build_release.yml?labelColor=27303D&label=Stable&labelColor=06599d&color=043b69)](https://github.com/PineappleTwilight/komikku-pineapple/actions/workflows/build_release.yml)] 
+<div align="center"> ![GitHub downloads](https://img.shields.io/github/downloads/PineappleTwilight/komikku-pineapple/latest/total?label=Latest%20Downloads&labelColor=27303D&color=0D1117&logo=github&logoColor=FFFFFF&style=flat)](https://github.com/PineappleTwilight/komikku-pineapple/releases/latest) ![GitHub downloads](https://img.shields.io/github/downloads/PineappleTwilight/komikku-pineapple/total?label=Total%20Downloads&labelColor=27303D&color=0D1117&logo=github&logoColor=FFFFFF&style=flat)](https://github.com/PineappleTwilight/komikku-pineapple/releases) ![Stable build](https://img.shields.io/github/actions/workflow/status/PineappleTwilight/komikku-pineapple/build_release.yml?labelColor=27303D&label=Stable&labelColor=06599d&color=043b69)](https://github.com/PineappleTwilight/komikku-pineapple/actions/workflows/build_release.yml)
 
 *Requires Android 8.0 or higher.*
 
