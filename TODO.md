@@ -120,7 +120,7 @@
   - Handling for this should also be present when performing category operations, especially deletes
 - [ ] **WebGPU Reader**: Fix tiny pages on ereaders when navigating to previous page or resuming from sleep
 - [ ] **Manga Details**: Remember subcategory state when exiting manga details (take us back to the subcategory if we were in one, etc)
-
+- [ ] **Library**: Find out why "clean titles" still does not hot-reload the library to show the new name despite 3 bugfixes
 ## Chores
 - [x] Replace all Komikku icons/branding with houri icons/branding
 - [x] Update ancient test framework
