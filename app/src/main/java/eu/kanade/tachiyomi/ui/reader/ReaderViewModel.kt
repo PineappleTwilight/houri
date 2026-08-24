@@ -1503,6 +1503,7 @@ class ReaderViewModel(
                     page2 = secondPage,
                     isLTR = isLTR,
                     bg = bg,
+                    matchHeights = viewer.config.matchDoublePageHeights,
                     location = Location.Cache,
                     manga = manga,
                 )
