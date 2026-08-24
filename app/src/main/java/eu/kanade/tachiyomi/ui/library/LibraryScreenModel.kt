@@ -1543,11 +1543,17 @@ class LibraryScreenModel(
 
     fun updateActiveCategoryIndex(index: Int) {
         val newIndex = mutableState.updateAndGet { state ->
+            val newCategoryId = state.displayedCategories.getOrNull(index)?.id
             state.copy(
                 activeCategoryIndex = index,
                 // KMK -->
-                activeCategoryId = state.displayedCategories.getOrNull(index)?.id,
-                activeSubCategoryId = null,
+                activeCategoryId = newCategoryId,
+                // Recomposition on return from manga details re-fires this with the same page: keep the subcategory.
+                activeSubCategoryId = if (newCategoryId == state.activeCategoryId) {
+                    state.activeSubCategoryId
+                } else {
+                    null
+                },
                 // KMK <--
             )
         }
