@@ -63,9 +63,9 @@
   - DB exports to other forks wouldn't include reread count, may be handled dangerously
   - Area of impact is unknown, could be deeply entrenched in the core of the app and cause bugs
 - [x] **Smart Scanlator Filter**: Improve with new features such as chapter count, ranges, and enable/disable specific scanlators
-- [ ] **Reader**: Properly invert progress bar and page counter between RTL and LTR reading modes
-- [ ] **Smart Scanlator Filter**: Make toggleable with an option in Advanced settings (defaults to disabled)
-- [ ] **Smart Scanlator Filter**: Show what chapters a scanlator covers
+- [x] **Reader**: Properly invert progress bar and page counter between RTL and LTR reading modes
+- [x] **Smart Scanlator Filter**: Make toggleable with an option in Advanced settings (defaults to disabled)
+- [x] **Smart Scanlator Filter**: Show what chapters a scanlator covers
 
 ## Bugfixes
 - [x] Fix UI transition choppiness.
@@ -116,11 +116,12 @@
 - [x] **WebGPU Reader**: Fix "double-tap to zoom" toggle not doing anything
 - [x] **Subcategories**: Make folder view folders the same height as manga entries
 - [x] **Smart Scanlator Filter**: Add padding to the manga details text on the lefthand side
-- [ ] **Subcategories**: Routine on startup to delete subcategories not associated with a category (orphaned)
+- [x] **Subcategories**: Routine on startup to delete subcategories not associated with a category (orphaned)
   - Handling for this should also be present when performing category operations, especially deletes
-- [ ] **WebGPU Reader**: Fix tiny pages on ereaders when navigating to previous page or resuming from sleep
-- [ ] **Manga Details**: Remember subcategory state when exiting manga details (take us back to the subcategory if we were in one, etc)
+- [x] **WebGPU Reader**: Fix tiny pages on ereaders when navigating to previous page or resuming from sleep
+- [x] **Manga Details**: Remember subcategory state when exiting manga details (take us back to the subcategory if we were in one, etc)
 - [ ] **Library**: Find out why "clean titles" still does not hot-reload the library to show the new name despite 3 bugfixes
+
 ## Chores
 - [x] Replace all Komikku icons/branding with houri icons/branding
 - [x] Update ancient test framework
