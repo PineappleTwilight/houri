@@ -522,6 +522,11 @@ open class WebGpuViewer(
                 if (existing != null && existing.images.getOrNull(0) === image &&
                     existing.images.getOrNull(1) === partnerImage
                 ) {
+                    // KMK -->
+                    // Surface size may have changed since this spread was cached
+                    // (sleep/resume); refresh so the zoom clamp tracks the real home scale.
+                    applyDoubleTapZoomPolicy(existing)
+                    // KMK <--
                     return existing
                 }
 
@@ -547,7 +552,15 @@ open class WebGpuViewer(
      */
     private fun applyDoubleTapZoomPolicy(page: ImagePage) {
         if (isContinuous) return
-        page.maxScale = if (config.doubleTapZoom) -1f else page.homeScale
+        if (config.doubleTapZoom) {
+            page.maxScale = -1f
+            return
+        }
+        // Renderer reports 0x0 while the surface is torn down (e.g. e-ink sleep/resume);
+        // freezing homeScale (=0.01f then) into maxScale would clamp all future
+        // animateTo() calls and shrink the page permanently.
+        if (pager.state.width <= 0 || pager.state.height <= 0) return
+        page.maxScale = page.homeScale
     }
 
     init {
