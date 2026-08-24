@@ -1,6 +1,7 @@
 // Mihon -->
 package eu.kanade.tachiyomi.ui.reader.viewer.webgpu
 
+import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
@@ -56,9 +57,11 @@ import kotlinx.coroutines.launch
 import logcat.LogPriority
 import mihon.app.di.globalAppGraph
 import tachiyomi.core.common.util.system.logcat
+import java.nio.ByteBuffer
 import java.util.concurrent.Executors
 import kotlin.math.abs
 import kotlin.math.min
+import kotlin.math.roundToInt
 import kotlin.time.Duration.Companion.milliseconds
 
 open class WebGpuViewer(
@@ -298,7 +301,12 @@ open class WebGpuViewer(
         pageCache.remove(pageKey(toRemove))
         decodeQueue.remove(toRemove)
         toRemove.state = PageState.IDLE
-        (toRemove as? ViewerReaderPage)?.spreadPage?.cleanup()
+        // KMK -->
+        (toRemove as? ViewerReaderPage)?.let {
+            it.spreadHolder?.cleanup()
+            it.spreadBytes = null
+        }
+        // KMK <--
         toRemove.imagePage.cleanup()
     }
 
@@ -377,8 +385,21 @@ open class WebGpuViewer(
     }
 
     inner class ViewerReaderPage(val page: ReaderPage) : ViewerPage() {
-        /** Cached spread ImagePage when this page is the anchor of a dual-page spread */
-        var spreadPage: ImagePage? = null
+        // KMK -->
+        /** Cached spread when this page is the anchor of a dual-page spread */
+        var spreadHolder: SpreadHolder? = null
+
+        /**
+         * Compressed source bytes retained for spread height-matching. Only set for
+         * partner-position pages decoded in dual-page mode; freed on eviction.
+         */
+        @Volatile
+        var spreadBytes: ByteArray? = null
+
+        /** Guards against scheduling duplicate height-match rescales for this page */
+        @Volatile
+        var rescaleInFlight: Boolean = false
+        // KMK <--
 
         /** Whether this page encountered a decode error and should show retry on tap */
         @Volatile
@@ -432,6 +453,47 @@ open class WebGpuViewer(
                 }
             }
     }
+
+    // KMK -->
+    /**
+     * Cached dual-page spread for an anchor page. [page] renders the two pages' own GPU
+     * images ([ownsImages]=false); when height matching completes, [ownedImage] - a
+     * partner copy resampled to the anchor's height - replaces the original partner in
+     * [page] and is released through an owning [ImagePage] since [Image.cleanup] is
+     * library-internal.
+     */
+    inner class SpreadHolder(
+        val anchor: ViewerReaderPage,
+        val anchorImage: Image,
+        val partnerOriginal: Image,
+    ) {
+        var page: ImagePage = ImagePage(anchorImage, partnerOriginal).apply { ownsImages = false }
+
+        var ownedImage: Image? = null
+
+        fun matches(anchorImg: Image, partnerImg: Image): Boolean =
+            anchorImg === anchorImage && partnerImg === partnerOriginal
+
+        fun installMatched(scaledImage: Image) {
+            disposeOwned()
+            ownedImage = scaledImage
+            val oldPage = page
+            page = ImagePage(anchorImage, scaledImage).apply { ownsImages = false }
+            oldPage.cleanup()
+        }
+
+        fun cleanup() {
+            page.cleanup()
+            disposeOwned()
+        }
+
+        private fun disposeOwned() {
+            val owned = ownedImage ?: return
+            ownedImage = null
+            ImagePage(owned).cleanup()
+        }
+    }
+    // KMK <--
 
     /**
      * Check if dual page mode is currently active based on config and view dimensions.
@@ -505,6 +567,10 @@ open class WebGpuViewer(
 
         // Only form spreads in dual page mode
         if (!isDualPageMode()) {
+            page.spreadHolder?.let {
+                it.cleanup()
+                page.spreadHolder = null
+            }
             return page.imagePage
         }
 
@@ -517,32 +583,134 @@ open class WebGpuViewer(
             val partnerImage = nextReaderPage?.imagePage?.image?.takeIf { it.position == partnerPosition }
 
             if (partnerImage != null) {
-                // Reuse existing spread if images match - preserves transform state
-                val existing = page.spreadPage
-                if (existing != null && existing.images.getOrNull(0) === image &&
-                    existing.images.getOrNull(1) === partnerImage
-                ) {
-                    // KMK -->
+                // KMK -->
+                val holder = page.spreadHolder
+                if (holder != null && holder.matches(image, partnerImage)) {
                     // Surface size may have changed since this spread was cached
                     // (sleep/resume); refresh so the zoom clamp tracks the real home scale.
-                    applyDoubleTapZoomPolicy(existing)
-                    // KMK <--
-                    return existing
+                    applyDoubleTapZoomPolicy(holder.page)
+                    return holder.page
                 }
 
-                // Create new spread: [anchor, partner]
-                val spread = ImagePage(image, partnerImage)
-                spread.ownsImages = false
-                applyDoubleTapZoomPolicy(spread)
-                page.spreadPage = spread
-                return spread
+                holder?.cleanup()
+                val newHolder = SpreadHolder(page, image, partnerImage)
+                page.spreadHolder = newHolder
+
+                // When the paired sources have different heights, rescale the partner to
+                // the anchor's height - the WebGPU counterpart of the matchHeights branch
+                // in ImageUtil.mergeBitmaps. Both spread images render at one shared
+                // scale, so mismatched sources would otherwise show the second page
+                // visibly smaller; until the async rescale lands, the unscaled pairing
+                // is returned.
+                if (
+                    config.matchDoublePageHeights &&
+                    partnerImage.height != image.height &&
+                    nextReaderPage.spreadBytes != null &&
+                    !nextReaderPage.rescaleInFlight
+                ) {
+                    schedulePartnerHeightMatch(newHolder, nextReaderPage, image.height)
+                }
+
+                applyDoubleTapZoomPolicy(newHolder.page)
+                return newHolder.page
+                // KMK <--
             }
         }
 
         // Single page or no spread partner - clear any cached spread
-        page.spreadPage = null
+        page.spreadHolder?.let {
+            it.cleanup()
+            page.spreadHolder = null
+        }
         return page.imagePage
     }
+
+    // KMK -->
+    /**
+     * Rescales [partnerPage]'s source to [targetHeight] (the anchor's height) off-thread
+     * and swaps it into [holder]'s spread when it completes. The compressed bytes kept on
+     * [partnerPage] are decoded back to RGBA pixels, scaled with the same aspect-preserving
+     * semantics as ImageUtil.mergeBitmaps, and uploaded as a fresh GPU image owned by
+     * [holder]. Falls back to the unscaled spread on failure or if either page left the
+     * cache meanwhile.
+     */
+    private fun schedulePartnerHeightMatch(
+        holder: SpreadHolder,
+        partnerPage: ViewerReaderPage,
+        targetHeight: Int,
+    ) {
+        synchronized(lock) { partnerPage.rescaleInFlight = true }
+
+        scope.launch(decodeDispatcher) {
+            var scaledImage: Image? = null
+            try {
+                val bytes = synchronized(lock) { partnerPage.spreadBytes }
+                if (bytes != null) {
+                    scaledImage = rescaleImageToHeight(bytes, targetHeight)
+                }
+            } catch (e: Exception) {
+                logcat(LogPriority.ERROR, e) { "Spread height-match rescale failed" }
+                scaledImage = null
+            }
+
+            var installed = false
+            synchronized(lock) {
+                partnerPage.rescaleInFlight = false
+
+                if (scaledImage != null && pageInCache(partnerPage) &&
+                    pageInCache(holder.anchor) && holder.anchor.spreadHolder === holder &&
+                    holder.partnerOriginal === partnerPage.imagePage.image
+                ) {
+                    holder.installMatched(scaledImage!!)
+                    partnerPage.spreadBytes = null
+                    installed = true
+                } else {
+                    scaledImage?.let { stale -> ImagePage(stale).cleanup() }
+                }
+            }
+
+            if (installed) {
+                applyDoubleTapZoomPolicy(holder.page)
+                pager.state.invalidate()
+            }
+        }
+    }
+
+    private suspend fun rescaleImageToHeight(bytes: ByteArray, targetHeight: Int): Image {
+        val dec = ImageDecoder.new(bytes.inputStream())
+        val frame = dec.decodeNext()
+        val srcWidth = frame.width
+        val srcHeight = frame.height
+
+        val srcBitmap = createBitmap(srcWidth, srcHeight)
+        frame.image.rewind()
+        srcBitmap.copyPixelsFromBuffer(frame.image)
+
+        val scaledWidth = (srcWidth.toFloat() * targetHeight / srcHeight)
+            .roundToInt()
+            .coerceAtLeast(1)
+
+        val scaledBitmap = Bitmap.createScaledBitmap(srcBitmap, scaledWidth, targetHeight, true)
+        if (scaledBitmap !== srcBitmap) srcBitmap.recycle()
+
+        val buffer = ByteBuffer.allocateDirect(scaledWidth * targetHeight * 4)
+        scaledBitmap.copyPixelsToBuffer(buffer)
+        buffer.rewind()
+        scaledBitmap.recycle()
+
+        return Image.createWithTrim(
+            buffer,
+            scaledWidth,
+            targetHeight,
+            createMipMaps = true,
+            trimColors = null,
+            trimThreshold = 0f,
+            backgroundColor = if (config.automaticBackground) null else readerBackgroundColor(),
+        ).also { scaledImage ->
+            scaledImage.position = if (isReversed) Image.Position.LEFT else Image.Position.RIGHT
+        }
+    }
+    // KMK <--
 
     /**
      * The viewer library always performs its built-in double-tap zoom, so when the
@@ -652,7 +820,12 @@ open class WebGpuViewer(
                 decodeQueue.clear()
                 pageCache.values.forEach {
                     it.state = PageState.IDLE
-                    (it as? ViewerReaderPage)?.spreadPage?.cleanup()
+                    // KMK -->
+                    (it as? ViewerReaderPage)?.let { readerPage ->
+                        readerPage.spreadHolder?.cleanup()
+                        readerPage.spreadBytes = null
+                    }
+                    // KMK <--
                     it.imagePage.cleanup()
                 }
                 pageCache.clear()
@@ -678,7 +851,7 @@ open class WebGpuViewer(
             synchronized(lock) {
                 pageCache.values.forEach { page ->
                     applyDoubleTapZoomPolicy(page.imagePage)
-                    (page as? ViewerReaderPage)?.spreadPage?.let(::applyDoubleTapZoomPolicy)
+                    (page as? ViewerReaderPage)?.spreadHolder?.page?.let(::applyDoubleTapZoomPolicy)
                 }
             }
             pager.state.invalidate()
@@ -699,7 +872,12 @@ open class WebGpuViewer(
             decodeQueue.clear()
             pageCache.values.forEach {
                 it.state = PageState.IDLE
-                (it as? ViewerReaderPage)?.spreadPage?.cleanup()
+                // KMK -->
+                (it as? ViewerReaderPage)?.let { readerPage ->
+                    readerPage.spreadHolder?.cleanup()
+                    readerPage.spreadBytes = null
+                }
+                // KMK <--
                 it.imagePage.cleanup()
             }
             pageCache.clear()
@@ -959,6 +1137,18 @@ open class WebGpuViewer(
                 // RTL (isReversed): Cover on LEFT, even=LEFT, odd=RIGHT
                 // LTR (!isReversed): Cover on RIGHT, even=RIGHT, odd=LEFT
                 firstImage.position = position
+
+                // KMK -->
+                // Keep the compressed source of partner-position pages so a spread whose
+                // pair has a different height can be rescaled to match (see
+                // schedulePartnerHeightMatch); anchor-position pages are never rescaled.
+                val partnerPosition = if (isReversed) Image.Position.LEFT else Image.Position.RIGHT
+                page.spreadBytes = if (config.matchDoublePageHeights && bytes != null && position == partnerPosition) {
+                    bytes
+                } else {
+                    null
+                }
+                // KMK <--
 
                 // Create ImagePage early so its cleanup handles all frames
                 imagePage = ImagePage(firstImage)

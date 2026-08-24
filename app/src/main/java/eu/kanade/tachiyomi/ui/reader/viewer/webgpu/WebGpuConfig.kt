@@ -57,6 +57,11 @@ class WebGpuConfig(
         private set
 
     // KMK -->
+    var matchDoublePageHeights = readerPreferences.dualPageMatchHeights().get()
+        private set
+    // KMK <--
+
+    // KMK -->
     private val pagedDoubleTapZoomPref = readerPreferences.pagedDoubleTapZoomEnabled()
     private val webtoonDoubleTapZoomPref = readerPreferences.webtoonDoubleTapZoomEnabled()
 
@@ -160,6 +165,14 @@ class WebGpuConfig(
                 { dualPageView = it },
                 { imagePropertyChangedListener?.invoke() },
             )
+
+        // KMK -->
+        readerPreferences.dualPageMatchHeights()
+            .register(
+                { matchDoublePageHeights = it },
+                { imagePropertyChangedListener?.invoke() },
+            )
+        // KMK <--
     }
 
     private fun zoomTypeFromPreference(value: Int) {
