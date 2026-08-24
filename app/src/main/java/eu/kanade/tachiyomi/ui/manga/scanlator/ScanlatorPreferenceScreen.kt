@@ -51,9 +51,11 @@ import eu.kanade.domain.manga.interactor.SetExcludedScanlators
 import eu.kanade.domain.manga.interactor.UpdateManga
 import eu.kanade.presentation.components.AppBar
 import eu.kanade.presentation.util.Screen
+import eu.kanade.tachiyomi.util.chapter.ScanlatorCoverage
 import eu.kanade.tachiyomi.util.chapter.ScanlatorRangeRule
 import eu.kanade.tachiyomi.util.chapter.encodeScanlatorRangeRule
 import eu.kanade.tachiyomi.util.chapter.parseScanlatorRangeRule
+import eu.kanade.tachiyomi.util.chapter.scanlatorCoverage
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -168,6 +170,23 @@ class ScanlatorPreferenceScreen(
                                     text = stringResource(KMR.strings.scanlator_chapter_count, entry.count),
                                     style = MaterialTheme.typography.bodySmall,
                                 )
+                                entry.coverage?.let { coverage ->
+                                    // KMK -->
+                                    val moreText = if (coverage.hiddenCount > 0) {
+                                        stringResource(KMR.strings.scanlator_coverage_more, coverage.hiddenCount)
+                                    } else {
+                                        null
+                                    }
+                                    Text(
+                                        text = buildString {
+                                            append(coverage.groups.joinToString(", "))
+                                            if (moreText != null) append(", ").append(moreText)
+                                        },
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                    // KMK <--
+                                }
                             }
                             IconButton(onClick = { model.toggleExcluded(entry.name) }) {
                                 Icon(
@@ -417,6 +436,7 @@ class ScanlatorPreferenceModel(
     data class ScanlatorEntry(
         val name: String,
         val count: Int,
+        val coverage: ScanlatorCoverage? = null,
     )
 
     private val updateManga: UpdateManga = globalAppGraph.updateManga
@@ -445,15 +465,20 @@ class ScanlatorPreferenceModel(
         blacklist: List<String>,
         rangeRules: List<String>,
     ) {
-        val counts = chapters
+        val byScanlator = chapters
             .filter { !it.scanlator.isNullOrBlank() }
-            .groupingBy { it.scanlator!! }
-            .eachCount()
-        val known = priority.filter { it in counts.keys }
-        val unconfigured = counts.keys.filter { it !in priority }.sorted()
+            .groupBy { it.scanlator!! }
+        val known = priority.filter { it in byScanlator.keys }
+        val unconfigured = byScanlator.keys.filter { it !in priority }.sorted()
         mutableState.update {
             it.copy(
-                orderedScanlators = (known + unconfigured).map { name -> ScanlatorEntry(name, counts[name] ?: 0) },
+                orderedScanlators = (known + unconfigured).map { name ->
+                    ScanlatorEntry(
+                        name = name,
+                        count = byScanlator[name]?.size ?: 0,
+                        coverage = scanlatorCoverage(byScanlator[name].orEmpty().map { it.chapterNumber }),
+                    )
+                },
                 blacklist = blacklist.sorted(),
                 rangeRules = rangeRules,
             )
