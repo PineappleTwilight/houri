@@ -249,7 +249,12 @@ def send(embed: dict) -> None:
     request = urllib.request.Request(
         webhook,
         data=json.dumps(payload).encode("utf-8"),
-        headers={"Content-Type": "application/json"},
+        headers={
+            "Content-Type": "application/json",
+            # Discord sits behind Cloudflare; the default Python-urllib UA is
+            # bot-flagged and rejected with 403 "error code: 1010" on CI IPs.
+            "User-Agent": "Houri-TODO-Notifier/1.0 (GitHub Actions; +https://github.com/PineappleTwilight/komikku-pineapple)",
+        },
         method="POST",
     )
     try:
