@@ -107,6 +107,7 @@
   - [x] Improve chapter completion reading moan to make it dynamic so we can add more sounds in the future or custom sounds from the user
 - [x] Modify all category selection UIs to be subcategory-aware
 - [x] Add chapter completion moan option to global reader settings
+- [ ] Remove herobrine
 - [x] **Subcategories**: Replace folder icon in the category editor with a hamburger dragger like the parent categories and remove the arrow buttons
 - [x] **Subcategories**: Fix db import bug where all imported categories are imported as subcategories under "Default"
 - [x] **Comick Tracker**: Fix cookies not saving and the tracker just generally not working
