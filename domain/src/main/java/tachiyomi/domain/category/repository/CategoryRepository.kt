@@ -36,5 +36,7 @@ interface CategoryRepository {
     suspend fun getTopLevelCategories(): List<Category>
 
     suspend fun getMangaIdsInCategoryTree(categoryId: Long): List<Long>
+
+    suspend fun deleteOrphanedSubcategories()
     // KMK <--
 }

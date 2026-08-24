@@ -116,5 +116,11 @@ class CategoryRepositoryImpl(
     override suspend fun getMangaIdsInCategoryTree(categoryId: Long): List<Long> {
         return handler.awaitList { categoriesQueries.getMangaIdsInCategoryTree(categoryId) }
     }
+
+    override suspend fun deleteOrphanedSubcategories() {
+        handler.await {
+            categoriesQueries.deleteOrphanedSubcategories()
+        }
+    }
     // KMK <--
 }

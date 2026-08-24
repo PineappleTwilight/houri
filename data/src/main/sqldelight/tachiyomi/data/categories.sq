@@ -88,6 +88,10 @@ SELECT MC.manga_id
 FROM mangas_categories MC
 JOIN categories C ON C._id = MC.category_id
 WHERE C._id = :categoryId OR C.parent_id = :categoryId;
+
+deleteOrphanedSubcategories:
+DELETE FROM categories
+WHERE parent_id != 0 AND parent_id NOT IN (SELECT _id FROM categories);
 -- KMK <--
 
 insert:

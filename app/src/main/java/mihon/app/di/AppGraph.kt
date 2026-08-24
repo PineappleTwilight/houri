@@ -110,6 +110,7 @@ import tachiyomi.data.DatabaseHandler
 import tachiyomi.domain.backup.service.BackupPreferences
 import tachiyomi.domain.category.interactor.CreateCategoryWithName
 import tachiyomi.domain.category.interactor.DeleteCategory
+import tachiyomi.domain.category.interactor.DeleteOrphanedSubcategories
 import tachiyomi.domain.category.interactor.GetCategories
 import tachiyomi.domain.category.interactor.HideCategory
 import tachiyomi.domain.category.interactor.RenameCategory
@@ -320,6 +321,7 @@ interface AppGraph : ViewModelGraph {
     val deleteLibraryUpdateErrors: DeleteLibraryUpdateErrors
     val deleteMergeById: DeleteMergeById
     val deleteNonLibraryManga: DeleteNonLibraryManga
+    val deleteOrphanedSubcategories: DeleteOrphanedSubcategories
     val deleteSavedSearchById: DeleteSavedSearchById
     val deleteSortTag: DeleteSortTag
     val deleteSourceCategory: DeleteSourceCategory

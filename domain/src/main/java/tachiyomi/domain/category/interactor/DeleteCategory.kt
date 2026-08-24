@@ -18,6 +18,12 @@ class DeleteCategory(
 
     suspend fun await(categoryId: Long) = withNonCancellableContext {
         try {
+            // KMK -->
+            // Subcategory manga links rely on FK cascade, so children must be removed with the parent.
+            categoryRepository.getSubcategories(categoryId).forEach { subcategory ->
+                categoryRepository.delete(subcategory.id)
+            }
+            // KMK <--
             categoryRepository.delete(categoryId)
         } catch (e: Exception) {
             logcat(LogPriority.ERROR, e)

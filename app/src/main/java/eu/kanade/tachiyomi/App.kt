@@ -167,6 +167,12 @@ class App : Application(), DefaultLifecycleObserver, SingletonImageLoader.Factor
             runCatching { manager.performStartupMaintenance() }
                 .onFailure { xLogE("Database startup maintenance failed", it) }
         }
+
+        // Clean up subcategories whose parent category no longer exists
+        ProcessLifecycleOwner.get().lifecycleScope.launchIO {
+            runCatching { globalAppGraph.deleteOrphanedSubcategories.await() }
+                .onFailure { xLogE("Failed to delete orphaned subcategories", it) }
+        }
         // KMK <--
         // MetroInteropModule bridges Metro singletons to Injekt for extension backwards compat;
         // must be imported AFTER graph.inject() so Metro graph is built
