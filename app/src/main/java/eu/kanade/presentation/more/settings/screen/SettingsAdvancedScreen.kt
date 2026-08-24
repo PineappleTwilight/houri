@@ -39,6 +39,9 @@ import eu.kanade.domain.ui.UiPreferences
 import eu.kanade.presentation.more.settings.Preference
 import eu.kanade.presentation.more.settings.screen.advanced.ClearDatabaseScreen
 import eu.kanade.presentation.more.settings.screen.debug.DebugInfoScreen
+// KMK -->
+import eu.kanade.tachiyomi.ui.reader.setting.ReaderPreferences
+// KMK <--
 import eu.kanade.tachiyomi.R
 import eu.kanade.tachiyomi.core.security.SecurityPreferences
 import eu.kanade.tachiyomi.data.download.DownloadCache
@@ -184,7 +187,12 @@ object SettingsAdvancedScreen : SearchableSettings {
             // SY -->
             getDownloadsGroup(downloadPreferences = downloadPreferences),
             // SY <--
-            getReaderGroup(basePreferences = basePreferences),
+            getReaderGroup(
+                basePreferences = basePreferences,
+                // KMK -->
+                readerPreferences = globalAppGraph.readerPreferences,
+                // KMK <--
+            ),
             getExtensionsGroup(basePreferences = basePreferences),
             // SY -->
             // getDownloaderGroup(),
@@ -432,6 +440,9 @@ object SettingsAdvancedScreen : SearchableSettings {
     @Composable
     private fun getReaderGroup(
         basePreferences: BasePreferences,
+        // KMK -->
+        readerPreferences: ReaderPreferences,
+        // KMK <--
     ): Preference.PreferenceGroup {
         val context = LocalContext.current
         val chooseColorProfile = rememberLauncherForActivityResult(
@@ -476,6 +487,13 @@ object SettingsAdvancedScreen : SearchableSettings {
                     title = stringResource(MR.strings.pref_high_quality_renderer),
                     subtitle = stringResource(MR.strings.pref_high_quality_renderer_summary),
                 ),
+                // KMK -->
+                Preference.PreferenceItem.SwitchPreference(
+                    preference = readerPreferences.dualPageMatchHeights(),
+                    title = stringResource(KMR.strings.pref_dual_page_match_heights),
+                    subtitle = stringResource(KMR.strings.pref_dual_page_match_heights_summary),
+                ),
+                // KMK <--
                 Preference.PreferenceItem.TextPreference(
                     title = stringResource(MR.strings.pref_display_profile),
                     subtitle = basePreferences.displayProfile().get(),

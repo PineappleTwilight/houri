@@ -112,6 +112,8 @@
 - [x] **Subcategories**: Fix db import bug where all imported categories are imported as subcategories under "Default"
 - [x] **Comick Tracker**: Fix cookies not saving and the tracker just generally not working
 - [x] **Reader**: Fix double-paged second pages being smaller than the first page
+- [x] **Reader**: Advanced setting to re-enable the legacy (unscaled) double-page bitmap merge
+  - The height-matching fix causes extremely small chapters on some ereaders, so it needs an escape hatch
 - [x] **Subcategories**: Standard subcategory view not showing chips on eReaders (affected device runs Android 14, Meebook M8 by Haoqing)
 - [x] **WebGPU Reader**: Fix "double-tap to zoom" toggle not doing anything
 - [x] **Subcategories**: Make folder view folders the same height as manga entries

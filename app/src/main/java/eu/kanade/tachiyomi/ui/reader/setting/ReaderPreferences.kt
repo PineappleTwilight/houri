@@ -135,6 +135,10 @@ class ReaderPreferences(
     fun dualPageView() = preferenceStore.getEnum("pref_dual_page_view", DualPageView.NEVER)
     // Mihon <--
 
+    // KMK -->
+    fun dualPageMatchHeights() = preferenceStore.getBoolean("pref_dual_page_match_heights", true)
+    // KMK <--
+
     // endregion
 
     // region Color filter

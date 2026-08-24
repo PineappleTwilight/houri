@@ -771,6 +771,7 @@ object ImageUtil {
         isLTR: Boolean,
         centerMargin: Int,
         @ColorInt background: Int = Color.WHITE,
+        matchHeights: Boolean = true,
         progressCallback: ((Int) -> Unit)? = null,
     ): BufferedSource {
         val height = imageBitmap.height
@@ -779,8 +780,10 @@ object ImageUtil {
         // KMK -->
         // Scale the second page to the first page's height, preserving aspect ratio,
         // so paired pages render at the same size instead of the second one
-        // appearing smaller when the sources have different dimensions
-        val scaledImageBitmap2 = if (imageBitmap2.height != height) {
+        // appearing smaller when the sources have different dimensions.
+        // [matchHeights] = false restores the legacy native-scale merge for devices
+        // where createScaledBitmap of tall pages misbehaves (tiny renders on e-ink).
+        val scaledImageBitmap2 = if (matchHeights && imageBitmap2.height != height) {
             val scaledWidth = (imageBitmap2.width.toFloat() * height / imageBitmap2.height)
                 .roundToInt()
                 .coerceAtLeast(1)

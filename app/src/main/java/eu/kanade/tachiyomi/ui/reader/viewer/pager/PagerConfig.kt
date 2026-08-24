@@ -81,6 +81,10 @@ class PagerConfig(
     @ColorInt
     var pageCanvasColor = Color.WHITE
 
+    // KMK -->
+    var matchDoublePageHeights = true
+    // KMK <--
+
     var centerMarginType = CenterMarginType.NONE
     // SY <--
 
@@ -204,6 +208,11 @@ class PagerConfig(
         readerPreferences.invertDoublePages()
             .register({ invertDoublePages = it && dualPageSplit == false }, { imagePropertyChangedListener?.invoke() })
         // SY <--
+
+        // KMK -->
+        readerPreferences.dualPageMatchHeights()
+            .register({ matchDoublePageHeights = it }, { imagePropertyChangedListener?.invoke() })
+        // KMK <--
     }
 
     private fun zoomTypeFromPreference(value: Int) {

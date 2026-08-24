@@ -1391,6 +1391,7 @@ class ReaderViewModel(
                     page2 = secondPage,
                     isLTR = isLTR,
                     bg = bg,
+                    matchHeights = viewer.config.matchDoublePageHeights,
                     location = Location.Pictures.create(DiskUtil.buildValidFilename(manga.title)),
                     manga = manga,
                 )
@@ -1407,6 +1408,7 @@ class ReaderViewModel(
         page2: ReaderPage,
         isLTR: Boolean,
         @ColorInt bg: Int,
+        matchHeights: Boolean,
         location: Location,
         manga: Manga,
     ): Uri {
@@ -1428,7 +1430,7 @@ class ReaderViewModel(
 
         return imageSaver.save(
             image = Image.Page(
-                inputStream = { ImageUtil.mergeBitmaps(imageBitmap, imageBitmap2, isLTR, 0, bg).inputStream() },
+                inputStream = { ImageUtil.mergeBitmaps(imageBitmap, imageBitmap2, isLTR, 0, bg, matchHeights).inputStream() },
                 name = filename,
                 location = location,
             ),

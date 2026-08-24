@@ -329,7 +329,14 @@ class PagerPageHolder(
         imageSource.close()
         imageSource2.close()
 
-        return ImageUtil.mergeBitmaps(imageBitmap, imageBitmap2, isLTR, centerMargin, viewer.config.pageCanvasColor) {
+        return ImageUtil.mergeBitmaps(
+            imageBitmap,
+            imageBitmap2,
+            isLTR,
+            centerMargin,
+            viewer.config.pageCanvasColor,
+            matchHeights = viewer.config.matchDoublePageHeights,
+        ) {
             updateProgress(it)
         }
     }
