@@ -298,6 +298,8 @@
     <string name="scanlator_range_from">From chapter</string>
     <string name="scanlator_range_to">To chapter</string>
     <string name="scanlator_range_scanlator">Preferred scanlator</string>
+    <string name="pref_smart_scanlator_merge">Smart scanlator merge</string>
+    <string name="pref_smart_scanlator_merge_summary">Merge duplicate chapters across scanlators, preferring your prioritized scanlators</string>
     <string name="pref_discord_show_timestamp">Show Time</string>
     <string name="pref_discord_show_timestamp_summary">Display activity time</string>
     <string name="pref_discord_show_buttons">Show Buttons</string>
