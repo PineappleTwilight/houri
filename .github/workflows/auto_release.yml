@@ -71,6 +71,8 @@ jobs:
       PREV_RELEASE_SHA: ${{ steps.previous_commit.outputs.PREV_RELEASE_SHA }}
       COMMIT_LOGS: ${{ steps.commit_logs.outputs.COMMIT_LOGS }}
       PREV_TAG_NAME: ${{ steps.previous_commit.outputs.PREV_TAG_NAME }}
+      TODO_COMPLETED: ${{ steps.todo_checklist.outputs.COMPLETED }}
+      TODO_OPEN: ${{ steps.todo_checklist.outputs.OPEN }}
     steps:
       - name: Clone repo
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -117,6 +119,12 @@ jobs:
           echo "PREV_RELEASE_SHA=$prev_release_sha" >> $GITHUB_OUTPUT
           echo "PREV_TAG_NAME=${{ steps.last_release.outputs.tag_name }}"
           echo "PREV_TAG_NAME=${{ steps.last_release.outputs.tag_name }}" >> $GITHUB_OUTPUT
+
+      - name: TODO checklist since last release
+        id: todo_checklist
+        env:
+          PREV_TAG_NAME: ${{ steps.previous_commit.outputs.PREV_TAG_NAME }}
+        run: python3 .github/scripts/todo_release_checklist.py --gh-output
 
       - name: Commit logs
         id: commit_logs
@@ -265,6 +273,9 @@ jobs:
           RELEASE_URL: https://github.com/${{ github.repository }}/releases/tag/${{ needs.prepare-build.outputs.VERSION_TAG }}
           AVATAR_URL: https://raw.githubusercontent.com/${{ github.repository }}/master/.github/readme-images/app-icon.png
           CHANGELOG: ${{ needs.prepare-build.outputs.COMMIT_LOGS }}
+          PREV_TAG_NAME: ${{ needs.prepare-build.outputs.PREV_TAG_NAME }}
+          TODO_COMPLETED: ${{ needs.prepare-build.outputs.TODO_COMPLETED }}
+          TODO_OPEN: ${{ needs.prepare-build.outputs.TODO_OPEN }}
         run: |
           set -euo pipefail
 
@@ -293,12 +304,30 @@ jobs:
           payload=$(jq -n \
             --arg content "$content" \
             --arg avatar_url "$AVATAR_URL" \
+            --arg prev_tag "$PREV_TAG_NAME" \
+            --arg todo_url "https://github.com/${{ github.repository }}/blob/master/TODO.md" \
+            --arg completed "$TODO_COMPLETED" \
+            --arg open "$TODO_OPEN" \
             '{
               username: "Houri Releases",
               avatar_url: $avatar_url,
               content: $content,
               allowed_mentions: { parse: [], roles: ["1540511662824759336"] }
-            }')
+            }
+            | ([ (if ($completed|length) > 0
+                  then { name: "✅ Checked off", value: $completed }
+                  else empty end),
+                 (if ($open|length) > 0
+                  then { name: "📋 Still open", value: $open }
+                  else empty end) ]) as $fields
+            | if ($fields|length) > 0
+              then . + { embeds: [{
+                    title: ("📋 TODO progress since " + $prev_tag),
+                    url: $todo_url,
+                    color: (if ($open|length) == 0 then 5763719 else 15714844 end),
+                    fields: $fields
+                  }] }
+              else . end')
 
           echo "$payload"
 

@@ -123,13 +123,15 @@
   - Handling for this should also be present when performing category operations, especially deletes
 - [x] **WebGPU Reader**: Fix tiny pages on ereaders when navigating to previous page or resuming from sleep
 - [x] **Manga Details**: Remember subcategory state when exiting manga details (take us back to the subcategory if we were in one, etc)
-- [ ] **Library**: Find out why "clean titles" still does not hot-reload the library to show the new name despite 3 bugfixes
+- [x] **Library**: Find out why "clean titles" still does not hot-reload the library to show the new name despite 3 bugfixes
+  - Root cause: Manga equality ignored custom-info snapshots, so distinctUntilChanged swallowed the re-emission
 - [x] **Library**: Fix custom manga cover cropping loading infinitely
 - [x] **WebGPU Reader**: RTL/LTR UI adjustment from previous commit is not present
 - [x] **WebGPU Reader**: Fix double-page scaling fix only working occasionally
 - [x] **WebGPU Reader**: Fix freezing/choppiness between chapters
 - [x] **Library**: Fix editing manga details not taking effect
-- [ ] **Webhook**: Fix reading time being reset when tabbed out of the app (should be paused)
+- [x] **Webhook**: Fix reading time being reset when tabbed out of the app (should be paused)
+- [x] **WebGPU Reader**: Fix freeze on exiting and re-entering reading (viewer cleanup ran after GPU teardown)
 
 ## Chores
 - [x] Replace all Komikku icons/branding with houri icons/branding

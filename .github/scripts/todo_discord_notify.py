@@ -46,14 +46,27 @@ SECTIONS = [
 
 
 def read_old_todo() -> str:
-    """Read TODO.md as of HEAD~1; empty string if the file did not exist."""
+    """Read TODO.md as of the push's base ref; empty string if unavailable."""
+    base_ref = os.environ.get("BEFORE_SHA", "").strip()
+    if not base_ref or set(base_ref) == {"0"}:
+        base_ref = "HEAD~1"
+    else:
+        # Force pushes / pruned history can leave event.before dangling; only
+        # trust it if this clone actually has the object.
+        check = subprocess.run(
+            ["git", "cat-file", "-e", f"{base_ref}^{{commit}}"],
+            capture_output=True,
+            text=True,
+        )
+        if check.returncode != 0:
+            base_ref = "HEAD~1"
     result = subprocess.run(
-        ["git", "show", "HEAD~1:TODO.md"],
+        ["git", "show", f"{base_ref}:TODO.md"],
         capture_output=True,
         text=True,
     )
     if result.returncode != 0:
-        # File was newly added in this commit (or history was rewritten shallowly).
+        # File did not exist at the base (or history was rewritten shallowly).
         return ""
     return result.stdout
 

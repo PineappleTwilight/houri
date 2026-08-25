@@ -285,6 +285,10 @@ class ReaderViewModel(
      */
     private var chapterReadStartTime: Long? = null
 
+    // KMK -->
+    private val webhookReadingTimeTracker = WebhookReadingTimeTracker()
+    // KMK <--
+
     private var chapterToDownload: Download? = null
 
     private var unfilteredChapterListImpl: List<Chapter>? = null
@@ -636,6 +640,11 @@ class ReaderViewModel(
             logcat { "Loading ${chapter.chapter.url}" }
 
             updateHistory()
+
+            // KMK -->
+            // Chapter switch: the previous chapter's reading time scope ends here.
+            resetWebhookReadingTime()
+            // KMK <--
             restartReadTimer()
 
             // KMK -->
@@ -955,11 +964,15 @@ class ReaderViewModel(
                 put("manga", currentManga.title)
                 put("chapter", readerChapter.chapter.name)
                 if (webhookPreferences.includeReadingTime().get()) {
-                    chapterReadStartTime?.let { start ->
-                        val totalSeconds = ((System.currentTimeMillis() - start) / 1000).coerceAtLeast(0)
+                    // KMK -->
+                    // Accumulated active reading time (backgrounded spans excluded),
+                    // consumed here so the next chapter starts fresh.
+                    val totalSeconds = webhookReadingTimeTracker.consumeTotalSeconds()
+                    if (totalSeconds > 0) {
                         put("time_spent", WebhookNotifier.formatReadingDuration(totalSeconds))
                         put("time_spent_seconds", totalSeconds.toString())
                     }
+                    // KMK <--
                 }
             }
             webhookNotifier.notify(
@@ -1034,7 +1047,30 @@ class ReaderViewModel(
 
     fun restartReadTimer() {
         chapterReadStartTime = Instant.now().toEpochMilli()
+        // KMK -->
+        // Resuming must never discard already-banked reading time; it only opens a
+        // new active segment (no-op when one is already open).
+        webhookReadingTimeTracker.resume()
+        // KMK <--
     }
+
+    // KMK -->
+    /**
+     * Banks the currently open reading segment. Called when the reader loses
+     * foreground (activity onPause) so backgrounded time is paused, not counted.
+     */
+    fun pauseWebhookReadingTime() {
+        webhookReadingTimeTracker.pause()
+    }
+
+    /**
+     * Discards accumulated reading time. Called when switching chapters, mirroring
+     * the per-chapter scope of the history session timer.
+     */
+    fun resetWebhookReadingTime() {
+        webhookReadingTimeTracker.reset()
+    }
+    // KMK <--
 
     /**
      * Saves the chapter last read history if incognito mode isn't on.

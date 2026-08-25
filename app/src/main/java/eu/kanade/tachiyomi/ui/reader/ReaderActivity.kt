@@ -543,14 +543,27 @@ class ReaderActivity : BaseActivity() {
      * Called when the activity is destroyed. Cleans up the viewer, configuration and any view.
      */
     override fun onDestroy() {
-        super.onDestroy()
+        // KMK -->
+        // Must run BEFORE super.onDestroy(): reaching DESTROYED disposes the viewer's
+        // Compose composition and its WebGPU renderer/device. Cleaning up cached page
+        // images afterwards submits GPU work against a torn-down device, which wedges
+        // native state and freezes the NEXT reader session's renderer init.
         viewModel.state.value.viewer?.destroy()
+        // KMK <--
+
+        super.onDestroy()
         config = null
         menuToggleToast?.cancel()
         readingModeToast?.cancel()
     }
 
     override fun onPause() {
+        // KMK -->
+        // Bank the open reading segment so backgrounded time is paused for webhook
+        // reading-time reports instead of being silently discarded on resume.
+        viewModel.pauseWebhookReadingTime()
+        // KMK <--
+
         lifecycleScope.launchNonCancellable {
             viewModel.updateHistory()
         }

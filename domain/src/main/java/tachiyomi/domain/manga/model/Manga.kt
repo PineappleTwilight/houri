@@ -84,6 +84,99 @@ data class Manga(
         get() = customMangaInfo?.status ?: ogStatus
     // SY <--
 
+    /* KMK -->
+    Custom info (user edits, title cleaning) lives outside the DB and is snapshotted
+    at construction, so generated equality - which only sees constructor properties -
+    treats a pre-edit and a post-edit instance as equal. Downstream distinctUntilChanged()
+    then swallows the re-emission and stale titles stay on screen until restart.
+    Include the resolved display values in equality/hashCode so such instances differ.
+    KMK <-- */
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is Manga) return false
+        return id == other.id &&
+            source == other.source &&
+            favorite == other.favorite &&
+            lastUpdate == other.lastUpdate &&
+            nextUpdate == other.nextUpdate &&
+            fetchInterval == other.fetchInterval &&
+            dateAdded == other.dateAdded &&
+            viewerFlags == other.viewerFlags &&
+            chapterFlags == other.chapterFlags &&
+            coverLastModified == other.coverLastModified &&
+            url == other.url &&
+            ogTitle == other.ogTitle &&
+            ogArtist == other.ogArtist &&
+            ogAuthor == other.ogAuthor &&
+            ogThumbnailUrl == other.ogThumbnailUrl &&
+            ogDescription == other.ogDescription &&
+            ogGenre == other.ogGenre &&
+            ogStatus == other.ogStatus &&
+            updateStrategy == other.updateStrategy &&
+            initialized == other.initialized &&
+            lastModifiedAt == other.lastModifiedAt &&
+            favoriteModifiedAt == other.favoriteModifiedAt &&
+            version == other.version &&
+            notes == other.notes &&
+            memo == other.memo &&
+            scanlatorPriority == other.scanlatorPriority &&
+            blacklistedChapters == other.blacklistedChapters &&
+            rereadCount == other.rereadCount &&
+            rereading == other.rereading &&
+            rereadStartedAt == other.rereadStartedAt &&
+            scanlatorRangeRules == other.scanlatorRangeRules &&
+            title == other.title &&
+            author == other.author &&
+            artist == other.artist &&
+            thumbnailUrl == other.thumbnailUrl &&
+            description == other.description &&
+            genre == other.genre &&
+            status == other.status
+    }
+
+    override fun hashCode(): Int {
+        var result = id.hashCode()
+        result = 31 * result + source.hashCode()
+        result = 31 * result + favorite.hashCode()
+        result = 31 * result + lastUpdate.hashCode()
+        result = 31 * result + nextUpdate.hashCode()
+        result = 31 * result + fetchInterval
+        result = 31 * result + dateAdded.hashCode()
+        result = 31 * result + viewerFlags.hashCode()
+        result = 31 * result + chapterFlags.hashCode()
+        result = 31 * result + coverLastModified.hashCode()
+        result = 31 * result + url.hashCode()
+        result = 31 * result + ogTitle.hashCode()
+        result = 31 * result + ogArtist.hashCode()
+        result = 31 * result + ogAuthor.hashCode()
+        result = 31 * result + ogThumbnailUrl.hashCode()
+        result = 31 * result + ogDescription.hashCode()
+        result = 31 * result + ogGenre.hashCode()
+        result = 31 * result + ogStatus.hashCode()
+        result = 31 * result + updateStrategy.hashCode()
+        result = 31 * result + initialized.hashCode()
+        result = 31 * result + lastModifiedAt.hashCode()
+        result = 31 * result + favoriteModifiedAt.hashCode()
+        result = 31 * result + version.hashCode()
+        result = 31 * result + notes.hashCode()
+        result = 31 * result + memo.hashCode()
+        result = 31 * result + scanlatorPriority.hashCode()
+        result = 31 * result + blacklistedChapters.hashCode()
+        result = 31 * result + rereadCount
+        result = 31 * result + rereading.hashCode()
+        result = 31 * result + rereadStartedAt.hashCode()
+        result = 31 * result + scanlatorRangeRules.hashCode()
+        result = 31 * result + title.hashCode()
+        result = 31 * result + author.hashCode()
+        result = 31 * result + artist.hashCode()
+        result = 31 * result + thumbnailUrl.hashCode()
+        result = 31 * result + description.hashCode()
+        result = 31 * result + genre.hashCode()
+        result = 31 * result + status.hashCode()
+        return result
+    }
+    // KMK <--
+
     val expectedNextUpdate: Instant?
         get() = nextUpdate
             /* KMK -->
