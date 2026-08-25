@@ -47,6 +47,7 @@ import eu.kanade.tachiyomi.ui.reader.viewer.Viewer
 import eu.kanade.tachiyomi.ui.reader.viewer.ViewerNavigation.NavigationRegion
 import eu.kanade.tachiyomi.util.system.createReaderThemeContext
 import eu.kanade.tachiyomi.util.system.readerBackgroundColor
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.asCoroutineDispatcher
@@ -94,6 +95,8 @@ open class WebGpuViewer(
     // Single lock for all page cache and queue operations
     @Suppress("PLATFORM_CLASS_MAPPED_TO_KOTLIN")
     private val lock = Object()
+
+    private val chapterPreloadGuard = ChapterPreloadGuard()
 
     // Page cache - keyed by stable PageKey for O(1) lookup
     private val pageCache = LinkedHashMap<PageKey, ViewerPage>()
@@ -348,16 +351,34 @@ open class WebGpuViewer(
      * guaranteed to have finished loading by the time it returns, so a single immediate
      * retry can race it and silently never queue the adjacent chapter's edge page for
      * decode. Gives up after 5 seconds if the chapter never finishes loading.
+     *
+     * Guarded by [chapterPreloadGuard]: this method is reached through the prev/next
+     * getters, which the pager library re-evaluates on every render snapshot and gesture
+     * frame while nearing a boundary. Unguarded, each hit spawned its own preload +
+     * polling cycle - many concurrent ChapterLoader runs and preload walks that showed
+     * up as freezing/choppiness at chapter transitions.
      */
     private fun preloadChapterThenRetry(chapter: ReaderChapter) {
+        val key = chapter.chapter.url
+        if (!chapterPreloadGuard.tryBegin(key)) return
+
         scope.launch(Dispatchers.Default) {
-            activity.viewModel.preload(chapter)
-            repeat(25) {
-                if (chapter.state is ReaderChapter.State.Loaded) {
-                    currentPage?.let { preloadPages(it) }
-                    return@launch
+            try {
+                activity.viewModel.preload(chapter)
+                repeat(25) {
+                    if (chapter.state is ReaderChapter.State.Loaded) {
+                        chapterPreloadGuard.end(key)
+                        currentPage?.let { preloadPages(it) }
+                        return@launch
+                    }
+                    delay(200.milliseconds)
                 }
-                delay(200.milliseconds)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                logcat(LogPriority.ERROR, e) { "Chapter preload retry failed: $key" }
+            } finally {
+                chapterPreloadGuard.end(key)
             }
         }
     }
