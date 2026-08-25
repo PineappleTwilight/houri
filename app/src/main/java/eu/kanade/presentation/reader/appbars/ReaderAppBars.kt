@@ -32,6 +32,7 @@ import eu.kanade.tachiyomi.ui.reader.setting.ReaderOrientation
 import eu.kanade.tachiyomi.ui.reader.setting.ReadingMode
 import eu.kanade.tachiyomi.ui.reader.viewer.Viewer
 import eu.kanade.tachiyomi.ui.reader.viewer.pager.R2LPagerViewer
+import eu.kanade.tachiyomi.ui.reader.viewer.webgpu.WebGpuViewer
 import kotlinx.collections.immutable.ImmutableSet
 import tachiyomi.presentation.core.components.material.padding
 
@@ -103,7 +104,9 @@ fun ReaderAppBars(
     onClickShiftPage: () -> Unit,
     // SY <--
 ) {
-    val isRtl = viewer is R2LPagerViewer
+    // KMK -->
+    val isRtl = viewer is R2LPagerViewer || (viewer as? WebGpuViewer)?.isReversed == true
+    // KMK <--
     val backgroundColor = MaterialTheme.colorScheme
         .surfaceColorAtElevation(3.dp)
         .copy(alpha = if (isSystemInDarkTheme()) 0.9f else 0.95f)

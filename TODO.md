@@ -66,7 +66,7 @@
 - [x] **Reader**: Properly invert progress bar and page counter between RTL and LTR reading modes
 - [x] **Smart Scanlator Filter**: Make toggleable with an option in Advanced settings (defaults to disabled)
 - [x] **Smart Scanlator Filter**: Show what chapters a scanlator covers
-- [ ] **Smart Scanlator Filter**: Add shortcut to toggle on/off via 3 dots menu in manga details
+- [x] **Smart Scanlator Filter**: Add shortcut to toggle on/off via 3 dots menu in manga details
 
 ## Bugfixes
 - [x] Fix UI transition choppiness.
@@ -124,9 +124,9 @@
 - [x] **WebGPU Reader**: Fix tiny pages on ereaders when navigating to previous page or resuming from sleep
 - [x] **Manga Details**: Remember subcategory state when exiting manga details (take us back to the subcategory if we were in one, etc)
 - [ ] **Library**: Find out why "clean titles" still does not hot-reload the library to show the new name despite 3 bugfixes
-- [ ] **Library**: Fix custom manga cover cropping loading infinitely
-- [ ] **WebGPU Reader**: RTL/LTR UI adjustment from previous commit is not present
-- [ ] **WebGPU Reader**: Fix double-page scaling fix only working occasionally
+- [x] **Library**: Fix custom manga cover cropping loading infinitely
+- [x] **WebGPU Reader**: RTL/LTR UI adjustment from previous commit is not present
+- [x] **WebGPU Reader**: Fix double-page scaling fix only working occasionally
 
 ## Chores
 - [x] Replace all Komikku icons/branding with houri icons/branding
