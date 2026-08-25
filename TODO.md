@@ -127,6 +127,7 @@
 - [x] **Library**: Fix custom manga cover cropping loading infinitely
 - [x] **WebGPU Reader**: RTL/LTR UI adjustment from previous commit is not present
 - [x] **WebGPU Reader**: Fix double-page scaling fix only working occasionally
+- [ ] **WebGPU Reader**: Fix freezing/choppiness between chapters
 
 ## Chores
 - [x] Replace all Komikku icons/branding with houri icons/branding
