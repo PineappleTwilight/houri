@@ -474,11 +474,15 @@ open class WebGpuViewer(
         fun matches(anchorImg: Image, partnerImg: Image): Boolean =
             anchorImg === anchorImage && partnerImg === partnerOriginal
 
-        fun installMatched(scaledImage: Image) {
+        fun installMatched(scaledImage: Image, replacesAnchor: Boolean) {
             disposeOwned()
             ownedImage = scaledImage
             val oldPage = page
-            page = ImagePage(anchorImage, scaledImage).apply { ownsImages = false }
+            page = if (replacesAnchor) {
+                ImagePage(scaledImage, partnerOriginal)
+            } else {
+                ImagePage(anchorImage, scaledImage)
+            }.apply { ownsImages = false }
             oldPage.cleanup()
         }
 
@@ -596,19 +600,30 @@ open class WebGpuViewer(
                 val newHolder = SpreadHolder(page, image, partnerImage)
                 page.spreadHolder = newHolder
 
-                // When the paired sources have different heights, rescale the partner to
-                // the anchor's height - the WebGPU counterpart of the matchHeights branch
+                // When the paired sources have different heights, rescale one side to
+                // the other's height - the WebGPU counterpart of the matchHeights branch
                 // in ImageUtil.mergeBitmaps. Both spread images render at one shared
                 // scale, so mismatched sources would otherwise show the second page
                 // visibly smaller; until the async rescale lands, the unscaled pairing
                 // is returned.
-                if (
-                    config.matchDoublePageHeights &&
-                    partnerImage.height != image.height &&
-                    nextReaderPage.spreadBytes != null &&
-                    !nextReaderPage.rescaleInFlight
-                ) {
-                    schedulePartnerHeightMatch(newHolder, nextReaderPage, image.height)
+                if (config.matchDoublePageHeights && partnerImage.height != image.height) {
+                    when {
+                        nextReaderPage.spreadBytes != null && !nextReaderPage.rescaleInFlight ->
+                            scheduleSpreadHeightMatch(
+                                holder = newHolder,
+                                sourcePage = nextReaderPage,
+                                replacesAnchor = false,
+                                targetHeight = image.height,
+                            )
+
+                        page.spreadBytes != null && !page.rescaleInFlight ->
+                            scheduleSpreadHeightMatch(
+                                holder = newHolder,
+                                sourcePage = page,
+                                replacesAnchor = true,
+                                targetHeight = partnerImage.height,
+                            )
+                    }
                 }
 
                 applyDoubleTapZoomPolicy(newHolder.page)
@@ -627,26 +642,37 @@ open class WebGpuViewer(
 
     // KMK -->
     /**
-     * Rescales [partnerPage]'s source to [targetHeight] (the anchor's height) off-thread
-     * and swaps it into [holder]'s spread when it completes. The compressed bytes kept on
-     * [partnerPage] are decoded back to RGBA pixels, scaled with the same aspect-preserving
-     * semantics as ImageUtil.mergeBitmaps, and uploaded as a fresh GPU image owned by
-     * [holder]. Falls back to the unscaled spread on failure or if either page left the
-     * cache meanwhile.
+     * Rescales [sourcePage]'s image to [targetHeight] (the paired page's height) and
+     * swaps it into [holder]'s spread when it completes. [replacesAnchor] selects which
+     * spread slot is rebuilt: the partner page is preferred, but the anchor is rescaled
+     * instead when only it still holds its source bytes. The compressed bytes are
+     * decoded back to RGBA pixels, scaled with the same aspect-preserving semantics as
+     * ImageUtil.mergeBitmaps, and uploaded as a fresh GPU image owned by [holder].
+     * Falls back to the unscaled spread on failure or if either page left the cache
+     * meanwhile; the holder is then dropped so a later rebuild can retry.
      */
-    private fun schedulePartnerHeightMatch(
+    private fun scheduleSpreadHeightMatch(
         holder: SpreadHolder,
-        partnerPage: ViewerReaderPage,
+        sourcePage: ViewerReaderPage,
+        replacesAnchor: Boolean,
         targetHeight: Int,
     ) {
-        synchronized(lock) { partnerPage.rescaleInFlight = true }
+        synchronized(lock) { sourcePage.rescaleInFlight = true }
 
         scope.launch(decodeDispatcher) {
             var scaledImage: Image? = null
             try {
-                val bytes = synchronized(lock) { partnerPage.spreadBytes }
+                val bytes = synchronized(lock) { sourcePage.spreadBytes }
                 if (bytes != null) {
-                    scaledImage = rescaleImageToHeight(bytes, targetHeight)
+                    scaledImage = rescaleImageToHeight(
+                        bytes,
+                        targetHeight,
+                        position = if (replacesAnchor) {
+                            if (isReversed) Image.Position.RIGHT else Image.Position.LEFT
+                        } else {
+                            if (isReversed) Image.Position.LEFT else Image.Position.RIGHT
+                        },
+                    )
                 }
             } catch (e: Exception) {
                 logcat(LogPriority.ERROR, e) { "Spread height-match rescale failed" }
@@ -655,17 +681,28 @@ open class WebGpuViewer(
 
             var installed = false
             synchronized(lock) {
-                partnerPage.rescaleInFlight = false
+                sourcePage.rescaleInFlight = false
 
-                if (scaledImage != null && pageInCache(partnerPage) &&
+                val sourceStillValid = if (replacesAnchor) {
+                    holder.anchorImage === sourcePage.imagePage.image
+                } else {
+                    holder.partnerOriginal === sourcePage.imagePage.image
+                }
+
+                if (scaledImage != null && pageInCache(sourcePage) &&
                     pageInCache(holder.anchor) && holder.anchor.spreadHolder === holder &&
-                    holder.partnerOriginal === partnerPage.imagePage.image
+                    sourceStillValid
                 ) {
-                    holder.installMatched(scaledImage!!)
-                    partnerPage.spreadBytes = null
+                    holder.installMatched(scaledImage!!, replacesAnchor)
+                    sourcePage.spreadBytes = null
                     installed = true
                 } else {
                     scaledImage?.let { stale -> ImagePage(stale).cleanup() }
+                    // Self-heal: without this, a holder whose rescale never lands keeps
+                    // matching in buildSpreadPage and permanently blocks a retry.
+                    if (!installed && holder.anchor.spreadHolder === holder) {
+                        holder.anchor.spreadHolder = null
+                    }
                 }
             }
 
@@ -676,7 +713,7 @@ open class WebGpuViewer(
         }
     }
 
-    private suspend fun rescaleImageToHeight(bytes: ByteArray, targetHeight: Int): Image {
+    private suspend fun rescaleImageToHeight(bytes: ByteArray, targetHeight: Int, position: Image.Position): Image {
         val dec = ImageDecoder.new(bytes.inputStream())
         val frame = dec.decodeNext()
         val srcWidth = frame.width
@@ -707,7 +744,7 @@ open class WebGpuViewer(
             trimThreshold = 0f,
             backgroundColor = if (config.automaticBackground) null else readerBackgroundColor(),
         ).also { scaledImage ->
-            scaledImage.position = if (isReversed) Image.Position.LEFT else Image.Position.RIGHT
+            scaledImage.position = position
         }
     }
     // KMK <--
@@ -1023,8 +1060,14 @@ open class WebGpuViewer(
                 }
 
                 // Buffer file to detect spread position tag, then decode.
-                // When not in dual page mode, skip Kim entirely.
-                val bytes = if (isDualPageMode()) input.readBytes() else null
+                // Gated on dual-page being possible at all (not on live orientation):
+                // WIDE pages decoded in portrait must still keep their position tags and
+                // retained source bytes for when the device rotates.
+                val bytes = if (config.dualPageView != ReaderPreferences.DualPageView.NEVER) {
+                    input.readBytes()
+                } else {
+                    null
+                }
 
                 val position = if (bytes != null) {
                     val tag = Kim.readMetadata(bytes.inputStream(), bytes.size.toLong())
@@ -1139,15 +1182,16 @@ open class WebGpuViewer(
                 firstImage.position = position
 
                 // KMK -->
-                // Keep the compressed source of partner-position pages so a spread whose
+                // Keep the compressed source of spread-capable pages so a spread whose
                 // pair has a different height can be rescaled to match (see
-                // schedulePartnerHeightMatch); anchor-position pages are never rescaled.
-                val partnerPosition = if (isReversed) Image.Position.LEFT else Image.Position.RIGHT
-                page.spreadBytes = if (config.matchDoublePageHeights && bytes != null && position == partnerPosition) {
-                    bytes
-                } else {
-                    null
-                }
+                // scheduleSpreadHeightMatch). Either side may be the one rescaled,
+                // depending on which page still holds its source bytes.
+                page.spreadBytes =
+                    if (config.matchDoublePageHeights && bytes != null && position != Image.Position.SINGLE) {
+                        bytes
+                    } else {
+                        null
+                    }
                 // KMK <--
 
                 // Create ImagePage early so its cleanup handles all frames
