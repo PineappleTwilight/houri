@@ -249,3 +249,62 @@ jobs:
           draft: false
           prerelease: false
           token: ${{ secrets.GITHUB_TOKEN }}
+
+  notify-discord:
+    name: Announce release on Discord
+    runs-on: 'ubuntu-24.04'
+    needs:
+      - prepare-build
+      - release-app
+    environment: Primary
+    steps:
+      - name: Send release announcement
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.RELEASE_DISCORD_WEBHOOK }}
+          VERSION_TAG: ${{ needs.prepare-build.outputs.VERSION_TAG }}
+          RELEASE_URL: https://github.com/${{ github.repository }}/releases/tag/${{ needs.prepare-build.outputs.VERSION_TAG }}
+          AVATAR_URL: https://raw.githubusercontent.com/${{ github.repository }}/master/.github/readme-images/app-icon.png
+          CHANGELOG: ${{ needs.prepare-build.outputs.COMMIT_LOGS }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "$DISCORD_WEBHOOK_URL" ]; then
+            echo "RELEASE_DISCORD_WEBHOOK not set; skipping Discord announcement."
+            exit 0
+          fi
+
+          version_number="${VERSION_TAG#v}"
+
+          # Keep at least one bullet; trim the rest to stay under Discord's 2000-char content limit.
+          changes=$(printf '%s\n' "${CHANGELOG:-}" | awk '
+            {
+              if (over) { hidden++; next }
+              total += length($0) + 1
+              if (total > 1650 && shown >= 1) { over = 1; hidden++; next }
+              print; shown++
+            }
+            END { if (hidden > 0) printf "- *…and %d more*\n", hidden }
+          ')
+          [ -n "$changes" ] || changes="- No notable changes"
+
+          content=$(printf '# 🍍 Houri %s is out!\n\n### **What changed:**\n\n%s\n\ndetails can be found [here](%s)\n-# ||<@&1540511662824759336>||' \
+            "$version_number" "$changes" "$RELEASE_URL")
+
+          payload=$(jq -n \
+            --arg content "$content" \
+            --arg avatar_url "$AVATAR_URL" \
+            '{
+              username: "Houri Releases",
+              avatar_url: $avatar_url,
+              content: $content,
+              allowed_mentions: { parse: [], roles: ["1540511662824759336"] }
+            }')
+
+          echo "$payload"
+
+          curl --fail --silent --show-error --retry 3 --retry-delay 2 \
+            -H 'Content-Type: application/json' \
+            -H 'User-Agent: Houri-Release-Notifier/1.0 (GitHub Actions)' \
+            -d "$payload" \
+            "$DISCORD_WEBHOOK_URL"
+          echo "Discord announcement sent."
