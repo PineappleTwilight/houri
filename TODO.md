@@ -128,7 +128,7 @@
 - [x] **WebGPU Reader**: RTL/LTR UI adjustment from previous commit is not present
 - [x] **WebGPU Reader**: Fix double-page scaling fix only working occasionally
 - [x] **WebGPU Reader**: Fix freezing/choppiness between chapters
-- [ ] **Library**: Fix editing manga details not taking effect
+- [x] **Library**: Fix editing manga details not taking effect
 
 ## Chores
 - [x] Replace all Komikku icons/branding with houri icons/branding
