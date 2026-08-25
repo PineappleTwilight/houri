@@ -80,7 +80,6 @@ import tachiyomi.domain.manga.interactor.DeleteNonLibraryManga
 import tachiyomi.domain.manga.interactor.FetchInterval
 import tachiyomi.domain.manga.interactor.GetDuplicateLibraryManga
 import tachiyomi.domain.manga.interactor.GetFavorites
-import tachiyomi.domain.manga.interactor.GetLibraryManga
 import tachiyomi.domain.manga.interactor.GetManga
 import tachiyomi.domain.manga.interactor.GetMangaByUrlAndSourceId
 import tachiyomi.domain.manga.interactor.GetMangaWithChapters
@@ -128,7 +127,6 @@ class DomainModule : InjektModule {
         addSingletonFactory<MangaRepository> { MangaRepositoryImpl(get()) }
         addFactory { GetDuplicateLibraryManga(get()) }
         addFactory { GetFavorites(get()) }
-        addFactory { GetLibraryManga(get(), get()) }
         addFactory { GetMangaWithChapters(get(), get()) }
         addFactory { GetMangaByUrlAndSourceId(get()) }
         addFactory { GetManga(get()) }

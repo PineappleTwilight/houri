@@ -1,6 +1,5 @@
 package eu.kanade.domain
 
-import android.app.Application
 import eu.kanade.domain.manga.interactor.CreateSortTag
 import eu.kanade.domain.manga.interactor.DeleteSortTag
 import eu.kanade.domain.manga.interactor.GetPagePreviews
@@ -17,7 +16,6 @@ import eu.kanade.domain.source.interactor.SetSourceCategories
 import eu.kanade.domain.source.interactor.ToggleExcludeFromDataSaver
 import eu.kanade.tachiyomi.source.online.MetadataSource
 import exh.search.SearchEngine
-import tachiyomi.data.manga.CustomMangaRepositoryImpl
 import tachiyomi.data.manga.FavoritesEntryRepositoryImpl
 import tachiyomi.data.manga.MangaMergeRepositoryImpl
 import tachiyomi.data.manga.MangaMetadataRepositoryImpl
@@ -31,7 +29,6 @@ import tachiyomi.domain.manga.interactor.DeleteFavoriteEntries
 import tachiyomi.domain.manga.interactor.DeleteMangaById
 import tachiyomi.domain.manga.interactor.DeleteMergeById
 import tachiyomi.domain.manga.interactor.GetAllManga
-import tachiyomi.domain.manga.interactor.GetCustomMangaInfo
 import tachiyomi.domain.manga.interactor.GetExhFavoriteMangaWithMetadata
 import tachiyomi.domain.manga.interactor.GetFavoriteEntries
 import tachiyomi.domain.manga.interactor.GetFlatMetadataById
@@ -50,9 +47,7 @@ import tachiyomi.domain.manga.interactor.InsertFavoriteEntries
 import tachiyomi.domain.manga.interactor.InsertFavoriteEntryAlternative
 import tachiyomi.domain.manga.interactor.InsertFlatMetadata
 import tachiyomi.domain.manga.interactor.InsertMergedReference
-import tachiyomi.domain.manga.interactor.SetCustomMangaInfo
 import tachiyomi.domain.manga.interactor.UpdateMergedSettings
-import tachiyomi.domain.manga.repository.CustomMangaRepository
 import tachiyomi.domain.manga.repository.FavoritesEntryRepository
 import tachiyomi.domain.manga.repository.MangaMergeRepository
 import tachiyomi.domain.manga.repository.MangaMetadataRepository
@@ -157,9 +152,5 @@ class SYDomainModule : InjektModule {
         // KMK -->
         addFactory { ReorderFeed(get()) }
         // KMK <--
-
-        addSingletonFactory<CustomMangaRepository> { CustomMangaRepositoryImpl(get<Application>()) }
-        addFactory { GetCustomMangaInfo(get()) }
-        addFactory { SetCustomMangaInfo(get()) }
     }
 }

@@ -102,6 +102,7 @@ import tachiyomi.core.common.preference.PreferenceStore
 import tachiyomi.core.common.util.lang.launchIO
 import tachiyomi.core.common.util.system.ImageUtil
 import tachiyomi.core.common.util.system.logcat
+import tachiyomi.domain.manga.model.CustomMangaInfoLookup
 import tachiyomi.domain.storage.service.StorageManager
 import tachiyomi.i18n.MR
 import tachiyomi.presentation.widget.WidgetManager
@@ -152,6 +153,9 @@ class App : Application(), DefaultLifecycleObserver, SingletonImageLoader.Factor
         // Must be set BEFORE graph.inject(): eager construction during injection
         // (TrackerManager -> MdList -> BaseTracker) reads globalAppGraph.
         globalAppGraph = graph
+
+        // Keeps reads and writes on Metro's single CustomMangaRepositoryImpl.
+        CustomMangaInfoLookup.resolve = { mangaId -> globalAppGraph.getCustomMangaInfo.get(mangaId) }
         // KMK <--
 
         graph.inject(this)
