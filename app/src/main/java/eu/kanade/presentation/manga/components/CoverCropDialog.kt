@@ -2,8 +2,8 @@ package eu.kanade.presentation.manga.components
 
 import android.content.Context
 import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import android.graphics.Matrix
+import android.graphics.drawable.BitmapDrawable
 import android.net.Uri
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.border
@@ -53,6 +53,10 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
+import coil3.asDrawable
+import coil3.imageLoader
+import coil3.request.ImageRequest
+import coil3.request.allowHardware
 import eu.kanade.presentation.components.AdaptiveSheet
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -97,6 +101,9 @@ fun CoverCropDialog(
     val density = LocalDensity.current
 
     var bitmap by remember(sourceUri) { mutableStateOf<Bitmap?>(null) }
+    // KMK -->
+    var decodeFailed by remember(sourceUri) { mutableStateOf(false) }
+    // KMK <--
     var rotationSteps by remember(sourceUri) { mutableIntStateOf(0) }
     var isRotating by remember(sourceUri) { mutableStateOf(false) }
     var frameRatio by remember(sourceUri) { mutableFloatStateOf(COVER_CROP_RATIOS.first()) }
@@ -108,6 +115,9 @@ fun CoverCropDialog(
 
     LaunchedEffect(sourceUri) {
         bitmap = withContext(Dispatchers.IO) { decodeDownscaledBitmap(context, sourceUri) }
+        // KMK -->
+        decodeFailed = bitmap == null
+        // KMK <--
     }
 
     LaunchedEffect(rotationSteps) {
@@ -227,9 +237,17 @@ fun CoverCropDialog(
                         .size(with(density) { frameWpx.toDp() }, with(density) { frameHpx.toDp() }),
                 )
 
-                if (bitmap == null) {
-                    CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+                // KMK -->
+                when {
+                    bitmap != null -> Unit
+                    decodeFailed -> Text(
+                        text = stringResource(MR.strings.decode_image_error),
+                        modifier = Modifier.align(Alignment.Center),
+                    )
+
+                    else -> CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
                 }
+                // KMK <--
             }
 
             Row(
@@ -261,7 +279,9 @@ fun CoverCropDialog(
                     .padding(top = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                TextButton(onClick = onUseOriginal, enabled = bitmap != null) {
+                // KMK -->
+                TextButton(onClick = onUseOriginal, enabled = bitmap != null || decodeFailed) {
+                    // KMK <--
                     Text(text = stringResource(KMR.strings.action_crop_use_original))
                 }
                 Box(modifier = Modifier.weight(1f))
@@ -323,15 +343,18 @@ private suspend fun writeCroppedBitmap(context: Context, source: Bitmap, rect: C
     }.getOrNull()
 }
 
-private fun decodeDownscaledBitmap(context: Context, uri: Uri): Bitmap? = runCatching {
-    val resolver = context.contentResolver
-    val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-    resolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, bounds) } ?: return null
-    var sampleSize = 1
-    while (max(bounds.outWidth, bounds.outHeight) / sampleSize > MAX_BITMAP_DIM) {
-        sampleSize *= 2
-    }
-    val options = BitmapFactory.Options().apply { inSampleSize = sampleSize }
-    resolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, options) }
+private suspend fun decodeDownscaledBitmap(context: Context, uri: Uri): Bitmap? = runCatching {
+    // KMK -->
+    // Routed through Coil so formats only the app's decoders support (AVIF, JXL,
+    // HEIF, JP2) can be cropped; BitmapFactory fails on them and left the dialog
+    // loading forever. Software bitmaps are required for cropping/export.
+    val request = ImageRequest.Builder(context)
+        .data(uri)
+        .size(MAX_BITMAP_DIM, MAX_BITMAP_DIM)
+        .allowHardware(false)
+        .build()
+    val drawable = context.imageLoader.execute(request).image?.asDrawable(context.resources)
+    (drawable as? BitmapDrawable)?.bitmap
+    // KMK <--
 }.getOrNull()
 // KMK <--
