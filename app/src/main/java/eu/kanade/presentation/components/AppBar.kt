@@ -14,6 +14,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.Search
@@ -295,6 +296,9 @@ fun AppBarActions(
                         showMenu = false
                     },
                     text = { Text(it.title, fontWeight = FontWeight.Normal) },
+                    // KMK -->
+                    trailingIcon = checkedOverflowIcon(it.checked),
+                    // KMK <--
                 )
             }
         }
@@ -477,8 +481,26 @@ sealed interface AppBar {
     ) : AppBarAction
     // KMK <--
 
+    // KMK -->
     data class OverflowAction(
         val title: String,
         val onClick: () -> Unit,
+        val checked: Boolean? = null,
     ) : AppBarAction
+    // KMK <--
 }
+
+// KMK -->
+/** Trailing check icon for toggle-style [AppBar.OverflowAction]s; null renders nothing. */
+private fun checkedOverflowIcon(checked: Boolean?): (@Composable () -> Unit)? =
+    if (checked == true) {
+        {
+            Icon(
+                imageVector = Icons.Outlined.Check,
+                contentDescription = null,
+            )
+        }
+    } else {
+        null
+    }
+// KMK <--
