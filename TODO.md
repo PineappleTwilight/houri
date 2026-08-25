@@ -129,6 +129,7 @@
 - [x] **WebGPU Reader**: Fix double-page scaling fix only working occasionally
 - [x] **WebGPU Reader**: Fix freezing/choppiness between chapters
 - [x] **Library**: Fix editing manga details not taking effect
+- [ ] **Webhook**: Fix reading time being reset when tabbed out of the app (should be paused)
 
 ## Chores
 - [x] Replace all Komikku icons/branding with houri icons/branding
