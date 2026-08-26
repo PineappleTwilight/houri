@@ -145,7 +145,7 @@ fun MangaInfoBox(
     val topAlignCover by globalAppGraph.uiPreferences.topAlignCover().collectAsState()
     val censorEnabled by globalAppGraph.uiPreferences.censorLewdManga().collectAsState()
     val shouldCensor = censorEnabled && manga.isLewd()
-    val displayManga = if (shouldCensor) manga.copy(title = stringResource(KMR.strings.censored_title)) else manga
+    val displayManga = if (shouldCensor) manga.copy(ogTitle = stringResource(KMR.strings.censored_title)) else manga
     // KMK <--
     Box(modifier = modifier) {
         // Backdrop
