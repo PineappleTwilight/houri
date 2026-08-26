@@ -226,17 +226,17 @@ class EHentai(
                     censorshipStatus = detectCensorshipStatus()
 
                     if (infoElements != null) {
-                        genre = getGenre(infoElements.getOrNull(1))
+                        genre = EHentaiElementParsers.getGenre(infoElements.getOrNull(1))
 
-                        datePosted = getDateTag(infoElements.getOrNull(2))
+                        datePosted = EHentaiElementParsers.getDateTag(infoElements.getOrNull(2))
 
-                        averageRating = getRating(infoElements.getOrNull(3))
+                        averageRating = EHentaiElementParsers.getRating(infoElements.getOrNull(3))
 
-                        uploader = getUploader(infoElements.getOrNull(4))
+                        uploader = EHentaiElementParsers.getUploader(infoElements.getOrNull(4))
 
-                        length = getPageCount(infoElements.getOrNull(5))
+                        length = EHentaiElementParsers.getPageCount(infoElements.getOrNull(5))
                     } else {
-                        genre = getGenre(body.selectFirst(".gl1c div"))
+                        genre = EHentaiElementParsers.getGenre(body.selectFirst(".gl1c div"))
 
                         val info = body.selectFirst(".gl2c")
                         val extraInfo = body.selectFirst(".gl4c")
@@ -244,20 +244,20 @@ class EHentai(
                         if (info != null && extraInfo != null) {
                             val infoList = info.select("div div")
 
-                            datePosted = getDateTag(infoList.getOrNull(8))
+                            datePosted = EHentaiElementParsers.getDateTag(infoList.getOrNull(8))
 
-                            averageRating = getRating(infoList.getOrNull(9))
+                            averageRating = EHentaiElementParsers.getRating(infoList.getOrNull(9))
 
                             val extraInfoList = extraInfo.select("div")
 
                             if (extraInfoList.getOrNull(2) == null) {
-                                uploader = getUploader(extraInfoList.getOrNull(0))
+                                uploader = EHentaiElementParsers.getUploader(extraInfoList.getOrNull(0))
 
-                                length = getPageCount(extraInfoList.getOrNull(1))
+                                length = EHentaiElementParsers.getPageCount(extraInfoList.getOrNull(1))
                             } else {
-                                uploader = getUploader(extraInfoList.getOrNull(1))
+                                uploader = EHentaiElementParsers.getUploader(extraInfoList.getOrNull(1))
 
-                                length = getPageCount(extraInfoList.getOrNull(2))
+                                length = EHentaiElementParsers.getPageCount(extraInfoList.getOrNull(2))
                             }
                         }
                     }
@@ -291,66 +291,6 @@ class EHentai(
         }
 
         parsedMangas.let { if (isReversed) it.reversed() else it } to nextPage
-    }
-
-    private fun getGenre(element: Element?): String? {
-        return element?.attr("onclick")
-            ?.nullIfBlank()
-            ?.substringAfterLast('/')
-            ?.removeSuffix("'")
-            ?.trim()
-            ?.substringAfterLast('/')
-            ?.removeSuffix("'")
-            ?: element?.text()
-                ?.nullIfBlank()
-                ?.lowercase()
-                ?.replace(" ", "")
-                ?.trim()
-    }
-
-    private fun getDateTag(element: Element?): Long? {
-        val text = element?.text()?.nullIfBlank()
-        return if (text != null) {
-            val date = ZonedDateTime.parse(text, MetadataUtil.EX_DATE_FORMAT.withZone(ZoneOffset.UTC))
-            date?.toInstant()?.toEpochMilli()
-        } else {
-            null
-        }
-    }
-
-    private fun getRating(element: Element?): Double? {
-        val ratingStyle = element?.attr("style")?.nullIfBlank()
-        return if (ratingStyle != null) {
-            val matches = RATING_REGEX.findAll(ratingStyle)
-                .mapNotNull { it.groupValues.getOrNull(1)?.toIntOrNull() }
-                .toList()
-            if (matches.size == 2) {
-                var rate = 5 - matches[0] / 16
-                if (matches[1] == 21) {
-                    rate--
-                    rate + 0.5
-                } else {
-                    rate.toDouble()
-                }
-            } else {
-                null
-            }
-        } else {
-            null
-        }
-    }
-
-    private fun getUploader(element: Element?): String? {
-        return element?.select("a")?.text()?.trimOrNull()
-    }
-
-    private fun getPageCount(element: Element?): Int? {
-        val pageCount = element?.text()?.trimOrNull()
-        return if (pageCount != null) {
-            PAGE_COUNT_REGEX.find(pageCount)?.value?.toIntOrNull()
-        } else {
-            null
-        }
     }
 
     /**
@@ -1540,8 +1480,6 @@ class EHentai(
     companion object {
         private const val TR_SUFFIX = "TR"
         private const val REVERSE_PARAM = "TEH_REVERSE"
-        private val PAGE_COUNT_REGEX = "[0-9]*".toRegex()
-        private val RATING_REGEX = "([0-9]*)px".toRegex()
         private const val THUMB_DOMAIN = "ehgt.org"
         private const val BLANK_THUMB = "blank.gif"
         private const val BLANK_PREVIEW_THUMB = "https://$THUMB_DOMAIN/g/$BLANK_THUMB"
