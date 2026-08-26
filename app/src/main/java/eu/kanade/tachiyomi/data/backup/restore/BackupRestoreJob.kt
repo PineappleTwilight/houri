@@ -54,6 +54,9 @@ class BackupRestoreJob(private val context: Context, workerParams: WorkerParamet
 
         return try {
             BackupRestorer(context, notifier, isSync).restore(uri, options)
+            // TODO: Offer to trigger a tracker sync (and optionally an immediate library update)
+            //  after a full restore, so restored tracking entries reconcile with remote progress
+            //  instead of waiting for the next scheduled library update.
             // KMK -->
             globalAppGraph.webhookNotifier.notify(
                 WebhookEvent.BACKUP_RESTORED,
