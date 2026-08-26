@@ -137,14 +137,14 @@
 - [x] **Library**: Fix editing manga details not taking effect
 - [x] **Webhook**: Fix reading time being reset when tabbed out of the app (should be paused)
 - [x] **WebGPU Reader**: Fix freeze on exiting and re-entering reading (viewer cleanup ran after GPU teardown)
-- [ ] **Subcategories**: Force parent category marked when subcategory is set in library manga add/management
+- [x] **Subcategories**: Force parent category marked when subcategory is set in library manga add/management
 
 ## Chores
 - [x] Replace all Komikku icons/branding with houri icons/branding
 - [x] Update ancient test framework
 - [x] Streamline gradle tasks
 - [x] Update gradle plugins
-- [ ] Modularize the codebase
+- [x] Modularize the codebase
 - [x] Fix GitHub actions
 - [x] Fine-tune GitHub actions (add compile, auto-release if version changed, etc)
 - [x] Replace Material UI framework with more stable library
