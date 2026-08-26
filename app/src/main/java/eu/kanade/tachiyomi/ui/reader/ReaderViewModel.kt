@@ -402,6 +402,9 @@ class ReaderViewModel(
             readerPreferences = readerPreferences,
         )
     }
+
+    @Volatile
+    private var pendingBetweenChapterSound: Boolean = false
     // KMK <--
 
     init {
@@ -634,6 +637,12 @@ class ReaderViewModel(
      * It's used only to set this chapter as active.
      */
     private fun loadNewChapter(chapter: ReaderChapter) {
+        // KMK -->
+        if (pendingBetweenChapterSound) {
+            pendingBetweenChapterSound = false
+            chapterCompleteSoundPlayer.playChapterCompleteSound()
+        }
+        // KMK <--
         val loader = loader ?: return
 
         viewModelScope.launchIO {
@@ -956,7 +965,17 @@ class ReaderViewModel(
     private suspend fun updateChapterProgressOnComplete(readerChapter: ReaderChapter) {
         readerChapter.chapter.read = true
         // KMK -->
-        chapterCompleteSoundPlayer.playChapterCompleteSound()
+        val deferBetweenChapters = readerPreferences.chapterCompletionSoundRandomLocation().get() &&
+            kotlin.random.Random.nextBoolean()
+        // If defer is chosen but there is no next chapter, fall back to immediate playback
+        // so the sound is not lost when the manga is finished.
+        val hasNextChapter = chapterList.any { it.chapter.id != readerChapter.chapter.id && !it.chapter.read } ||
+            state.value.viewerChapters?.nextChapter != null
+        if (deferBetweenChapters && hasNextChapter) {
+            pendingBetweenChapterSound = true
+        } else {
+            chapterCompleteSoundPlayer.playChapterCompleteSound()
+        }
         manga?.let { currentManga ->
             val wasFirstReadChapter = unfilteredChapterList
                 .count { it.read && it.id != readerChapter.chapter.id } == 0

@@ -34,6 +34,8 @@
     <string name="scale_type_double">Double zoom</string>
     <string name="pref_chapter_completion_sound">NSFW chapter completion sound</string>
     <string name="pref_chapter_completion_sound_summary">Play a random NSFW sound when finishing a chapter (gacha mechanic)</string>
+    <string name="pref_chapter_completion_sound_random_location">Randomize moan location</string>
+    <string name="pref_chapter_completion_sound_random_location_summary">50% on the last page, 50% between chapters</string>
     <string name="pref_chapter_completion_sound_import">Import custom sounds</string>
     <string name="pref_chapter_completion_sound_import_tier">Choose a rarity tier for the imported sounds</string>
     <string name="pref_chapter_completion_sound_tier_common">Common (60%)</string>

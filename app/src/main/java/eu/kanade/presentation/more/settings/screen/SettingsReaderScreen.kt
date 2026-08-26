@@ -239,6 +239,11 @@ object SettingsReaderScreen : SearchableSettings {
                     title = stringResource(KMR.strings.pref_chapter_completion_sound),
                     subtitle = stringResource(KMR.strings.pref_chapter_completion_sound_summary),
                 ),
+                Preference.PreferenceItem.SwitchPreference(
+                    preference = readerPreferences.chapterCompletionSoundRandomLocation(),
+                    title = stringResource(KMR.strings.pref_chapter_completion_sound_random_location),
+                    subtitle = stringResource(KMR.strings.pref_chapter_completion_sound_random_location_summary),
+                ),
                 // KMK <--
             ),
         )

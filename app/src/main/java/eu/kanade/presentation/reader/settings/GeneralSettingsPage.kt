@@ -48,6 +48,7 @@ import tachiyomi.presentation.core.i18n.pluralStringResource
 import tachiyomi.presentation.core.i18n.stringResource
 import tachiyomi.presentation.core.util.collectAsState
 import tachiyomi.core.common.i18n.stringResource as contextStringResource
+import tachiyomi.core.common.preference.toggle
 
 private val themes = listOf(
     MR.strings.black_background to 1,
@@ -154,9 +155,20 @@ internal fun GeneralPage(screenModel: ReaderSettingsScreenModel) {
 
     // KMK -->
     val chapterCompletionSoundEnabled by screenModel.preferences.chapterCompletionSound().collectAsState()
+    val chapterCompletionSoundRandomLocation by screenModel.preferences.chapterCompletionSoundRandomLocation()
+        .collectAsState()
     CheckboxItem(
         label = stringResource(KMR.strings.pref_chapter_completion_sound),
         pref = screenModel.preferences.chapterCompletionSound(),
+    )
+    CheckboxItem(
+        label = stringResource(KMR.strings.pref_chapter_completion_sound_random_location),
+        checked = chapterCompletionSoundRandomLocation,
+        onClick = {
+            if (chapterCompletionSoundEnabled) {
+                screenModel.preferences.chapterCompletionSoundRandomLocation().toggle()
+            }
+        },
     )
     if (chapterCompletionSoundEnabled) {
         ChapterCompleteSoundSettings()
