@@ -183,3 +183,4 @@
   - (+) Within app scope
   - (+) Fits into existing tracker/library code
   - (+) Easy to manage
+  - (+) Adds a feature-rich alternative to not great existing projects for LNs
