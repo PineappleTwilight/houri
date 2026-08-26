@@ -52,7 +52,6 @@ import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import logcat.LogPriority
@@ -164,8 +163,8 @@ open class BrowseSourceScreenModel(
         val jsonFilters = filtersJson
         val filters = state.value.filters
         if (savedSearchId != null) {
-            val savedSearch = runBlocking { getExhSavedSearch.awaitOne(savedSearchId) { filters } }
-            if (savedSearch != null) {
+            screenModelScope.launchIO {
+                val savedSearch = getExhSavedSearch.awaitOne(savedSearchId) { filters } ?: return@launchIO
                 search(
                     query = savedSearch.query,
                     filters = savedSearch.filterList,

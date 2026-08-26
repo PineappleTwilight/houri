@@ -927,11 +927,8 @@ class LibraryScreenModel(
      *
      * @param mangas the list of manga.
      */
-    private suspend fun getCommonCategories(mangas: List<Manga>): Collection<Category> {
-        if (mangas.isEmpty()) return emptyList()
-        return mangas
-            .map { getCategories.await(it.id).toSet() }
-            .reduce { set1, set2 -> set1.intersect(set2) }
+    private suspend fun getCategorySets(mangas: List<Manga>): List<Set<Category>> {
+        return mangas.map { getCategories.await(it.id).toSet() }
     }
 
     suspend fun getNextUnreadChapter(manga: Manga): Chapter? {
@@ -964,18 +961,6 @@ class LibraryScreenModel(
             // KMK <--
             .getNextUnread(manga, downloadManager, mergedManga)
         // SY <--
-    }
-
-    /**
-     * Returns the mix (non-common) categories for the given list of manga.
-     *
-     * @param mangas the list of manga.
-     */
-    private suspend fun getMixCategories(mangas: List<Manga>): Collection<Category> {
-        if (mangas.isEmpty()) return emptyList()
-        val mangaCategories = mangas.map { getCategories.await(it.id).toSet() }
-        val common = mangaCategories.reduce { set1, set2 -> set1.intersect(set2) }
-        return mangaCategories.flatten().distinct().subtract(common)
     }
 
     /**
@@ -1596,10 +1581,9 @@ class LibraryScreenModel(
             val categories = state.value.libraryData.categories.fastFilter { it.id != 0L }
             // KMK <--
 
-            // Get indexes of the common categories to preselect.
-            val common = getCommonCategories(mangaList)
-            // Get indexes of the mix categories to preselect.
-            val mix = getMixCategories(mangaList)
+            val mangaCategorySets = getCategorySets(mangaList)
+            val common = mangaCategorySets.reduceOrNull { set1, set2 -> set1.intersect(set2) }.orEmpty()
+            val mix = mangaCategorySets.flatten().distinct().subtract(common)
             val preselected = categories
                 .fastMap {
                     when (it) {
