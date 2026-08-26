@@ -61,6 +61,10 @@ internal class DownloadPageLoader(
 
     private fun getPagesFromDirectory(): List<ReaderPage> {
         val pages = downloadManager.buildPageList(source, manga, chapter.chapter.toDomainChapter()!!)
+        // TODO(debt): The legacy DbChapter <-> domain Chapter adapter web (ChapterImpl,
+        //  toDbChapter/toDomainChapter) threads through this reader-critical path and backup
+        //  restore (MangaRestorer.toChapterImpl). Untangling requires on-device QA of page
+        //  loading and restore flows - not compile-safe refactoring alone.
         return pages.map { page ->
             ReaderPage(page.index, page.url, page.imageUrl) {
                 context.contentResolver.openInputStream(page.uri ?: Uri.EMPTY)!!

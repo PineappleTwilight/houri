@@ -981,6 +981,9 @@ class MangaScreenModel(
 
     // Chapters list - start
 
+    // TODO: Extract the downloads cluster (observeDownloads/updateDownloadState/
+    //  startDownload/runDownloadAction/downloadChapters) behind a delegate; it shares
+    //  mutable UI state with the chapters list and needs callback wiring for state updates.
     private fun observeDownloads() {
         // SY -->
         val isMergedSource = source is MergedSource
@@ -1634,6 +1637,10 @@ class MangaScreenModel(
 
     fun resetToDefaultSettings() = chapterSettings.resetToDefaultSettings()
 
+    // TODO: Extract the chapter selection cluster (toggleSelection/toggleAllSelection/
+    //  invertSelection + selectedPositions/selectedChapterIds state) into a
+    //  ChapterSelectionController like MangaChapterSettingsController; it is entangled with
+    //  updateSuccessState/processedChapters and needs accessor plumbing.
     fun toggleSelection(
         item: ChapterList.Item,
         selected: Boolean,

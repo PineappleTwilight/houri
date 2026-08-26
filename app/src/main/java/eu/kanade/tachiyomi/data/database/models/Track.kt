@@ -4,6 +4,10 @@ package eu.kanade.tachiyomi.data.database.models
 
 import java.io.Serializable
 
+// TODO(upstream-parity): This mutable snake_case interface is Mihon upstream's standard
+//  tracker transfer model, used by every tracker service. Do NOT migrate it to
+//  tachiyomi.domain.track.model.Track casually - that is a full tracker-service-layer
+//  rewrite (~44 files) that diverges from upstream for style-only gain.
 interface Track : Serializable {
 
     var id: Long?

@@ -104,6 +104,9 @@ import java.time.ZoneOffset
 import java.time.ZonedDateTime
 
 // TODO Consider gallery updating when doing tabbed browsing
+// TODO: Decompose this god class (~1500 lines, implements HttpSource + MetadataSource +
+//  UrlImportableSource + NamespaceSource + PagePreviewSource). Cohesive split candidates:
+//  favorites sync API client, search/page parsing, metadata raising, login/cookie handling.
 class EHentai(
     override val id: Long,
     val exh: Boolean,
