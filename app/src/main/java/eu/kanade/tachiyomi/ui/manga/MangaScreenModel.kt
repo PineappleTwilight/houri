@@ -24,7 +24,6 @@ import coil3.imageLoader
 import coil3.request.ImageRequest
 import coil3.request.allowHardware
 import eu.kanade.core.preference.asState
-import eu.kanade.core.util.addOrRemove
 import eu.kanade.core.util.insertSeparators
 import eu.kanade.domain.chapter.interactor.GetAvailableScanlators
 import eu.kanade.domain.chapter.interactor.SetReadStatus
@@ -269,9 +268,6 @@ class MangaScreenModel(
     val isUpdateIntervalEnabled =
         LibraryPreferences.MANGA_OUTSIDE_RELEASE_PERIOD in libraryPreferences.autoUpdateMangaRestrictions().get()
 
-    private val selectedPositions: Array<Int> = arrayOf(-1, -1) // first and last selected index in list
-    private val selectedChapterIds: HashSet<Long> = HashSet()
-
     internal var showTrackDialogAfterCategorySelection: Boolean = false
 
     internal val autoOpenTrack: Boolean
@@ -305,6 +301,10 @@ class MangaScreenModel(
         setMangaChapterFlags = setMangaChapterFlags,
         setMangaDefaultChapterFlags = setMangaDefaultChapterFlags,
         snackbarHostState = snackbarHostState,
+    )
+
+    private val chapterSelection = ChapterSelectionController(
+        onUpdateState = { updateSuccessState(it) },
     )
 
     private val addToLibrary = AddToLibrary(
@@ -1087,7 +1087,7 @@ class MangaScreenModel(
                 chapter = chapter,
                 downloadState = downloadState,
                 downloadProgress = activeDownload?.progress ?: 0,
-                selected = chapter.id in selectedChapterIds,
+                selected = chapterSelection.isSelected(chapter.id),
                 // SY -->
                 sourceName = source?.getNameForMangaInfo(),
                 showScanlator = !isExhManga,
@@ -1637,97 +1637,15 @@ class MangaScreenModel(
 
     fun resetToDefaultSettings() = chapterSettings.resetToDefaultSettings()
 
-    // TODO: Extract the chapter selection cluster (toggleSelection/toggleAllSelection/
-    //  invertSelection + selectedPositions/selectedChapterIds state) into a
-    //  ChapterSelectionController like MangaChapterSettingsController; it is entangled with
-    //  updateSuccessState/processedChapters and needs accessor plumbing.
     fun toggleSelection(
         item: ChapterList.Item,
         selected: Boolean,
         fromLongPress: Boolean = false,
-    ) {
-        updateSuccessState { successState ->
-            // KMK -->
-            val selectedIndex = successState.processedChapters.indexOfFirst { it.id == item.chapter.id }
-            if (selectedIndex < 0) return@updateSuccessState successState
-            val selectedItem = successState.processedChapters[selectedIndex]
-            if (selectedItem.selected == selected) return@updateSuccessState successState
-            // KMK <--
+    ) = chapterSelection.toggleSelection(item, selected, fromLongPress)
 
-            val newChapters = successState.processedChapters.toMutableList().apply {
-                val firstSelection = none { it.selected }
-                set(selectedIndex, selectedItem.copy(selected = selected))
-                selectedChapterIds.addOrRemove(item.id, selected)
+    fun toggleAllSelection(selected: Boolean) = chapterSelection.toggleAllSelection(selected)
 
-                if (selected && fromLongPress) {
-                    if (firstSelection) {
-                        selectedPositions[0] = selectedIndex
-                        selectedPositions[1] = selectedIndex
-                    } else {
-                        // Try to select the items in-between when possible
-                        val range: IntRange
-                        if (selectedIndex < selectedPositions[0]) {
-                            range = selectedIndex + 1..<selectedPositions[0]
-                            selectedPositions[0] = selectedIndex
-                        } else if (selectedIndex > selectedPositions[1]) {
-                            range = (selectedPositions[1] + 1)..<selectedIndex
-                            selectedPositions[1] = selectedIndex
-                        } else {
-                            // Just select itself
-                            range = IntRange.EMPTY
-                        }
-
-                        range.forEach {
-                            val inBetweenItem = get(it)
-                            if (!inBetweenItem.selected) {
-                                selectedChapterIds.add(inBetweenItem.id)
-                                set(it, inBetweenItem.copy(selected = true))
-                            }
-                        }
-                    }
-                } else if (!fromLongPress) {
-                    if (!selected) {
-                        if (selectedIndex == selectedPositions[0]) {
-                            selectedPositions[0] = indexOfFirst { it.selected }
-                        } else if (selectedIndex == selectedPositions[1]) {
-                            selectedPositions[1] = indexOfLast { it.selected }
-                        }
-                    } else {
-                        if (selectedIndex < selectedPositions[0]) {
-                            selectedPositions[0] = selectedIndex
-                        } else if (selectedIndex > selectedPositions[1]) {
-                            selectedPositions[1] = selectedIndex
-                        }
-                    }
-                }
-            }
-            successState.copy(chapters = newChapters)
-        }
-    }
-
-    fun toggleAllSelection(selected: Boolean) {
-        updateSuccessState { successState ->
-            val newChapters = successState.chapters.map {
-                selectedChapterIds.addOrRemove(it.id, selected)
-                it.copy(selected = selected)
-            }
-            selectedPositions[0] = -1
-            selectedPositions[1] = -1
-            successState.copy(chapters = newChapters)
-        }
-    }
-
-    fun invertSelection() {
-        updateSuccessState { successState ->
-            val newChapters = successState.chapters.map {
-                selectedChapterIds.addOrRemove(it.id, !it.selected)
-                it.copy(selected = !it.selected)
-            }
-            selectedPositions[0] = -1
-            selectedPositions[1] = -1
-            successState.copy(chapters = newChapters)
-        }
-    }
+    fun invertSelection() = chapterSelection.invertSelection()
 
     // Chapters list - end
 
