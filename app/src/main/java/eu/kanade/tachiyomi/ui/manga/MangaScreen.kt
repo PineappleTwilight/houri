@@ -89,7 +89,6 @@ import eu.kanade.tachiyomi.util.system.toShareIntent
 import eu.kanade.tachiyomi.util.system.toast
 import exh.pagepreview.PagePreviewScreen
 import exh.recs.RecommendsScreen
-import exh.source.ExhPreferences
 import exh.source.anyIs
 import exh.source.getMainSource
 import exh.source.isEhBasedSource
