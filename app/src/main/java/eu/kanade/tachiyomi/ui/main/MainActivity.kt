@@ -587,8 +587,8 @@ class MainActivity : BaseActivity() {
             // (linear accelerate → decelerate) until splash is removed.
             val iconView = splashProvider.iconView
             // Ensure pivot is centered even if view not yet laid out
-            iconView.pivotX = (if (iconView.width > 0) iconView.width else 72.dpToPx.toFloat()) / 2f
-            iconView.pivotY = (if (iconView.height > 0) iconView.height else 72.dpToPx.toFloat()) / 2f
+            iconView.pivotX = (if (iconView.width > 0) iconView.width.toFloat() else 72.dpToPx.toFloat()) / 2f
+            iconView.pivotY = (if (iconView.height > 0) iconView.height.toFloat() else 72.dpToPx.toFloat()) / 2f
             val spinBurst = ValueAnimator.ofFloat(0f, 360f).apply {
                 interpolator = FastOutSlowInInterpolator()
                 duration = 650L

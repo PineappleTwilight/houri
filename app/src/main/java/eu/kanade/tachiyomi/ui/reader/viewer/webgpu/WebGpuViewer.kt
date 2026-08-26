@@ -172,9 +172,9 @@ open class WebGpuViewer(
         // surfaces OOM as a retryable error page instead of killing the worker.
         scope.launch(decodeDispatcher) {
             try {
-                while (scope.isActive) {
-                    val page = synchronized(lock) {
-                        while (decodeQueue.isEmpty() && scope.isActive) {
+                while (!isDestroyed) {
+                    val page: ViewerReaderPage? = synchronized(lock) {
+                        while (decodeQueue.isEmpty() && !isDestroyed) {
                             try {
                                 lock.wait(1000)
                             } catch (_: InterruptedException) {
@@ -182,9 +182,10 @@ open class WebGpuViewer(
                                 return@launch
                             }
                         }
-                        if (decodeQueue.isEmpty()) continue
+                        if (decodeQueue.isEmpty()) return@synchronized null
                         decodeQueue.removeLast().apply { state = PageState.DECODING }
-                    } ?: continue
+                    }
+                    if (page == null) continue
 
                     val shouldProcess = synchronized(lock) {
                         pageInCache(page) && page.state == PageState.DECODING && !page.isDecoded
@@ -463,8 +464,16 @@ open class WebGpuViewer(
 
         override fun render(dst: GPUTexture, x: Float, y: Float, scale: Float) {
             if (isDestroyed || dst.width <= 0 || dst.height <= 0) return
-            val padding = try { with(pager.state.density) { 24.dp.toPx() } } catch (_: Exception) { 24f }
-            val size = try { scale * with(pager.state.density) { 16.dp.toPx() } } catch (_: Exception) { 16f * scale }
+            val padding = try {
+                with(pager.state.density) { 24.dp.toPx() }
+            } catch (_: Exception) {
+                24f
+            }
+            val size = try {
+                scale * with(pager.state.density) { 16.dp.toPx() }
+            } catch (_: Exception) {
+                16f * scale
+            }
 
             val cx = dst.width * (0.5f + scale * x)
             val cy = dst.height * (0.5f + scale * y)
@@ -478,7 +487,11 @@ open class WebGpuViewer(
                     cx,
                     cy,
                     size,
-                    color = try { readerOnBackgroundColor() } catch (_: Exception) { Color.WHITE },
+                    color = try {
+                        readerOnBackgroundColor()
+                    } catch (_: Exception) {
+                        Color.WHITE
+                    },
                     align = TextAlign.Center,
                     maxWidth = (dst.width - 2f * padding).coerceAtLeast(0f),
                 )
@@ -487,7 +500,13 @@ open class WebGpuViewer(
         }
     }
 
-    inner class ProgressPage(var foregroundColor: Int = try { readerOnBackgroundColor() } catch (_: Exception) { Color.WHITE }) : ImagePage.Render(
+    inner class ProgressPage(
+        var foregroundColor: Int = try {
+            readerOnBackgroundColor()
+        } catch (_: Exception) {
+            Color.WHITE
+        },
+    ) : ImagePage.Render(
         (if (!isDualPageMode()) pager.state.width else pager.state.width / 2).coerceAtLeast(1),
         pager.state.height.coerceAtLeast(1),
     ) {
@@ -500,14 +519,22 @@ open class WebGpuViewer(
         }
 
         override val backgroundColor: Int
-            get() = try { readerBackgroundColor() } catch (_: Exception) { Color.BLACK }
+            get() = try {
+                readerBackgroundColor()
+            } catch (_: Exception) {
+                Color.BLACK
+            }
 
         override fun render(dst: GPUTexture, x: Float, y: Float, scale: Float) {
             if (isDestroyed || dst.width <= 0 || dst.height <= 0) return
             val cx = dst.width * (0.5f + scale * x)
             val cy = dst.height * (0.5f + scale * y)
 
-            val full = try { width * 0.5f * scale } catch (_: Exception) { return }
+            val full = try {
+                width * 0.5f * scale
+            } catch (_: Exception) {
+                return
+            }
             if (full <= 0f) return
             try {
                 circle(cx, cy, full / 2f, 0xAAAAAAAA.toInt())
@@ -535,7 +562,11 @@ open class WebGpuViewer(
         }
 
         override val backgroundColor: Int
-            get() = try { readerBackgroundColor() } catch (_: Exception) { Color.BLACK }
+            get() = try {
+                readerBackgroundColor()
+            } catch (_: Exception) {
+                Color.BLACK
+            }
 
         override fun render(dst: GPUTexture, x: Float, y: Float, scale: Float) {
             if (isDestroyed || dst.width <= 0 || dst.height <= 0) return
@@ -553,8 +584,16 @@ open class WebGpuViewer(
             val text = lines.joinToString("\n")
             if (text.isBlank()) return
 
-            val padding = try { with(pager.state.density) { 24.dp.toPx() } } catch (_: Exception) { 24f }
-            val size = try { scale * with(pager.state.density) { 16.dp.toPx() } } catch (_: Exception) { 16f * scale }
+            val padding = try {
+                with(pager.state.density) { 24.dp.toPx() }
+            } catch (_: Exception) {
+                24f
+            }
+            val size = try {
+                scale * with(pager.state.density) { 16.dp.toPx() }
+            } catch (_: Exception) {
+                16f * scale
+            }
 
             val cx = dst.width * (0.5f + scale * x)
             val cy = dst.height * (0.5f + scale * y)
@@ -568,7 +607,11 @@ open class WebGpuViewer(
                     cx,
                     cy,
                     size,
-                    try { readerOnBackgroundColor() } catch (_: Exception) { Color.WHITE },
+                    try {
+                        readerOnBackgroundColor()
+                    } catch (_: Exception) {
+                        Color.WHITE
+                    },
                     align = TextAlign.Center,
                     maxWidth = (dst.width - 2f * padding).coerceAtLeast(0f),
                 )
@@ -898,7 +941,7 @@ open class WebGpuViewer(
         val frame = dec.decodeNext()
         val srcWidth = frame.width
         val srcHeight = frame.height
-        require(srcWidth in 1..8192 && srcHeight in 1..8192) { "src dimensions out of range: ${srcWidth}x${srcHeight}" }
+        require(srcWidth in 1..8192 && srcHeight in 1..8192) { "src dimensions out of range: ${srcWidth}x$srcHeight" }
 
         val srcBitmap = createBitmap(srcWidth, srcHeight)
         try {
@@ -915,7 +958,7 @@ open class WebGpuViewer(
 
         if (scaledWidth * targetHeight > 16 * 1024 * 1024) {
             srcBitmap.recycle()
-            throw IllegalArgumentException("scaled area too large: ${scaledWidth}x${targetHeight}")
+            throw IllegalArgumentException("scaled area too large: ${scaledWidth}x$targetHeight")
         }
 
         val scaledBitmap = try {
@@ -968,8 +1011,16 @@ open class WebGpuViewer(
             }
             return
         }
-        val w = try { pager.state.width } catch (_: Exception) { 0 }
-        val h = try { pager.state.height } catch (_: Exception) { 0 }
+        val w = try {
+            pager.state.width
+        } catch (_: Exception) {
+            0
+        }
+        val h = try {
+            pager.state.height
+        } catch (_: Exception) {
+            0
+        }
         if (w <= 0 || h <= 0) return
         try {
             page.maxScale = page.homeScale
@@ -1028,8 +1079,8 @@ open class WebGpuViewer(
             }
         }
 
-        config.imagePropertyChangedListener = {
-            if (isDestroyed) return@apply
+        config.imagePropertyChangedListener = listener@ {
+            if (isDestroyed) return@listener
             pager.state.apply {
                 transition = when (config.transitionAnimation) {
                     TransitionAnimation.DEFAULT -> if (isVertical) TransitionBasic.Vertical else TransitionBasic
@@ -1061,7 +1112,7 @@ open class WebGpuViewer(
             }
 
             synchronized(lock) {
-                if (isDestroyed) return@apply
+                if (isDestroyed) return@listener
                 decodeQueue.clear()
                 // Snapshot to avoid ConcurrentModification if cleanup triggers callbacks
                 val snapshot = pageCache.values.toList()
@@ -1104,10 +1155,10 @@ open class WebGpuViewer(
         }
 
         // KMK -->
-        config.doubleTapZoomChangedListener = {
-            if (isDestroyed) return@let
+        config.doubleTapZoomChangedListener = listener@ {
+            if (isDestroyed) return@listener
             synchronized(lock) {
-                if (isDestroyed) return@let
+                if (isDestroyed) return@listener
                 pageCache.values.toList().forEach { page ->
                     (page as? ViewerReaderPage)?.let { readerPage ->
                         (readerPage.imagePage as? ImagePage.ImageSingle)?.let(::applyDoubleTapZoomPolicy)
@@ -1264,7 +1315,6 @@ open class WebGpuViewer(
                 } catch (e: Exception) {
                     logcat(LogPriority.ERROR, e) { "statusFlow collect failed" }
                 }
-
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -1480,8 +1530,16 @@ open class WebGpuViewer(
         if (isDestroyed || !config.landscapeZoom) return false
         val image = page.image ?: return false
 
-        val screenW = try { pager.state.width } catch (_: Exception) { 0 }
-        val screenH = try { pager.state.height } catch (_: Exception) { 0 }
+        val screenW = try {
+            pager.state.width
+        } catch (_: Exception) {
+            0
+        }
+        val screenH = try {
+            pager.state.height
+        } catch (_: Exception) {
+            0
+        }
         if (screenW <= 0 || screenH <= 0) return false
 
         // Wide page: half the image width is wider than the screen aspect ratio
@@ -1518,8 +1576,16 @@ open class WebGpuViewer(
 
         val image = page.image ?: return
 
-        val screenW = try { pager.state.width } catch (_: Exception) { 0 }
-        val screenH = try { pager.state.height } catch (_: Exception) { 0 }
+        val screenW = try {
+            pager.state.width
+        } catch (_: Exception) {
+            0
+        }
+        val screenH = try {
+            pager.state.height
+        } catch (_: Exception) {
+            0
+        }
         if (screenW <= 0 || screenH <= 0) return
 
         val w = page.trimWidth.toFloat()
