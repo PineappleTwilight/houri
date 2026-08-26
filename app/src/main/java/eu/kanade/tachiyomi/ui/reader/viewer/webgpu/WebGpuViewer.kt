@@ -103,6 +103,10 @@ open class WebGpuViewer(
     // Decode queue - pages waiting to be decoded, processed LIFO (last = highest priority)
     private val decodeQueue = ArrayDeque<ViewerReaderPage>()
 
+    // KMK -->
+    private val chapterPreloadGuard = ChapterPreloadGuard()
+    // KMK <--
+
     /**
      * Which side of a dual-page spread a [ViewerReaderPage] belongs on - app-level bookkeeping
      * for [getSpreadAnchor]/[buildSpreadPage], independent of the decoded image itself.
@@ -965,10 +969,12 @@ open class WebGpuViewer(
         config.doubleTapZoomChangedListener = {
             synchronized(lock) {
                 pageCache.values.forEach { page ->
-                    (page.imagePage as? ImagePage.ImageSingle)?.let(::applyDoubleTapZoomPolicy)
-                    page.spreadPage?.let { spread ->
-                        (spread.left as? ImagePage.ImageSingle)?.let(::applyDoubleTapZoomPolicy)
-                        (spread.right as? ImagePage.ImageSingle)?.let(::applyDoubleTapZoomPolicy)
+                    (page as? ViewerReaderPage)?.let { readerPage ->
+                        (readerPage.imagePage as? ImagePage.ImageSingle)?.let(::applyDoubleTapZoomPolicy)
+                        readerPage.spreadPage?.let { spread ->
+                            (spread.left as? ImagePage.ImageSingle)?.let(::applyDoubleTapZoomPolicy)
+                            (spread.right as? ImagePage.ImageSingle)?.let(::applyDoubleTapZoomPolicy)
+                        }
                     }
                 }
             }
