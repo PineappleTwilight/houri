@@ -296,7 +296,13 @@ data object LibraryTab : Tab {
         ) { contentPadding ->
             when {
                 state.isLoading -> {
-                    LoadingScreen(Modifier.padding(contentPadding))
+                    androidx.compose.animation.Crossfade(
+                        targetState = true,
+                        label = "libraryLoading",
+                        modifier = Modifier.padding(contentPadding),
+                    ) {
+                        if (it) tachiyomi.presentation.core.components.LibraryShimmerGrid()
+                    }
                 }
                 state.searchQuery.isNullOrEmpty() && !state.hasActiveFilters && state.isLibraryEmpty -> {
                     val handler = LocalUriHandler.current

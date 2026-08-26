@@ -565,46 +565,70 @@ class MainActivity : BaseActivity() {
     }
 
     /**
-     * Sets custom splash screen exit animation on devices prior to Android 12.
+     * Sets custom splash screen exit animation with pineapple spin burst.
      *
-     * When custom animation is used, status and navigation bar color will be set to transparent and will be restored
-     * after the animation is finished.
+     * The pineapple (ic_houri) spins on a loop with accelerate/decelerate
+     * burst — FastOutSlowIn per 360° — until the splash is dismissed.
      */
     @Suppress("Deprecation")
     private fun setSplashScreenExitAnimation(splashScreen: SplashScreen?) {
         val root = findViewById<View>(android.R.id.content)
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S && splashScreen != null) {
+        if (splashScreen == null) return
+
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
             window.statusBarColor = Color.TRANSPARENT
             window.navigationBarColor = Color.TRANSPARENT
+        }
 
-            splashScreen.setOnExitAnimationListener { splashProvider ->
-                // For some reason the SplashScreen applies (incorrect) Y translation to the iconView
-                splashProvider.iconView.translationY = 0F
+        splashScreen.setOnExitAnimationListener { splashProvider ->
+            splashProvider.iconView.translationY = 0F
 
-                val activityAnim = ValueAnimator.ofFloat(1F, 0F).apply {
-                    interpolator = LinearOutSlowInInterpolator()
-                    duration = SPLASH_EXIT_ANIM_DURATION
-                    addUpdateListener { va ->
-                        val value = va.animatedValue as Float
-                        root.translationY = value * 16.dpToPx
-                    }
+            // Pineapple spin burst — infinite 360° loops with FastOutSlowIn
+            // (linear accelerate → decelerate) until splash is removed.
+            val iconView = splashProvider.iconView
+            // Ensure pivot is centered even if view not yet laid out
+            iconView.pivotX = (if (iconView.width > 0) iconView.width.toFloat() else 72.dpToPx.toFloat()) / 2f
+            iconView.pivotY = (if (iconView.height > 0) iconView.height.toFloat() else 72.dpToPx.toFloat()) / 2f
+            val spinBurst = ValueAnimator.ofFloat(0f, 360f).apply {
+                interpolator = FastOutSlowInInterpolator()
+                duration = 650L
+                repeatCount = ValueAnimator.INFINITE
+                repeatMode = ValueAnimator.RESTART
+                addUpdateListener { va ->
+                    iconView.rotation = va.animatedValue as Float
                 }
-
-                val splashAnim = ValueAnimator.ofFloat(1F, 0F).apply {
-                    interpolator = FastOutSlowInInterpolator()
-                    duration = SPLASH_EXIT_ANIM_DURATION
-                    addUpdateListener { va ->
-                        val value = va.animatedValue as Float
-                        splashProvider.view.alpha = value
-                    }
-                    doOnEnd {
-                        splashProvider.remove()
-                    }
-                }
-
-                activityAnim.start()
-                splashAnim.start()
             }
+            spinBurst.start()
+
+            val activityAnim = ValueAnimator.ofFloat(1F, 0F).apply {
+                interpolator = LinearOutSlowInInterpolator()
+                duration = SPLASH_EXIT_ANIM_DURATION
+                addUpdateListener { va ->
+                    val value = va.animatedValue as Float
+                    root.translationY = value * 16.dpToPx
+                }
+            }
+
+            val splashAnim = ValueAnimator.ofFloat(1F, 0F).apply {
+                interpolator = FastOutSlowInInterpolator()
+                duration = SPLASH_EXIT_ANIM_DURATION
+                addUpdateListener { va ->
+                    val value = va.animatedValue as Float
+                    splashProvider.view.alpha = value
+                }
+                doOnEnd {
+                    spinBurst.cancel()
+                    // Reset rotation so the icon doesn't stay tilted if reused
+                    try {
+                        iconView.rotation = 0f
+                    } catch (_: Exception) {
+                    }
+                    splashProvider.remove()
+                }
+            }
+
+            activityAnim.start()
+            splashAnim.start()
         }
     }
 
@@ -698,7 +722,8 @@ class MainActivity : BaseActivity() {
     }
 }
 
-// Splash screen
+// Splash screen — pineapple spin burst visible during exit, so duration
+// allows at least one full 650ms burst loop.
 private const val SPLASH_MIN_DURATION = 500 // ms
 private const val SPLASH_MAX_DURATION = 5000 // ms
-private const val SPLASH_EXIT_ANIM_DURATION = 400L // ms
+private const val SPLASH_EXIT_ANIM_DURATION = 900L // ms

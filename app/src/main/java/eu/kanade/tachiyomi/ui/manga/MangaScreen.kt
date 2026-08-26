@@ -140,7 +140,9 @@ class MangaScreen(
     @Composable
     override fun Content() {
         if (!ifSourcesLoaded()) {
-            LoadingScreen()
+            androidx.compose.animation.Crossfade(targetState = true, label = "sourcesLoading") { _ ->
+                tachiyomi.presentation.core.components.MangaDetailShimmer()
+            }
             return
         }
 
@@ -161,7 +163,9 @@ class MangaScreen(
         val state by screenModel.state.collectAsStateWithLifecycle()
 
         if (state is MangaScreenModel.State.Loading) {
-            LoadingScreen()
+            androidx.compose.animation.Crossfade(targetState = true, label = "mangaLoading") { _ ->
+                tachiyomi.presentation.core.components.MangaDetailShimmer()
+            }
             return
         }
 

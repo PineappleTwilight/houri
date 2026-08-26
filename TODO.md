@@ -126,7 +126,7 @@
   - [x] Improve chapter completion reading moan to make it dynamic so we can add more sounds in the future or custom sounds from the user
 - [x] Modify all category selection UIs to be subcategory-aware
 - [x] Add chapter completion moan option to global reader settings
-- [ ] Remove herobrine
+- [x] Remove herobrine — no code references found; treated as meme entry, verified clean
 - [x] **Subcategories**: Replace folder icon in the category editor with a hamburger dragger like the parent categories and remove the arrow buttons
 - [x] **Subcategories**: Fix db import bug where all imported categories are imported as subcategories under "Default"
 - [x] **Comick Tracker**: Fix cookies not saving and the tracker just generally not working
@@ -152,7 +152,7 @@
 - [x] **WebGPU Reader**: Fix freeze on exiting and re-entering reading (viewer cleanup ran after GPU teardown)
 - [x] **Subcategories**: Force parent category marked when subcategory is set in library manga add/management
 - [x] **WebGPU Reader**: Fix double-page scaling fix not applying on first page rendered when entering the reader (changing pages fixes it, but whenever the user leaves the reader and re-enters, issue comes back for that first page)
-- [ ] **WebGPU Reader**: Fix persistent and intermittent double page scaling issues
+- [x] **WebGPU Reader**: Fix persistent and intermittent double page scaling issues — scale shorter→taller deterministically, guard zero heights, fallback to opposite side when bytes evicted; fixes first-spread no-op and e-ink tiny-shrink (see `WebGpuViewer.maybeScheduleSpreadHeightMatch`)
 
 ## Chores
 - [x] Replace all Komikku icons/branding with houri icons/branding
