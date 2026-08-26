@@ -28,6 +28,7 @@ import androidx.compose.ui.unit.dp
 import eu.kanade.presentation.manga.components.MangaCover
 import eu.kanade.tachiyomi.ui.library.LibraryItem
 import tachiyomi.domain.category.model.Category
+import tachiyomi.domain.library.model.LibraryDisplayMode
 import tachiyomi.domain.library.model.LibraryManga
 import tachiyomi.domain.manga.model.MangaCover as MangaCoverModel
 
@@ -36,12 +37,16 @@ import tachiyomi.domain.manga.model.MangaCover as MangaCoverModel
  * Home-screen-style library layout: each subcategory of the current category is
  * rendered as a folder tile showing a few cover previews, while manga not assigned
  * to any subcategory are mixed in alongside the folders.
+ *
+ * Loose manga follow the category's display mode; folder tiles stay folder tiles
+ * in every mode (stacked full-width when List is selected).
  */
 @Composable
 internal fun LibraryFolderGrid(
     folders: List<Pair<Category, List<LibraryItem>>>,
     looseItems: List<LibraryItem>,
     columns: Int,
+    displayMode: LibraryDisplayMode,
     contentPadding: PaddingValues,
     selection: Set<Long>,
     searchQuery: String?,
@@ -53,7 +58,7 @@ internal fun LibraryFolderGrid(
 ) {
     LazyLibraryGrid(
         modifier = Modifier.fillMaxSize(),
-        columns = columns,
+        columns = if (displayMode == LibraryDisplayMode.List) 1 else columns,
         contentPadding = contentPadding,
     ) {
         globalSearchItem(searchQuery, onGlobalSearchClicked)
@@ -85,30 +90,84 @@ internal fun LibraryFolderGrid(
                     lastModified = manga.coverLastModified,
                 )
             }
-            MangaCompactGridItem(
-                isSelected = manga.id in selection,
-                title = manga.title,
-                coverData = coverData,
-                coverBadgeStart = {
-                    DownloadsBadge(count = libraryItem.downloadCount)
-                    UnreadBadge(count = libraryItem.unreadCount)
-                },
-                coverBadgeEnd = {
-                    LanguageBadge(
-                        isLocal = libraryItem.isLocal,
-                        sourceLanguage = libraryItem.sourceLanguage,
-                        useLangIcon = libraryItem.useLangIcon,
+            val badges: @Composable () -> Unit = {
+                DownloadsBadge(count = libraryItem.downloadCount)
+                UnreadBadge(count = libraryItem.unreadCount)
+            }
+            when (displayMode) {
+                LibraryDisplayMode.List -> {
+                    MangaListItem(
+                        isSelected = manga.id in selection,
+                        title = manga.title,
+                        coverData = coverData,
+                        badge = {
+                            badges()
+                            LanguageBadge(
+                                isLocal = libraryItem.isLocal,
+                                sourceLanguage = libraryItem.sourceLanguage,
+                                useLangIcon = libraryItem.useLangIcon,
+                            )
+                            SourceIconBadge(source = libraryItem.source)
+                        },
+                        onLongClick = { onLongClickManga(libraryItem.libraryManga) },
+                        onClick = { onClickManga(libraryItem.libraryManga) },
+                        onClickContinueReading = if (onClickContinueReading != null && libraryItem.unreadCount > 0) {
+                            { onClickContinueReading(libraryItem.libraryManga) }
+                        } else {
+                            null
+                        },
                     )
-                    SourceIconBadge(source = libraryItem.source)
-                },
-                onLongClick = { onLongClickManga(libraryItem.libraryManga) },
-                onClick = { onClickManga(libraryItem.libraryManga) },
-                onClickContinueReading = if (onClickContinueReading != null && libraryItem.unreadCount > 0) {
-                    { onClickContinueReading(libraryItem.libraryManga) }
-                } else {
-                    null
-                },
-            )
+                }
+
+                LibraryDisplayMode.ComfortableGrid, LibraryDisplayMode.StaggeredGrid -> {
+                    MangaComfortableGridItem(
+                        isSelected = manga.id in selection,
+                        title = manga.title,
+                        coverData = coverData,
+                        coverBadgeStart = { badges() },
+                        coverBadgeEnd = {
+                            LanguageBadge(
+                                isLocal = libraryItem.isLocal,
+                                sourceLanguage = libraryItem.sourceLanguage,
+                                useLangIcon = libraryItem.useLangIcon,
+                            )
+                            SourceIconBadge(source = libraryItem.source)
+                        },
+                        usePanoramaCover = displayMode == LibraryDisplayMode.ComfortableGridPanorama,
+                        onLongClick = { onLongClickManga(libraryItem.libraryManga) },
+                        onClick = { onClickManga(libraryItem.libraryManga) },
+                        onClickContinueReading = if (onClickContinueReading != null && libraryItem.unreadCount > 0) {
+                            { onClickContinueReading(libraryItem.libraryManga) }
+                        } else {
+                            null
+                        },
+                    )
+                }
+
+                else -> {
+                    MangaCompactGridItem(
+                        isSelected = manga.id in selection,
+                        title = manga.title.takeIf { displayMode == LibraryDisplayMode.CompactGrid },
+                        coverData = coverData,
+                        coverBadgeStart = { badges() },
+                        coverBadgeEnd = {
+                            LanguageBadge(
+                                isLocal = libraryItem.isLocal,
+                                sourceLanguage = libraryItem.sourceLanguage,
+                                useLangIcon = libraryItem.useLangIcon,
+                            )
+                            SourceIconBadge(source = libraryItem.source)
+                        },
+                        onLongClick = { onLongClickManga(libraryItem.libraryManga) },
+                        onClick = { onClickManga(libraryItem.libraryManga) },
+                        onClickContinueReading = if (onClickContinueReading != null && libraryItem.unreadCount > 0) {
+                            { onClickContinueReading(libraryItem.libraryManga) }
+                        } else {
+                            null
+                        },
+                    )
+                }
+            }
         }
     }
 }
