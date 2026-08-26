@@ -182,6 +182,15 @@ private fun ColumnScope.FilterPage(
     // SY <--
 
     // KMK -->
+    val sourceLevelFiltering by screenModel.libraryPreferences.sourceLevelFiltering().collectAsState()
+    CheckboxItem(
+        label = stringResource(KMR.strings.pref_source_level_filtering),
+        checked = sourceLevelFiltering,
+        onClick = { screenModel.libraryPreferences.sourceLevelFiltering().toggle() },
+    )
+    // KMK <--
+
+    // KMK -->
     CategoriesFilter(
         libraryPreferences = screenModel.libraryPreferences,
         categories = categories,

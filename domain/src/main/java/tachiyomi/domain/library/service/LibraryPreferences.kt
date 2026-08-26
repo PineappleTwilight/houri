@@ -147,6 +147,24 @@ class LibraryPreferences(
         TriState.DISABLED,
     )
 
+    // KMK -->
+    fun sourceLevelFiltering() = preferenceStore.getBoolean("pref_source_level_filtering", false)
+
+    fun sourceFilter(sourceId: Long) =
+        preferenceStore.getStringSet("pref_source_filter_${sourceId}_v2", emptySet())
+
+    fun sourceSort(sourceId: Long) =
+        preferenceStore.getString("pref_source_sort_${sourceId}_v2", "")
+
+    fun setSourceFilter(sourceId: Long, filters: Set<String>) {
+        sourceFilter(sourceId).set(filters)
+    }
+
+    fun setSourceSort(sourceId: Long, sort: String) {
+        sourceSort(sourceId).set(sort)
+    }
+    // KMK <--
+
     // endregion
 
     // region Badges
