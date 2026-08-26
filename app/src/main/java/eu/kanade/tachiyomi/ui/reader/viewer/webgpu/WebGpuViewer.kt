@@ -737,9 +737,11 @@ open class WebGpuViewer(
     // KMK -->
     /**
      * Dual-page spread height matching: when both halves are decoded images with differing
-     * heights, rescale whichever side still retains its compressed source bytes to the other
-     * side's height. The rescaled image replaces that side's [ImagePage.ImageSingle], and the
-     * spread recomposes from slot identity on the next fetch.
+     * heights, rescale the shorter side to the taller side's height. The rescaled image
+     * replaces that side's [ImagePage.ImageSingle], and the spread recomposes from slot
+     * identity on the next fetch. Prior logic could rescale the taller side down (tiny on
+     * e-ink) or rescale to its own height (no-op on first spread); this version is
+     * deterministic and retry-safe.
      */
     private fun maybeScheduleSpreadHeightMatch(
         anchorPage: ViewerReaderPage,
@@ -751,24 +753,41 @@ open class WebGpuViewer(
         val leftImage = (spread.left as? ImagePage.ImageSingle)?.image
         val rightImage = (spread.right as? ImagePage.ImageSingle)?.image
         if (leftImage == null || rightImage == null || leftImage.height == rightImage.height) return
+        if (leftImage.height <= 0 || rightImage.height <= 0) return
 
-        val partnerSide = nextReaderPage
-            ?.takeIf { it !== anchorPage && it.spreadBytes != null && !it.rescaleInFlight }
+        // Deterministically scale the shorter side up to the taller side. This avoids
+        // shrinking a large page down to a small partner (which produced tiny spreads on
+        // e-ink) and makes the target independent of decode order.
+        val isLeftShorter = leftImage.height < rightImage.height
+        val targetHeight = maxOf(leftImage.height, rightImage.height)
+
+        // Resolve which ViewerReaderPage backs the shorter side.
+        val shorterPage: ViewerReaderPage? = when {
+            isLeftShorter && anchorPage.spreadPosition == SpreadPosition.LEFT -> anchorPage
+            isLeftShorter && nextReaderPage != null && nextReaderPage.spreadPosition == SpreadPosition.LEFT -> nextReaderPage
+            !isLeftShorter && anchorPage.spreadPosition == SpreadPosition.RIGHT -> anchorPage
+            !isLeftShorter && nextReaderPage != null && nextReaderPage.spreadPosition == SpreadPosition.RIGHT -> nextReaderPage
+            else -> null
+        }
+
         val sourcePage = when {
-            partnerSide != null -> partnerSide
+            shorterPage != null && shorterPage.spreadBytes != null && !shorterPage.rescaleInFlight -> shorterPage
+            // Fallback: if the shorter side's bytes are gone (evicted or already used),
+            // scale the taller side down to at least make heights equal rather than leave
+            // a persistent mismatch. Prefer partner for the fallback to keep anchor stable.
+            nextReaderPage != null && nextReaderPage !== anchorPage &&
+                nextReaderPage.spreadBytes != null && !nextReaderPage.rescaleInFlight -> nextReaderPage
             anchorPage.spreadBytes != null && !anchorPage.rescaleInFlight -> anchorPage
             else -> return
         }
-        // Target is the opposite side's height from the source: rescaling partner -> anchor height,
-        // rescaling anchor -> partner height. Previously this was keyed only on anchor position,
-        // so the preferred partner path rescaled to its own height (no-op), leaving the first
-        // spread visibly mismatched until a navigation forced the anchor fallback.
-        val targetHeight = if (sourcePage === anchorPage) {
-            if (anchorPage.spreadPosition == SpreadPosition.LEFT) rightImage.height else leftImage.height
+
+        // If we fell back to scaling the taller side, adjust target to the shorter height.
+        val resolvedTarget = if (sourcePage === shorterPage) {
+            targetHeight
         } else {
-            if (anchorPage.spreadPosition == SpreadPosition.LEFT) leftImage.height else rightImage.height
+            minOf(leftImage.height, rightImage.height)
         }
-        scheduleSpreadHeightMatch(sourcePage, targetHeight)
+        scheduleSpreadHeightMatch(sourcePage, resolvedTarget)
     }
 
     private fun scheduleSpreadHeightMatch(sourcePage: ViewerReaderPage, targetHeight: Int) {
