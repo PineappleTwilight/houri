@@ -759,10 +759,14 @@ open class WebGpuViewer(
             anchorPage.spreadBytes != null && !anchorPage.rescaleInFlight -> anchorPage
             else -> return
         }
-        val targetHeight = if (anchorPage.spreadPosition == SpreadPosition.LEFT) {
-            rightImage.height
+        // Target is the opposite side's height from the source: rescaling partner -> anchor height,
+        // rescaling anchor -> partner height. Previously this was keyed only on anchor position,
+        // so the preferred partner path rescaled to its own height (no-op), leaving the first
+        // spread visibly mismatched until a navigation forced the anchor fallback.
+        val targetHeight = if (sourcePage === anchorPage) {
+            if (anchorPage.spreadPosition == SpreadPosition.LEFT) rightImage.height else leftImage.height
         } else {
-            leftImage.height
+            if (anchorPage.spreadPosition == SpreadPosition.LEFT) leftImage.height else rightImage.height
         }
         scheduleSpreadHeightMatch(sourcePage, targetHeight)
     }
@@ -789,10 +793,10 @@ open class WebGpuViewer(
                     applyDoubleTapZoomPolicy(scaledSingle)
                     val oldImagePage = sourcePage.imagePage
                     sourcePage.imagePage = scaledSingle
+                    sourcePage.spreadBytes = null
                     oldImagePage.cleanup()
                     swapped = true
                 } else {
-                    // Give up retrying this pair-state; a later full rebuild can start over.
                     sourcePage.spreadBytes = null
                     scaledImage?.let { stale -> ImagePage.ImageSingle(stale).cleanup() }
                 }
