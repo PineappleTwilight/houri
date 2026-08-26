@@ -296,6 +296,16 @@ class MangaScreenModel(
         libraryPreferences = libraryPreferences,
     )
 
+    private val chapterSettings = MangaChapterSettingsController(
+        provideCurrentManga = { manga },
+        screenModelScope = screenModelScope,
+        context = context,
+        libraryPreferences = libraryPreferences,
+        setMangaChapterFlags = setMangaChapterFlags,
+        setMangaDefaultChapterFlags = setMangaDefaultChapterFlags,
+        snackbarHostState = snackbarHostState,
+    )
+
     /**
      * Helper function to update the UI state only if it's currently in success state
      */
@@ -1593,99 +1603,35 @@ class MangaScreenModel(
         }
     }
 
-    /**
-     * Sets the read filter and requests an UI update.
-     * @param state whether to display only unread chapters or all chapters.
-     */
-    fun setUnreadFilter(state: TriState) {
-        val manga = successState?.manga ?: return
-
-        val flag = when (state) {
-            TriState.DISABLED -> Manga.SHOW_ALL
-            TriState.ENABLED_IS -> Manga.CHAPTER_SHOW_UNREAD
-            TriState.ENABLED_NOT -> Manga.CHAPTER_SHOW_READ
-        }
-        screenModelScope.launchNonCancellable {
-            setMangaChapterFlags.awaitSetUnreadFilter(manga, flag)
-        }
-    }
+    fun setUnreadFilter(state: TriState) = chapterSettings.setUnreadFilter(state)
 
     /**
      * Sets the download filter and requests an UI update.
      * @param state whether to display only downloaded chapters or all chapters.
      */
-    fun setDownloadedFilter(state: TriState) {
-        val manga = successState?.manga ?: return
-
-        val flag = when (state) {
-            TriState.DISABLED -> Manga.SHOW_ALL
-            TriState.ENABLED_IS -> Manga.CHAPTER_SHOW_DOWNLOADED
-            TriState.ENABLED_NOT -> Manga.CHAPTER_SHOW_NOT_DOWNLOADED
-        }
-
-        screenModelScope.launchNonCancellable {
-            setMangaChapterFlags.awaitSetDownloadedFilter(manga, flag)
-        }
-    }
+    fun setDownloadedFilter(state: TriState) = chapterSettings.setDownloadedFilter(state)
 
     /**
      * Sets the bookmark filter and requests an UI update.
      * @param state whether to display only bookmarked chapters or all chapters.
      */
-    fun setBookmarkedFilter(state: TriState) {
-        val manga = successState?.manga ?: return
-
-        val flag = when (state) {
-            TriState.DISABLED -> Manga.SHOW_ALL
-            TriState.ENABLED_IS -> Manga.CHAPTER_SHOW_BOOKMARKED
-            TriState.ENABLED_NOT -> Manga.CHAPTER_SHOW_NOT_BOOKMARKED
-        }
-
-        screenModelScope.launchNonCancellable {
-            setMangaChapterFlags.awaitSetBookmarkFilter(manga, flag)
-        }
-    }
+    fun setBookmarkedFilter(state: TriState) = chapterSettings.setBookmarkedFilter(state)
 
     /**
      * Sets the active display mode.
      * @param mode the mode to set.
      */
-    fun setDisplayMode(mode: Long) {
-        val manga = successState?.manga ?: return
-
-        screenModelScope.launchNonCancellable {
-            setMangaChapterFlags.awaitSetDisplayMode(manga, mode)
-        }
-    }
+    fun setDisplayMode(mode: Long) = chapterSettings.setDisplayMode(mode)
 
     /**
      * Sets the sorting method and requests an UI update.
      * @param sort the sorting mode.
      */
-    fun setSorting(sort: Long) {
-        val manga = successState?.manga ?: return
+    fun setSorting(sort: Long) = chapterSettings.setSorting(sort)
 
-        screenModelScope.launchNonCancellable {
-            setMangaChapterFlags.awaitSetSortingModeOrFlipOrder(manga, sort)
-        }
-    }
+    fun setCurrentSettingsAsDefault(applyToExisting: Boolean) = chapterSettings.setCurrentSettingsAsDefault(applyToExisting)
 
-    fun setCurrentSettingsAsDefault(applyToExisting: Boolean) {
-        val manga = successState?.manga ?: return
-        screenModelScope.launchNonCancellable {
-            libraryPreferences.setChapterSettingsDefault(manga)
-            if (applyToExisting) {
-                setMangaDefaultChapterFlags.awaitAll()
-            }
-            snackbarHostState.showSnackbar(message = context.stringResource(MR.strings.chapter_settings_updated))
-        }
-    }
-
-    fun resetToDefaultSettings() {
-        val manga = successState?.manga ?: return
-        screenModelScope.launchNonCancellable {
-            setMangaDefaultChapterFlags.await(manga)
-        }
+    fun resetToDefaultSettings() = chapterSettings.resetToDefaultSettings()
     }
 
     fun toggleSelection(
