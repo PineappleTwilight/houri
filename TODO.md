@@ -82,6 +82,8 @@
   - Integration: `:yakuyomi-engine` module (`+55MB` via `arm64` ABI split, CPU-only `1.2s` SD8G2 / `2.8s` SD720G, hidden under LLM wait), `TranslationManager` (`AppGraph` Metro) hooked in `ChapterLoader` → `ViewerReaderPage.imagePage`, `WorkManager` for auto-translate on download
   - Effort `~6.5d` (`+3d` for typesetting), reference `mannu691/TachiyomiAT` + `joyeli/yakuyomi-engine` + `manga-image-translator`
   - Reference Code: [TachiyomiAT](https://github.com/mannu691/TachiyomiAT), [yakuyomi-engine](https://github.com/joyeli/yakuyomi-engine)
+- [ ] **New**: Per-category and per-subcategory reader settings
+  - Subcategories inherit parent category settings by default unless changed
 
 ## Bugfixes
 - [x] Fix UI transition choppiness.
