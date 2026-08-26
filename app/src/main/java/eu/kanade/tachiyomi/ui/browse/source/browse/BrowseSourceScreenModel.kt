@@ -174,12 +174,15 @@ open class BrowseSourceScreenModel(
                 )
             }
         } else if (jsonFilters != null) {
-            // TODO: Deserialize saved JSON filters on a background dispatcher; this currently
-            //  parses and mutates the filter tree synchronously during ScreenModel init.
-            runCatching {
-                val filtersJson = Json.decodeFromString<JsonArray>(jsonFilters)
-                filterSerializer.deserialize(filters, filtersJson)
-                search(filters = filters)
+            screenModelScope.launchIO {
+                runCatching {
+                    val filtersJson = Json.decodeFromString<JsonArray>(jsonFilters)
+                    // Deserialize into a fresh private filter tree and publish it atomically
+                    // afterwards, so composition never observes a half-mutated list.
+                    val restored = source.getFilterList()
+                    filterSerializer.deserialize(restored, filtersJson)
+                    search(filters = restored)
+                }
             }
         }
 

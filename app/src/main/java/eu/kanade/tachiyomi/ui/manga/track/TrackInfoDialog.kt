@@ -556,9 +556,7 @@ private data class TrackScoreSelectorScreen(
         private val track: Track,
         private val tracker: Tracker,
     ) : StateScreenModel<Model.State>(State(tracker.displayScore(track))) {
-        // TODO: Display scores on a normalized scale when several trackers are bound to a manga;
-        //  each tracker currently renders its own raw scale (e.g. 100-point AniList vs 5-star Kitsu),
-        //  making cross-tracker progress hard to compare.
+
         fun getSelections(): ImmutableList<String> {
             return tracker.getScoreList()
         }

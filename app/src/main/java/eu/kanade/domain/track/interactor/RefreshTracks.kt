@@ -26,6 +26,43 @@ class RefreshTracks(
 ) {
 
     /**
+     * Fetches updated tracking data for every stored track from all logged-in trackers,
+     * applying the same two-way chapter-progress sync [await] uses for non-enhanced
+     * services. Tracks are refreshed sequentially per service (polite to API rate limits)
+     * with different services running in parallel.
+     *
+     * @return Failed updates.
+     */
+    suspend fun awaitAllTracks(): List<Pair<Tracker?, Throwable>> {
+        val allTracks = getTracks.await()
+        if (allTracks.isEmpty()) return emptyList()
+
+        return supervisorScope {
+            trackerManager.services
+                .filter { it.isLoggedIn }
+                .map { service ->
+                    async {
+                        allTracks
+                            .filter { it.trackerId == service.id }
+                            .mapNotNull { track ->
+                                try {
+                                    val updatedTrack = service.refresh(track.toDbTrack()).toDomainTrack()
+                                        ?: return@mapNotNull service to IllegalStateException("Failed to convert track data")
+                                    insertTrack.await(updatedTrack)
+                                    syncChapterProgressWithTrack.sync(track.mangaId, updatedTrack, service)
+                                    null
+                                } catch (e: Throwable) {
+                                    service to e
+                                }
+                            }
+                    }
+                }
+                .awaitAll()
+                .flatten()
+        }
+    }
+
+    /**
      * Fetches updated tracking data from all logged in trackers.
      * Also sync chapter progress with the [EnhancedTracker] or all trackers based on [enhancedTrackersOnly].
      *

@@ -21,6 +21,7 @@ import eu.kanade.tachiyomi.util.system.setForegroundSafely
 import eu.kanade.tachiyomi.util.system.workManager
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.runBlocking
+import eu.kanade.tachiyomi.data.library.LibraryUpdateJob
 import logcat.LogPriority
 import mihon.app.di.globalAppGraph
 import tachiyomi.core.common.i18n.stringResource
@@ -54,10 +55,18 @@ class BackupRestoreJob(private val context: Context, workerParams: WorkerParamet
 
         return try {
             BackupRestorer(context, notifier, isSync).restore(uri, options)
-            // TODO: Offer to trigger a tracker sync (and optionally an immediate library update)
-            //  after a full restore, so restored tracking entries reconcile with remote progress
-            //  instead of waiting for the next scheduled library update.
             // KMK -->
+            // Kick off a chapter refresh and reconcile restored tracking entries with the
+            // remote services right away instead of waiting for the next scheduled update.
+            if (options.libraryEntries && !isSync) {
+                LibraryUpdateJob.startNow(context)
+                try {
+                    globalAppGraph.refreshTracks.awaitAllTracks()
+                } catch (e: Exception) {
+                    logcat(LogPriority.ERROR, e) { "Post-restore tracker sync failed" }
+                }
+            }
+            // KMK <--
             globalAppGraph.webhookNotifier.notify(
                 WebhookEvent.BACKUP_RESTORED,
                 mapOf("mode" to if (isSync) "sync" else "manual"),

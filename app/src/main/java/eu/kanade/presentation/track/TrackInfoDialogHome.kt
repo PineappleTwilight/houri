@@ -59,6 +59,7 @@ import eu.kanade.tachiyomi.ui.manga.track.TrackItem
 import eu.kanade.tachiyomi.util.lang.toLocalDate
 import eu.kanade.tachiyomi.util.system.copyToClipboard
 import tachiyomi.i18n.MR
+import tachiyomi.i18n.kmk.KMR
 import tachiyomi.presentation.core.i18n.stringResource
 import java.time.format.DateTimeFormatter
 
@@ -86,6 +87,20 @@ fun TrackInfoDialogHome(
             .windowInsetsPadding(WindowInsets.systemBars),
         verticalArrangement = Arrangement.spacedBy(24.dp),
     ) {
+        // KMK -->
+        val scoredTracks = trackItems.mapNotNull { it.track }.filter { it.score != 0.0 }
+        if (scoredTracks.size > 1) {
+            Text(
+                text = stringResource(
+                    KMR.strings.track_normalized_score_summary,
+                    scoredTracks.map { it.tracker.get10PointScore(it) }.average().toFloat(),
+                    scoredTracks.size,
+                ),
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
+        // KMK <--
         trackItems.forEach { item ->
             if (item.track != null) {
                 val supportsScoring = item.tracker.getScoreList().isNotEmpty()
