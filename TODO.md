@@ -72,6 +72,7 @@
   - Useful for support purposes.
   - Blurs the manga thumbnail and redacts the name, tags, and description.
   - Works in manga details and the library catalogue
+- [ ] **New**: Source-level manga filtering
 
 ## Bugfixes
 - [x] Fix UI transition choppiness.
@@ -138,7 +139,7 @@
 - [x] **Webhook**: Fix reading time being reset when tabbed out of the app (should be paused)
 - [x] **WebGPU Reader**: Fix freeze on exiting and re-entering reading (viewer cleanup ran after GPU teardown)
 - [x] **Subcategories**: Force parent category marked when subcategory is set in library manga add/management
-- [ ] **WebGPU Reader**: Fix double-page scaling fix not applying on first page rendered when entering the reader (changing pages fixes it, but whenever the user leaves the reader and re-enters, issue comes back for that first page) 
+- [ ] **WebGPU Reader**: Fix double-page scaling fix not applying on first page rendered when entering the reader (changing pages fixes it, but whenever the user leaves the reader and re-enters, issue comes back for that first page)
 
 ## Chores
 - [x] Replace all Komikku icons/branding with houri icons/branding
