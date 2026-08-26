@@ -4,8 +4,6 @@ on:
   push:
     branches:
       - master
-    paths:
-      - 'TODO.md'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}

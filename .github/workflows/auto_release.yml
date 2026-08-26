@@ -5,8 +5,6 @@ on:
   push:
     branches:
       - master
-    paths:
-      - 'app/build.gradle.kts'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
