@@ -74,6 +74,14 @@
   - Works in manga details and the library catalogue
 - [x] **New**: Source-level manga filtering
   - Ability to set filters as default on a per-sort basis too
+- [ ] **New**: AI-powered translation / English grammar and vocab fixer — *Feasibility: investigated 2026-08-26, feasible via hybrid Yakuyomi-engine*
+  - Disabled by default, gated by `isIncognito` / `censorLewdManga` before upload; cached `WEBP` per `pageHash+targetLang+model`
+  - Hybrid pipeline: on-device `NCNN` detection + `ONNX int8` OCR (48px CTC) + `AOT-GAN` removal (tile 768) + `Canvas` typesetting → baked `Image` replacement for `WebGPU`/`Pager` (handles dual-page height-match, no overlay drift)
+  - Translation via cloud LLM (`Gemini`/`OpenRouter`, user `API_KEY`, `gemma-2-9b-it:free` default) with `ML Kit` offline fallback; `JA/KO/ZH → any` + `EN→EN` grammar/vocab fix via same prompt (`fix grammar, preserve names, output only EN`)
+  - Typesetting: pixel-perfect wrapping, `kinsoku`, tilt-aware quad angle, adaptive font size, `Noto CJK` OFL fonts, luminance-based color + outline
+  - Integration: `:yakuyomi-engine` module (`+55MB` via `arm64` ABI split, CPU-only `1.2s` SD8G2 / `2.8s` SD720G, hidden under LLM wait), `TranslationManager` (`AppGraph` Metro) hooked in `ChapterLoader` → `ViewerReaderPage.imagePage`, `WorkManager` for auto-translate on download
+  - Effort `~6.5d` (`+3d` for typesetting), reference `mannu691/TachiyomiAT` + `joyeli/yakuyomi-engine` + `manga-image-translator`
+  - Reference Code: [TachiyomiAT](https://github.com/mannu691/TachiyomiAT), [yakuyomi-engine](https://github.com/joyeli/yakuyomi-engine)
 
 ## Bugfixes
 - [x] Fix UI transition choppiness.
@@ -164,9 +172,3 @@
 ## Drawing Board
 - [ ] **New**: WebAssembly computation engine
   - [ ] Optional extension support via overridable method
-- [ ] **New**: AI-powered translation/English grammar and vocab fixer.
-  - Would help users comprehend media better that was badly translated or not translated at all
-  - Disabled by default
-  - Unsure if model would run locally or via free endpoint
-    - Also unsure how to draw the translations over the content
-    - Reference Code: [Here](https://github.com/mannu691/TachiyomiAT)
