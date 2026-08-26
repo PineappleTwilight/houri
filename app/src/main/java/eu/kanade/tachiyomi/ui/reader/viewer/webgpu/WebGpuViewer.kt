@@ -1079,7 +1079,7 @@ open class WebGpuViewer(
             }
         }
 
-        config.imagePropertyChangedListener = listener@ {
+        config.imagePropertyChangedListener = listener@{
             if (isDestroyed) return@listener
             pager.state.apply {
                 transition = when (config.transitionAnimation) {
@@ -1155,7 +1155,7 @@ open class WebGpuViewer(
         }
 
         // KMK -->
-        config.doubleTapZoomChangedListener = listener@ {
+        config.doubleTapZoomChangedListener = listener@{
             if (isDestroyed) return@listener
             synchronized(lock) {
                 if (isDestroyed) return@listener
