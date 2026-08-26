@@ -18,8 +18,8 @@ metrox-viewmodel = "1.4.2"
 metrox-viewmodel-compose = "1.4.2"
 ben-manes-versions = "0.54.0"
 kim = "0.37.0"
-webgpuviewer = "31"
-mpreg-imagedecoder = "9"
+webgpuviewer = "37"
+mpreg-imagedecoder = "10"
 
 [libraries]
 desugar = "com.android.tools:desugar_jdk_libs:2.1.5"
