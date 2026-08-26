@@ -361,7 +361,6 @@ class MangaScreenModel(
         screenModelScope.launchIO {
             detailsPipeline.rootRedirects.collect { redirectFlow.emit(EXHRedirect(it)) }
         }
-        }
 
         screenModelScope.launchIO {
             getExcludedScanlators.subscribe(mangaId)
@@ -1632,7 +1631,6 @@ class MangaScreenModel(
     fun setCurrentSettingsAsDefault(applyToExisting: Boolean) = chapterSettings.setCurrentSettingsAsDefault(applyToExisting)
 
     fun resetToDefaultSettings() = chapterSettings.resetToDefaultSettings()
-    }
 
     fun toggleSelection(
         item: ChapterList.Item,

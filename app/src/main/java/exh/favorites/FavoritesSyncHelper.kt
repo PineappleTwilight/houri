@@ -78,10 +78,10 @@ class FavoritesSyncHelper(val context: Context) {
 
     val status: MutableStateFlow<FavoritesSyncStatus> = MutableStateFlow(FavoritesSyncStatus.Idle)
 
-    @Synchronized
     // TODO: Persist the computed change-set before applying and mark entries applied as they
     //  complete, so an interrupted sync resumes from where it stopped instead of leaving
     //  partially-applied local/remote favorites state.
+    @Synchronized
     fun runSync(scope: CoroutineScope) {
         if (status.value !is FavoritesSyncStatus.Idle) {
             return
