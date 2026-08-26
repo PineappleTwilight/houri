@@ -25,11 +25,17 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.draw.blur
+import androidx.compose.ui.unit.dp
 import eu.kanade.presentation.manga.components.MangaCover
 import eu.kanade.tachiyomi.ui.library.LibraryItem
+import exh.util.isLewd
+import mihon.app.di.globalAppGraph
 import tachiyomi.domain.category.model.Category
 import tachiyomi.domain.library.model.LibraryDisplayMode
 import tachiyomi.domain.library.model.LibraryManga
+import tachiyomi.presentation.core.util.collectAsState
 import tachiyomi.domain.manga.model.MangaCover as MangaCoverModel
 
 // KMK -->
@@ -99,6 +105,7 @@ internal fun LibraryFolderGrid(
                     MangaListItem(
                         isSelected = manga.id in selection,
                         title = manga.title,
+                        isLewd = manga.isLewd(),
                         coverData = coverData,
                         badge = {
                             badges()
@@ -123,6 +130,7 @@ internal fun LibraryFolderGrid(
                     MangaComfortableGridItem(
                         isSelected = manga.id in selection,
                         title = manga.title,
+                        isLewd = manga.isLewd(),
                         coverData = coverData,
                         coverBadgeStart = { badges() },
                         coverBadgeEnd = {
@@ -148,6 +156,7 @@ internal fun LibraryFolderGrid(
                     MangaCompactGridItem(
                         isSelected = manga.id in selection,
                         title = manga.title.takeIf { displayMode == LibraryDisplayMode.CompactGrid },
+                        isLewd = manga.isLewd(),
                         coverData = coverData,
                         coverBadgeStart = { badges() },
                         coverBadgeEnd = {
@@ -212,9 +221,13 @@ private fun LibraryFolderItem(
                                     lastModified = manga.coverLastModified,
                                 )
                             }
+                            val censorPreviewEnabled by globalAppGraph.uiPreferences.censorLewdManga()
+                                .collectAsState()
+                            val previewShouldCensor = censorPreviewEnabled && manga.isLewd()
                             MangaCover.Square(
                                 data = coverData,
-                                modifier = Modifier.weight(1f),
+                                modifier = Modifier.weight(1f)
+                                    .then(if (previewShouldCensor) Modifier.blur(12.dp) else Modifier),
                                 shape = MaterialTheme.shapes.extraSmall,
                             )
                         }

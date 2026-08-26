@@ -9,6 +9,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import eu.kanade.tachiyomi.ui.library.LibraryItem
+import exh.util.isLewd
 import tachiyomi.domain.library.model.LibraryManga
 import tachiyomi.domain.manga.model.MangaCover
 import tachiyomi.presentation.core.components.FastScrollLazyColumn
@@ -57,6 +58,7 @@ internal fun LibraryList(
             MangaListItem(
                 isSelected = manga.id in selection,
                 title = manga.title,
+                isLewd = manga.isLewd(),
                 coverData = coverData,
                 badge = {
                     DownloadsBadge(count = libraryItem.downloadCount)

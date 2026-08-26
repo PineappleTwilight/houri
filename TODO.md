@@ -67,8 +67,8 @@
 - [x] **Smart Scanlator Filter**: Make toggleable with an option in Advanced settings (defaults to disabled)
 - [x] **Smart Scanlator Filter**: Show what chapters a scanlator covers
 - [x] **Smart Scanlator Filter**: Add shortcut to toggle on/off via 3 dots menu in manga details
-- [ ] **Chapter End Anime Girl Moan**: Add toggle in settings to randomize the moan location to be 50/50 where it's either between the chapters or on the last page (current)
-- [ ] **New**: Censor lewd mangas toggle
+- [x] **Chapter End Anime Girl Moan**: Add toggle in settings to randomize the moan location to be 50/50 where it's either between the chapters or on the last page (current)
+- [x] **New**: Censor lewd mangas toggle
   - Useful for support purposes.
   - Blurs the manga thumbnail and redacts the name, tags, and description.
   - Works in manga details and the library catalogue

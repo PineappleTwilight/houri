@@ -76,6 +76,7 @@ import dev.chrisbanes.haze.hazeSource
 import eu.kanade.domain.source.service.SourcePreferences
 import eu.kanade.domain.ui.UiPreferences
 import eu.kanade.presentation.browse.RelatedMangaTitle
+import exh.util.isLewd
 import eu.kanade.presentation.components.relativeDateText
 import eu.kanade.presentation.manga.components.ChapterDownloadAction
 import eu.kanade.presentation.manga.components.ChapterHeader
@@ -730,6 +731,9 @@ private fun MangaScreenSmallImpl(
                                 SearchMetadataChips(state.meta, state.source.id, state.manga.genre)
                             },
                             // SY <--
+                            // KMK -->
+                            isLewd = state.manga.isLewd(),
+                            // KMK <--
                         )
                     }
 
@@ -1215,6 +1219,9 @@ private fun MangaScreenLargeImpl(
                                 SearchMetadataChips(state.meta, state.source.id, state.manga.genre)
                             },
                             // SY <--
+                            // KMK -->
+                            isLewd = state.manga.isLewd(),
+                            // KMK <--
                         )
                         // SY -->
                         if (!state.showRecommendationsInOverflow || state.showMergeWithAnother) {

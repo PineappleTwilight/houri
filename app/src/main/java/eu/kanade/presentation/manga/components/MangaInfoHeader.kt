@@ -95,6 +95,7 @@ import eu.kanade.presentation.components.DropdownMenu
 import eu.kanade.tachiyomi.R
 import eu.kanade.tachiyomi.source.model.SManga
 import eu.kanade.tachiyomi.util.system.copyToClipboard
+import exh.util.isLewd
 import mihon.app.di.globalAppGraph
 import org.intellij.markdown.MarkdownElementTypes
 import org.intellij.markdown.MarkdownTokenTypes
@@ -142,6 +143,9 @@ fun MangaInfoBox(
     // KMK -->
     val usePanoramaCover by globalAppGraph.uiPreferences.usePanoramaCoverMangaInfo().collectAsState()
     val topAlignCover by globalAppGraph.uiPreferences.topAlignCover().collectAsState()
+    val censorEnabled by globalAppGraph.uiPreferences.censorLewdManga().collectAsState()
+    val shouldCensor = censorEnabled && manga.isLewd()
+    val displayManga = if (shouldCensor) manga.copy(title = stringResource(KMR.strings.censored_title)) else manga
     // KMK <--
     Box(modifier = modifier) {
         // Backdrop
@@ -177,8 +181,7 @@ fun MangaInfoBox(
                 }
                 // KMK -->
                 .background(MaterialTheme.colorScheme.surfaceTint.copy(alpha = 0.4f))
-                .blur(7.dp)
-                // .blur(4.dp)
+                .blur(if (shouldCensor) 16.dp else 7.dp)
                 // KMK <--
                 .alpha(0.2f),
         )
@@ -188,7 +191,7 @@ fun MangaInfoBox(
             if (!isTabletUi) {
                 MangaAndSourceTitlesSmall(
                     appBarPadding = appBarPadding,
-                    manga = manga,
+                    manga = displayManga,
                     sourceName = sourceName,
                     isStubSource = isStubSource,
                     // KMK -->
@@ -208,7 +211,7 @@ fun MangaInfoBox(
             } else {
                 MangaAndSourceTitlesLarge(
                     appBarPadding = appBarPadding,
-                    manga = manga,
+                    manga = displayManga,
                     sourceName = sourceName,
                     isStubSource = isStubSource,
                     // KMK -->
@@ -378,17 +381,23 @@ fun ExpandableMangaDescription(
     doSearch: (query: String, global: Boolean) -> Unit,
     // SY <--
     modifier: Modifier = Modifier,
+    // KMK -->
+    isLewd: Boolean = false,
+    // KMK <--
 ) {
     // KMK -->
     val uiPreferences = globalAppGraph.uiPreferences
     val pureDarkMode = uiPreferences.themeDarkAmoled().get()
+    val censorEnabled by uiPreferences.censorLewdManga().collectAsState()
+    val shouldCensor = censorEnabled && isLewd
     // KMK <--
     Column(modifier = modifier) {
         val (expanded, onExpanded) = rememberSaveable {
             mutableStateOf(defaultExpandState)
         }
-        val desc =
-            description.takeIf { !it.isNullOrBlank() } ?: stringResource(MR.strings.description_placeholder)
+        val rawDesc = description.takeIf { !it.isNullOrBlank() }
+            ?: stringResource(MR.strings.description_placeholder)
+        val desc = if (shouldCensor) stringResource(KMR.strings.censored_description) else rawDesc
 
         MangaSummary(
             description = desc,
@@ -398,9 +407,12 @@ fun ExpandableMangaDescription(
             modifier = Modifier
                 .padding(top = 8.dp)
                 .padding(horizontal = 16.dp)
+                .then(if (shouldCensor) Modifier.blur(4.dp) else Modifier)
                 .clickableNoIndication { onExpanded(!expanded) },
         )
-        val tags = tagsProvider()
+        val rawTags = tagsProvider()
+        val tags = if (shouldCensor) listOf(stringResource(KMR.strings.censored_tag)) else rawTags
+        val effectiveChips = if (shouldCensor) null else searchMetadataChips
         if (!tags.isNullOrEmpty()) {
             Box(
                 modifier = Modifier
@@ -441,9 +453,9 @@ fun ExpandableMangaDescription(
                 }
                 if (expanded) {
                     // SY -->
-                    if (searchMetadataChips != null) {
+                    if (effectiveChips != null) {
                         NamespaceTags(
-                            tags = searchMetadataChips,
+                            tags = effectiveChips,
                             onClick = {
                                 tagSelected = it
                                 showMenu = true
@@ -517,6 +529,10 @@ private fun MangaAndSourceTitlesLarge(
     usePanoramaCover: Boolean = false,
     // KMK <--
 ) {
+    // KMK -->
+    val censorEnabledLarge by globalAppGraph.uiPreferences.censorLewdManga().collectAsState()
+    val shouldCensorLarge = censorEnabledLarge && manga.isLewd()
+    // KMK <--
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -526,7 +542,8 @@ private fun MangaAndSourceTitlesLarge(
         // KMK -->
         if (usePanoramaCover && coverRatio.floatValue <= RatioSwitchToPanorama) {
             MangaCover.Panorama(
-                modifier = Modifier.fillMaxWidth(0.65f),
+                modifier = Modifier.fillMaxWidth(0.65f)
+                    .then(if (shouldCensorLarge) Modifier.blur(16.dp) else Modifier),
                 data = ImageRequest.Builder(LocalContext.current)
                     .data(manga)
                     .crossfade(true)
@@ -544,7 +561,8 @@ private fun MangaAndSourceTitlesLarge(
         } else {
             // KMK <--
             MangaCover.Book(
-                modifier = Modifier.fillMaxWidth(0.65f),
+                modifier = Modifier.fillMaxWidth(0.65f)
+                    .then(if (shouldCensorLarge) Modifier.blur(16.dp) else Modifier),
                 data = ImageRequest.Builder(LocalContext.current)
                     .data(manga)
                     .crossfade(true)
@@ -601,6 +619,10 @@ private fun MangaAndSourceTitlesSmall(
     topAlignCover: Boolean = false,
     // KMK <--
 ) {
+    // KMK -->
+    val censorEnabledSmall by globalAppGraph.uiPreferences.censorLewdManga().collectAsState()
+    val shouldCensorSmall = censorEnabledSmall && manga.isLewd()
+    // KMK <--
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -613,7 +635,7 @@ private fun MangaAndSourceTitlesSmall(
             MangaCover.Panorama(
                 modifier = Modifier
                     .sizeIn(maxHeight = 100.dp)
-                    // KMK -->
+                    .then(if (shouldCensorSmall) Modifier.blur(16.dp) else Modifier)
                     .align(if (topAlignCover) Alignment.Top else Alignment.CenterVertically),
                 // KMK <--
                 data = ImageRequest.Builder(LocalContext.current)
@@ -635,7 +657,7 @@ private fun MangaAndSourceTitlesSmall(
             MangaCover.Book(
                 modifier = Modifier
                     .sizeIn(maxWidth = 100.dp)
-                    // KMK -->
+                    .then(if (shouldCensorSmall) Modifier.blur(16.dp) else Modifier)
                     .align(if (topAlignCover) Alignment.Top else Alignment.CenterVertically),
                 // KMK <--
                 data = ImageRequest.Builder(LocalContext.current)

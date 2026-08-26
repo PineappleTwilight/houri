@@ -283,6 +283,13 @@ object SettingsAppearanceScreen : SearchableSettings {
                     preference = uiPreferences.imagesInDescription(),
                     title = stringResource(MR.strings.pref_display_images_description),
                 ),
+                // KMK -->
+                Preference.PreferenceItem.SwitchPreference(
+                    preference = uiPreferences.censorLewdManga(),
+                    title = stringResource(KMR.strings.pref_censor_lewd_manga),
+                    subtitle = stringResource(KMR.strings.pref_censor_lewd_manga_summary),
+                ),
+                // KMK <--
             ),
         )
     }

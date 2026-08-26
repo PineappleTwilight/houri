@@ -7,6 +7,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import eu.kanade.tachiyomi.ui.library.LibraryItem
+import exh.util.isLewd
 import tachiyomi.domain.library.model.LibraryManga
 import tachiyomi.domain.manga.model.MangaCover
 
@@ -50,6 +51,7 @@ internal fun LibraryComfortableGrid(
             MangaComfortableGridItem(
                 isSelected = manga.id in selection,
                 title = manga.title,
+                isLewd = manga.isLewd(),
                 coverData = coverData,
                 coverBadgeStart = {
                     DownloadsBadge(count = libraryItem.downloadCount)
