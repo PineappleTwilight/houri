@@ -10,6 +10,7 @@ import androidx.compose.ui.util.fastForEachIndexed
 import cafe.adriel.voyager.core.model.StateScreenModel
 import cafe.adriel.voyager.core.model.screenModelScope
 import eu.kanade.domain.manga.interactor.UpdateManga
+import eu.kanade.presentation.category.components.withAncestorChain
 import eu.kanade.domain.track.interactor.AddTracks
 import eu.kanade.presentation.components.BulkSelectionToolbar
 import eu.kanade.presentation.manga.DuplicateMangaDialog
@@ -161,7 +162,11 @@ class BulkFavoriteScreenModel(
                 // Default category set
                 defaultCategory != null -> {
                     stopRunning()
-                    setMangasCategories(mangaList, listOf(defaultCategory.id), emptyList())
+                    setMangasCategories(
+                        mangaList,
+                        defaultCategory.id.withAncestorChain(categories).toList(),
+                        emptyList(),
+                    )
                 }
 
                 // Automatic 'Default' or no categories
@@ -359,7 +364,10 @@ class BulkFavoriteScreenModel(
                 defaultCategory != null -> {
                     moveMangaToCategory(
                         manga.id,
-                        listOfNotNull(defaultCategory).filter { it.id != 0L }.map { it.id },
+                        defaultCategory.id
+                            .withAncestorChain(categories)
+                            .filter { it != 0L }
+                            .toList(),
                     )
                     changeMangaFavorite(manga)
                 }

@@ -8,6 +8,7 @@ import cafe.adriel.voyager.core.model.screenModelScope
 import eu.kanade.core.util.insertSeparators
 import eu.kanade.domain.manga.interactor.UpdateManga
 import eu.kanade.domain.track.interactor.AddTracks
+import eu.kanade.presentation.category.components.withAncestorChain
 import eu.kanade.presentation.history.HistoryUiModel
 import eu.kanade.tachiyomi.ui.common.AddToLibrary
 import eu.kanade.tachiyomi.util.lang.toLocalDate
@@ -248,7 +249,10 @@ class HistoryScreenModel(
                 defaultCategory != null -> {
                     val result = updateManga.awaitUpdateFavorite(manga.id, true)
                     if (!result) return@launchIO
-                    moveMangaToCategory(manga.id, defaultCategory)
+                    moveMangaToCategory(
+                        manga.id,
+                        defaultCategory.id.withAncestorChain(categories).filter { it != 0L }.toList(),
+                    )
                 }
 
                 // Automatic 'Default' or no categories
