@@ -102,7 +102,8 @@ fun TrackInfoDialogHome(
                 modifier = Modifier.fillMaxWidth(),
             )
         }
-        // KMK <--        trackItems.forEach { item ->
+        // KMK <--
+        trackItems.forEach { item ->
             if (item.track != null) {
                 val supportsScoring = item.tracker.getScoreList().isNotEmpty()
                 val supportsReadingDates = item.tracker.supportsReadingDates

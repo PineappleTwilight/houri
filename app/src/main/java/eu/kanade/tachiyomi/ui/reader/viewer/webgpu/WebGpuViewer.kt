@@ -57,7 +57,9 @@ import kotlinx.coroutines.flow.takeWhile
 import kotlinx.coroutines.launch
 import logcat.LogPriority
 import mihon.app.di.globalAppGraph
+import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.core.common.util.system.logcat
+import tachiyomi.i18n.MR
 import java.nio.ByteBuffer
 import java.util.concurrent.Executors
 import kotlin.math.abs
@@ -1006,6 +1008,7 @@ open class WebGpuViewer(
                                     }
                                 }
                             }
+                            pager.state.invalidate()
                         } else {
                             WebGpuRenderer.withContext {
                                 (page.imagePage as? ImagePage.Draw?)?.texture?.let { texture ->
@@ -1113,34 +1116,10 @@ open class WebGpuViewer(
                 } catch (e: ImageDecoder.DecodeException) {
                     logcat(LogPriority.ERROR, e) { "ImageDecoder.new failed: ${e.message}" }
                     val errorMessage = e.message ?: "Failed to decode image"
-                    val bitmap = createBitmap(pager.state.width.coerceAtLeast(1), pager.state.height.coerceAtLeast(1))
-                    val canvas = Canvas(bitmap)
-                    canvas.drawColor(readerBackgroundColor())
-                    val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                        color = readerOnBackgroundColor()
-                        textSize = 36f
-                        textAlign = Paint.Align.CENTER
-                    }
-                    val maxWidth = bitmap.width * 0.8f
-                    val words = errorMessage.split(" ")
-                    val lines = mutableListOf<String>()
-                    var currentLine = StringBuilder()
-                    for (word in words) {
-                        val testLine = if (currentLine.isEmpty()) word else "$currentLine $word"
-                        if (paint.measureText(testLine) <= maxWidth) {
-                            currentLine = StringBuilder(testLine)
-                        } else {
-                            if (currentLine.isNotEmpty()) lines.add(currentLine.toString())
-                            currentLine = StringBuilder(word)
-                        }
-                    }
-                    if (currentLine.isNotEmpty()) lines.add(currentLine.toString())
-                    val lineHeight = 40f
-                    var y = bitmap.height / 2f - lines.size * lineHeight / 2
-                    for (line in lines) {
-                        canvas.drawText(line, bitmap.width / 2f, y, paint)
-                        y += lineHeight
-                    }
+                    val bitmap = buildCenteredTextBitmap(
+                        entries = listOf(errorMessage to 40f),
+                        textSize = 36f,
+                    )
                     val errorPage = ImagePage(bitmap, createMipMaps = false).also {
                         it.image?.position = Image.Position.SINGLE
                         it.highQuality = false
@@ -1268,55 +1247,20 @@ open class WebGpuViewer(
                 }
             }
 
-            val width = pager.state.width.coerceAtLeast(1)
-            val height = pager.state.height.coerceAtLeast(1)
-            val bitmap = createBitmap(width, height)
-            val canvas = Canvas(bitmap)
-            canvas.drawColor(readerBackgroundColor())
-
-            val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                color = readerOnBackgroundColor()
-                textSize = 48f
-                textAlign = Paint.Align.CENTER
-            }
-
-            val maxWidth = bitmap.width * 0.8f
             val lineHeight = 48f
 
-            fun wrapText(text: String): List<String> {
-                val words = text.split(" ")
-                val lines = mutableListOf<String>()
-                var currentLine = StringBuilder()
-                for (word in words) {
-                    val testLine = if (currentLine.isEmpty()) word else "$currentLine $word"
-                    if (paint.measureText(testLine) <= maxWidth) {
-                        currentLine = StringBuilder(testLine)
-                    } else {
-                        if (currentLine.isNotEmpty()) lines.add(currentLine.toString())
-                        currentLine = StringBuilder(word)
-                    }
-                }
-                if (currentLine.isNotEmpty()) lines.add(currentLine.toString())
-                return lines
-            }
-
-            val lines = mutableListOf<Pair<String, Float>>()
+            val entries = mutableListOf<Pair<String, Float>>()
             page.prevChapter?.chapter?.let { chapter ->
-                lines.add(Pair("Previous:", lineHeight))
-                wrapText(chapter.name).forEach { lines.add(Pair(it, lineHeight)) }
-                page.nextChapter?.chapter?.let { lines.add(Pair("", lineHeight)) }
+                entries.add(activity.stringResource(MR.strings.action_previous_chapter) to lineHeight)
+                entries.add(chapter.name to lineHeight)
+                page.nextChapter?.chapter?.let { entries.add("" to lineHeight) }
             }
             page.nextChapter?.chapter?.let { chapter ->
-                lines.add(Pair("Next:", lineHeight))
-                wrapText(chapter.name).forEach { lines.add(Pair(it, lineHeight)) }
+                entries.add(activity.stringResource(MR.strings.action_next_chapter) to lineHeight)
+                entries.add(chapter.name to lineHeight)
             }
 
-            val x = bitmap.width / 2f
-            var y = bitmap.height / 2f - lines.sumOf { it.second.toDouble() }.toFloat() / 2
-            lines.forEach {
-                canvas.drawText(it.first, x, y + it.second, paint)
-                y += it.second
-            }
+            val bitmap = buildCenteredTextBitmap(entries, textSize = lineHeight)
 
             val imagePage = ImagePage(bitmap, createMipMaps = false)
             imagePage.image?.position = Image.Position.SINGLE
@@ -1340,6 +1284,54 @@ open class WebGpuViewer(
             logcat(LogPriority.ERROR, e) { "createTransitionPage error" }
             synchronized(lock) { if (pageInCache(page)) page.state = PageState.IDLE }
         }
+    }
+
+    /**
+     * Renders vertically centered, word-wrapped text (decode errors, chapter transition
+     * labels) onto a reader-background-colored bitmap sized to the page surface.
+     * Empty entries act as blank spacer lines and are never wrapped.
+     */
+    private fun buildCenteredTextBitmap(
+        entries: List<Pair<String, Float>>,
+        textSize: Float,
+    ): Bitmap {
+        val bitmap = createBitmap(pager.state.width.coerceAtLeast(1), pager.state.height.coerceAtLeast(1))
+        val canvas = Canvas(bitmap)
+        canvas.drawColor(readerBackgroundColor())
+
+        val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = readerOnBackgroundColor()
+            this.textSize = textSize
+            textAlign = Paint.Align.CENTER
+        }
+        val maxWidth = bitmap.width * 0.8f
+
+        val laidOut = mutableListOf<Pair<String, Float>>()
+        entries.forEach { (text, lineHeight) ->
+            if (text.isEmpty()) {
+                laidOut.add("" to lineHeight)
+                return@forEach
+            }
+            var currentLine = StringBuilder()
+            for (word in text.split(" ")) {
+                val testLine = if (currentLine.isEmpty()) word else "$currentLine $word"
+                if (paint.measureText(testLine) <= maxWidth) {
+                    currentLine = StringBuilder(testLine)
+                } else {
+                    if (currentLine.isNotEmpty()) laidOut.add(currentLine.toString() to lineHeight)
+                    currentLine = StringBuilder(word)
+                }
+            }
+            if (currentLine.isNotEmpty()) laidOut.add(currentLine.toString() to lineHeight)
+        }
+
+        val x = bitmap.width / 2f
+        var y = bitmap.height / 2f - laidOut.sumOf { it.second.toDouble() }.toFloat() / 2
+        laidOut.forEach { (line, lineHeight) ->
+            canvas.drawText(line, x, y + lineHeight, paint)
+            y += lineHeight
+        }
+        return bitmap
     }
 
     private fun applyWideZoomIfNeeded(page: ViewerReaderPage) {
