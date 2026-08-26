@@ -73,6 +73,7 @@
   - Blurs the manga thumbnail and redacts the name, tags, and description.
   - Works in manga details and the library catalogue
 - [ ] **New**: Source-level manga filtering
+  - Ability to set filters as default on a per-sort basis too
 
 ## Bugfixes
 - [x] Fix UI transition choppiness.
