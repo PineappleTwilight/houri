@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.padding
+import androidx.compose.ui.Alignment
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Icon
@@ -40,6 +41,7 @@ import cafe.adriel.voyager.navigator.tab.TabNavigator
 import eu.kanade.core.preference.asState
 import eu.kanade.domain.source.service.SourcePreferences
 import eu.kanade.domain.ui.UiPreferences
+import eu.kanade.domain.ui.model.NavigationRailAlignment
 import eu.kanade.presentation.util.Screen
 import eu.kanade.presentation.util.isTabletUi
 import eu.kanade.tachiyomi.ui.browse.BrowseTab
@@ -93,6 +95,11 @@ object HomeScreen : Screen() {
             globalAppGraph.uiPreferences.bottomBarLabels().asState(scope)
         }
         // SY <--
+        // KMK -->
+        val railAlignment by remember {
+            globalAppGraph.uiPreferences.railButtonAlignment().asState(scope)
+        }
+        // KMK <--
 
         TabNavigator(
             tab = LibraryTab,
@@ -103,7 +110,14 @@ object HomeScreen : Screen() {
                 Scaffold(
                     startBar = {
                         if (isTabletUi()) {
-                            NavigationRail {
+                            // KMK -->
+                            val alignment = when (railAlignment) {
+                                NavigationRailAlignment.TOP -> Alignment.Top
+                                NavigationRailAlignment.BOTTOM -> Alignment.Bottom
+                                NavigationRailAlignment.CENTER -> Alignment.CenterVertically
+                            }
+                            // KMK <--
+                            NavigationRail(alignment = alignment) {
                                 TABS
                                     // SY -->
                                     .fastFilter { it.isEnabled() }

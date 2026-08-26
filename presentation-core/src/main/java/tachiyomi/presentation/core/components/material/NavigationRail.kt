@@ -32,6 +32,7 @@ fun NavigationRail(
     contentColor: Color = contentColorFor(containerColor),
     header: @Composable (ColumnScope.() -> Unit)? = null,
     windowInsets: WindowInsets = NavigationRailDefaults.windowInsets,
+    alignment: Alignment.Vertical = Alignment.CenterVertically,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     androidx.compose.material3.Surface(
@@ -50,7 +51,7 @@ fun NavigationRail(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(
                 MaterialTheme.padding.extraSmall,
-                alignment = Alignment.CenterVertically,
+                alignment = alignment,
             ),
         ) {
             if (header != null) {

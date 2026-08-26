@@ -321,4 +321,8 @@
     <string name="rereading_label">Rereading</string>
     <string name="manga_reread_count_button">Reread ×%1$d</string>
     <string name="track_normalized_score_summary">≈ %1$.1f/10 across %2$d trackers</string>
+    <string name="pref_rail_button_alignment">Rail button alignment</string>
+    <string name="rail_alignment_top">Top</string>
+    <string name="rail_alignment_center">Center</string>
+    <string name="rail_alignment_bottom">Bottom</string>
 </resources>
