@@ -229,6 +229,20 @@ class DownloadManager(
     }
 
     /**
+     * Cancels the queued download of a single chapter.
+     *
+     * @param chapterId the chapter whose queued download should be cancelled.
+     * @return the cancelled download with its status set to [Download.State.NOT_DOWNLOADED],
+     * or null if the chapter was not queued for download.
+     */
+    fun cancelQueuedDownload(chapterId: Long): Download? {
+        val activeDownload = getQueuedDownloadOrNull(chapterId) ?: return null
+        cancelQueuedDownloads(listOf(activeDownload))
+        activeDownload.status = Download.State.NOT_DOWNLOADED
+        return activeDownload
+    }
+
+    /**
      * Deletes the directories of a list of downloaded chapters.
      *
      * @param chapters the list of chapters to delete.

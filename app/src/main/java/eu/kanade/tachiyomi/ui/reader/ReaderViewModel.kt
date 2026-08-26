@@ -241,9 +241,9 @@ class ReaderViewModel(
 
     private fun cancelDownload(chapterId: Long) {
         viewModelScope.launch {
-            val activeDownload = downloadManager.getQueuedDownloadOrNull(chapterId) ?: return@launch
-            downloadManager.cancelQueuedDownloads(listOf(activeDownload))
-            // TODO: updateDownloadState(activeDownload.apply { status = Download.State.NOT_DOWNLOADED })
+            // Unlike other screens the reader keeps no per-chapter download state list,
+            // so there is no local UI state to propagate after cancelling.
+            downloadManager.cancelQueuedDownload(chapterId)
         }
     }
 
