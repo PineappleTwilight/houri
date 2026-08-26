@@ -74,9 +74,6 @@ import eu.kanade.tachiyomi.util.chapter.scanlatorBlacklistKey
 import eu.kanade.tachiyomi.util.removeCovers
 import eu.kanade.tachiyomi.util.system.getBitmapOrNull
 import eu.kanade.tachiyomi.util.system.toast
-import exh.debug.DebugToggles
-import exh.eh.EHentaiUpdateHelper
-import exh.log.xLogD
 import exh.log.xLogE
 import exh.md.utils.FollowStatus
 import exh.metadata.metadata.RaisedSearchMetadata
@@ -103,7 +100,6 @@ import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.flatMapConcat
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -281,25 +277,24 @@ class MangaScreenModel(
         get() = successState?.hasLoggedInTrackers == true && trackPreferences.trackOnAddingToLibrary().get()
 
     // EXH -->
-    private val updateHelper: EHentaiUpdateHelper by lazy { globalAppGraph.eHentaiUpdateHelper }
-
     val redirectFlow: MutableSharedFlow<EXHRedirect> = MutableSharedFlow()
 
     data class EXHRedirect(val mangaId: Long)
     // EXH <--
 
-    // SY -->
-    private data class CombineState(
-        val manga: Manga,
-        val chapters: List<Chapter>,
-        val flatMetadata: FlatMetadata?,
-        val mergedData: MergedMangaData? = null,
-        val pagePreviewsState: PagePreviewState = PagePreviewState.Loading,
-    ) {
-        constructor(pair: Pair<Manga, List<Chapter>>, flatMetadata: FlatMetadata?) :
-            this(pair.first, pair.second, flatMetadata)
-    }
-    // SY <--
+    private val detailsPipeline = MangaDetailsPipeline(
+        mangaId = mangaId,
+        scope = screenModelScope,
+        getMangaAndChapters = getMangaAndChapters,
+        getMergedChaptersByMangaId = getMergedChaptersByMangaId,
+        getFlatMetadata = getFlatMetadata,
+        getMergedMangaById = getMergedMangaById,
+        getMergedReferencesById = getMergedReferencesById,
+        sourceManager = sourceManager,
+        downloadCache = downloadCache,
+        downloadManager = downloadManager,
+        libraryPreferences = libraryPreferences,
+    )
 
     /**
      * Helper function to update the UI state only if it's currently in success state
@@ -315,78 +310,9 @@ class MangaScreenModel(
 
     init {
         screenModelScope.launchIO {
-            getMangaAndChapters.subscribe(mangaId, applyFilter = true).distinctUntilChanged()
-                // SY -->
-                .combine(
-                    getMergedChaptersByMangaId.subscribe(mangaId, true, applyFilter = true)
-                        .distinctUntilChanged(),
-                ) { (manga, chapters), mergedChapters ->
-                    if (isMergedSourceId(manga.source)) {
-                        manga to mergedChapters
-                    } else {
-                        manga to chapters
-                    }
-                }
-                .onEach { (manga, chapters) ->
-                    if (chapters.isNotEmpty() &&
-                        manga.isEhBasedManga() &&
-                        DebugToggles.ENABLE_EXH_ROOT_REDIRECT.enabled
-                    ) {
-                        // Check for gallery in library and accept manga with lowest id
-                        // Find chapters sharing same root
-                        launchIO {
-                            try {
-                                val (acceptedChain) = updateHelper.findAcceptedRootAndDiscardOthers(manga.source, chapters)
-                                // Redirect if we are not the accepted root
-                                if (manga.id != acceptedChain.manga.id && acceptedChain.manga.favorite) {
-                                    // Update if any of our chapters are not in accepted manga's chapters
-                                    xLogD("Found accepted manga %s", manga.url)
-                                    redirectFlow.emit(
-                                        EXHRedirect(acceptedChain.manga.id),
-                                    )
-                                }
-                            } catch (e: Exception) {
-                                logcat(LogPriority.ERROR, e) { "Error loading accepted chapter chain" }
-                            }
-                        }
-                    }
-                }
-                .combine(
-                    getFlatMetadata.subscribe(mangaId)
-                        .distinctUntilChanged(),
-                ) { pair, flatMetadata ->
-                    CombineState(pair, flatMetadata)
-                }
-                .combine(
-                    combine(
-                        getMergedMangaById.subscribe(mangaId)
-                            .distinctUntilChanged(),
-                        getMergedReferencesById.subscribe(mangaId)
-                            .distinctUntilChanged(),
-                    ) { manga, references ->
-                        if (manga.isNotEmpty()) {
-                            MergedMangaData(
-                                references,
-                                manga.associateBy { it.id },
-                                references.map { it.mangaSourceId }.distinct()
-                                    .map { sourceManager.getOrStub(it) },
-                            )
-                        } else {
-                            null
-                        }
-                    },
-                ) { state, mergedData ->
-                    state.copy(mergedData = mergedData)
-                }
-                .combine(downloadCache.changes) { state, _ -> state }
-                .combine(downloadManager.queueState) { state, _ -> state }
-                // KMK -->
-                // Value discarded; re-emission on toggle is what refreshes the chapter list
-                .combine(libraryPreferences.smartScanlatorMerge().changes()) { state, _ -> state }
-                // KMK <--
-                // SY <--
+            detailsPipeline.details()
                 .flowWithLifecycle(lifecycle)
-                .collectLatest { (manga, chapters /* SY --> */, flatMetadata, mergedData /* SY <-- */) ->
+                .collectLatest { (manga, chapters, flatMetadata, mergedData) ->
                     // KMK -->
                     val chapterItems = chapters
                         .let { list ->
@@ -420,6 +346,11 @@ class MangaScreenModel(
                         )
                     }
                 }
+        }
+
+        screenModelScope.launchIO {
+            detailsPipeline.rootRedirects.collect { redirectFlow.emit(EXHRedirect(it)) }
+        }
         }
 
         screenModelScope.launchIO {
