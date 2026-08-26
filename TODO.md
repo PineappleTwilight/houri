@@ -84,6 +84,7 @@
   - Reference Code: [TachiyomiAT](https://github.com/mannu691/TachiyomiAT), [yakuyomi-engine](https://github.com/joyeli/yakuyomi-engine)
 - [ ] **New**: Per-category and per-subcategory reader settings
   - Subcategories inherit parent category settings by default unless changed
+  - Needs category priority system for multi-category mangas
 
 ## Bugfixes
 - [x] Fix UI transition choppiness.
