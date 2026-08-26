@@ -81,9 +81,9 @@ import exh.log.xLogE
 import exh.md.utils.FollowStatus
 import exh.metadata.metadata.RaisedSearchMetadata
 import exh.metadata.metadata.base.FlatMetadata
-import exh.source.MERGED_SOURCE_ID
 import exh.source.getMainSource
 import exh.source.isEhBasedManga
+import exh.source.isMergedSourceId
 import exh.source.mangaDexSourceIds
 import exh.util.nullIfEmpty
 import exh.util.trimOrNull
@@ -321,7 +321,7 @@ class MangaScreenModel(
                     getMergedChaptersByMangaId.subscribe(mangaId, true, applyFilter = true)
                         .distinctUntilChanged(),
                 ) { (manga, chapters), mergedChapters ->
-                    if (manga.source == MERGED_SOURCE_ID) {
+                    if (isMergedSourceId(manga.source)) {
                         manga to mergedChapters
                     } else {
                         manga to chapters
@@ -442,7 +442,7 @@ class MangaScreenModel(
                     state.map { (it as? State.Success)?.manga }
                         .distinctUntilChangedBy { it?.source }
                         .flatMapConcat {
-                            if (it?.source == MERGED_SOURCE_ID) {
+                            if (it != null && isMergedSourceId(it.source)) {
                                 getAvailableScanlators.subscribeMerge(mangaId)
                             } else {
                                 flowOf(emptySet())
@@ -472,7 +472,7 @@ class MangaScreenModel(
                         .map { sourceManager.getOrStub(it) },
                 )
             }
-            val chapters = if (manga.source == MERGED_SOURCE_ID) {
+            val chapters = if (isMergedSourceId(manga.source)) {
                 getMergedChaptersByMangaId.await(mangaId, applyFilter = true)
             } else {
                 getMangaAndChapters.awaitChapters(mangaId, applyFilter = true)
@@ -499,7 +499,7 @@ class MangaScreenModel(
                     isFromSource = isFromSource,
                     chapters = chapters,
                     // SY -->
-                    availableScanlators = if (manga.source == MERGED_SOURCE_ID) {
+                    availableScanlators = if (isMergedSourceId(manga.source)) {
                         getAvailableScanlators.awaitMerge(mangaId)
                     } else {
                         getAvailableScanlators.await(mangaId)
@@ -1185,7 +1185,7 @@ class MangaScreenModel(
      */
     internal suspend fun fetchRelatedMangasFromSource(onDemand: Boolean = false, onFinish: (() -> Unit)? = null) {
         val expandRelatedMangas = uiPreferences.expandRelatedMangas().get()
-        if ((!onDemand && !expandRelatedMangas) || manga?.source == MERGED_SOURCE_ID) return
+        if ((!onDemand && !expandRelatedMangas) || (manga != null && isMergedSourceId(manga.source))) return
 
         // start fetching related mangas
         setRelatedMangasFetchedStatus(false)
@@ -1534,10 +1534,10 @@ class MangaScreenModel(
             try {
                 successState?.let { state ->
                     // KMK -->
-                    if (state.source.id == MERGED_SOURCE_ID) {
+                    if (isMergedSourceId(state.source.id)) {
                         chapters.groupBy { it.mangaId }.forEach { map ->
                             val manga = state.mergedData?.manga?.get(map.key) ?: return@forEach
-                            val source = state.mergedData.sources.find { it.id != MERGED_SOURCE_ID && manga.source == it.id } ?: return@forEach
+                            val source = state.mergedData.sources.find { !isMergedSourceId(it.id) && manga.source == it.id } ?: return@forEach
                             downloadManager.deleteChapters(
                                 map.value,
                                 manga,
@@ -1598,10 +1598,10 @@ class MangaScreenModel(
         screenModelScope.launchNonCancellable {
             try {
                 successState?.let { state ->
-                    if (state.source.id == MERGED_SOURCE_ID) {
+                    if (isMergedSourceId(state.source.id)) {
                         state.mergedData?.manga
                             ?.forEach { (_, manga) ->
-                                val source = state.mergedData.sources.find { it.id != MERGED_SOURCE_ID && manga.source == it.id } ?: return@forEach
+                                val source = state.mergedData.sources.find { !isMergedSourceId(it.id) && manga.source == it.id } ?: return@forEach
 
                                 downloadManager.deleteManga(
                                     manga = manga,

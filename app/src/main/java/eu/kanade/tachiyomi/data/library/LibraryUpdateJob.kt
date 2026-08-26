@@ -41,8 +41,8 @@ import exh.log.xLogE
 import exh.md.utils.FollowStatus
 import exh.md.utils.MdUtil
 import exh.source.LIBRARY_UPDATE_EXCLUDED_SOURCES
-import exh.source.MERGED_SOURCE_ID
 import exh.source.mangaDexSourceIds
+import exh.source.isMergedSourceId
 import exh.util.WorkerUtil
 import exh.util.nullIfBlank
 import kotlinx.coroutines.CancellationException
@@ -551,7 +551,7 @@ class LibraryUpdateJob(private val context: Context, workerParams: WorkerParamet
         // We don't want to start downloading while the library is updating, because websites
         // may don't like it and they could ban the user.
         // SY -->
-        if (manga.source == MERGED_SOURCE_ID) {
+        if (isMergedSourceId(manga.source)) {
             val downloadingManga = runBlocking { getMergedMangaForDownloading.await(manga.id) }
                 .associateBy { it.id }
             chapters.groupBy { it.mangaId }

@@ -111,9 +111,9 @@ import eu.kanade.tachiyomi.ui.manga.PagePreviewState
 import eu.kanade.tachiyomi.ui.manga.scanlator.ScanlatorPreferenceScreen
 import eu.kanade.tachiyomi.util.system.copyToClipboard
 import exh.metadata.MetadataUtil
-import exh.source.MERGED_SOURCE_ID
 import exh.source.getMainSource
 import exh.source.isEhBasedManga
+import exh.source.isMergedSourceId
 import exh.ui.metadata.adapters.EHentaiDescription
 import exh.ui.metadata.adapters.EightMusesDescription
 import exh.ui.metadata.adapters.LanraragiDescription
@@ -521,11 +521,11 @@ private fun MangaScreenSmallImpl(
                 onClickRelatedMangas = onRelatedMangasScreenClick.takeIf {
                     !expandRelatedMangas &&
                         showRelatedMangasInOverflow &&
-                        state.manga.source != MERGED_SOURCE_ID
+                        !isMergedSourceId(state.manga.source)
                 },
                 // KMK <--
                 onClickRecommend = onRecommendClicked.takeIf { state.showRecommendationsInOverflow },
-                onClickMergedSettings = onMergedSettingsClicked.takeIf { state.manga.source == MERGED_SOURCE_ID },
+                onClickMergedSettings = onMergedSettingsClicked.takeIf { isMergedSourceId(state.manga.source) },
                 onClickMerge = onMergeClicked.takeIf { state.showMergeInOverflow },
                 // SY <--
                 actionModeCounter = selectedChapterCount,
@@ -736,7 +736,7 @@ private fun MangaScreenSmallImpl(
                     // KMK -->
                     if (state.source !is StubSource &&
                         relatedMangasEnabled &&
-                        state.manga.source != MERGED_SOURCE_ID
+                        !isMergedSourceId(state.manga.source)
                     ) {
                         if (expandRelatedMangas) {
                             if (state.relatedMangasSorted?.isNotEmpty() != false) {
@@ -1026,11 +1026,11 @@ private fun MangaScreenLargeImpl(
                 onClickRelatedMangas = onRelatedMangasScreenClick.takeIf {
                     !expandRelatedMangas &&
                         showRelatedMangasInOverflow &&
-                        state.manga.source != MERGED_SOURCE_ID
+                        !isMergedSourceId(state.manga.source)
                 },
                 // KMK <--
                 onClickRecommend = onRecommendClicked.takeIf { state.showRecommendationsInOverflow },
-                onClickMergedSettings = onMergedSettingsClicked.takeIf { state.manga.source == MERGED_SOURCE_ID },
+                onClickMergedSettings = onMergedSettingsClicked.takeIf { isMergedSourceId(state.manga.source) },
                 onClickMerge = onMergeClicked.takeIf { state.showMergeInOverflow },
                 // SY <--
                 actionModeCounter = selectedChapterCount,
@@ -1252,7 +1252,7 @@ private fun MangaScreenLargeImpl(
                             // KMK -->
                             if (state.source !is StubSource &&
                                 relatedMangasEnabled &&
-                                state.manga.source != MERGED_SOURCE_ID
+                                !isMergedSourceId(state.manga.source)
                             ) {
                                 if (expandRelatedMangas) {
                                     if (state.relatedMangasSorted?.isNotEmpty() != false) {

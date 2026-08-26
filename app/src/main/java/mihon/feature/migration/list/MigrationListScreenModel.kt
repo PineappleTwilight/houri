@@ -6,7 +6,7 @@ import cafe.adriel.voyager.core.model.screenModelScope
 import eu.kanade.domain.source.service.SourcePreferences
 import eu.kanade.tachiyomi.source.Source
 import eu.kanade.tachiyomi.source.getNameForMangaInfo
-import exh.source.MERGED_SOURCE_ID
+import exh.source.isMergedSourceId
 import exh.util.ThrottleManager
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
@@ -90,7 +90,7 @@ class MigrationListScreenModel(
                             latestChapter = chapterInfo.latestChapter,
                             source = sourceManager.getOrStub(manga.source).getNameForMangaInfo(
                                 // KMK -->
-                                if (manga.source == MERGED_SOURCE_ID) {
+                                if (isMergedSourceId(manga.source)) {
                                     sourceManager.getMergedSources(manga.id)
                                 } else {
                                     null

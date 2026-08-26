@@ -8,7 +8,7 @@ import eu.kanade.tachiyomi.ui.library.LibraryScreenModel
 import eu.kanade.tachiyomi.ui.manga.MangaScreenModel
 import eu.kanade.tachiyomi.ui.reader.ReaderViewModel
 import eu.kanade.tachiyomi.ui.updates.UpdatesScreenModel
-import exh.source.MERGED_SOURCE_ID
+import exh.source.isMergedSourceId
 import logcat.LogPriority
 import tachiyomi.core.common.util.lang.withNonCancellableContext
 import tachiyomi.core.common.util.system.logcat
@@ -135,7 +135,7 @@ class SetReadStatus(
         )
     }
 
-    suspend fun await(manga: Manga, read: Boolean) = if (manga.source == MERGED_SOURCE_ID) {
+    suspend fun await(manga: Manga, read: Boolean) = if (isMergedSourceId(manga.source)) {
         awaitMerged(manga.id, read)
     } else {
         await(manga.id, read)

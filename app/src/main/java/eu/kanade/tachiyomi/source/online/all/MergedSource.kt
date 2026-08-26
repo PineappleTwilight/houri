@@ -10,6 +10,7 @@ import eu.kanade.tachiyomi.source.model.SMangaUpdate
 import eu.kanade.tachiyomi.source.model.copy
 import eu.kanade.tachiyomi.source.online.HttpSource
 import exh.source.MERGED_SOURCE_ID
+import exh.source.isMergedSourceId
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -80,7 +81,7 @@ class MergedSource : HttpSource() {
             val mangaReferences = getMergedReferencesById.await(mergedManga.id)
                 .apply {
                     require(isNotEmpty()) { "Manga references are empty, info unavailable, merge is likely corrupted" }
-                    require(!(size == 1 && first().mangaSourceId == MERGED_SOURCE_ID)) {
+                    require(!(size == 1 && isMergedSourceId(first().mangaSourceId))) {
                         "Manga references contain only the merged reference, merge is likely corrupted"
                     }
                 }

@@ -10,8 +10,8 @@ import eu.kanade.tachiyomi.data.backup.models.backupMergedMangaReferenceMapper
 import eu.kanade.tachiyomi.data.backup.models.backupTrackMapper
 import eu.kanade.tachiyomi.source.online.MetadataSource
 import eu.kanade.tachiyomi.ui.reader.setting.ReadingMode
-import exh.source.MERGED_SOURCE_ID
 import exh.source.getMainSource
+import exh.source.isMergedSourceId
 import mihon.app.di.globalAppGraph
 import tachiyomi.data.DatabaseHandler
 import tachiyomi.data.MemoColumnAdapter
@@ -53,7 +53,7 @@ class MangaBackupCreator(
         )
 
         // SY -->
-        if (manga.source == MERGED_SOURCE_ID) {
+        if (isMergedSourceId(manga.source)) {
             mangaObject.mergedMangaReferences = handler.awaitList {
                 mergedQueries.selectByMergeId(manga.id, backupMergedMangaReferenceMapper)
             }
