@@ -26,6 +26,7 @@ import tachiyomi.domain.manga.interactor.GetFlatMetadataById
 import tachiyomi.domain.manga.interactor.GetMangaWithChapters
 import tachiyomi.domain.manga.interactor.GetMergedMangaById
 import tachiyomi.domain.manga.interactor.GetMergedReferencesById
+import tachiyomi.domain.manga.model.Manga
 import tachiyomi.domain.source.service.SourceManager
 
 /**
@@ -55,7 +56,7 @@ internal class MangaDetailsPipeline(
     private val _rootRedirects = MutableSharedFlow<Long>()
     val rootRedirects: SharedFlow<Long> = _rootRedirects
 
-    fun details(): Flow<DetailData> {
+    suspend fun details(): Flow<DetailData> {
         return getMangaAndChapters.subscribe(mangaId, applyFilter = true).distinctUntilChanged()
             // SY -->
             .combine(
