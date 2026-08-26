@@ -67,6 +67,7 @@
 - [x] **Smart Scanlator Filter**: Make toggleable with an option in Advanced settings (defaults to disabled)
 - [x] **Smart Scanlator Filter**: Show what chapters a scanlator covers
 - [x] **Smart Scanlator Filter**: Add shortcut to toggle on/off via 3 dots menu in manga details
+- [ ] **Chapter End Anime Girl Moan**: Add toggle in settings to randomize the moan location to be 50/50 where it's either between the chapters or on the last page (current) 
 
 ## Bugfixes
 - [x] Fix UI transition choppiness.
