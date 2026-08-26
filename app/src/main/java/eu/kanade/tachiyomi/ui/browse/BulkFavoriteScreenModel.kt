@@ -305,23 +305,10 @@ class BulkFavoriteScreenModel(
             .orEmpty()
     }
 
-    private fun moveMangaToCategories(manga: Manga, vararg categories: Category) {
-        moveMangaToCategories(manga, categories.filter { it.id != 0L }.map { it.id })
-    }
-
-    private fun moveMangaToCategories(manga: Manga, categoryIds: List<Long>) {
-        screenModelScope.launchIO {
-            setMangaCategories.await(
-                mangaId = manga.id,
-                categoryIds = categoryIds.toList(),
-            )
-        }
-    }
-
     /**
-     * Adds or removes a manga from the library.
+     * Get user categories.
      *
-     * @param manga the manga to update.
+     * @return List of categories, not including the default category
      */
     internal fun changeMangaFavorite(manga: Manga) {
         val source = sourceManager.getOrStub(manga.source)
@@ -370,13 +357,16 @@ class BulkFavoriteScreenModel(
             when {
                 // Default category set
                 defaultCategory != null -> {
-                    moveMangaToCategories(manga, defaultCategory)
+                    moveMangaToCategory(
+                        manga.id,
+                        listOfNotNull(defaultCategory).filter { it.id != 0L }.map { it.id },
+                    )
                     changeMangaFavorite(manga)
                 }
 
                 // Automatic 'Default' or no categories
                 defaultCategoryId == 0 || categories.isEmpty() -> {
-                    moveMangaToCategories(manga)
+                    moveMangaToCategory(manga.id, emptyList())
                     changeMangaFavorite(manga)
                 }
 
