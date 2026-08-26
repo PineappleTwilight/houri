@@ -9,6 +9,7 @@ import eu.kanade.presentation.manga.components.ChapterDownloadAction
 import eu.kanade.tachiyomi.data.download.DownloadManager
 import eu.kanade.tachiyomi.data.download.model.Download
 import eu.kanade.tachiyomi.source.online.all.MergedSource
+import exh.source.isEhBasedManga
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.filter
@@ -24,7 +25,6 @@ import tachiyomi.domain.chapter.model.Chapter
 import tachiyomi.domain.chapter.service.getChapterSort
 import tachiyomi.domain.source.service.SourceManager
 import tachiyomi.i18n.MR
-import exh.source.isEhBasedManga
 
 /**
  * Mirrors download queue status/progress into the chapter list and owns the
