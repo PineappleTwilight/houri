@@ -176,3 +176,10 @@
 ## Drawing Board
 - [ ] **New**: WebAssembly computation engine
   - [ ] Optional extension support via overridable method
+- [ ] **New**: Light novel support
+  - (-) Would need light novel specific extensions
+  - (-) Would need new reader entirely
+  - (+) Large benefit to userbase
+  - (+) Within app scope
+  - (+) Fits into existing tracker/library code
+  - (+) Easy to manage
