@@ -2,22 +2,22 @@
 package eu.kanade.tachiyomi.ui.reader.viewer.webgpu
 
 import android.graphics.Bitmap
-import android.graphics.Canvas
 import android.graphics.Color
-import android.graphics.Paint
 import android.graphics.PointF
 import android.view.InputDevice
 import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.View
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.util.fastCoerceIn
 import androidx.core.graphics.createBitmap
+import androidx.webgpu.GPUTexture
 import ca.mpreg.imagedecoder.ImageDecoder
 import ca.mpreg.webgpuviewer.ImageView
-import ca.mpreg.webgpuviewer.draw.Draw
-import ca.mpreg.webgpuviewer.draw.clear
-import ca.mpreg.webgpuviewer.draw.line
+import ca.mpreg.webgpuviewer.draw.TextAlign
 import ca.mpreg.webgpuviewer.renderer.Image
-import ca.mpreg.webgpuviewer.renderer.WebGpuRenderer
+import ca.mpreg.webgpuviewer.renderer.Image.Companion.invoke
 import ca.mpreg.webgpuviewer.transition.TransitionBasic
 import ca.mpreg.webgpuviewer.transition.TransitionCube
 import ca.mpreg.webgpuviewer.transition.TransitionCubeOuter
@@ -57,7 +57,9 @@ import kotlinx.coroutines.flow.takeWhile
 import kotlinx.coroutines.launch
 import logcat.LogPriority
 import mihon.app.di.globalAppGraph
+import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.core.common.util.system.logcat
+import tachiyomi.i18n.MR
 import java.nio.ByteBuffer
 import java.util.concurrent.Executors
 import kotlin.math.abs
@@ -93,16 +95,23 @@ open class WebGpuViewer(
     private val decodeDispatcher = decodeExecutor.asCoroutineDispatcher()
 
     // Single lock for all page cache and queue operations
-    @Suppress("PLATFORM_CLASS_MAPPED_TO_KOTLIN")
     private val lock = Object()
-
-    private val chapterPreloadGuard = ChapterPreloadGuard()
 
     // Page cache - keyed by stable PageKey for O(1) lookup
     private val pageCache = LinkedHashMap<PageKey, ViewerPage>()
 
     // Decode queue - pages waiting to be decoded, processed LIFO (last = highest priority)
-    private val decodeQueue = ArrayDeque<ViewerPage>()
+    private val decodeQueue = ArrayDeque<ViewerReaderPage>()
+
+    // KMK -->
+    private val chapterPreloadGuard = ChapterPreloadGuard()
+    // KMK <--
+
+    /**
+     * Which side of a dual-page spread a [ViewerReaderPage] belongs on - app-level bookkeeping
+     * for [getSpreadAnchor]/[buildSpreadPage], independent of the decoded image itself.
+     */
+    internal enum class SpreadPosition { LEFT, RIGHT, SINGLE }
 
     // Stable key types for page identity - data classes provide correct equals/hashCode
     private sealed class PageKey {
@@ -112,7 +121,7 @@ open class WebGpuViewer(
 
     private fun pageKey(page: ViewerPage): PageKey = when (page) {
         is ViewerReaderPage -> PageKey.Reader(page.page.chapter.chapter.id, page.page.index)
-        is TransitionPage -> PageKey.Transition(page.prevChapter?.chapter?.id, page.nextChapter?.chapter?.id)
+        is ViewerTransitionPage -> PageKey.Transition(page.prevChapter?.chapter?.id, page.nextChapter?.chapter?.id)
         else -> PageKey.Transition(null, null)
     }
 
@@ -126,9 +135,9 @@ open class WebGpuViewer(
      * If prioritize=true and page is already queued, moves it to front.
      * Must be called while holding lock.
      */
-    private fun queueForDecode(page: ViewerPage, prioritize: Boolean = false) {
+    private fun queueForDecode(page: ViewerReaderPage, prioritize: Boolean = false) {
         // Already has a decoded image
-        if (page.imagePage.isDecoded) return
+        if (page.isDecoded) return
 
         when (page.state) {
             PageState.IDLE -> {
@@ -163,12 +172,12 @@ open class WebGpuViewer(
                         while (decodeQueue.isEmpty()) {
                             lock.wait()
                         }
-                        decodeQueue.removeLast().also { it.state = PageState.DECODING }
+                        decodeQueue.removeLast().apply { state = PageState.DECODING }
                     }
 
                     // Verify page is still valid (not evicted and doesn't have a decoded image yet)
                     val shouldProcess = synchronized(lock) {
-                        pageInCache(page) && page.state == PageState.DECODING && !page.imagePage.isDecoded
+                        pageInCache(page) && page.state == PageState.DECODING && !page.isDecoded
                     }
 
                     if (!shouldProcess) {
@@ -179,13 +188,21 @@ open class WebGpuViewer(
                     }
 
                     try {
-                        when (page) {
-                            is ViewerReaderPage -> decodeReaderPage(page)
-                            is TransitionPage -> createTransitionPage(page)
-                        }
+                        decodeReaderPage(page)
                     } catch (e: Exception) {
-                        logcat(LogPriority.ERROR, e) { "Decode error: ${pageKey(page)}" }
-                        synchronized(lock) { if (pageInCache(page)) page.state = PageState.IDLE }
+                        logcat(LogPriority.ERROR, e) { "decodeReaderPage: ${e.message}" }
+                        synchronized(lock) {
+                            if (pageInCache(page) && !page.isDecoded && !page.imagePage.destroyed) {
+                                val oldImagePage = page.imagePage
+                                val errorMessage = e.message ?: "Failed to decode image"
+                                page.imagePage = ErrorPage(errorMessage, page.spreadPosition)
+                                page.state = PageState.IDLE
+                                oldImagePage.cleanup()
+                                page.imagePage.invalidate()
+                            } else {
+                                if (pageInCache(page)) page.state = PageState.IDLE
+                            }
+                        }
                     }
                 }
             } catch (_: InterruptedException) {
@@ -238,7 +255,7 @@ open class WebGpuViewer(
                 val nextIndex = page.page.index + 1
                 candidates.find {
                     it is ViewerReaderPage && it.page.chapter.chapter.id == chapterId && it.page.index == nextIndex
-                } ?: candidates.find { it is TransitionPage && it.prevChapter?.chapter?.id == chapterId }
+                } ?: candidates.find { it is ViewerTransitionPage && it.prevChapter?.chapter?.id == chapterId }
                     ?: page.nextChapter?.chapter?.id?.let { nextChapterId ->
                         candidates.find {
                             it is ViewerReaderPage && it.page.chapter.chapter.id == nextChapterId && it.page.index == 0
@@ -246,7 +263,7 @@ open class WebGpuViewer(
                     }
             }
 
-            is TransitionPage -> {
+            is ViewerTransitionPage -> {
                 val nextChapterId = page.nextChapter?.chapter?.id
                 candidates.find {
                     it is ViewerReaderPage && it.page.chapter.chapter.id == nextChapterId && it.page.index == 0
@@ -262,7 +279,7 @@ open class WebGpuViewer(
                 val prevIndex = page.page.index - 1
                 candidates.find {
                     it is ViewerReaderPage && it.page.chapter.chapter.id == chapterId && it.page.index == prevIndex
-                } ?: candidates.find { it is TransitionPage && it.nextChapter?.chapter?.id == chapterId }
+                } ?: candidates.find { it is ViewerTransitionPage && it.nextChapter?.chapter?.id == chapterId }
                     ?: page.prevChapter?.let { prevChapter ->
                         prevChapter.pages?.lastIndex?.let { lastIndex ->
                             candidates.find {
@@ -273,7 +290,7 @@ open class WebGpuViewer(
                     }
             }
 
-            is TransitionPage -> {
+            is ViewerTransitionPage -> {
                 val prevChapterId = page.prevChapter?.chapter?.id
                 page.prevChapter?.pages?.lastIndex?.let { lastIndex ->
                     candidates.find {
@@ -306,7 +323,7 @@ open class WebGpuViewer(
         toRemove.state = PageState.IDLE
         // KMK -->
         (toRemove as? ViewerReaderPage)?.let {
-            it.spreadHolder?.cleanup()
+            it.spreadPage?.cleanup()
             it.spreadBytes = null
         }
         // KMK <--
@@ -336,7 +353,7 @@ open class WebGpuViewer(
     ): ViewerPage {
         val key = PageKey.Transition(prevChapter?.chapter?.id, nextChapter?.chapter?.id)
         return synchronized(lock) {
-            findInCache(key) ?: TransitionPage(prevChapter, nextChapter).also { newPage ->
+            findInCache(key) ?: ViewerTransitionPage(prevChapter, nextChapter).also { newPage ->
                 pageCache[key] = newPage
                 while (pageCache.size > cacheSize) {
                     evictFarthestPage(referencePage ?: newPage)
@@ -383,6 +400,121 @@ open class WebGpuViewer(
         }
     }
 
+    inner class ErrorPage internal constructor(
+        var message: String,
+        spreadPosition: SpreadPosition = SpreadPosition.SINGLE,
+    ) : ImagePage.Render(
+        if (spreadPosition == SpreadPosition.SINGLE) pager.state.width else pager.state.width / 2,
+        pager.state.height,
+    ) {
+        init {
+            minScale = 1f
+            maxScale = 1f
+            homeScale = 1f
+        }
+
+        override val backgroundColor: Int = readerBackgroundColor()
+
+        override fun render(dst: GPUTexture, x: Float, y: Float, scale: Float) {
+            val padding = with(pager.state.density) { 24.dp.toPx() }
+            val size = scale * with(pager.state.density) { 16.dp.toPx() }
+
+            val cx = dst.width * (0.5f + scale * x)
+            val cy = dst.height * (0.5f + scale * y)
+
+            text(
+                dst,
+                activity.baseContext,
+                FontFamily.Default,
+                message,
+                cx,
+                cy,
+                size,
+                color = readerOnBackgroundColor(),
+                align = TextAlign.Center,
+                maxWidth = dst.width - 2f * padding,
+            )
+        }
+    }
+
+    inner class ProgressPage(var foregroundColor: Int = readerOnBackgroundColor()) : ImagePage.Render(
+        if (!isDualPageMode()) pager.state.width else pager.state.width / 2,
+        pager.state.height,
+    ) {
+        var progress: Float = 0f
+
+        init {
+            minScale = 1f
+            maxScale = 1f
+            homeScale = 1f
+        }
+
+        override val backgroundColor: Int = readerBackgroundColor()
+
+        override fun render(dst: GPUTexture, x: Float, y: Float, scale: Float) {
+            val cx = dst.width * (0.5f + scale * x)
+            val cy = dst.height * (0.5f + scale * y)
+
+            // Off this page's own width, not dst's: a spread half would otherwise draw a ring
+            // sized for the whole screen, straight over its partner.
+            val full = width * 0.5f * scale
+
+            circle(cx, cy, full / 2f, 0xAAAAAAAA.toInt())
+
+            val diameter = full * progress.fastCoerceIn(0f, 1f)
+            if (diameter > 0) {
+                circle(cx, cy, diameter / 2f, foregroundColor)
+            }
+        }
+    }
+
+    inner class TransitionPage(val prevChapter: ReaderChapter?, val nextChapter: ReaderChapter?) : ImagePage.Render(
+        min(pager.state.width, pager.state.height),
+        min(pager.state.width, pager.state.height),
+    ) {
+        init {
+            minScale = 1f
+            maxScale = 1f
+            homeScale = 1f
+        }
+
+        override val backgroundColor: Int = readerBackgroundColor()
+
+        override fun render(dst: GPUTexture, x: Float, y: Float, scale: Float) {
+            // KMK -->
+            // Localized labels (fork keeps transition copy translatable).
+            val lines: MutableList<String> = mutableListOf()
+            prevChapter?.chapter?.let { chapter ->
+                lines.add(activity.stringResource(MR.strings.action_previous_chapter) + ": " + chapter.name)
+            }
+            nextChapter?.chapter?.let { chapter ->
+                lines.add(activity.stringResource(MR.strings.action_next_chapter) + ": " + chapter.name)
+            }
+            // KMK <--
+
+            val text = lines.joinToString("\n")
+
+            val padding = with(pager.state.density) { 24.dp.toPx() }
+            val size = scale * with(pager.state.density) { 16.dp.toPx() }
+
+            val cx = dst.width * (0.5f + scale * x)
+            val cy = dst.height * (0.5f + scale * y)
+
+            text(
+                dst,
+                activity.baseContext,
+                FontFamily.Default,
+                text,
+                cx,
+                cy,
+                size,
+                readerOnBackgroundColor(),
+                align = TextAlign.Center,
+                maxWidth = dst.width - 2f * padding,
+            )
+        }
+    }
+
     abstract class ViewerPage {
         abstract val prevChapter: ReaderChapter?
         abstract val nextChapter: ReaderChapter?
@@ -394,10 +526,16 @@ open class WebGpuViewer(
 
         @Volatile
         open var imagePage: ImagePage = ImagePage.Dummy(400, 400)
+
+        open val isDecoded = true
     }
 
-    inner class TransitionPage(override val prevChapter: ReaderChapter?, override val nextChapter: ReaderChapter?) :
-        ViewerPage() {
+    inner class ViewerTransitionPage(
+        override val prevChapter: ReaderChapter?,
+        override val nextChapter: ReaderChapter?,
+    ) : ViewerPage() {
+        override var imagePage: ImagePage = TransitionPage(prevChapter, nextChapter)
+
         override val prev: ViewerPage?
             get() = prevChapter?.pages?.lastOrNull()?.let { getPage(it, currentPage) }
 
@@ -406,10 +544,13 @@ open class WebGpuViewer(
     }
 
     inner class ViewerReaderPage(val page: ReaderPage) : ViewerPage() {
-        // KMK -->
-        /** Cached spread when this page is the anchor of a dual-page spread */
-        var spreadHolder: SpreadHolder? = null
+        /** Cached spread ImagePage when this page is the anchor of a dual-page spread */
+        var spreadPage: ImagePage.ImageSpread? = null
 
+        /** Which side of a dual-page spread this page belongs on - set once decoding tags it. */
+        internal var spreadPosition: SpreadPosition = SpreadPosition.SINGLE
+
+        // KMK -->
         /**
          * Compressed source bytes retained for spread height-matching. Only set for
          * partner-position pages decoded in dual-page mode; freed on eviction.
@@ -422,9 +563,10 @@ open class WebGpuViewer(
         var rescaleInFlight: Boolean = false
         // KMK <--
 
-        /** Whether this page encountered a decode error and should show retry on tap */
-        @Volatile
-        var hasDecodeError: Boolean = false
+        override var imagePage: ImagePage = ProgressPage()
+
+        override val isDecoded
+            get() = (imagePage as? ImagePage.ImageSingle)?.isDecoded == true
 
         override val prevChapter: ReaderChapter?
             get() = when (page.chapter) {
@@ -475,51 +617,6 @@ open class WebGpuViewer(
             }
     }
 
-    // KMK -->
-    /**
-     * Cached dual-page spread for an anchor page. [page] renders the two pages' own GPU
-     * images ([ownsImages]=false); when height matching completes, [ownedImage] - a
-     * partner copy resampled to the anchor's height - replaces the original partner in
-     * [page] and is released through an owning [ImagePage] since [Image.cleanup] is
-     * library-internal.
-     */
-    inner class SpreadHolder(
-        val anchor: ViewerReaderPage,
-        val anchorImage: Image,
-        val partnerOriginal: Image,
-    ) {
-        var page: ImagePage = ImagePage(anchorImage, partnerOriginal).apply { ownsImages = false }
-
-        var ownedImage: Image? = null
-
-        fun matches(anchorImg: Image, partnerImg: Image): Boolean =
-            anchorImg === anchorImage && partnerImg === partnerOriginal
-
-        fun installMatched(scaledImage: Image, replacesAnchor: Boolean) {
-            disposeOwned()
-            ownedImage = scaledImage
-            val oldPage = page
-            page = if (replacesAnchor) {
-                ImagePage(scaledImage, partnerOriginal)
-            } else {
-                ImagePage(anchorImage, scaledImage)
-            }.apply { ownsImages = false }
-            oldPage.cleanup()
-        }
-
-        fun cleanup() {
-            page.cleanup()
-            disposeOwned()
-        }
-
-        private fun disposeOwned() {
-            val owned = ownedImage ?: return
-            ownedImage = null
-            ImagePage(owned).cleanup()
-        }
-    }
-    // KMK <--
-
     /**
      * Check if dual page mode is currently active based on config and view dimensions.
      * Dual page is never active for continuous (scrolling) viewers.
@@ -539,18 +636,18 @@ open class WebGpuViewer(
 
     /**
      * Check if the given page can form a spread with the next page.
-     * Uses image.position to determine: anchor + partner = spread
+     * Uses page.spreadPosition to determine: anchor + partner = spread
      * RTL: RIGHT is anchor, looks for LEFT on next
      * LTR: LEFT is anchor, looks for RIGHT on next
      */
     private fun canFormSpread(page: ViewerReaderPage): Boolean {
         if (!isDualPageMode()) return false
-        val anchorPosition = if (isReversed) Image.Position.RIGHT else Image.Position.LEFT
-        val partnerPosition = if (isReversed) Image.Position.LEFT else Image.Position.RIGHT
-        if (page.imagePage.image?.position != anchorPosition) return false
+        val anchorPosition = if (isReversed) SpreadPosition.RIGHT else SpreadPosition.LEFT
+        val partnerPosition = if (isReversed) SpreadPosition.LEFT else SpreadPosition.RIGHT
+        if (page.spreadPosition != anchorPosition) return false
         val next = page.next as? ViewerReaderPage ?: return false
         if (next.page.chapter != page.page.chapter) return false
-        return next.imagePage.image?.position == partnerPosition
+        return next.spreadPosition == partnerPosition
     }
 
     /**
@@ -562,13 +659,13 @@ open class WebGpuViewer(
         if (!isDualPageMode()) return page
         if (page !is ViewerReaderPage) return page
 
-        val anchorPosition = if (isReversed) Image.Position.RIGHT else Image.Position.LEFT
-        val partnerPosition = if (isReversed) Image.Position.LEFT else Image.Position.RIGHT
+        val anchorPosition = if (isReversed) SpreadPosition.RIGHT else SpreadPosition.LEFT
+        val partnerPosition = if (isReversed) SpreadPosition.LEFT else SpreadPosition.RIGHT
 
         // If this is a partner page, check if previous is anchor
-        if (page.imagePage.image?.position == partnerPosition) {
+        if (page.spreadPosition == partnerPosition) {
             val prev = page.prev as? ViewerReaderPage ?: return page
-            if (prev.page.chapter == page.page.chapter && prev.imagePage.image?.position == anchorPosition) {
+            if (prev.page.chapter == page.page.chapter && prev.spreadPosition == anchorPosition) {
                 return prev
             }
         }
@@ -577,107 +674,100 @@ open class WebGpuViewer(
         return page
     }
 
-    /**
-     * Build an ImagePage for the given page, potentially combining with adjacent page for spread.
-     * RTL: RIGHT anchor + LEFT partner
-     * LTR: LEFT anchor + RIGHT partner
-     */
     private fun buildSpreadPage(page: ViewerPage): ImagePage {
-        // For TransitionPage, return its imagePage directly
+        // For ViewerTransitionPage, return its imagePage directly
         if (page !is ViewerReaderPage) {
             return page.imagePage
         }
 
-        val image = page.imagePage.image
-
         // Only form spreads in dual page mode
         if (!isDualPageMode()) {
-            page.spreadHolder?.let {
-                it.cleanup()
-                page.spreadHolder = null
-            }
             return page.imagePage
         }
 
-        val anchorPosition = if (isReversed) Image.Position.RIGHT else Image.Position.LEFT
-        val partnerPosition = if (isReversed) Image.Position.LEFT else Image.Position.RIGHT
+        // Whatever the page is holding takes its half of the seam, decoded or not:
+        // [ImagePage.ImageSpread] draws a [ImagePage.Render] side into its own half. A page left
+        // out would take the whole viewport instead, hiding its partner with it.
+        val imagePage = page.imagePage
 
-        // Anchor pages look for partner on next page
-        if (image?.position == anchorPosition) {
-            val nextReaderPage = (page.next as? ViewerReaderPage)?.takeIf { it.page.chapter == page.page.chapter }
-            val partnerImage = nextReaderPage?.imagePage?.image?.takeIf { it.position == partnerPosition }
-
-            if (partnerImage != null) {
-                // KMK -->
-                val holder = page.spreadHolder
-                if (holder != null && holder.matches(image, partnerImage)) {
-                    // Surface size may have changed since this spread was cached
-                    // (sleep/resume); refresh so the zoom clamp tracks the real home scale.
-                    applyDoubleTapZoomPolicy(holder.page)
-                    return holder.page
-                }
-
-                holder?.cleanup()
-                val newHolder = SpreadHolder(page, image, partnerImage)
-                page.spreadHolder = newHolder
-
-                // When the paired sources have different heights, rescale one side to
-                // the other's height - the WebGPU counterpart of the matchHeights branch
-                // in ImageUtil.mergeBitmaps. Both spread images render at one shared
-                // scale, so mismatched sources would otherwise show the second page
-                // visibly smaller; until the async rescale lands, the unscaled pairing
-                // is returned.
-                if (config.matchDoublePageHeights && partnerImage.height != image.height) {
-                    when {
-                        nextReaderPage.spreadBytes != null && !nextReaderPage.rescaleInFlight ->
-                            scheduleSpreadHeightMatch(
-                                holder = newHolder,
-                                sourcePage = nextReaderPage,
-                                replacesAnchor = false,
-                                targetHeight = image.height,
-                            )
-
-                        page.spreadBytes != null && !page.rescaleInFlight ->
-                            scheduleSpreadHeightMatch(
-                                holder = newHolder,
-                                sourcePage = page,
-                                replacesAnchor = true,
-                                targetHeight = partnerImage.height,
-                            )
-                    }
-                }
-
-                applyDoubleTapZoomPolicy(newHolder.page)
-                return newHolder.page
-                // KMK <--
-            }
+        if (page.spreadPosition == SpreadPosition.SINGLE) {
+            page.spreadPage = null
+            return imagePage
         }
 
-        // Single page or no spread partner - clear any cached spread
-        page.spreadHolder?.let {
-            it.cleanup()
-            page.spreadHolder = null
+        val anchorPosition = if (isReversed) SpreadPosition.RIGHT else SpreadPosition.LEFT
+        val partnerPosition = if (isReversed) SpreadPosition.LEFT else SpreadPosition.RIGHT
+
+        // Only the anchor side looks for a partner on the next page. A partner-tagged page only
+        // reaches this function directly (rather than being redirected here via
+        // [getSpreadAnchor]) when it has no anchor before it - a lone RIGHT with no preceding
+        // LEFT (or vice versa), e.g. at a chapter boundary - so it renders alone on its own side
+        // instead of looking anywhere else for a partner.
+        val nextReaderPage = if (page.spreadPosition == anchorPosition) {
+            (page.next as? ViewerReaderPage)?.takeIf { it.page.chapter == page.page.chapter }
+        } else {
+            null
         }
-        return page.imagePage
+        val partnerImagePage = nextReaderPage?.imagePage?.takeIf {
+            nextReaderPage.spreadPosition == partnerPosition
+        }
+
+        // LEFT/RIGHT map directly to the spread's left/right slot - independent of reading
+        // direction, which only decides which side is the anchor for pairing purposes above.
+        val left = if (page.spreadPosition == SpreadPosition.LEFT) imagePage else partnerImagePage
+        val right = if (page.spreadPosition == SpreadPosition.RIGHT) imagePage else partnerImagePage
+
+        // Reuse existing spread if the sides match - preserves transform state
+        val spread = if (existing(left, right, page.spreadPage)) {
+            page.spreadPage!!
+        } else {
+            ImagePage.ImageSpread(left, right).also { page.spreadPage = it }
+        }
+
+        // KMK -->
+        maybeScheduleSpreadHeightMatch(page, spread, nextReaderPage)
+        // KMK <--
+        return spread
+    }
+
+    private fun existing(left: ImagePage?, right: ImagePage?, spreadPage: ImagePage.ImageSpread?): Boolean {
+        return spreadPage != null && spreadPage.left === left && spreadPage.right === right
     }
 
     // KMK -->
     /**
-     * Rescales [sourcePage]'s image to [targetHeight] (the paired page's height) and
-     * swaps it into [holder]'s spread when it completes. [replacesAnchor] selects which
-     * spread slot is rebuilt: the partner page is preferred, but the anchor is rescaled
-     * instead when only it still holds its source bytes. The compressed bytes are
-     * decoded back to RGBA pixels, scaled with the same aspect-preserving semantics as
-     * ImageUtil.mergeBitmaps, and uploaded as a fresh GPU image owned by [holder].
-     * Falls back to the unscaled spread on failure or if either page left the cache
-     * meanwhile; the holder is then dropped so a later rebuild can retry.
+     * Dual-page spread height matching: when both halves are decoded images with differing
+     * heights, rescale whichever side still retains its compressed source bytes to the other
+     * side's height. The rescaled image replaces that side's [ImagePage.ImageSingle], and the
+     * spread recomposes from slot identity on the next fetch.
      */
-    private fun scheduleSpreadHeightMatch(
-        holder: SpreadHolder,
-        sourcePage: ViewerReaderPage,
-        replacesAnchor: Boolean,
-        targetHeight: Int,
+    private fun maybeScheduleSpreadHeightMatch(
+        anchorPage: ViewerReaderPage,
+        spread: ImagePage.ImageSpread,
+        nextReaderPage: ViewerReaderPage?,
     ) {
+        if (!config.matchDoublePageHeights) return
+
+        val leftImage = (spread.left as? ImagePage.ImageSingle)?.image
+        val rightImage = (spread.right as? ImagePage.ImageSingle)?.image
+        if (leftImage == null || rightImage == null || leftImage.height == rightImage.height) return
+
+        val partnerSide = nextReaderPage
+            ?.takeIf { it !== anchorPage && it.spreadBytes != null && !it.rescaleInFlight }
+        val sourcePage = when {
+            partnerSide != null -> partnerSide
+            anchorPage.spreadBytes != null && !anchorPage.rescaleInFlight -> anchorPage
+            else -> return
+        }
+        val targetHeight = if (anchorPage.spreadPosition == SpreadPosition.LEFT) {
+            rightImage.height
+        } else {
+            leftImage.height
+        }
+        scheduleSpreadHeightMatch(sourcePage, targetHeight)
+    }
+
+    private fun scheduleSpreadHeightMatch(sourcePage: ViewerReaderPage, targetHeight: Int) {
         synchronized(lock) { sourcePage.rescaleInFlight = true }
 
         scope.launch(decodeDispatcher) {
@@ -685,56 +775,34 @@ open class WebGpuViewer(
             try {
                 val bytes = synchronized(lock) { sourcePage.spreadBytes }
                 if (bytes != null) {
-                    scaledImage = rescaleImageToHeight(
-                        bytes,
-                        targetHeight,
-                        position = if (replacesAnchor) {
-                            if (isReversed) Image.Position.RIGHT else Image.Position.LEFT
-                        } else {
-                            if (isReversed) Image.Position.LEFT else Image.Position.RIGHT
-                        },
-                    )
+                    scaledImage = rescaleImageToHeight(bytes, targetHeight)
                 }
             } catch (e: Exception) {
                 logcat(LogPriority.ERROR, e) { "Spread height-match rescale failed" }
-                scaledImage = null
             }
 
-            var installed = false
+            var swapped = false
             synchronized(lock) {
                 sourcePage.rescaleInFlight = false
-
-                val sourceStillValid = if (replacesAnchor) {
-                    holder.anchorImage === sourcePage.imagePage.image
+                if (scaledImage != null && pageInCache(sourcePage)) {
+                    val scaledSingle = ImagePage.ImageSingle(scaledImage!!)
+                    applyDoubleTapZoomPolicy(scaledSingle)
+                    val oldImagePage = sourcePage.imagePage
+                    sourcePage.imagePage = scaledSingle
+                    oldImagePage.cleanup()
+                    swapped = true
                 } else {
-                    holder.partnerOriginal === sourcePage.imagePage.image
-                }
-
-                if (scaledImage != null && pageInCache(sourcePage) &&
-                    pageInCache(holder.anchor) && holder.anchor.spreadHolder === holder &&
-                    sourceStillValid
-                ) {
-                    holder.installMatched(scaledImage!!, replacesAnchor)
+                    // Give up retrying this pair-state; a later full rebuild can start over.
                     sourcePage.spreadBytes = null
-                    installed = true
-                } else {
-                    scaledImage?.let { stale -> ImagePage(stale).cleanup() }
-                    // Self-heal: without this, a holder whose rescale never lands keeps
-                    // matching in buildSpreadPage and permanently blocks a retry.
-                    if (!installed && holder.anchor.spreadHolder === holder) {
-                        holder.anchor.spreadHolder = null
-                    }
+                    scaledImage?.let { stale -> ImagePage.ImageSingle(stale).cleanup() }
                 }
             }
 
-            if (installed) {
-                applyDoubleTapZoomPolicy(holder.page)
-                pager.state.invalidate()
-            }
+            if (swapped) pager.state.invalidate()
         }
     }
 
-    private suspend fun rescaleImageToHeight(bytes: ByteArray, targetHeight: Int, position: Image.Position): Image {
+    private suspend fun rescaleImageToHeight(bytes: ByteArray, targetHeight: Int): Image {
         val dec = ImageDecoder.new(bytes.inputStream())
         val frame = dec.decodeNext()
         val srcWidth = frame.width
@@ -756,17 +824,13 @@ open class WebGpuViewer(
         buffer.rewind()
         scaledBitmap.recycle()
 
-        return Image.createWithTrim(
+        return Image(
             buffer,
             scaledWidth,
             targetHeight,
             createMipMaps = true,
-            trimColors = null,
-            trimThreshold = 0f,
             backgroundColor = if (config.automaticBackground) null else readerBackgroundColor(),
-        ).also { scaledImage ->
-            scaledImage.position = position
-        }
+        )
     }
     // KMK <--
 
@@ -776,7 +840,7 @@ open class WebGpuViewer(
      * zoom animation then lands where it started. Pinch zoom sets scale directly and
      * never consults this value. The library sentinel -1f restores the computed default.
      */
-    private fun applyDoubleTapZoomPolicy(page: ImagePage) {
+    private fun applyDoubleTapZoomPolicy(page: ImagePage.ImageSingle) {
         if (isContinuous) return
         if (config.doubleTapZoom) {
             page.maxScale = -1f
@@ -810,21 +874,18 @@ open class WebGpuViewer(
             }
 
             onTap = { offset ->
-                // Tap on error page retries the decode/load
                 val current = currentPage as? ViewerReaderPage
-                if (current != null && current.hasDecodeError) {
+                if (current != null && current.imagePage is ErrorPage) {
+                    // KMK -->
+                    // Tap on an error page retries the decode/load.
                     synchronized(lock) {
-                        current.hasDecodeError = false
-                        current.state = PageState.IDLE
                         current.imagePage.cleanup()
-                        current.imagePage = ImagePage.Dummy(
-                            pager.state.width.coerceAtLeast(1),
-                            pager.state.height.coerceAtLeast(1),
-                        )
+                        current.imagePage = ProgressPage()
+                        current.state = PageState.IDLE
                     }
-                    // Re-queue for decode — decodeReaderPage will call startPageLoad if needed
                     queueForDecode(current, prioritize = true)
                     pager.state.invalidate()
+                    // KMK <--
                 } else {
                     when (config.navigator.getAction(PointF(offset.x, offset.y))) {
                         NavigationRegion.MENU -> activity.toggleMenu()
@@ -880,7 +941,7 @@ open class WebGpuViewer(
                     it.state = PageState.IDLE
                     // KMK -->
                     (it as? ViewerReaderPage)?.let { readerPage ->
-                        readerPage.spreadHolder?.cleanup()
+                        readerPage.spreadPage?.cleanup()
                         readerPage.spreadBytes = null
                     }
                     // KMK <--
@@ -889,7 +950,7 @@ open class WebGpuViewer(
                 pageCache.clear()
 
                 currentPage = (currentPage as? ViewerReaderPage)?.page?.let { getPage(it) }
-                    ?: (currentPage as? TransitionPage)?.let {
+                    ?: (currentPage as? ViewerTransitionPage)?.let {
                         getPage(it.prevChapter, it.nextChapter)
                     }
 
@@ -908,8 +969,13 @@ open class WebGpuViewer(
         config.doubleTapZoomChangedListener = {
             synchronized(lock) {
                 pageCache.values.forEach { page ->
-                    applyDoubleTapZoomPolicy(page.imagePage)
-                    (page as? ViewerReaderPage)?.spreadHolder?.page?.let(::applyDoubleTapZoomPolicy)
+                    (page as? ViewerReaderPage)?.let { readerPage ->
+                        (readerPage.imagePage as? ImagePage.ImageSingle)?.let(::applyDoubleTapZoomPolicy)
+                        readerPage.spreadPage?.let { spread ->
+                            (spread.left as? ImagePage.ImageSingle)?.let(::applyDoubleTapZoomPolicy)
+                            (spread.right as? ImagePage.ImageSingle)?.let(::applyDoubleTapZoomPolicy)
+                        }
+                    }
                 }
             }
             pager.state.invalidate()
@@ -932,7 +998,7 @@ open class WebGpuViewer(
                 it.state = PageState.IDLE
                 // KMK -->
                 (it as? ViewerReaderPage)?.let { readerPage ->
-                    readerPage.spreadHolder?.cleanup()
+                    readerPage.spreadPage?.cleanup()
                     readerPage.spreadBytes = null
                 }
                 // KMK <--
@@ -962,7 +1028,7 @@ open class WebGpuViewer(
         // If page is already ready, just re-queue immediately
         if (page.page.status == Page.State.Ready) {
             synchronized(lock) {
-                if (pageInCache(page) && !page.imagePage.isDecoded) {
+                if (pageInCache(page) && !page.isDecoded) {
                     page.state = PageState.IDLE
                     queueForDecode(page, prioritize = currentPage?.let { pageKey(it) == pageKey(page) } ?: false)
                 } else if (pageInCache(page)) {
@@ -995,27 +1061,9 @@ open class WebGpuViewer(
                             if (!pageInCache(page) || page.imagePage !is ImagePage.Dummy) return@collect
                         }
 
-                        if (page.imagePage.image == null) {
-                            page.imagePage = ImagePage.drawable(400, 400).apply {
-                                WebGpuRenderer.withContext {
-                                    this@apply.texture?.let { texture ->
-                                        Draw.submit { encoder ->
-                                            clear(encoder, texture, 0x00000000)
-                                            line(encoder, texture, 0.1f, 0.5f, 0.9f, 0.5f, 0xFF101010.toInt(), 30f)
-                                        }
-                                    }
-                                }
-                            }
-                        } else {
-                            WebGpuRenderer.withContext {
-                                (page.imagePage as? ImagePage.Draw?)?.texture?.let { texture ->
-                                    Draw.submit { encoder ->
-                                        val x2 = 0.1f + (value / 100f) * 0.8f
-                                        line(encoder, texture, 0.1f, 0.5f, x2, 0.5f, 0xFFFFFFFF.toInt(), 20f)
-                                    }
-                                }
-                                pager.state.invalidate()
-                            }
+                        (page.imagePage as? ProgressPage)?.apply {
+                            progress = value / 100f
+                            invalidate()
                         }
                     }
                 }
@@ -1034,19 +1082,24 @@ open class WebGpuViewer(
 
                 downloadProgressJob.cancel()
 
-                // Re-queue for decoding if ready, or set error state for retry
+                // Re-queue for decoding if ready, or surface the load error for tap-retry
                 synchronized(lock) {
                     if (pageInCache(page) && page.state == PageState.LOADING) {
                         page.state = PageState.IDLE
-                        if (page.page.status == Page.State.Ready && !page.imagePage.isDecoded) {
+                        if (page.page.status == Page.State.Ready && !page.isDecoded) {
                             queueForDecode(
                                 page,
                                 prioritize = currentPage?.let { pageKey(it) == pageKey(page) } ?: false,
                             )
                         } else if (page.page.status is Page.State.Error) {
-                            // Page failed to load — mark as error so user can tap to retry
-                            page.hasDecodeError = true
+                            // KMK -->
+                            val message = (page.page.status as Page.State.Error).error.message
+                                ?.ifBlank { null } ?: "Failed to load page"
+                            val oldImagePage = page.imagePage
+                            page.imagePage = ErrorPage(message, page.spreadPosition)
+                            oldImagePage.cleanup()
                             pager.state.invalidate()
+                            // KMK <--
                         }
                     }
                 }
@@ -1069,110 +1122,76 @@ open class WebGpuViewer(
             return
         }
 
-        var imagePage: ImagePage? = null
-        try {
-            stream.use { input ->
-                // Check if still valid before decoding (not evicted and doesn't have decoded image yet)
-                synchronized(lock) {
-                    if (!pageInCache(page) || page.imagePage.isDecoded) {
-                        if (pageInCache(page)) page.state = PageState.IDLE
-                        return
-                    }
-                }
-
-                // Buffer file to detect spread position tag, then decode.
-                // Gated on dual-page being possible at all (not on live orientation):
-                // WIDE pages decoded in portrait must still keep their position tags and
-                // retained source bytes for when the device rotates.
-                val bytes = if (config.dualPageView != ReaderPreferences.DualPageView.NEVER) {
-                    input.readBytes()
-                } else {
-                    null
-                }
-
-                val position = if (bytes != null) {
-                    val tag = Kim.readMetadata(bytes.inputStream(), bytes.size.toLong())
-                        ?.findStringValue(TiffTag.TIFF_TAG_PAGE_NAME)
-                    when (tag) {
-                        "Left" -> Image.Position.LEFT
-                        "Right" -> Image.Position.RIGHT
-                        null -> if (isReversed) {
-                            if (page.page.index % 2 == 0) Image.Position.LEFT else Image.Position.RIGHT
-                        } else {
-                            if (page.page.index % 2 == 0) Image.Position.RIGHT else Image.Position.LEFT
-                        }
-
-                        else -> Image.Position.SINGLE
-                    }
-                } else {
-                    Image.Position.SINGLE
-                }
-
-                val dec = try {
-                    ImageDecoder.new(bytes?.inputStream() ?: input)
-                } catch (e: ImageDecoder.DecodeException) {
-                    logcat(LogPriority.ERROR, e) { "ImageDecoder.new failed: ${e.message}" }
-                    val errorMessage = e.message ?: "Failed to decode image"
-                    val bitmap = createBitmap(pager.state.width.coerceAtLeast(1), pager.state.height.coerceAtLeast(1))
-                    val canvas = Canvas(bitmap)
-                    canvas.drawColor(readerBackgroundColor())
-                    val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                        color = readerOnBackgroundColor()
-                        textSize = 36f
-                        textAlign = Paint.Align.CENTER
-                    }
-                    val maxWidth = bitmap.width * 0.8f
-                    val words = errorMessage.split(" ")
-                    val lines = mutableListOf<String>()
-                    var currentLine = StringBuilder()
-                    for (word in words) {
-                        val testLine = if (currentLine.isEmpty()) word else "$currentLine $word"
-                        if (paint.measureText(testLine) <= maxWidth) {
-                            currentLine = StringBuilder(testLine)
-                        } else {
-                            if (currentLine.isNotEmpty()) lines.add(currentLine.toString())
-                            currentLine = StringBuilder(word)
-                        }
-                    }
-                    if (currentLine.isNotEmpty()) lines.add(currentLine.toString())
-                    val lineHeight = 40f
-                    var y = bitmap.height / 2f - lines.size * lineHeight / 2
-                    for (line in lines) {
-                        canvas.drawText(line, bitmap.width / 2f, y, paint)
-                        y += lineHeight
-                    }
-                    val errorPage = ImagePage(bitmap, createMipMaps = false).also {
-                        it.image?.position = Image.Position.SINGLE
-                        it.highQuality = false
-                    }
-                    synchronized(lock) {
-                        if (pageInCache(page) && !page.imagePage.isDecoded && !page.imagePage.destroyed) {
-                            val oldImagePage = page.imagePage
-                            page.imagePage = errorPage
-                            page.state = PageState.IDLE
-                            page.hasDecodeError = true
-                            if (oldImagePage !is ImagePage.Dummy) oldImagePage.cleanup()
-                            pager.state.invalidate()
-                        } else {
-                            if (pageInCache(page)) page.state = PageState.IDLE
-                            errorPage.cleanup()
-                        }
-                    }
+        stream.use { input ->
+            // Check if still valid before decoding (not evicted and doesn't have decoded image yet)
+            synchronized(lock) {
+                if (!pageInCache(page) || page.isDecoded) {
+                    if (pageInCache(page)) page.state = PageState.IDLE
                     return
                 }
-                val pageCount = dec.pages
+            }
 
-                if (pageCount == 0) {
-                    logcat(LogPriority.ERROR) { "decodeReaderPage: no frames decoded" }
-                    synchronized(lock) { if (pageInCache(page)) page.state = PageState.IDLE }
-                    return
+            // Buffer file to detect spread position tag, then decode.
+            // KMK -->
+            // Gated on dual-page being possible at all (not on live orientation):
+            // WIDE pages decoded in portrait must still keep their position tags and
+            // retained source bytes for when the device rotates.
+            val bytes = if (config.dualPageView != ReaderPreferences.DualPageView.NEVER) {
+                input.readBytes()
+            } else {
+                null
+            }
+            // KMK <--
+
+            page.spreadPosition = if (bytes != null) {
+                val tag = Kim.readMetadata(bytes.inputStream(), bytes.size.toLong())
+                    ?.findStringValue(TiffTag.TIFF_TAG_PAGE_NAME)
+                when (tag) {
+                    "Left" -> SpreadPosition.LEFT
+                    "Right" -> SpreadPosition.RIGHT
+                    // Set position for dual page spreads based on reading direction:
+                    // RTL (isReversed): Cover on LEFT, even=LEFT, odd=RIGHT
+                    // LTR (!isReversed): Cover on RIGHT, even=RIGHT, odd=LEFT
+                    null -> if (isReversed) { // TODO: heuristics, use image size
+                        if (page.page.index % 2 == 0) SpreadPosition.LEFT else SpreadPosition.RIGHT
+                    } else {
+                        if (page.page.index % 2 == 0) SpreadPosition.RIGHT else SpreadPosition.LEFT
+                    }
+
+                    else -> SpreadPosition.SINGLE
                 }
+            } else {
+                SpreadPosition.SINGLE
+            }
 
-                // Decode first frame immediately; defer rest only if animated
-                val firstFrame = dec.decodeNext()
+            // KMK -->
+            // Keep the compressed source of spread-capable pages so a spread whose pair has a
+            // different height can be rescaled to match (see scheduleSpreadHeightMatch). Either
+            // side may be the one rescaled, depending on which page still holds its bytes.
+            page.spreadBytes = if (
+                config.matchDoublePageHeights &&
+                bytes != null &&
+                page.spreadPosition != SpreadPosition.SINGLE
+            ) {
+                bytes
+            } else {
+                null
+            }
+            // KMK <--
 
-                // For first frame, create Image with trim in single GPU context switch
-                val trimColors = if (config.imageCropBorders) {
+            val dec = ImageDecoder.new(bytes?.inputStream() ?: input)
+
+            val pageCount = dec.pages
+
+            if (pageCount == 0) throw Exception("No frames decoded")
+
+            val backgroundColor = if (config.automaticBackground) null else readerBackgroundColor()
+
+            val firstFrame = dec.decodeNext()
+
+            val imagePage = if (pageCount == 1) {
+                // Only trim when not animated and not in dual page mode
+                val trimColors = if (config.imageCropBorders && !isDualPageMode()) {
                     listOf(
                         floatArrayOf(1f, 1f, 1f),
                         floatArrayOf(0f, 0f, 0f),
@@ -1181,13 +1200,7 @@ open class WebGpuViewer(
                     null
                 }
 
-                val backgroundColor = if (config.automaticBackground) {
-                    null
-                } else {
-                    readerBackgroundColor()
-                }
-
-                val firstImage = Image.createWithTrim(
+                val firstImage = Image(
                     firstFrame.image,
                     firstFrame.width,
                     firstFrame.height,
@@ -1197,198 +1210,104 @@ open class WebGpuViewer(
                     backgroundColor = backgroundColor,
                 )
 
-                // Set position for dual page spreads based on reading direction:
-                // RTL (isReversed): Cover on LEFT, even=LEFT, odd=RIGHT
-                // LTR (!isReversed): Cover on RIGHT, even=RIGHT, odd=LEFT
-                firstImage.position = position
+                ImagePage.ImageSingle(firstImage)
+            } else {
+                val frames = ArrayList<Pair<Image, Int>>(pageCount)
 
-                // KMK -->
-                // Keep the compressed source of spread-capable pages so a spread whose
-                // pair has a different height can be rescaled to match (see
-                // scheduleSpreadHeightMatch). Either side may be the one rescaled,
-                // depending on which page still holds its source bytes.
-                page.spreadBytes =
-                    if (config.matchDoublePageHeights && bytes != null && position != Image.Position.SINGLE) {
-                        bytes
-                    } else {
-                        null
-                    }
-                // KMK <--
+                val firstImage = Image(
+                    firstFrame.image,
+                    firstFrame.width,
+                    firstFrame.height,
+                    createMipMaps = false,
+                    backgroundColor = backgroundColor,
+                )
 
-                // Create ImagePage early so its cleanup handles all frames
-                imagePage = ImagePage(firstImage)
+                frames.add(Pair(firstImage, firstFrame.duration))
 
-                // Create remaining frames for animation (only for animated images)
-                if (pageCount > 1) {
-                    val frames = ArrayList<Pair<Image, Int>>(pageCount)
-                    frames.add(Pair(firstImage, firstFrame.duration))
-                    for (i in 1 until pageCount) {
-                        val frame = dec.decodeNext()
-                        frames.add(Pair(Image(frame.image, frame.width, frame.height), frame.duration))
+                repeat(pageCount - 1) {
+                    (page.imagePage as? ProgressPage)?.apply {
+                        progress = (it + 1).toFloat() / pageCount
+                        invalidate()
                     }
-                    imagePage.startAnimationLoop(frames) {
-                        if (currentPage === page) pager.state.invalidate()
-                    }
+                    val frame = dec.decodeNext()
+                    val image = Image(
+                        frame.image,
+                        frame.width,
+                        frame.height,
+                        createMipMaps = false,
+                        backgroundColor = firstImage.backgroundColor,
+                    )
+                    frames.add(Pair(image, frame.duration))
                 }
 
-                synchronized(lock) {
-                    if (pageInCache(page) && !page.imagePage.isDecoded && !page.imagePage.destroyed) {
-                        val oldImagePage = page.imagePage
-                        page.imagePage = imagePage!!
-                        imagePage = null
-                        page.state = PageState.IDLE
-                        page.hasDecodeError = false
-                        if (oldImagePage !is ImagePage.Dummy) {
-                            oldImagePage.cleanup()
-                        }
-                        applyWideZoomIfNeeded(page)
-                        applyFitModeAnchor(page.imagePage)
-                        applyDoubleTapZoomPolicy(page.imagePage)
-                        pager.state.invalidate()
-                    } else {
-                        if (pageInCache(page)) page.state = PageState.IDLE
-                    }
-                }
+                ImagePage.ImageSingle(frames)
             }
-        } catch (e: Exception) {
-            logcat(LogPriority.ERROR, e) { "decodeReaderPage error" }
-            synchronized(lock) { if (pageInCache(page)) page.state = PageState.IDLE }
-        } finally {
-            imagePage?.cleanup()
-        }
-    }
-
-    private suspend fun createTransitionPage(page: TransitionPage) {
-        try {
-            // Check if still valid
-            synchronized(lock) {
-                if (!pageInCache(page) || page.imagePage.isDecoded) {
-                    if (pageInCache(page)) page.state = PageState.IDLE
-                    return
-                }
-            }
-
-            val width = pager.state.width.coerceAtLeast(1)
-            val height = pager.state.height.coerceAtLeast(1)
-            val bitmap = createBitmap(width, height)
-            val canvas = Canvas(bitmap)
-            canvas.drawColor(readerBackgroundColor())
-
-            val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                color = readerOnBackgroundColor()
-                textSize = 48f
-                textAlign = Paint.Align.CENTER
-            }
-
-            val maxWidth = bitmap.width * 0.8f
-            val lineHeight = 48f
-
-            fun wrapText(text: String): List<String> {
-                val words = text.split(" ")
-                val lines = mutableListOf<String>()
-                var currentLine = StringBuilder()
-                for (word in words) {
-                    val testLine = if (currentLine.isEmpty()) word else "$currentLine $word"
-                    if (paint.measureText(testLine) <= maxWidth) {
-                        currentLine = StringBuilder(testLine)
-                    } else {
-                        if (currentLine.isNotEmpty()) lines.add(currentLine.toString())
-                        currentLine = StringBuilder(word)
-                    }
-                }
-                if (currentLine.isNotEmpty()) lines.add(currentLine.toString())
-                return lines
-            }
-
-            val lines = mutableListOf<Pair<String, Float>>()
-            page.prevChapter?.chapter?.let { chapter ->
-                lines.add(Pair("Previous:", lineHeight))
-                wrapText(chapter.name).forEach { lines.add(Pair(it, lineHeight)) }
-                page.nextChapter?.chapter?.let { lines.add(Pair("", lineHeight)) }
-            }
-            page.nextChapter?.chapter?.let { chapter ->
-                lines.add(Pair("Next:", lineHeight))
-                wrapText(chapter.name).forEach { lines.add(Pair(it, lineHeight)) }
-            }
-
-            val x = bitmap.width / 2f
-            var y = bitmap.height / 2f - lines.sumOf { it.second.toDouble() }.toFloat() / 2
-            lines.forEach {
-                canvas.drawText(it.first, x, y + it.second, paint)
-                y += it.second
-            }
-
-            val imagePage = ImagePage(bitmap, createMipMaps = false)
-            imagePage.image?.position = Image.Position.SINGLE
-            imagePage.highQuality = false
 
             synchronized(lock) {
-                if (pageInCache(page) && !page.imagePage.isDecoded && !page.imagePage.destroyed) {
+                if (pageInCache(page) && !page.isDecoded && !page.imagePage.destroyed) {
                     val oldImagePage = page.imagePage
                     page.imagePage = imagePage
                     page.state = PageState.IDLE
-                    if (oldImagePage !is ImagePage.Dummy) {
-                        oldImagePage.cleanup()
+                    oldImagePage.cleanup()
+                    val decodedSingle = page.imagePage as? ImagePage.ImageSingle
+                    if (decodedSingle != null) {
+                        // KMK -->
+                        if (page.spreadPosition == SpreadPosition.SINGLE) {
+                            if (!applyWideZoomIfNeeded(decodedSingle)) {
+                                applyFitModeAnchor(decodedSingle)
+                            }
+                        }
+                        applyDoubleTapZoomPolicy(decodedSingle)
+                        // KMK <--
                     }
                     pager.state.invalidate()
                 } else {
                     if (pageInCache(page)) page.state = PageState.IDLE
-                    imagePage.cleanup()
                 }
             }
-        } catch (e: Exception) {
-            logcat(LogPriority.ERROR, e) { "createTransitionPage error" }
-            synchronized(lock) { if (pageInCache(page)) page.state = PageState.IDLE }
         }
     }
 
-    private fun applyWideZoomIfNeeded(page: ViewerReaderPage) {
-        if (!config.landscapeZoom) return
-        val imagePage = page.imagePage
-        val image = imagePage.image ?: return
-        if (image.position != Image.Position.SINGLE) return
+    private fun applyWideZoomIfNeeded(page: ImagePage.ImageSingle): Boolean {
+        if (!config.landscapeZoom) return false
+        val image = page.image ?: return false
 
         val screenW = pager.state.width
         val screenH = pager.state.height
-        if (screenW <= 0 || screenH <= 0) return
+        if (screenW <= 0 || screenH <= 0) return false
 
         // Wide page: half the image width is wider than the screen aspect ratio
-        if (image.width.toFloat() / image.height <= 2f * screenW.toFloat() / screenH) return
+        if (image.width.toFloat() / image.height <= 2f * screenW.toFloat() / screenH) return false
 
         // Scale to fit half the image width to the full screen width
         val wideScale = screenW.toFloat() / (image.width / 2f)
 
-        val halfOffset = (image.width / 4f) / screenW
+        page.homeScale = wideScale
+
+        // need to set parent for positioning to work
+        page.parent = pager.state
+
+        val minX = page.minX(page.homeScale)
+        val maxX = page.maxX(page.homeScale)
+
         val startX = when (config.imageZoomType) {
-            ZoomStartPosition.LEFT -> halfOffset
-            ZoomStartPosition.RIGHT -> -halfOffset
+            ZoomStartPosition.LEFT -> maxX
+            ZoomStartPosition.RIGHT -> minX
             ZoomStartPosition.CENTER -> 0f
         }
 
-        imagePage.homeScaleOverride = wideScale
-        imagePage.homeXOverride = startX
-        imagePage.scale = wideScale
-        imagePage.x = startX
-
-        imagePage.y = run {
-            val cutoutTopPx = pager.state.cutoutTopPx
-            if (cutoutTopPx <= 0f) return@run 0f
-            val trimTop = image.trim?.top ?: 0
-            val imageOnScreen = image.height * wideScale
-            val imageTopY = (screenH - imageOnScreen) / 2f
-            val trimTopY = imageTopY + trimTop * wideScale
-            if (trimTopY < cutoutTopPx) (cutoutTopPx - trimTopY) / (wideScale * screenH) else 0f
-        }
+        page.homeX = startX
+        page.scale = page.homeScale
+        page.x = startX
+        page.y = page.homeY
+        return true
     }
 
-    private fun applyFitModeAnchor(page: ImagePage) {
-        if (page.homeScaleOverride != null) return
-
+    private fun applyFitModeAnchor(page: ImagePage.ImageSingle) {
         val scaleType = config.imageScaleType
         if (scaleType != 3 && scaleType != 4 && scaleType != 5) return
 
         val image = page.image ?: return
-        if (image.position != Image.Position.SINGLE) return
 
         val screenW = pager.state.width
         val screenH = pager.state.height
@@ -1402,46 +1321,48 @@ open class WebGpuViewer(
         val contentW = screenW.toFloat()
         val contentH = if (pager.state.avoidCutout && cutoutTopPx > 0f) screenH - cutoutTopPx else screenH.toFloat()
 
-        val homeScale = when (scaleType) {
+        page.homeScale = when (scaleType) {
             3 -> contentW / w
             4 -> contentH / h
             else -> 1f // original size
         }.coerceAtLeast(0.01f)
-        page.homeScaleOverride = homeScale
+
+        page.parent = pager.state
 
         if (scaleType == 5) { // original size
             val minScaleComputed = minOf(contentW / page.width, contentH / page.height).coerceAtLeast(0.01f)
-            if (homeScale < minScaleComputed) {
-                page.minScale = homeScale
+            if (page.homeScale < minScaleComputed) {
+                page.minScale = page.homeScale
             }
         }
 
         // zoom start for fit height/original size
-        page.homeXOverride = if (scaleType == 4 || scaleType == 5) {
-            val maxX = maxOf(0f, (page.width.toFloat() / screenW - 1f / homeScale) / 2f)
-            when (config.imageZoomType) {
+        if (scaleType == 4 || scaleType == 5) {
+            val minX = page.minX(page.homeScale)
+            val maxX = page.maxX(page.homeScale)
+            page.homeX = when (config.imageZoomType) {
                 ZoomStartPosition.LEFT -> maxX
-                ZoomStartPosition.RIGHT -> -maxX
+                ZoomStartPosition.RIGHT -> minX
                 ZoomStartPosition.CENTER -> 0f
             }
-        } else {
-            null
         }
 
         // push below cutout for fit width/original size
         val trimTop = image.trim?.top ?: 0
-        val imageTopY = (screenH - page.height * homeScale) / 2f
-        val trimTopY = imageTopY + trimTop * homeScale
-        page.homeYOverride = if ((scaleType == 3 || scaleType == 5) && h * homeScale > screenH) {
+        val imageTopY = (screenH - page.height * page.homeScale) / 2f
+        val trimTopY = imageTopY + trimTop * page.homeScale
+        if ((scaleType == 3 || scaleType == 5) && h * page.homeScale > screenH) {
             val target = if (pager.state.avoidCutout && cutoutTopPx > 0f) {
                 if (pager.state.alwaysAvoidCutout) cutoutTopPx / 2f else cutoutTopPx
             } else {
                 0f
             }
-            maxOf(0f, (target - trimTopY) / (homeScale * screenH))
-        } else {
-            null
+            page.homeY = maxOf(0f, (target - trimTopY) / (page.homeScale * screenH))
         }
+
+        page.scale = page.homeScale
+        page.x = page.homeX
+        page.y = page.homeY
     }
 
     /**
@@ -1450,7 +1371,9 @@ open class WebGpuViewer(
     protected fun preloadPage(page: ViewerPage, prioritize: Boolean = false) {
         synchronized(lock) {
             val cachedPage = findInCache(pageKey(page)) ?: return
-            queueForDecode(cachedPage, prioritize)
+            if (cachedPage is ViewerReaderPage) {
+                queueForDecode(cachedPage, prioritize)
+            }
         }
     }
 
@@ -1523,8 +1446,8 @@ open class WebGpuViewer(
                 (page as? ViewerReaderPage)?.let { activity.onPageSelected(it.page) }
                 preloadPages(page)
 
-                (page as? TransitionPage)?.let { transitionPage ->
-                    if (transitionPage.prevChapter == null || transitionPage.nextChapter == null) {
+                (page as? ViewerTransitionPage)?.let { viewerTransitionPage ->
+                    if (viewerTransitionPage.prevChapter == null || viewerTransitionPage.nextChapter == null) {
                         activity.showMenu()
                     }
                 }
@@ -1550,8 +1473,8 @@ open class WebGpuViewer(
         (newPage as? ViewerReaderPage)?.let { activity.onPageSelected(it.page) }
         preloadPages(newPage)
 
-        (newPage as? TransitionPage)?.let { transitionPage ->
-            if (transitionPage.prevChapter == null || transitionPage.nextChapter == null) {
+        (newPage as? ViewerTransitionPage)?.let { viewerTransitionPage ->
+            if (viewerTransitionPage.prevChapter == null || viewerTransitionPage.nextChapter == null) {
                 activity.showMenu()
             }
         }
@@ -1569,13 +1492,17 @@ open class WebGpuViewer(
                 -1
             }
 
-            is TransitionPage if newPage is ViewerReaderPage -> if (previousPage.nextChapter == newPage.page.chapter) {
+            is ViewerTransitionPage if newPage is ViewerReaderPage -> if (previousPage.nextChapter ==
+                newPage.page.chapter
+            ) {
                 1
             } else {
                 -1
             }
 
-            is ViewerReaderPage if newPage is TransitionPage -> if (previousPage.page.chapter == newPage.prevChapter) {
+            is ViewerReaderPage if newPage is ViewerTransitionPage -> if (previousPage.page.chapter ==
+                newPage.prevChapter
+            ) {
                 1
             } else {
                 -1
@@ -1611,11 +1538,11 @@ open class WebGpuViewer(
      */
     protected open fun moveRight() {
         pager.state.getPage(0)?.let { page ->
-            val isWidePage = page.homeScaleOverride != null
-            if (config.navigateToPan && (!page.atHome || isWidePage)) {
+            if (config.navigateToPan) {
+                val minX = page.minX(page.scale)
                 val maxX = page.maxX(page.scale)
                 val c = if (isReversed) -1 else 1
-                val x = (page.x - c / page.scale).coerceIn(-maxX, maxX)
+                val x = (page.x - c / page.scale).coerceIn(minX, maxX)
                 if (x != page.x) {
                     if (page.animationJob?.isActive == true && page.animationTargetX == x) {
                         page.animationJob?.cancel()
@@ -1635,11 +1562,11 @@ open class WebGpuViewer(
      */
     protected open fun moveLeft() {
         pager.state.getPage(0)?.let { page ->
-            val isWidePage = page.homeScaleOverride != null
-            if (config.navigateToPan && (!page.atHome || isWidePage)) {
+            if (config.navigateToPan) {
+                val minX = page.minX(page.scale)
                 val maxX = page.maxX(page.scale)
                 val c = if (isReversed) -1 else 1
-                val x = (page.x + c / page.scale).coerceIn(-maxX, maxX)
+                val x = (page.x + c / page.scale).coerceIn(minX, maxX)
                 if (x != page.x) {
                     if (page.animationJob?.isActive == true && page.animationTargetX == x) {
                         page.animationJob?.cancel()

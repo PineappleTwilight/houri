@@ -49,8 +49,8 @@ import exh.search.Text
 import exh.source.EH_SOURCE_ID
 import exh.source.ExhPreferences
 import exh.source.MANGADEX_IDS
-import exh.source.MERGED_SOURCE_ID
 import exh.source.isEhBasedManga
+import exh.source.isMergedSourceId
 import exh.source.isMetadataSource
 import exh.source.mangaDexSourceIds
 import exh.source.nHentaiSourceIds
@@ -485,7 +485,7 @@ class LibraryScreenModel(
 
         // Pre-fetch merged manga data to avoid N+1 queries
         val mergedMangaCache = mutableMapOf<Long, List<Manga>>()
-        filter { it.libraryManga.manga.source == MERGED_SOURCE_ID }.forEach { item ->
+        filter { isMergedSourceId(it.libraryManga.manga.source) }.forEach { item ->
             mergedMangaCache[item.libraryManga.manga.id] = getMergedMangaById.await(item.libraryManga.manga.id)
         }
 
@@ -494,7 +494,7 @@ class LibraryScreenModel(
                 it.libraryManga.manga.isLocal() ||
                     it.downloadCount > 0 ||
                     // KMK -->
-                    if (it.libraryManga.manga.source == MERGED_SOURCE_ID) {
+                    if (isMergedSourceId(it.libraryManga.manga.source)) {
                         mergedMangaCache[it.libraryManga.manga.id]
                             .orEmpty()
                             .sumOf { manga -> downloadManager.getDownloadCount(manga) } > 0
@@ -845,7 +845,7 @@ class LibraryScreenModel(
         ) { libraryManga, preferences, _ ->
             // Pre-fetch merged manga data to avoid N+1 queries
             val mergedMangaCache = mutableMapOf<Long, List<Manga>>()
-            libraryManga.filter { it.manga.source == MERGED_SOURCE_ID }.forEach { manga ->
+            libraryManga.filter { isMergedSourceId(it.manga.source) }.forEach { manga ->
                 mergedMangaCache[manga.manga.id] = getMergedMangaById.await(manga.manga.id)
             }
 
@@ -858,7 +858,7 @@ class LibraryScreenModel(
                     libraryManga = manga,
                     downloadCount = if (preferences.downloadBadge) {
                         // SY -->
-                        if (manga.manga.source == MERGED_SOURCE_ID) {
+                        if (isMergedSourceId(manga.manga.source)) {
                             mergedMangaCache[manga.manga.id]
                                 .orEmpty()
                                 .sumOf { downloadManager.getDownloadCount(it) }
@@ -927,17 +927,14 @@ class LibraryScreenModel(
      *
      * @param mangas the list of manga.
      */
-    private suspend fun getCommonCategories(mangas: List<Manga>): Collection<Category> {
-        if (mangas.isEmpty()) return emptyList()
-        return mangas
-            .map { getCategories.await(it.id).toSet() }
-            .reduce { set1, set2 -> set1.intersect(set2) }
+    private suspend fun getCategorySets(mangas: List<Manga>): List<Set<Category>> {
+        return mangas.map { getCategories.await(it.id).toSet() }
     }
 
     suspend fun getNextUnreadChapter(manga: Manga): Chapter? {
         // SY -->
         val mergedManga = getMergedMangaById.await(manga.id).associateBy { it.id }
-        return if (manga.id == MERGED_SOURCE_ID) {
+        return if (isMergedSourceId(manga.source)) {
             getMergedChaptersByMangaId.await(manga.id, applyFilter = true)
         } else {
             getChaptersByMangaId.await(manga.id, applyFilter = true)
@@ -967,18 +964,6 @@ class LibraryScreenModel(
     }
 
     /**
-     * Returns the mix (non-common) categories for the given list of manga.
-     *
-     * @param mangas the list of manga.
-     */
-    private suspend fun getMixCategories(mangas: List<Manga>): Collection<Category> {
-        if (mangas.isEmpty()) return emptyList()
-        val mangaCategories = mangas.map { getCategories.await(it.id).toSet() }
-        val common = mangaCategories.reduce { set1, set2 -> set1.intersect(set2) }
-        return mangaCategories.flatten().distinct().subtract(common)
-    }
-
-    /**
      * Queues the amount specified of unread chapters from the list of selected manga
      */
     fun performDownloadAction(action: DownloadAction) {
@@ -998,7 +983,7 @@ class LibraryScreenModel(
         screenModelScope.launchNonCancellable {
             mangas.forEach { manga ->
                 // SY -->
-                if (manga.source == MERGED_SOURCE_ID) {
+                if (isMergedSourceId(manga.source)) {
                     val mergedMangas = getMergedMangaById.await(manga.id)
                         .associateBy { it.id }
                     getNextChapters.await(manga.id)
@@ -1049,7 +1034,7 @@ class LibraryScreenModel(
         screenModelScope.launchNonCancellable {
             mangas.forEach { manga ->
                 // SY -->
-                if (manga.source == MERGED_SOURCE_ID) {
+                if (isMergedSourceId(manga.source)) {
                     val mergedMangas = getMergedMangaById.await(manga.id)
                         .associateBy { it.id }
                     getBookmarkedChaptersByMangaId.await(manga.id)
@@ -1596,10 +1581,9 @@ class LibraryScreenModel(
             val categories = state.value.libraryData.categories.fastFilter { it.id != 0L }
             // KMK <--
 
-            // Get indexes of the common categories to preselect.
-            val common = getCommonCategories(mangaList)
-            // Get indexes of the mix categories to preselect.
-            val mix = getMixCategories(mangaList)
+            val mangaCategorySets = getCategorySets(mangaList)
+            val common = mangaCategorySets.reduceOrNull { set1, set2 -> set1.intersect(set2) }.orEmpty()
+            val mix = mangaCategorySets.flatten().distinct().subtract(common)
             val preselected = categories
                 .fastMap {
                     when (it) {
@@ -1779,9 +1763,9 @@ class LibraryScreenModel(
      * If there is no merged manga, then it will use the first one in list to create a new target.
      */
     suspend fun smartSearchMerge(selectedMangas: PersistentList<Manga>): Long? {
-        val mergedManga = selectedMangas.firstOrNull { it.source == MERGED_SOURCE_ID }?.let { listOf(it) }
+        val mergedManga = selectedMangas.firstOrNull { isMergedSourceId(it.source) }?.let { listOf(it) }
             ?: emptyList()
-        val mergingMangas = selectedMangas.fastFilterNot { it.source == MERGED_SOURCE_ID }
+        val mergingMangas = selectedMangas.fastFilterNot { isMergedSourceId(it.source) }
         val toMergeMangas = mergedManga + mergingMangas
         if (toMergeMangas.size <= 1) return null
 

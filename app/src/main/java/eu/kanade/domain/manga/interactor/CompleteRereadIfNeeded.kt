@@ -6,7 +6,7 @@ import eu.kanade.domain.track.model.toDbTrack
 import eu.kanade.domain.track.model.toDomainTrack
 import eu.kanade.domain.track.service.TrackPreferences
 import eu.kanade.tachiyomi.data.track.TrackerManager
-import exh.source.MERGED_SOURCE_ID
+import exh.source.isMergedSourceId
 import logcat.LogPriority
 import tachiyomi.core.common.util.system.logcat
 import tachiyomi.domain.chapter.interactor.GetChaptersByMangaId
@@ -39,7 +39,7 @@ class CompleteRereadIfNeeded(
         val manga = mangaRepository.getMangaById(mangaId)
         if (!manga.rereading) return false
 
-        val chapters = if (manga.source == MERGED_SOURCE_ID) {
+        val chapters = if (isMergedSourceId(manga.source)) {
             getMergedChaptersByMangaId.await(manga.id, dedupe = false)
         } else {
             getChaptersByMangaId.await(manga.id)

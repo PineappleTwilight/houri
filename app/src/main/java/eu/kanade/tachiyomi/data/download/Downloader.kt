@@ -20,8 +20,8 @@ import eu.kanade.tachiyomi.source.online.HttpSource
 import eu.kanade.tachiyomi.util.storage.DiskUtil
 import eu.kanade.tachiyomi.util.storage.DiskUtil.NOMEDIA_FILE
 import eu.kanade.tachiyomi.util.storage.saveTo
-import exh.source.MERGED_SOURCE_ID
 import exh.source.isEhBasedSource
+import exh.source.isMergedSourceId
 import exh.util.DataSaver
 import exh.util.DataSaver.Companion.getImage
 import kotlinx.coroutines.CancellationException
@@ -320,7 +320,7 @@ class Downloader(
         val source = sourceManager.get(manga.source) as? HttpSource ?: return
 
         // KMK -->
-        if (source.id == MERGED_SOURCE_ID) return
+        if (isMergedSourceId(source.id)) return
         // KMK <--
 
         val wasEmpty = queueState.value.isEmpty()
@@ -373,7 +373,7 @@ class Downloader(
      */
     private suspend fun downloadChapter(download: Download) {
         // KMK -->
-        if (download.source.id == MERGED_SOURCE_ID) return
+        if (isMergedSourceId(download.source.id)) return
         // KMK <--
 
         val mangaDir = provider.getMangaDir(/* SY --> */ download.manga.ogTitle /* SY <-- */, download.source).getOrElse { e ->

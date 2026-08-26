@@ -67,9 +67,9 @@ import eu.kanade.tachiyomi.util.storage.DiskUtil
 import eu.kanade.tachiyomi.util.storage.DiskUtil.MAX_FILE_NAME_BYTES
 import eu.kanade.tachiyomi.util.storage.cacheImageDir
 import exh.metadata.metadata.RaisedSearchMetadata
-import exh.source.MERGED_SOURCE_ID
 import exh.source.getMainSource
 import exh.source.isEhBasedManga
+import exh.source.isMergedSourceId
 import exh.util.defaultReaderType
 import exh.util.mangaType
 import kotlinx.coroutines.CancellationException
@@ -228,7 +228,7 @@ class ReaderViewModel(
     private fun downloadChapter(chapter: Chapter) {
         viewModelScope.launch {
             val manga = manga?.let {
-                if (it.source == MERGED_SOURCE_ID) {
+                if (isMergedSourceId(it.source)) {
                     state.value.mergedManga?.get(chapter.mangaId) ?: return@launch
                 } else {
                     it
@@ -241,16 +241,16 @@ class ReaderViewModel(
 
     private fun cancelDownload(chapterId: Long) {
         viewModelScope.launch {
-            val activeDownload = downloadManager.getQueuedDownloadOrNull(chapterId) ?: return@launch
-            downloadManager.cancelQueuedDownloads(listOf(activeDownload))
-            // TODO: updateDownloadState(activeDownload.apply { status = Download.State.NOT_DOWNLOADED })
+            // Unlike other screens the reader keeps no per-chapter download state list,
+            // so there is no local UI state to propagate after cancelling.
+            downloadManager.cancelQueuedDownload(chapterId)
         }
     }
 
     private fun deleteChapter(chapter: Chapter) {
         viewModelScope.launchNonCancellable {
             try {
-                val manga = if (manga?.source == MERGED_SOURCE_ID) {
+                val manga = if (manga?.let { isMergedSourceId(it.source) } == true) {
                     state.value.mergedManga?.get(chapter.mangaId) ?: return@launchNonCancellable
                 } else {
                     manga ?: return@launchNonCancellable
@@ -309,7 +309,7 @@ class ReaderViewModel(
      */
     private suspend fun initializeChapterLists(manga: Manga) {
         // KMK -->
-        unfilteredChapterListImpl = if (manga.source == MERGED_SOURCE_ID) {
+        unfilteredChapterListImpl = if (isMergedSourceId(manga.source)) {
             getMergedChaptersByMangaId.await(manga.id, dedupe = false, applyFilter = false)
         } else {
             getChaptersByMangaId.await(manga.id, applyFilter = false)
@@ -317,7 +317,7 @@ class ReaderViewModel(
         // KMK <--
 
         // SY -->
-        val (chapters, mangaMap) = if (manga.source == MERGED_SOURCE_ID) {
+        val (chapters, mangaMap) = if (isMergedSourceId(manga.source)) {
             getMergedChaptersByMangaId.await(manga.id, applyFilter = true) to
                 state.value.mergedManga
         } else {
@@ -1115,7 +1115,7 @@ class ReaderViewModel(
 
     fun getChapterUrl(): String? {
         val sChapter = getCurrentChapter()?.chapter ?: return null
-        val source = if (manga?.source == MERGED_SOURCE_ID) {
+        val source = if (manga?.let { isMergedSourceId(it.source) } == true) {
             state.value.mergedManga?.get(sChapter.manga_id)?.source?.let { sourceId ->
                 sourceManager.getOrStub(sourceId) as? HttpSource
             }

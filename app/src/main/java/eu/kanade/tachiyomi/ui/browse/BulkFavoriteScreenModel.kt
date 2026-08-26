@@ -11,9 +11,11 @@ import cafe.adriel.voyager.core.model.StateScreenModel
 import cafe.adriel.voyager.core.model.screenModelScope
 import eu.kanade.domain.manga.interactor.UpdateManga
 import eu.kanade.domain.track.interactor.AddTracks
+import eu.kanade.presentation.category.components.withAncestorChain
 import eu.kanade.presentation.components.BulkSelectionToolbar
 import eu.kanade.presentation.manga.DuplicateMangaDialog
 import eu.kanade.tachiyomi.data.cache.CoverCache
+import eu.kanade.tachiyomi.source.Source
 import eu.kanade.tachiyomi.util.removeCovers
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.PersistentList
@@ -160,7 +162,11 @@ class BulkFavoriteScreenModel(
                 // Default category set
                 defaultCategory != null -> {
                     stopRunning()
-                    setMangasCategories(mangaList, listOf(defaultCategory.id), emptyList())
+                    setMangasCategories(
+                        mangaList,
+                        defaultCategory.id.withAncestorChain(categories).toList(),
+                        emptyList(),
+                    )
                 }
 
                 // Automatic 'Default' or no categories
@@ -171,10 +177,9 @@ class BulkFavoriteScreenModel(
                 }
 
                 else -> {
-                    // Get indexes of the common categories to preselect.
-                    val common = getCommonCategories(mangaList)
-                    // Get indexes of the mix categories to preselect.
-                    val mix = getMixCategories(mangaList)
+                    val mangaCategorySets = getCategorySets(mangaList)
+                    val common = mangaCategorySets.reduce { set1, set2 -> set1.intersect(set2) }
+                    val mix = mangaCategorySets.flatten().distinct().subtract(common)
                     val preselected = categories
                         .map {
                             when (it) {
@@ -227,6 +232,7 @@ class BulkFavoriteScreenModel(
     internal fun setMangasCategories(mangaList: List<Manga>, addCategories: List<Long>, removeCategories: List<Long>) {
         screenModelScope.launchNonCancellable {
             startRunning()
+            val mangasToRefresh = mutableListOf<Pair<Manga, Source>>()
             mangaList.fastForEach { manga ->
                 val categoryIds = getCategories.await(manga.id)
                     .map { it.id }
@@ -234,38 +240,48 @@ class BulkFavoriteScreenModel(
                     .plus(addCategories)
                     .toList()
 
-                moveMangaToCategoriesAndAddToLibrary(manga, categoryIds)
+                moveMangaToCategory(manga.id, categoryIds)
+                addToLibrary(manga)?.let { mangasToRefresh += manga to it }
             }
             stopRunning()
+            refreshMangasFromRemote(mangasToRefresh)
         }
         toggleSelectionMode(false)
     }
 
-    private fun moveMangaToCategoriesAndAddToLibrary(manga: Manga, categories: List<Long>) {
-        moveMangaToCategory(manga.id, categories)
-        if (manga.favorite) return
+    private suspend fun addToLibrary(manga: Manga): Source? {
+        if (manga.favorite) return null
 
-        screenModelScope.launchIO {
+        return try {
+            val source = sourceManager.getOrStub(manga.source)
+            setMangaDefaultChapterFlags.await(manga)
+            addTracks.bindEnhancedTrackers(manga, source)
+            updateManga.awaitUpdateFavorite(manga.id, true)
+            source
+        } catch (e: Exception) {
+            logcat(LogPriority.ERROR, e)
+            null
+        }
+    }
+
+    /**
+     * Refreshes the given mangas from their sources sequentially, pacing each request
+     * to avoid hammering the remote API during bulk operations.
+     */
+    private suspend fun refreshMangasFromRemote(mangas: List<Pair<Manga, Source>>) {
+        val fetchMetadataOnAdd = libraryPreferences.fetchMetadataOnAdd().get()
+        val fetchChaptersOnAdd = libraryPreferences.fetchChaptersOnAdd().get()
+        if (!fetchMetadataOnAdd && !fetchChaptersOnAdd) return
+
+        mangas.forEach { (manga, source) ->
+            delay(1000)
             try {
-                val source = sourceManager.getOrStub(manga.source)
-                setMangaDefaultChapterFlags.await(manga)
-                addTracks.bindEnhancedTrackers(manga, source)
-                updateManga.awaitUpdateFavorite(manga.id, true)
-                val fetchMetadataOnAdd = libraryPreferences.fetchMetadataOnAdd().get()
-                val fetchChaptersOnAdd = libraryPreferences.fetchChaptersOnAdd().get()
-                if (fetchMetadataOnAdd || fetchChaptersOnAdd) {
-                    try {
-                        delay(1000)
-                        updateMangaFromRemote(
-                            source = source,
-                            manga = manga,
-                            fetchDetails = fetchMetadataOnAdd,
-                            fetchChapters = fetchChaptersOnAdd,
-                        )
-                    } catch (e: Exception) {
-                        logcat(LogPriority.ERROR, e)
-                    }
-                }
+                updateMangaFromRemote(
+                    source = source,
+                    manga = manga,
+                    fetchDetails = fetchMetadataOnAdd,
+                    fetchChapters = fetchChaptersOnAdd,
+                )
             } catch (e: Exception) {
                 logcat(LogPriority.ERROR, e)
             }
@@ -278,28 +294,8 @@ class BulkFavoriteScreenModel(
         }
     }
 
-    /**
-     * Returns the common categories for the given list of manga.
-     *
-     * @param mangas the list of manga.
-     */
-    private suspend fun getCommonCategories(mangas: List<Manga>): Collection<Category> {
-        if (mangas.isEmpty()) return emptyList()
-        return mangas
-            .map { getCategories.await(it.id).toSet() }
-            .reduce { set1, set2 -> set1.intersect(set2) }
-    }
-
-    /**
-     * Returns the mix (non-common) categories for the given list of manga.
-     *
-     * @param mangas the list of manga.
-     */
-    private suspend fun getMixCategories(mangas: List<Manga>): Collection<Category> {
-        if (mangas.isEmpty()) return emptyList()
-        val mangaCategories = mangas.map { getCategories.await(it.id).toSet() }
-        val common = mangaCategories.reduce { set1, set2 -> set1.intersect(set2) }
-        return mangaCategories.flatten().distinct().subtract(common)
+    private suspend fun getCategorySets(mangas: List<Manga>): List<Set<Category>> {
+        return mangas.map { getCategories.await(it.id).toSet() }
     }
 
     /**
@@ -314,23 +310,10 @@ class BulkFavoriteScreenModel(
             .orEmpty()
     }
 
-    private fun moveMangaToCategories(manga: Manga, vararg categories: Category) {
-        moveMangaToCategories(manga, categories.filter { it.id != 0L }.map { it.id })
-    }
-
-    private fun moveMangaToCategories(manga: Manga, categoryIds: List<Long>) {
-        screenModelScope.launchIO {
-            setMangaCategories.await(
-                mangaId = manga.id,
-                categoryIds = categoryIds.toList(),
-            )
-        }
-    }
-
     /**
-     * Adds or removes a manga from the library.
+     * Get user categories.
      *
-     * @param manga the manga to update.
+     * @return List of categories, not including the default category
      */
     internal fun changeMangaFavorite(manga: Manga) {
         val source = sourceManager.getOrStub(manga.source)
@@ -379,13 +362,19 @@ class BulkFavoriteScreenModel(
             when {
                 // Default category set
                 defaultCategory != null -> {
-                    moveMangaToCategories(manga, defaultCategory)
+                    moveMangaToCategory(
+                        manga.id,
+                        defaultCategory.id
+                            .withAncestorChain(categories)
+                            .filter { it != 0L }
+                            .toList(),
+                    )
                     changeMangaFavorite(manga)
                 }
 
                 // Automatic 'Default' or no categories
                 defaultCategoryId == 0 || categories.isEmpty() -> {
-                    moveMangaToCategories(manga)
+                    moveMangaToCategory(manga.id, emptyList())
                     changeMangaFavorite(manga)
                 }
 

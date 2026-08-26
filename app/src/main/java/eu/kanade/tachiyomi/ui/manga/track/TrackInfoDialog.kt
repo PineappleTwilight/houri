@@ -66,8 +66,8 @@ import eu.kanade.tachiyomi.util.system.copyToClipboard
 import eu.kanade.tachiyomi.util.system.openInBrowser
 import eu.kanade.tachiyomi.util.system.toast
 import exh.metadata.metadata.base.TrackerIdMetadata
-import exh.source.MERGED_SOURCE_ID
 import exh.source.getMainSource
+import exh.source.isMergedSourceId
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.collectLatest
@@ -257,7 +257,7 @@ data class TrackInfoDialogHomeScreen(
 
         // KMK -->
         private suspend fun getMangaForTracking(item: TrackItem): Manga? {
-            if (sourceId != MERGED_SOURCE_ID) {
+            if (!isMergedSourceId(sourceId)) {
                 return getMangaById.await(mangaId)
             }
             item.tracker as EnhancedTracker

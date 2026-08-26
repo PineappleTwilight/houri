@@ -91,6 +91,7 @@ fun LibraryPager(
                     folders = folders,
                     looseItems = looseItems,
                     columns = columns,
+                    displayMode = displayMode,
                     contentPadding = contentPadding,
                     selection = selection,
                     searchQuery = searchQuery,

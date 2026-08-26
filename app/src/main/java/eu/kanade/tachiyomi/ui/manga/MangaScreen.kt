@@ -89,11 +89,10 @@ import eu.kanade.tachiyomi.util.system.toShareIntent
 import eu.kanade.tachiyomi.util.system.toast
 import exh.pagepreview.PagePreviewScreen
 import exh.recs.RecommendsScreen
-import exh.source.ExhPreferences
-import exh.source.MERGED_SOURCE_ID
 import exh.source.anyIs
 import exh.source.getMainSource
 import exh.source.isEhBasedSource
+import exh.source.isMergedSourceId
 import exh.ui.metadata.MetadataViewScreen
 import exh.ui.smartsearch.SmartSearchScreen
 import kotlinx.coroutines.CancellationException
@@ -865,7 +864,7 @@ class MangaScreen(
         val sourceManager: SourceManager = globalAppGraph.sourceManager
         // KMK -->
         val mergedMangaAndSources = mergedMangaData.manga.values
-            .filterNot { it.source == MERGED_SOURCE_ID }
+            .filterNot { isMergedSourceId(it.source) }
             .map { manga -> manga to sourceManager.getOrStub(manga.source) }
         // KMK <--
         MaterialAlertDialogBuilder(context)

@@ -271,9 +271,7 @@ class UpdatesScreenModel(
     }
 
     private fun cancelDownload(chapterId: Long) {
-        val activeDownload = downloadManager.getQueuedDownloadOrNull(chapterId) ?: return
-        downloadManager.cancelQueuedDownloads(listOf(activeDownload))
-        updateDownloadState(activeDownload.apply { status = Download.State.NOT_DOWNLOADED })
+        downloadManager.cancelQueuedDownload(chapterId)?.let { updateDownloadState(it) }
     }
 
     /**

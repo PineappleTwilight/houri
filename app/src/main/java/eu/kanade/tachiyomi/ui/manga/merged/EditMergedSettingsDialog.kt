@@ -27,7 +27,7 @@ import eu.kanade.presentation.theme.colorscheme.AndroidViewColorScheme
 import eu.kanade.tachiyomi.databinding.EditMergedSettingsDialogBinding
 import eu.kanade.tachiyomi.ui.manga.MergedMangaData
 import eu.kanade.tachiyomi.util.system.toast
-import exh.source.MERGED_SOURCE_ID
+import exh.source.isMergedSourceId
 import tachiyomi.domain.manga.model.Manga
 import tachiyomi.domain.manga.model.MergedMangaReference
 import tachiyomi.i18n.MR
@@ -63,9 +63,9 @@ class EditMergedSettingsState(
             onDismissRequest()
         }
         mergedMangas += mergedReferences.filter {
-            it.mangaSourceId != MERGED_SOURCE_ID
+            !isMergedSourceId(it.mangaSourceId)
         }.map { reference -> mergedManga.firstOrNull { it.id == reference.mangaId } to reference }
-        mergeReference = mergedReferences.firstOrNull { it.mangaSourceId == MERGED_SOURCE_ID }
+        mergeReference = mergedReferences.firstOrNull { isMergedSourceId(it.mangaSourceId) }
 
         val isPriorityOrder =
             mergeReference?.let { it.chapterSortMode == MergedMangaReference.CHAPTER_SORT_PRIORITY } ?: false

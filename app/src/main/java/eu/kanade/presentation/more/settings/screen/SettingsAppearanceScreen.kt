@@ -16,6 +16,7 @@ import com.materialkolor.PaletteStyle
 import eu.kanade.core.preference.asState
 import eu.kanade.domain.ui.UiPreferences
 import eu.kanade.domain.ui.model.AppTheme
+import eu.kanade.domain.ui.model.NavigationRailAlignment
 import eu.kanade.domain.ui.model.TabletUiMode
 import eu.kanade.domain.ui.model.ThemeMode
 import eu.kanade.domain.ui.model.setAppCompatDelegateThemeMode
@@ -250,6 +251,15 @@ object SettingsAppearanceScreen : SearchableSettings {
                         true
                     },
                 ),
+                // KMK -->
+                Preference.PreferenceItem.ListPreference(
+                    preference = uiPreferences.railButtonAlignment(),
+                    entries = NavigationRailAlignment.entries
+                        .associateWith { stringResource(it.titleRes) }
+                        .toImmutableMap(),
+                    title = stringResource(KMR.strings.pref_rail_button_alignment),
+                ),
+                // KMK <--
                 Preference.PreferenceItem.ListPreference(
                     preference = uiPreferences.dateFormat(),
                     entries = DateFormats

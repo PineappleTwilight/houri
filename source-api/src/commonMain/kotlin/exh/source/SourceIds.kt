@@ -19,6 +19,11 @@ const val HBROWSE_SOURCE_ID = 1401584337232758222L
 // If MERGED_SOURCE_ID is to update, remember to update updatesView.sq and libraryView.sq too
 const val MERGED_SOURCE_ID = LEWD_SOURCE_SERIES + 69
 
+/**
+ * Returns true if the given source id is the virtual merged source.
+ */
+fun isMergedSourceId(sourceId: Long): Boolean = sourceId == MERGED_SOURCE_ID
+
 // KMK -->
 const val EH_OLD_ID = 6901L
 const val EXH_OLD_ID = 6902L

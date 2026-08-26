@@ -6,6 +6,7 @@ import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
 import eu.kanade.domain.ui.model.AppTheme
+import eu.kanade.domain.ui.model.NavigationRailAlignment
 import eu.kanade.domain.ui.model.TabletUiMode
 import eu.kanade.domain.ui.model.ThemeMode
 import tachiyomi.core.common.preference.PreferenceStore
@@ -46,6 +47,10 @@ class UiPreferences(
     fun dateFormat() = preferenceStore.getString("app_date_format", "")
 
     fun tabletUiMode() = preferenceStore.getEnum("tablet_ui_mode", TabletUiMode.AUTOMATIC)
+
+    // KMK -->
+    fun railButtonAlignment() = preferenceStore.getEnum("pref_rail_button_alignment", NavigationRailAlignment.CENTER)
+    // KMK <--
 
     fun imagesInDescription() = preferenceStore.getBoolean("pref_render_images_description", true)
 

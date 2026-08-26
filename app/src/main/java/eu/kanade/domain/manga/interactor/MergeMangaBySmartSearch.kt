@@ -5,6 +5,7 @@ import dev.zacsweers.metro.Inject
 import eu.kanade.domain.manga.model.copyFrom
 import eu.kanade.domain.manga.model.toSManga
 import exh.source.MERGED_SOURCE_ID
+import exh.source.isMergedSourceId
 import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.core.common.util.lang.withNonCancellableContext
 import tachiyomi.domain.category.interactor.GetCategories
@@ -38,7 +39,7 @@ class MergeMangaBySmartSearch(
     suspend fun smartSearchMerge(manga: Manga, originalMangaId: Long): Manga {
         val originalManga = getManga.await(originalMangaId)
             ?: throw IllegalArgumentException(context.stringResource(SYMR.strings.merge_unknown_entry, originalMangaId))
-        if (originalManga.source == MERGED_SOURCE_ID) {
+        if (isMergedSourceId(originalManga.source)) {
             val children = getMergedReferencesById.await(originalMangaId)
             if (children.any { it.mangaSourceId == manga.source && it.mangaUrl == manga.url }) {
                 // Merged already
@@ -61,7 +62,7 @@ class MergeMangaBySmartSearch(
                 ),
             )
 
-            if (children.isEmpty() || children.all { it.mangaSourceId != MERGED_SOURCE_ID }) {
+            if (children.isEmpty() || children.all { !isMergedSourceId(it.mangaSourceId) }) {
                 mangaReferences += MergedMangaReference(
                     id = -1,
                     isInfoManga = false,

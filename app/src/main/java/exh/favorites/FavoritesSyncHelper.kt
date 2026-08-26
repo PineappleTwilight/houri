@@ -157,7 +157,13 @@ class FavoritesSyncHelper(val context: Context) {
             }
 
             status.value = FavoritesSyncStatus.Processing.CleaningUp
-            storage.snapshotEntries()
+            // Only advance the last-synced snapshot when nothing failed: change sets are
+            // diffs against this snapshot, so keeping it stale makes the next sync retry
+            // every gallery whose application errored out (re-applying succeeded ones is
+            // idempotent).
+            if (errorList.isEmpty()) {
+                storage.snapshotEntries()
+            }
 
             withUIContext {
                 context.toast(SYMR.strings.favorites_sync_complete)
@@ -341,10 +347,8 @@ class FavoritesSyncHelper(val context: Context) {
             }
         }
 
-        removedManga.chunked(BATCH_SIZE).forEach { chunk ->
-            chunk.forEach { manga ->
-                setMangaCategories.await(manga.id, emptyList())
-            }
+        removedManga.forEach { manga ->
+            setMangaCategories.await(manga.id, emptyList())
         }
 
         val insertedMangaCategories = mutableListOf<Pair<Long, Manga>>()
@@ -402,10 +406,8 @@ class FavoritesSyncHelper(val context: Context) {
             }
         }
 
-        insertedMangaCategories.chunked(BATCH_SIZE).forEach { chunk ->
-            chunk.forEach { (category, manga) ->
-                setMangaCategories.await(manga.id, listOf(category))
-            }
+        insertedMangaCategories.forEach { (category, manga) ->
+            setMangaCategories.await(manga.id, listOf(category))
         }
     }
 
@@ -416,7 +418,6 @@ class FavoritesSyncHelper(val context: Context) {
 
     companion object {
         private val THROTTLE_WARN = 1.seconds
-        private const val BATCH_SIZE = 10
     }
 }
 

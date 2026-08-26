@@ -267,14 +267,17 @@ fun ChangeCategoryDialog(
                 tachiyomi.presentation.core.components.material.TextButton(
                     onClick = {
                         onDismissRequest()
-                        onConfirm(
-                            selection
-                                .filter { it is CheckboxState.State.Checked || it is CheckboxState.TriState.Include }
-                                .map { it.value.id },
+                        val parentIdById = selection.associate { it.value.id to it.value.parentId }
+                        val included = selection
+                            .filter { it is CheckboxState.State.Checked || it is CheckboxState.TriState.Include }
+                            .flatMap { it.value.id.withAncestorChain(parentIdById) }
+                            .toSet()
+                        val excluded = (
                             selection
                                 .filter { it is CheckboxState.State.None || it is CheckboxState.TriState.None }
-                                .map { it.value.id },
-                        )
+                                .mapTo(mutableSetOf()) { it.value.id }
+                            ) - included
+                        onConfirm(included.toList(), excluded.toList())
                     },
                 ) {
                     Text(text = stringResource(MR.strings.action_ok))
@@ -347,3 +350,19 @@ fun ChangeCategoryDialog(
         },
     )
 }
+
+/**
+ * Returns [id] together with every ancestor category id up to the root, so marking a
+ * subcategory always marks its parents as well.
+ */
+internal fun Long.withAncestorChain(parentIdById: Map<Long, Long>): Set<Long> {
+    val chain = mutableSetOf(this)
+    var cursor = parentIdById[this] ?: 0L
+    while (cursor != 0L && chain.add(cursor)) {
+        cursor = parentIdById[cursor] ?: 0L
+    }
+    return chain
+}
+
+internal fun Long.withAncestorChain(categories: List<Category>): Set<Long> =
+    withAncestorChain(categories.associate { it.id to it.parentId })

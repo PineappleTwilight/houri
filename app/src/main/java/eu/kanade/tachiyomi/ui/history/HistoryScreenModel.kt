@@ -8,7 +8,9 @@ import cafe.adriel.voyager.core.model.screenModelScope
 import eu.kanade.core.util.insertSeparators
 import eu.kanade.domain.manga.interactor.UpdateManga
 import eu.kanade.domain.track.interactor.AddTracks
+import eu.kanade.presentation.category.components.withAncestorChain
 import eu.kanade.presentation.history.HistoryUiModel
+import eu.kanade.tachiyomi.ui.common.AddToLibrary
 import eu.kanade.tachiyomi.util.lang.toLocalDate
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
@@ -69,6 +71,12 @@ class HistoryScreenModel(
     private val historyPreferences: HistoryPreferences = globalAppGraph.historyPreferences,
     // KMK <--
 ) : StateScreenModel<HistoryScreenModel.State>(State()) {
+
+    private val addToLibrary = AddToLibrary(
+        scope = screenModelScope,
+        setMangaCategories = setMangaCategories,
+        updateManga = updateManga,
+    )
 
     private val _events: Channel<Event> = Channel(Channel.UNLIMITED)
     val events: Flow<Event> = _events.receiveAsFlow()
@@ -207,12 +215,7 @@ class HistoryScreenModel(
     }
 
     fun moveMangaToCategoriesAndAddToLibrary(manga: Manga, categories: List<Long>) {
-        moveMangaToCategory(manga.id, categories)
-        if (manga.favorite) return
-
-        screenModelScope.launchIO {
-            updateManga.awaitUpdateFavorite(manga.id, true)
-        }
+        addToLibrary.moveToCategoriesAndFavorite(manga, categories)
     }
 
     private suspend fun getMangaCategoryIds(manga: Manga): List<Long> {
@@ -246,7 +249,10 @@ class HistoryScreenModel(
                 defaultCategory != null -> {
                     val result = updateManga.awaitUpdateFavorite(manga.id, true)
                     if (!result) return@launchIO
-                    moveMangaToCategory(manga.id, defaultCategory)
+                    moveMangaToCategory(
+                        manga.id,
+                        defaultCategory.id.withAncestorChain(categories).filter { it != 0L }.toList(),
+                    )
                 }
 
                 // Automatic 'Default' or no categories

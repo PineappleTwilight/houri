@@ -8,7 +8,7 @@ import eu.kanade.domain.track.service.TrackPreferences
 import eu.kanade.tachiyomi.data.track.TrackerManager
 import eu.kanade.tachiyomi.data.track.mdlist.MdList
 import exh.md.utils.FollowStatus
-import exh.source.MERGED_SOURCE_ID
+import exh.source.isMergedSourceId
 import logcat.LogPriority
 import tachiyomi.core.common.util.system.logcat
 import tachiyomi.domain.chapter.interactor.GetChaptersByMangaId
@@ -54,7 +54,7 @@ class StartRereading(
         return Result.Success(now)
     }
 
-    private suspend fun chaptersOf(manga: Manga) = if (manga.source == MERGED_SOURCE_ID) {
+    private suspend fun chaptersOf(manga: Manga) = if (isMergedSourceId(manga.source)) {
         getMergedChaptersByMangaId.await(manga.id, dedupe = false)
     } else {
         getChaptersByMangaId.await(manga.id)

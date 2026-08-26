@@ -13,6 +13,7 @@ import androidx.work.WorkerParameters
 import androidx.work.workDataOf
 import eu.kanade.tachiyomi.data.BackupRestoreStatus
 import eu.kanade.tachiyomi.data.backup.BackupNotifier
+import eu.kanade.tachiyomi.data.library.LibraryUpdateJob
 import eu.kanade.tachiyomi.data.notification.Notifications
 import eu.kanade.tachiyomi.data.webhook.WebhookEvent
 import eu.kanade.tachiyomi.util.system.cancelNotification
@@ -55,6 +56,17 @@ class BackupRestoreJob(private val context: Context, workerParams: WorkerParamet
         return try {
             BackupRestorer(context, notifier, isSync).restore(uri, options)
             // KMK -->
+            // Kick off a chapter refresh and reconcile restored tracking entries with the
+            // remote services right away instead of waiting for the next scheduled update.
+            if (options.libraryEntries && !isSync) {
+                LibraryUpdateJob.startNow(context)
+                try {
+                    globalAppGraph.refreshTracks.awaitAllTracks()
+                } catch (e: Exception) {
+                    logcat(LogPriority.ERROR, e) { "Post-restore tracker sync failed" }
+                }
+            }
+            // KMK <--
             globalAppGraph.webhookNotifier.notify(
                 WebhookEvent.BACKUP_RESTORED,
                 mapOf("mode" to if (isSync) "sync" else "manual"),
