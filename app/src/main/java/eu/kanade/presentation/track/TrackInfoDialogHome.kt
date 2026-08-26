@@ -88,20 +88,21 @@ fun TrackInfoDialogHome(
         verticalArrangement = Arrangement.spacedBy(24.dp),
     ) {
         // KMK -->
-        val scoredTracks = trackItems.mapNotNull { it.track }.filter { it.score != 0.0 }
+        val scoredTracks = trackItems
+            .mapNotNull { item -> item.track?.let { item.tracker to it } }
+            .filter { it.second.score != 0.0 }
         if (scoredTracks.size > 1) {
             Text(
                 text = stringResource(
                     KMR.strings.track_normalized_score_summary,
-                    scoredTracks.map { it.tracker.get10PointScore(it) }.average().toFloat(),
+                    scoredTracks.map { (tracker, track) -> tracker.get10PointScore(track) }.average().toFloat(),
                     scoredTracks.size,
                 ),
                 style = MaterialTheme.typography.bodySmall,
                 modifier = Modifier.fillMaxWidth(),
             )
         }
-        // KMK <--
-        trackItems.forEach { item ->
+        // KMK <--        trackItems.forEach { item ->
             if (item.track != null) {
                 val supportsScoring = item.tracker.getScoreList().isNotEmpty()
                 val supportsReadingDates = item.tracker.supportsReadingDates

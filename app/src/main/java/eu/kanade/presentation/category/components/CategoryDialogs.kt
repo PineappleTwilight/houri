@@ -272,9 +272,11 @@ fun ChangeCategoryDialog(
                             .filter { it is CheckboxState.State.Checked || it is CheckboxState.TriState.Include }
                             .flatMap { it.value.id.withAncestorChain(parentIdById) }
                             .toSet()
-                        val excluded = (selection
-                            .filter { it is CheckboxState.State.None || it is CheckboxState.TriState.None }
-                            .mapTo(mutableSetOf()) { it.value.id }) - included
+                        val excluded = (
+                            selection
+                                .filter { it is CheckboxState.State.None || it is CheckboxState.TriState.None }
+                                .mapTo(mutableSetOf()) { it.value.id }
+                            ) - included
                         onConfirm(included.toList(), excluded.toList())
                     },
                 ) {
@@ -361,3 +363,6 @@ internal fun Long.withAncestorChain(parentIdById: Map<Long, Long>): Set<Long> {
     }
     return chain
 }
+
+internal fun Long.withAncestorChain(categories: List<Category>): Set<Long> =
+    withAncestorChain(categories.associate { it.id to it.parentId })

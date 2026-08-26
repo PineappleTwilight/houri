@@ -38,7 +38,7 @@ class RefreshTracks(
         if (allTracks.isEmpty()) return emptyList()
 
         return supervisorScope {
-            trackerManager.services
+            trackerManager.trackers
                 .filter { it.isLoggedIn }
                 .map { service ->
                     async {
