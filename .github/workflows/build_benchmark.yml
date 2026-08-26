@@ -27,7 +27,7 @@ jobs:
       - name: Get tag name (${{ github.ref }})
         id: get_tag
         run: |
-          version_tag=$(echo ${GITHUB_REF/refs\/tags\//} | sed -r 's/^refs\/(heads|tags)\///' | sed -r 's/[-\/]+/_/g')
+          version_tag=$(echo "${GITHUB_REF}" | sed -r 's|^refs/(heads|tags)/||' | sed -r 's/[-\/]+/_/g')
           echo "VERSION_TAG=$version_tag"
           echo "VERSION_TAG=$version_tag" >> $GITHUB_OUTPUT
 
@@ -74,9 +74,7 @@ jobs:
         uses: gradle/actions/setup-gradle@3f131e8634966bd73d06cc69884922b02e6faf92 # v6
 
       - name: Check code format
-        run: |
-          ./gradlew spotlessApply
-          ./gradlew spotlessCheck
+        run: ./gradlew spotlessCheck
 
       - name: Build app
         run: ./gradlew assembleBenchmark

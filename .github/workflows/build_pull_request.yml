@@ -38,10 +38,11 @@ jobs:
           fetch-depth: 0
 
       - name: Dependency Review
+        if: github.event.pull_request.head.repo.full_name == github.repository
         uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
 
       - name: Validate Gradle Wrapper
-        uses: gradle/actions/wrapper-validation@3f131e8634966bd73d06cc69884922b02e6faf92 # v6.2.0
+        uses: gradle/actions/wrapper-validation@3f131e8634966bd73d06cc69884922b02e6faf92 # v6.1.2
 
       - name: Set up JDK
         uses: actions/setup-java@1bcf9fb12cf4aa7d266a90ae39939e61372fe520 # v5.4.0
@@ -65,9 +66,7 @@ jobs:
         uses: gradle/actions/setup-gradle@3f131e8634966bd73d06cc69884922b02e6faf92 # v6
 
       - name: Check code format
-        run: |
-          ./gradlew spotlessApply
-          ./gradlew spotlessCheck
+        run: ./gradlew spotlessCheck
 
       - name: Compile check
         run: ./gradlew compileDebugKotlin

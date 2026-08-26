@@ -33,7 +33,12 @@ jobs:
       - name: Extract version from build.gradle.kts
         id: version
         run: |
-          version_name=$(grep -oP 'versionName\s*=\s*"\K[^"]+' app/build.gradle.kts)
+          version_name=$(grep -oP 'versionName\s*=\s*["'\'']\K[^"'\''"]+' app/build.gradle.kts || true)
+          if [ -z "$version_name" ]; then
+            echo "Failed to extract versionName from app/build.gradle.kts"
+            grep -n "versionName" app/build.gradle.kts || true
+            exit 1
+          fi
           echo "VERSION=$version_name"
           echo "VERSION=$version_name" >> $GITHUB_OUTPUT
 
@@ -106,19 +111,30 @@ jobs:
       - name: Previous commit
         id: previous_commit
         run: |
-          commit_count_diff=$(git rev-list --count "${{ steps.last_release.outputs.tag_name }}"..HEAD)
-
-          # Fake at least 1 commit (to avoid no changes)
-          if [ "${commit_count_diff}" -eq 0 ]; then
-            commit_count_diff=1
+          set -e
+          tag="${{ steps.last_release.outputs.tag_name }}"
+          if [ -z "$tag" ]; then
+            echo "No previous release; using root commit as base"
+            commit_count_diff=$(git rev-list --count HEAD)
+            commit_count_diff=$((commit_count_diff > 0 ? commit_count_diff - 1 : 1))
+            prev_release_sha=$(git rev-list --max-parents=0 HEAD | head -n1 | xargs git rev-parse --short)
+          else
+            commit_count_diff=$(git rev-list --count "$tag"..HEAD || echo 1)
+            if [ -z "$commit_count_diff" ] || [ "$commit_count_diff" -eq 0 ]; then
+              commit_count_diff=1
+            fi
+            total=$(git rev-list --count HEAD)
+            if [ "$commit_count_diff" -ge "$total" ]; then
+              prev_release_sha=$(git rev-list --max-parents=0 HEAD | head -n1 | xargs git rev-parse --short)
+            else
+              prev_release_sha=$(git rev-parse --short HEAD~$commit_count_diff)
+            fi
           fi
-
           echo "commit_count_diff=$commit_count_diff"
-          prev_release_sha=$(git rev-parse --short HEAD~$commit_count_diff)
           echo "PREV_RELEASE_SHA=$prev_release_sha"
           echo "PREV_RELEASE_SHA=$prev_release_sha" >> $GITHUB_OUTPUT
-          echo "PREV_TAG_NAME=${{ steps.last_release.outputs.tag_name }}"
-          echo "PREV_TAG_NAME=${{ steps.last_release.outputs.tag_name }}" >> $GITHUB_OUTPUT
+          echo "PREV_TAG_NAME=$tag"
+          echo "PREV_TAG_NAME=$tag" >> $GITHUB_OUTPUT
 
       - name: TODO checklist since last release
         id: todo_checklist
@@ -159,20 +175,29 @@ jobs:
       - name: Write google-services.json
         env:
           GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
-        run: printenv GOOGLE_SERVICES_JSON | base64 -d > app/google-services.json
+        run: |
+          if [ -n "$GOOGLE_SERVICES_JSON" ]; then
+            printenv GOOGLE_SERVICES_JSON | base64 -d > app/google-services.json
+          else
+            echo "GOOGLE_SERVICES_JSON not set; skipping"
+          fi
 
       - name: Write client_secrets.json
         env:
           GOOGLE_CLIENT_SECRETS_JSON: ${{ secrets.GOOGLE_CLIENT_SECRETS_JSON }}
-        run: mkdir -p app/src/main/assets && printenv GOOGLE_CLIENT_SECRETS_JSON | base64 -d > app/src/main/assets/client_secrets.json
+        run: |
+          mkdir -p app/src/main/assets
+          if [ -n "$GOOGLE_CLIENT_SECRETS_JSON" ]; then
+            printenv GOOGLE_CLIENT_SECRETS_JSON | base64 -d > app/src/main/assets/client_secrets.json
+          else
+            echo "GOOGLE_CLIENT_SECRETS_JSON not set; skipping"
+          fi
 
       - name: Set up gradle
         uses: gradle/actions/setup-gradle@3f131e8634966bd73d06cc69884922b02e6faf92 # v6
 
       - name: Check code format
-        run: |
-          ./gradlew spotlessApply
-          ./gradlew spotlessCheck
+        run: ./gradlew spotlessCheck
 
       - name: Build app
         run: ./gradlew assembleRelease -Pinclude-telemetry -Penable-updater
