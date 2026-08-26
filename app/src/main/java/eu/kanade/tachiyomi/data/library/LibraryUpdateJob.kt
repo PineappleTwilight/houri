@@ -41,8 +41,8 @@ import exh.log.xLogE
 import exh.md.utils.FollowStatus
 import exh.md.utils.MdUtil
 import exh.source.LIBRARY_UPDATE_EXCLUDED_SOURCES
-import exh.source.mangaDexSourceIds
 import exh.source.isMergedSourceId
+import exh.source.mangaDexSourceIds
 import exh.util.WorkerUtil
 import exh.util.nullIfBlank
 import kotlinx.coroutines.CancellationException

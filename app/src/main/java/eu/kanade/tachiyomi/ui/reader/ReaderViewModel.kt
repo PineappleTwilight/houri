@@ -250,7 +250,7 @@ class ReaderViewModel(
     private fun deleteChapter(chapter: Chapter) {
         viewModelScope.launchNonCancellable {
             try {
-                val manga = if (manga != null && isMergedSourceId(manga.source)) {
+                val manga = if (manga?.let { isMergedSourceId(it.source) } == true) {
                     state.value.mergedManga?.get(chapter.mangaId) ?: return@launchNonCancellable
                 } else {
                     manga ?: return@launchNonCancellable
@@ -1115,7 +1115,7 @@ class ReaderViewModel(
 
     fun getChapterUrl(): String? {
         val sChapter = getCurrentChapter()?.chapter ?: return null
-        val source = if (manga != null && isMergedSourceId(manga.source)) {
+        val source = if (manga?.let { isMergedSourceId(it.source) } == true) {
             state.value.mergedManga?.get(sChapter.manga_id)?.source?.let { sourceId ->
                 sourceManager.getOrStub(sourceId) as? HttpSource
             }

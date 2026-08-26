@@ -1185,7 +1185,7 @@ class MangaScreenModel(
      */
     internal suspend fun fetchRelatedMangasFromSource(onDemand: Boolean = false, onFinish: (() -> Unit)? = null) {
         val expandRelatedMangas = uiPreferences.expandRelatedMangas().get()
-        if ((!onDemand && !expandRelatedMangas) || (manga != null && isMergedSourceId(manga.source))) return
+        if ((!onDemand && !expandRelatedMangas) || manga?.let { isMergedSourceId(it.source) } == true) return
 
         // start fetching related mangas
         setRelatedMangasFetchedStatus(false)
