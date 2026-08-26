@@ -64,6 +64,7 @@ import eu.kanade.tachiyomi.source.getNameForMangaInfo
 import eu.kanade.tachiyomi.source.model.SManga
 import eu.kanade.tachiyomi.source.online.MetadataSource
 import eu.kanade.tachiyomi.source.online.all.MergedSource
+import eu.kanade.tachiyomi.ui.common.AddToLibrary
 import eu.kanade.tachiyomi.ui.manga.RelatedManga.Companion.isLoading
 import eu.kanade.tachiyomi.ui.manga.RelatedManga.Companion.removeDuplicates
 import eu.kanade.tachiyomi.ui.manga.RelatedManga.Companion.sorted
@@ -304,6 +305,12 @@ class MangaScreenModel(
         setMangaChapterFlags = setMangaChapterFlags,
         setMangaDefaultChapterFlags = setMangaDefaultChapterFlags,
         snackbarHostState = snackbarHostState,
+    )
+
+    private val addToLibrary = AddToLibrary(
+        scope = screenModelScope,
+        setMangaCategories = setMangaCategories,
+        updateManga = updateManga,
     )
 
     /**
@@ -942,12 +949,7 @@ class MangaScreenModel(
     }
 
     fun moveMangaToCategoriesAndAddToLibrary(manga: Manga, categories: List<Long>) {
-        moveMangaToCategory(categories)
-        if (manga.favorite) return
-
-        screenModelScope.launchIO {
-            updateManga.awaitUpdateFavorite(manga.id, true)
-        }
+        addToLibrary.moveToCategoriesAndFavorite(manga, categories)
     }
 
     /**

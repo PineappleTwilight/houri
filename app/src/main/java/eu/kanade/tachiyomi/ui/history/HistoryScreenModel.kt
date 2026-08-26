@@ -7,6 +7,7 @@ import cafe.adriel.voyager.core.model.StateScreenModel
 import cafe.adriel.voyager.core.model.screenModelScope
 import eu.kanade.core.util.insertSeparators
 import eu.kanade.domain.manga.interactor.UpdateManga
+import eu.kanade.tachiyomi.ui.common.AddToLibrary
 import eu.kanade.domain.track.interactor.AddTracks
 import eu.kanade.presentation.history.HistoryUiModel
 import eu.kanade.tachiyomi.util.lang.toLocalDate
@@ -69,6 +70,12 @@ class HistoryScreenModel(
     private val historyPreferences: HistoryPreferences = globalAppGraph.historyPreferences,
     // KMK <--
 ) : StateScreenModel<HistoryScreenModel.State>(State()) {
+
+    private val addToLibrary = AddToLibrary(
+        scope = screenModelScope,
+        setMangaCategories = setMangaCategories,
+        updateManga = updateManga,
+    )
 
     private val _events: Channel<Event> = Channel(Channel.UNLIMITED)
     val events: Flow<Event> = _events.receiveAsFlow()
@@ -207,12 +214,7 @@ class HistoryScreenModel(
     }
 
     fun moveMangaToCategoriesAndAddToLibrary(manga: Manga, categories: List<Long>) {
-        moveMangaToCategory(manga.id, categories)
-        if (manga.favorite) return
-
-        screenModelScope.launchIO {
-            updateManga.awaitUpdateFavorite(manga.id, true)
-        }
+        addToLibrary.moveToCategoriesAndFavorite(manga, categories)
     }
 
     private suspend fun getMangaCategoryIds(manga: Manga): List<Long> {
