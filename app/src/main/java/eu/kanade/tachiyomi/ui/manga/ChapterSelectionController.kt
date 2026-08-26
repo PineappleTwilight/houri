@@ -26,9 +26,9 @@ internal class ChapterSelectionController(
         onUpdateState { successState ->
             // KMK -->
             val selectedIndex = successState.processedChapters.indexOfFirst { it.id == item.chapter.id }
-            if (selectedIndex < 0) return@updateSuccessState successState
+            if (selectedIndex < 0) return@onUpdateState successState
             val selectedItem = successState.processedChapters[selectedIndex]
-            if (selectedItem.selected == selected) return@updateSuccessState successState
+            if (selectedItem.selected == selected) return@onUpdateState successState
             // KMK <--
 
             val newChapters = successState.processedChapters.toMutableList().apply {
