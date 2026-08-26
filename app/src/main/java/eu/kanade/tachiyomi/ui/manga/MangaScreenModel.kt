@@ -1293,10 +1293,6 @@ class MangaScreenModel(
     // KMK <--
 
     /**
-     * Downloads the given list of chapters with the manager.
-     * @param chapters the list of chapters to download.
-     */
-    /**
      * Bookmarks the given list of chapters.
      * @param chapters the list of chapters to bookmark.
      */
