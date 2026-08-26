@@ -313,6 +313,25 @@ class MangaScreenModel(
         updateManga = updateManga,
     )
 
+    private val downloads = ChapterDownloadsController(
+        scope = screenModelScope,
+        lifecycle = lifecycle,
+        context = context,
+        downloadManager = downloadManager,
+        filterChaptersForDownload = filterChaptersForDownload,
+        sourceManager = sourceManager,
+        provideSuccessState = { successState },
+        onUpdateState = { updateSuccessState(it) },
+        provideFilteredChapters = { filteredChapters },
+        provideAllChapters = { allChapters },
+        skipFiltered = { skipFiltered },
+        isFavorited = { isFavorited },
+        snackbarHostState = snackbarHostState,
+        onToggleFavorite = { toggleFavorite() },
+        onClearSelection = { chapterSelection.toggleAllSelection(false) },
+        onDeleteChapters = { deleteChapters(it) },
+    )
+
     /**
      * Helper function to update the UI state only if it's currently in success state
      */
@@ -888,25 +907,13 @@ class MangaScreenModel(
     /**
      * Returns true if the manga has any downloads.
      */
-    private fun hasDownloads(): Boolean {
-        val manga = successState?.manga ?: return false
-        return downloadManager.getDownloadCount(manga) > 0
-    }
+    private fun hasDownloads(): Boolean = downloads.hasDownloads()
 
     /**
      * Deletes all the downloads for the manga.
      */
     private fun deleteDownloads() {
-        val state = successState ?: return
-        // SY -->
-        if (state.source is MergedSource) {
-            val mergedManga = state.mergedData?.manga?.map { it.value to sourceManager.getOrStub(it.value.source) }
-            mergedManga?.forEach { (manga, source) ->
-                downloadManager.deleteManga(manga, source)
-            }
-        } else {
-            /* SY <-- */ downloadManager.deleteManga(state.manga, state.source)
-        }
+        downloads.deleteDownloads()
     }
 
     /**
@@ -981,66 +988,7 @@ class MangaScreenModel(
 
     // Chapters list - start
 
-    // TODO: Extract the downloads cluster (observeDownloads/updateDownloadState/
-    //  startDownload/runDownloadAction/downloadChapters) behind a delegate; it shares
-    //  mutable UI state with the chapters list and needs callback wiring for state updates.
-    private fun observeDownloads() {
-        // SY -->
-        val isMergedSource = source is MergedSource
-        val mergedIds = if (isMergedSource) successState?.mergedData?.manga?.keys.orEmpty() else emptySet()
-        // SY <--
-        screenModelScope.launchIO {
-            downloadManager.statusFlow()
-                .filter {
-                    /* SY --> */ if (isMergedSource) {
-                        it.manga.id in mergedIds
-                    } else {
-                        /* SY <-- */ it.manga.id ==
-                            successState?.manga?.id
-                    }
-                }
-                .catch { error -> logcat(LogPriority.ERROR, error) }
-                .flowWithLifecycle(lifecycle)
-                .collect {
-                    withUIContext {
-                        updateDownloadState(it)
-                    }
-                }
-        }
-
-        screenModelScope.launchIO {
-            downloadManager.progressFlow()
-                .filter {
-                    /* SY --> */ if (isMergedSource) {
-                        it.manga.id in mergedIds
-                    } else {
-                        /* SY <-- */ it.manga.id ==
-                            successState?.manga?.id
-                    }
-                }
-                .catch { error -> logcat(LogPriority.ERROR, error) }
-                .flowWithLifecycle(lifecycle)
-                .collect {
-                    withUIContext {
-                        updateDownloadState(it)
-                    }
-                }
-        }
-    }
-
-    private fun updateDownloadState(download: Download) {
-        updateSuccessState { successState ->
-            val modifiedIndex = successState.chapters.indexOfFirst { it.id == download.chapter.id }
-            if (modifiedIndex < 0) return@updateSuccessState successState
-
-            val newChapters = successState.chapters.toMutableList().apply {
-                val item = removeAt(modifiedIndex)
-                    .copy(downloadState = download.status, downloadProgress = download.progress)
-                add(modifiedIndex, item)
-            }
-            successState.copy(chapters = newChapters)
-        }
-    }
+    private fun observeDownloads() = downloads.observeDownloads()
 
     private fun List<Chapter>.toChapterListItems(
         manga: Manga,
@@ -1230,103 +1178,12 @@ class MangaScreenModel(
         return successState.chapters.getNextUnread(successState.manga)
     }
 
-    private fun getUnreadChapters(): List<Chapter> {
-        val chapterItems = if (skipFiltered) filteredChapters.orEmpty() else allChapters.orEmpty()
-        return chapterItems
-            .filter { (chapter, dlStatus) -> !chapter.read && dlStatus == Download.State.NOT_DOWNLOADED }
-            .map { it.chapter }
-    }
-
-    private fun getUnreadChaptersSorted(): List<Chapter> {
-        val manga = successState?.manga ?: return emptyList()
-        val chaptersSorted = getUnreadChapters().sortedWith(getChapterSort(manga))
-            // SY -->
-            .let {
-                if (manga.isEhBasedManga()) it.reversed() else it
-            }
-        // SY <--
-        return if (manga.sortDescending()) chaptersSorted.reversed() else chaptersSorted
-    }
-
-    private fun getBookmarkedChapters(): List<Chapter> {
-        val chapterItems = if (skipFiltered) filteredChapters.orEmpty() else allChapters.orEmpty()
-        return chapterItems
-            .filter { (chapter, dlStatus) -> chapter.bookmark && dlStatus == Download.State.NOT_DOWNLOADED }
-            .map { it.chapter }
-    }
-
-    private fun startDownload(
-        chapters: List<Chapter>,
-        startNow: Boolean,
-    ) {
-        val successState = successState ?: return
-
-        screenModelScope.launchNonCancellable {
-            if (startNow) {
-                val chapterId = chapters.singleOrNull()?.id ?: return@launchNonCancellable
-                downloadManager.startDownloadNow(chapterId)
-            } else {
-                downloadChapters(chapters)
-            }
-
-            if (!isFavorited && !successState.hasPromptedToAddBefore) {
-                updateSuccessState { state ->
-                    state.copy(hasPromptedToAddBefore = true)
-                }
-                val result = snackbarHostState.showSnackbar(
-                    message = context.stringResource(MR.strings.snack_add_to_library),
-                    actionLabel = context.stringResource(MR.strings.action_add),
-                    withDismissAction = true,
-                )
-                if (result == SnackbarResult.ActionPerformed && !isFavorited) {
-                    toggleFavorite()
-                }
-            }
-        }
-    }
-
     fun runChapterDownloadActions(
         items: List<ChapterList.Item>,
         action: ChapterDownloadAction,
-    ) {
-        when (action) {
-            ChapterDownloadAction.START -> {
-                startDownload(items.map { it.chapter }, false)
-                if (items.any { it.downloadState == Download.State.ERROR }) {
-                    downloadManager.startDownloads()
-                }
-            }
-            ChapterDownloadAction.START_NOW -> {
-                val chapter = items.singleOrNull()?.chapter ?: return
-                startDownload(listOf(chapter), true)
-            }
-            ChapterDownloadAction.CANCEL -> {
-                val chapterId = items.singleOrNull()?.id ?: return
-                cancelDownload(chapterId)
-            }
-            ChapterDownloadAction.DELETE -> {
-                deleteChapters(items.map { it.chapter })
-            }
-        }
-    }
+    ) = downloads.runChapterDownloadActions(items, action)
 
-    fun runDownloadAction(action: DownloadAction) {
-        val chaptersToDownload = when (action) {
-            DownloadAction.NEXT_1_CHAPTER -> getUnreadChaptersSorted().take(1)
-            DownloadAction.NEXT_5_CHAPTERS -> getUnreadChaptersSorted().take(5)
-            DownloadAction.NEXT_10_CHAPTERS -> getUnreadChaptersSorted().take(10)
-            DownloadAction.NEXT_25_CHAPTERS -> getUnreadChaptersSorted().take(25)
-            DownloadAction.UNREAD_CHAPTERS -> getUnreadChapters()
-            DownloadAction.BOOKMARKED_CHAPTERS -> getBookmarkedChapters()
-        }
-        if (chaptersToDownload.isNotEmpty()) {
-            startDownload(chaptersToDownload, false)
-        }
-    }
-
-    private fun cancelDownload(chapterId: Long) {
-        downloadManager.cancelQueuedDownload(chapterId)?.let(::updateDownloadState)
-    }
+    fun runDownloadAction(action: DownloadAction) = downloads.runDownloadAction(action)
 
     fun markPreviousChapterRead(pointer: Chapter) {
         val manga = successState?.manga ?: return
@@ -1439,22 +1296,6 @@ class MangaScreenModel(
      * Downloads the given list of chapters with the manager.
      * @param chapters the list of chapters to download.
      */
-    private fun downloadChapters(chapters: List<Chapter>) {
-        // SY -->
-        val state = successState ?: return
-        if (state.source is MergedSource) {
-            chapters.groupBy { it.mangaId }.forEach { map ->
-                val manga = state.mergedData?.manga?.get(map.key) ?: return@forEach
-                downloadManager.downloadChapters(manga, map.value)
-            }
-        } else {
-            // SY <--
-            val manga = state.manga
-            downloadManager.downloadChapters(manga, chapters)
-        }
-        toggleAllSelection(false)
-    }
-
     /**
      * Bookmarks the given list of chapters.
      * @param chapters the list of chapters to bookmark.
@@ -1597,14 +1438,7 @@ class MangaScreenModel(
     // KMK <--
 
     private fun downloadNewChapters(chapters: List<Chapter>) {
-        screenModelScope.launchNonCancellable {
-            val manga = successState?.manga ?: return@launchNonCancellable
-            val chaptersToDownload = filterChaptersForDownload.await(manga, chapters)
-
-            if (chaptersToDownload.isNotEmpty() /* SY --> */ && !manga.isEhBasedManga() /* SY <-- */) {
-                downloadChapters(chaptersToDownload)
-            }
-        }
+        downloads.downloadNewChapters(chapters)
     }
 
     fun setUnreadFilter(state: TriState) = chapterSettings.setUnreadFilter(state)
