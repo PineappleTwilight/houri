@@ -12,6 +12,7 @@ import dev.zacsweers.metro.Provides
 import dev.zacsweers.metro.SingleIn
 import eu.kanade.tachiyomi.core.security.SecurityPreferences
 import eu.kanade.tachiyomi.data.sync.service.GoogleDriveSyncService
+import eu.kanade.tachiyomi.network.NetworkHelper
 import eu.kanade.tachiyomi.util.system.isDebugBuildType
 import exh.pref.DelegateSourcePreferences
 import io.requery.android.database.sqlite.RequerySQLiteOpenHelperFactory
@@ -22,6 +23,7 @@ import net.zetetic.database.sqlcipher.SupportOpenHelperFactory
 import nl.adaptivity.xmlutil.XmlDeclMode
 import nl.adaptivity.xmlutil.core.XmlVersion
 import nl.adaptivity.xmlutil.serialization.XML
+import okhttp3.OkHttpClient
 import tachiyomi.core.common.preference.AndroidPreferenceStore
 import tachiyomi.core.common.preference.PreferenceStore
 import tachiyomi.core.common.storage.AndroidStorageFolderProvider
@@ -178,6 +180,13 @@ object AppBindings {
     @SingleIn(AppScope::class)
     fun providesFilterSerializer(): FilterSerializer {
         return FilterSerializer()
+    }
+
+    // KMK -->
+    @Provides
+    @SingleIn(AppScope::class)
+    fun providesOkHttpClient(networkHelper: NetworkHelper): OkHttpClient {
+        return networkHelper.client
     }
     // KMK <--
 }
