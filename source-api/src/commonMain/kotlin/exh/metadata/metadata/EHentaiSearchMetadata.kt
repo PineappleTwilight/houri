@@ -58,10 +58,12 @@ class EHentaiSearchMetadata : RaisedSearchMetadata() {
         }
         val cover = thumbnailUrl
 
-        // No title bug?
-        val title = altTitle
-            ?.takeIf { Injekt.get<DelegateSourcePreferences>().useJapaneseTitle().get() } // todo
-            ?: title
+        val useJapanese = try {
+            Injekt.get<DelegateSourcePreferences>().useJapaneseTitle().get()
+        } catch (_: Exception) {
+            false
+        }
+        val title = altTitle?.takeIf { useJapanese } ?: title
 
         // Set artist (if we can find one)
         val artist = tags.ofNamespace(EH_ARTIST_NAMESPACE)

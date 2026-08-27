@@ -8,6 +8,9 @@ import eu.kanade.tachiyomi.data.track.TrackerManager
 import eu.kanade.tachiyomi.extension.ExtensionManager
 import eu.kanade.tachiyomi.network.JavaScriptEngine
 import eu.kanade.tachiyomi.network.NetworkHelper
+import exh.eh.EHentaiUpdateHelper
+import exh.pref.DelegateSourcePreferences
+import exh.source.ExhPreferences
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.protobuf.ProtoBuf
 import nl.adaptivity.xmlutil.serialization.XML
@@ -38,6 +41,8 @@ class MetroInteropModule(
 
     // Preferences
     private val preferenceStore: PreferenceStore,
+    private val delegateSourcePreferences: DelegateSourcePreferences,
+    private val exhPreferences: ExhPreferences,
 
     // Sources & Extensions
     private val sourceManager: SourceManager,
@@ -48,6 +53,9 @@ class MetroInteropModule(
 
     // Storage
     private val storageManager: StorageManager,
+
+    // EH
+    private val eHentaiUpdateHelper: EHentaiUpdateHelper,
 
     // Komikku-specific
     private val connectionsManager: ConnectionsManager,
@@ -67,6 +75,8 @@ class MetroInteropModule(
 
         // Preferences
         addSingleton(preferenceStore)
+        addSingleton(delegateSourcePreferences)
+        addSingleton(exhPreferences)
 
         // Sources & Extensions
         addSingleton(sourceManager)
@@ -77,6 +87,7 @@ class MetroInteropModule(
 
         // Storage
         addSingleton(storageManager)
+        addSingleton(eHentaiUpdateHelper)
 
         // Komikku-specific
         addSingleton(connectionsManager)
