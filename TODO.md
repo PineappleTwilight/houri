@@ -92,6 +92,9 @@
   - Reader: new `NovelViewer` implementing `Viewer` (parallel to `WebGpuViewer`/`Pager`), Compose `HorizontalPager` + `TextLayoutResult` pagination, reuse `WebGpuConfig`/`ReaderPreferences` shims (dual-page/cutout/navigation/progress), `TextPageCache` (5 MB LRU), `TTSPref`/`fontScale`/`lineHeight`, EPUB import via `core:archive` (`epublib`), `ReaderActivity` switches `isLightNovel() ? NovelViewer : WebGpuViewer`, reuses `ChapterPreloadGuard` (`preloadAhead=3`)
   - Pipeline: `:reader-text` module (`~2 MB`, no native deps), `NovelConfig` Metro `AppGraph`, `ChapterLoader` → `ViewerReaderPage` replacement; `DownloadManager` text-file path
   - Effort `~4.4d` (`+2d` EPUB/TTS/justify polish), reference `LNReader/lnreader` + `TachiyomiAT` delegated-source pattern
+  - LLM should leave "breadcrumb" note files for each chapter it translates detailing important chapter info and a summary.
+    - These notes are then kept in a sliding window for future chapter translation consistency as context for the LLM
+    - This avoids having the user need to download all chapters at once and can instead flow naturally in reading order 
 - [ ] **New**: WebAssembly computation engine for extensions — *Feasibility: investigated 2026-08-27, feasible via J2V8 + WebAssembly, not bare wasmtime; for website wasm bundles (keygen/auth)*
   - Goal is **website `*.wasm` bundles** (key generation, auth, `decrypt` as manga sites use Emscripten/`wasm-bindgen` with `env.memory`/`env.table`/`js.*` imports + `*.js` glue), not `STANDALONE_WASM` — bare `wasmtime`/`wasm3`/`WAMR` only provide `wasi_snapshot_preview1` and trap on `env.__memory_base`/`js.crypto_getRandomValues`
   - Current `JavaScriptEngine` is `app.cash.quickjs:quickjs` which **has no `WebAssembly` global** → `WebAssembly.instantiate` throws; `V8`/`WebView` does (`WebAssembly.Memory/Table`)
