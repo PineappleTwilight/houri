@@ -26,7 +26,10 @@ class BreadcrumbNotes(
     private val context: Context,
     private val prefs: TranslationPreferences,
 ) {
-    private val json = Json { ignoreUnknownKeys = true; encodeDefaults = true }
+    private val json = Json {
+        ignoreUnknownKeys = true
+        encodeDefaults = true
+    }
 
     private fun notesDir(mangaId: Long): File = File(File(context.filesDir, "yakuyomi_notes"), mangaId.toString()).apply { mkdirs() }
 

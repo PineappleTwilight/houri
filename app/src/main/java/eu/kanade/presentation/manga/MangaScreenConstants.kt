@@ -17,6 +17,7 @@ enum class EditCoverAction {
 enum class MangaScreenItem {
     INFO_BOX,
     ACTION_ROW,
+    TRANSLATE_TOGGLE,
 
     // SY -->
     METADATA_INFO,

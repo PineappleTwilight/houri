@@ -697,6 +697,13 @@ private fun MangaScreenSmallImpl(
                         )
                     }
 
+                    item(
+                        key = MangaScreenItem.TRANSLATE_TOGGLE,
+                        contentType = MangaScreenItem.TRANSLATE_TOGGLE,
+                    ) {
+                        TranslateMangaToggle(manga = state.manga)
+                    }
+
                     // SY -->
                     if (metadataDescription != null) {
                         item(
@@ -1505,6 +1512,38 @@ private fun onChapterItemClick(
         chapterItem.selected -> onToggleSelection(false)
         isAnyChapterSelected -> onToggleSelection(true)
         else -> onChapterClicked(chapterItem.chapter)
+    }
+}
+
+@Composable
+fun TranslateMangaToggle(manga: tachiyomi.domain.manga.model.Manga) {
+    val store = androidx.compose.runtime.remember(manga.id) { mihon.app.di.globalAppGraph.translateMangaStore }
+    var checked by androidx.compose.runtime.remember(manga.id) { androidx.compose.runtime.mutableStateOf(store.isEnabled(manga.id)) }
+    androidx.compose.foundation.layout.Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+        horizontalArrangement = androidx.compose.foundation.layout.Arrangement.SpaceBetween,
+    ) {
+        androidx.compose.foundation.layout.Column(modifier = Modifier.weight(1f)) {
+            androidx.compose.material3.Text(
+                text = stringResource(tachiyomi.i18n.kmk.KMR.strings.pref_translate_manga),
+                style = androidx.compose.material3.MaterialTheme.typography.titleMedium,
+            )
+            androidx.compose.material3.Text(
+                text = stringResource(tachiyomi.i18n.kmk.KMR.strings.pref_translate_manga_summary),
+                style = androidx.compose.material3.MaterialTheme.typography.bodySmall,
+                color = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        androidx.compose.material3.Switch(
+            checked = checked,
+            onCheckedChange = {
+                checked = it
+                store.setEnabled(manga.id, it)
+            },
+        )
     }
 }
 

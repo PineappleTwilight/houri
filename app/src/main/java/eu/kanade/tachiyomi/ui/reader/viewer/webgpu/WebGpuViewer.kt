@@ -77,7 +77,13 @@ open class WebGpuViewer(
     open val isContinuous: Boolean = false
 
     val readerPreferences by lazy { globalAppGraph.readerPreferences }
-    private val translationManager by lazy { try { globalAppGraph.translationManager } catch (_: Exception) { null } }
+    private val translationManager by lazy {
+        try {
+            globalAppGraph.translationManager
+        } catch (_: Exception) {
+            null
+        }
+    }
 
     private fun readerBackgroundColor(): Int = activity.baseContext.readerBackgroundColor(config.theme)
 
@@ -1420,7 +1426,6 @@ open class WebGpuViewer(
                 // Always capture bytes for translation cache (WEBP per pageHash+targetLang+model), cap 32MB
                 val limited = input.readBytes()
                 if (limited.size > 32 * 1024 * 1024) null else limited
-
             } catch (e: OutOfMemoryError) {
                 System.gc()
                 null
@@ -1549,10 +1554,10 @@ open class WebGpuViewer(
                     pager.state.invalidate()
                     // Hook AI translation: baked Image replacement (handles dual-page height-match, no overlay drift)
                     val mgr = translationManager
-                    if (mgr != null && bytes != null) {
+                    if (mgr != null && bytes != null && mgr.isEnabled()) {
                         scope.launch(Dispatchers.Default) {
                             try {
-                                if (mgr.shouldTranslate()) {
+                                if (mgr.shouldTranslateForManga(page.page.chapter.chapter.manga_id)) {
                                     val translatedWebP = mgr.translatePage(
                                         mangaId = page.page.chapter.chapter.manga_id,
                                         chapterId = page.page.chapter.chapter.id,

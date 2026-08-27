@@ -343,4 +343,6 @@
     <string name="pref_yakuyomi_offline_fallback">Offline ML Kit fallback</string>
     <string name="pref_yakuyomi_auto_download">Auto-translate on download</string>
     <string name="pref_yakuyomi_cache_enabled">Cache translated pages</string>
+    <string name="pref_translate_manga">Translate Manga</string>
+    <string name="pref_translate_manga_summary">Use AI translation for this manga (pages cached per model). Disabled by default.</string>
 </resources>

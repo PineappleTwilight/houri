@@ -30,6 +30,7 @@ class TranslationManager(
     private val engine: YakuyomiEngine,
     private val notes: BreadcrumbNotes,
     private val client: OkHttpClient,
+    private val perMangaStore: TranslateMangaStore,
 ) {
     private val json = Json { ignoreUnknownKeys = true }
 
@@ -47,7 +48,6 @@ class TranslationManager(
 
     suspend fun shouldTranslate(): Boolean {
         if (!isEnabled()) return false
-        // Check incognito / censorLewd via AppGraph lazily to avoid circular deps
         return try {
             val basePrefs = mihon.app.di.globalAppGraph.basePreferences.incognitoMode().get()
             val censor = mihon.app.di.globalAppGraph.uiPreferences.censorLewdManga().get()
@@ -61,6 +61,15 @@ class TranslationManager(
         }
     }
 
+    suspend fun shouldTranslateForManga(mangaId: Long): Boolean {
+        if (!shouldTranslate()) return false
+        return perMangaStore.isEnabled(mangaId)
+    }
+
+    fun isPerMangaEnabled(mangaId: Long): Boolean = perMangaStore.isEnabled(mangaId)
+
+    fun setPerMangaEnabled(mangaId: Long, enabled: Boolean) = perMangaStore.setEnabled(mangaId, enabled)
+
     suspend fun translatePage(
         mangaId: Long,
         chapterId: Long,
@@ -68,7 +77,7 @@ class TranslationManager(
         pageIndex: Int,
         sourceLangHint: String = "JA",
     ): ByteArray? = withContext(Dispatchers.IO) {
-        if (!shouldTranslate()) return@withContext null
+        if (!shouldTranslateForManga(mangaId)) return@withContext null
         val targetLang = prefs.targetLang().get()
         val model = prefs.model().get()
         val pageHash = cache.pageHash(imageBytes)
@@ -146,7 +155,12 @@ class TranslationManager(
             val body = buildJsonObject {
                 put("model", model.ifBlank { "google/gemma-2-9b-it:free" })
                 putJsonArray("messages") {
-                    add(buildJsonObject { put("role", "user"); put("content", prompt) })
+                    add(
+                        buildJsonObject {
+                            put("role", "user")
+                            put("content", prompt)
+                        },
+                    )
                 }
                 put("max_tokens", 2048)
             }.toString().toRequestBody("application/json".toMediaType())

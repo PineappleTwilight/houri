@@ -44,7 +44,10 @@ class YakuyomiEngine {
         try {
             val out = bitmap.copy(Bitmap.Config.ARGB_8888, true)
             val canvas = Canvas(out)
-            val paint = Paint().apply { color = Color.WHITE; style = Paint.Style.FILL }
+            val paint = Paint().apply {
+                color = Color.WHITE
+                style = Paint.Style.FILL
+            }
             for (b in blocks) {
                 canvas.drawRect(b.bounds, paint)
             }
@@ -68,7 +71,11 @@ class YakuyomiEngine {
             textSize = 28f
             isFakeBoldText = true
         }
-        val bgPaint = Paint().apply { color = Color.WHITE; style = Paint.Style.FILL; alpha = 220 }
+        val bgPaint = Paint().apply {
+            color = Color.WHITE
+            style = Paint.Style.FILL
+            alpha = 220
+        }
         for ((block, translated) in blocks) {
             val bounds = block.bounds
             // Adaptive font size, kinsoku, tilt-aware quad angle, luminance-based color + outline stub
@@ -79,7 +86,7 @@ class YakuyomiEngine {
             var y = bounds.top + fontSize
             var line = StringBuilder()
             for (w in words) {
-                val test = if (line.isEmpty()) w else "${line} $w"
+                val test = if (line.isEmpty()) w else "$line $w"
                 if (paint.measureText(test) > bounds.width() - 8) {
                     val text = line.toString()
                     val x = bounds.left + (bounds.width() - paint.measureText(text)) / 2

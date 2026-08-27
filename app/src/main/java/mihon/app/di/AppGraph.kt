@@ -91,6 +91,12 @@ import exh.eh.EHentaiUpdateHelper
 import exh.pref.DelegateSourcePreferences
 import exh.search.SearchEngine
 import exh.source.ExhPreferences
+import exh.yakuyomi.BreadcrumbNotes
+import exh.yakuyomi.TranslateMangaStore
+import exh.yakuyomi.TranslationCache
+import exh.yakuyomi.TranslationManager
+import exh.yakuyomi.TranslationPreferences
+import exh.yakuyomi.YakuyomiEngine
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.protobuf.ProtoBuf
 import mihon.domain.chapter.interactor.FilterChaptersForDownload
@@ -105,11 +111,6 @@ import mihon.domain.source.interactor.UpdateMangaFromRemote
 import mihon.domain.upcoming.interactor.GetUpcomingManga
 import nl.adaptivity.xmlutil.serialization.XML
 import tachiyomi.core.common.preference.PreferenceStore
-import exh.yakuyomi.BreadcrumbNotes
-import exh.yakuyomi.TranslationCache
-import exh.yakuyomi.TranslationManager
-import exh.yakuyomi.TranslationPreferences
-import exh.yakuyomi.YakuyomiEngine
 import tachiyomi.data.Database
 import tachiyomi.data.DatabaseHandler
 import tachiyomi.domain.backup.service.BackupPreferences
@@ -443,6 +444,7 @@ interface AppGraph : ViewModelGraph {
     val translationCache: TranslationCache
     val yakuyomiEngine: YakuyomiEngine
     val breadcrumbNotes: BreadcrumbNotes
+    val translateMangaStore: TranslateMangaStore
     // KMK <--
 
     @DependencyGraph.Factory
