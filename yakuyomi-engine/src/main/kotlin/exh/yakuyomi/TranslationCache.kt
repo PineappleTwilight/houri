@@ -4,9 +4,6 @@ import android.content.Context
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
-import okio.HashingSink
-import okio.blackholeSink
-import okio.buffer
 import java.io.File
 import java.security.MessageDigest
 
@@ -41,10 +38,5 @@ class TranslationCache(
         return f
     }
 
-    fun hashBytes(bytes: ByteArray): String {
-        val sink = HashingSink.blackholeSink().buffer()
-        sink.write(bytes)
-        sink.close()
-        return pageHash(bytes)
-    }
+    fun hashBytes(bytes: ByteArray): String = pageHash(bytes)
 }

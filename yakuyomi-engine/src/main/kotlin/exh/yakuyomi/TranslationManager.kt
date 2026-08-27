@@ -6,6 +6,8 @@ import android.graphics.BitmapFactory
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
+import eu.kanade.domain.base.BasePreferences
+import eu.kanade.domain.ui.UiPreferences
 import exh.log.xLogD
 import exh.log.xLogE
 import kotlinx.coroutines.Dispatchers
@@ -31,34 +33,22 @@ class TranslationManager(
     private val notes: BreadcrumbNotes,
     private val client: OkHttpClient,
     private val perMangaStore: TranslateMangaStore,
+    private val basePreferences: BasePreferences,
+    private val uiPreferences: UiPreferences,
 ) {
     private val json = Json { ignoreUnknownKeys = true }
 
     fun isEnabled(): Boolean = prefs.enabled().get()
 
-    fun isGated(): Boolean {
-        // Gated by isIncognito / censorLewdManga before upload
-        return try {
-            val incognito = tachiyomi.core.common.preference.PreferenceStore::class.java // placeholder to avoid direct import cycle
-            false
-        } catch (_: Exception) {
-            false
-        }
-    }
+    fun isGated(): Boolean = basePreferences.incognitoMode().get() || uiPreferences.censorLewdManga().get()
 
     suspend fun shouldTranslate(): Boolean {
         if (!isEnabled()) return false
-        return try {
-            val basePrefs = mihon.app.di.globalAppGraph.basePreferences.incognitoMode().get()
-            val censor = mihon.app.di.globalAppGraph.uiPreferences.censorLewdManga().get()
-            if (basePrefs || censor) {
-                xLogD("Translation gated: incognito=$basePrefs censor=$censor")
-                return false
-            }
-            true
-        } catch (_: Exception) {
-            true
+        if (isGated()) {
+            xLogD("Translation gated: incognito=${basePreferences.incognitoMode().get()} censor=${uiPreferences.censorLewdManga().get()}")
+            return false
         }
+        return true
     }
 
     suspend fun shouldTranslateForManga(mangaId: Long): Boolean {

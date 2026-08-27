@@ -21,6 +21,7 @@ kotlin {
 
 dependencies {
     api(projects.core.common)
+    api(projects.domain)
     api(libs.okhttp.core)
     api(kotlinx.coroutines.core)
     api(kotlinx.serialization.json)
