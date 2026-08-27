@@ -85,6 +85,13 @@
 - [ ] **New**: Per-category and per-subcategory reader settings
   - Subcategories inherit parent category settings by default unless changed
   - Needs category priority system for multi-category mangas
+- [ ] **New**: Light novel support — *Feasibility: investigated 2026-08-27, feasible via new NovelViewer + LN SourceIds, reuses 70% of library/tracker stack*
+  - Gated by `isLightNovelEnabled` (default `false`, like `isHentaiEnabled`); per-language sourceIds `LN_SOURCE_IDS` (18 locales, `LEWD_SOURCE_SERIES+100` range) mirroring `EHENTAI_EXT_SOURCES`/`EXHENTAI_EXT_SOURCES` in `SourceIds.kt`; helpers `Manga.isLightNovel()` / `Source.isLnBasedSource()` in `DomainSourceHelpers.kt`, `mangas.is_light_novel` column + migration 47
+  - Domain reuse: `Manga`/`Chapter` same tables (`source` distinguishes), `NetworkToLocalManga`, `LibraryUpdateJob`, `Feed`, `TrackerManager` (AniList `type: NOVEL`/MAL `novel`) work free; persist browse `RaisedSearchMetadata` via `MangaMetadataRepository.insertMetadata` like EH fix 7ed6a92b6
+  - Extensions: `NovelSource`/`TextPageSource` alongside `HttpSource.getPageList` or `Page(isText)` flag; delegated LN template (`NovelUpdates`/`Syosetu`/`Kakuyomu`) via `EnhancedHttpSource`/`DelegatedHttpSource` + `jsoup` HTML→clean text; ID range `LEWD_SOURCE_SERIES+100` for community
+  - Reader: new `NovelViewer` implementing `Viewer` (parallel to `WebGpuViewer`/`Pager`), Compose `HorizontalPager` + `TextLayoutResult` pagination, reuse `WebGpuConfig`/`ReaderPreferences` shims (dual-page/cutout/navigation/progress), `TextPageCache` (5 MB LRU), `TTSPref`/`fontScale`/`lineHeight`, EPUB import via `core:archive` (`epublib`), `ReaderActivity` switches `isLightNovel() ? NovelViewer : WebGpuViewer`, reuses `ChapterPreloadGuard` (`preloadAhead=3`)
+  - Pipeline: `:reader-text` module (`~2 MB`, no native deps), `NovelConfig` Metro `AppGraph`, `ChapterLoader` → `ViewerReaderPage` replacement; `DownloadManager` text-file path
+  - Effort `~4.4d` (`+2d` EPUB/TTS/justify polish), reference `LNReader/lnreader` + `TachiyomiAT` delegated-source pattern
 
 ## Bugfixes
 - [x] Fix UI transition choppiness.
@@ -176,12 +183,4 @@
 ## Drawing Board
 - [ ] **New**: WebAssembly computation engine
   - [ ] Optional extension support via overridable method
-- [ ] **New**: Light novel support
-  - (-) Would need light novel specific extensions
-  - (-) Would need new reader entirely
-  - (+) Large benefit to userbase
-  - (+) Within app scope
-  - (+) Fits into existing tracker/library code
-  - (+) Easy to manage
-  - (+) Adds a feature-rich alternative to not great existing projects for LNs
 - [ ] **Anizen Port**: Multi-feed
