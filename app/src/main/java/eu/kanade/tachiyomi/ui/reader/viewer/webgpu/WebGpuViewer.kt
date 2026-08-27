@@ -279,18 +279,20 @@ open class WebGpuViewer(
     private fun evictFarthestPage(reference: ViewerPage? = null) {
         val effectiveCacheSize = cacheSize.coerceAtLeast(1)
         val current = reference ?: currentPage ?: pageCache.values.lastOrNull() ?: return
-        val candidates = pageCache.values.filter { it !== current }.toMutableSet()
-        if (candidates.isEmpty()) return
+        val allCandidates = pageCache.values.filter { it !== current }.toMutableSet()
+        if (allCandidates.isEmpty()) return
+        val candidates = allCandidates.filter { it.state == PageState.IDLE }.toMutableSet()
+        val effectiveCandidates = if (candidates.isEmpty()) allCandidates else candidates
 
         fun findNext(page: ViewerPage): ViewerPage? = when (page) {
             is ViewerReaderPage -> {
                 val chapterId = page.page.chapter.chapter.id
                 val nextIndex = page.page.index + 1
-                candidates.find {
+                allCandidates.find {
                     it is ViewerReaderPage && it.page.chapter.chapter.id == chapterId && it.page.index == nextIndex
-                } ?: candidates.find { it is ViewerTransitionPage && it.prevChapter?.chapter?.id == chapterId }
+                } ?: allCandidates.find { it is ViewerTransitionPage && it.prevChapter?.chapter?.id == chapterId }
                     ?: page.nextChapter?.chapter?.id?.let { nextChapterId ->
-                        candidates.find {
+                        allCandidates.find {
                             it is ViewerReaderPage && it.page.chapter.chapter.id == nextChapterId && it.page.index == 0
                         }
                     }
@@ -298,7 +300,7 @@ open class WebGpuViewer(
 
             is ViewerTransitionPage -> {
                 val nextChapterId = page.nextChapter?.chapter?.id
-                candidates.find {
+                allCandidates.find {
                     it is ViewerReaderPage && it.page.chapter.chapter.id == nextChapterId && it.page.index == 0
                 }
             }
@@ -310,12 +312,12 @@ open class WebGpuViewer(
             is ViewerReaderPage -> {
                 val chapterId = page.page.chapter.chapter.id
                 val prevIndex = page.page.index - 1
-                candidates.find {
+                allCandidates.find {
                     it is ViewerReaderPage && it.page.chapter.chapter.id == chapterId && it.page.index == prevIndex
-                } ?: candidates.find { it is ViewerTransitionPage && it.nextChapter?.chapter?.id == chapterId }
+                } ?: allCandidates.find { it is ViewerTransitionPage && it.nextChapter?.chapter?.id == chapterId }
                     ?: page.prevChapter?.let { prevChapter ->
                         prevChapter.pages?.lastIndex?.let { lastIndex ->
-                            candidates.find {
+                            allCandidates.find {
                                 it is ViewerReaderPage && it.page.chapter.chapter.id == prevChapter.chapter.id &&
                                     it.page.index == lastIndex
                             }
@@ -326,7 +328,7 @@ open class WebGpuViewer(
             is ViewerTransitionPage -> {
                 val prevChapterId = page.prevChapter?.chapter?.id
                 page.prevChapter?.pages?.lastIndex?.let { lastIndex ->
-                    candidates.find {
+                    allCandidates.find {
                         it is ViewerReaderPage && it.page.chapter.chapter.id == prevChapterId &&
                             it.page.index == lastIndex
                     }
@@ -341,15 +343,15 @@ open class WebGpuViewer(
         var backward: ViewerPage? = current
 
         for (i in 0 until effectiveCacheSize) {
-            if (candidates.isEmpty()) break
+            if (effectiveCandidates.isEmpty()) break
             forward = forward?.let { findNext(it) }
             backward = backward?.let { findPrev(it) }
             if (forward == null && backward == null) break
-            if (forward != null && candidates.remove(forward)) farthest = forward
-            if (backward != null && candidates.remove(backward)) farthest = backward
+            if (forward != null && effectiveCandidates.remove(forward)) farthest = forward
+            if (backward != null && effectiveCandidates.remove(backward)) farthest = backward
         }
 
-        val toRemove = candidates.firstOrNull() ?: farthest ?: return
+        val toRemove = effectiveCandidates.firstOrNull() ?: farthest ?: allCandidates.firstOrNull() ?: return
 
         pageCache.remove(pageKey(toRemove))
         decodeQueue.remove(toRemove)
@@ -417,20 +419,48 @@ open class WebGpuViewer(
     private fun preloadChapterThenRetry(chapter: ReaderChapter) {
         if (isDestroyed) return
         val key = chapter.chapter.url?.takeIf { it.isNotBlank() } ?: "chapter-${chapter.chapter.id}"
-        if (!chapterPreloadGuard.tryBegin(key)) return
+        // Reserve placeholder ProgressPage shells immediately so contentHeight reflects true length and scroll doesn't wrap
+        val pages = chapter.pages
+        if (pages != null) {
+            for (pg in pages) {
+                try {
+                    val shell = getPage(pg)
+                    preloadPage(shell, prioritize = false)
+                } catch (_: Exception) {}
+            }
+        }
+        if (!chapterPreloadGuard.tryBegin(key)) {
+            // If already in-flight but decodeQueue no longer contains its first page, allow requeue (stale guard)
+            val isStale = pages?.firstOrNull()?.let { pg ->
+                val k = PageKey.Reader(chapter.chapter.id, pg.index)
+                synchronized(lock) { findInCache(k) == null || decodeQueue.none { it.page.index == pg.index } }
+            } ?: false
+            if (!isStale) return
+            chapterPreloadGuard.end(key)
+            if (!chapterPreloadGuard.tryBegin(key)) return
+        }
 
         scope.launch(Dispatchers.Default) {
             try {
                 if (isDestroyed) return@launch
                 activity.viewModel.preload(chapter)
-                repeat(25) {
+                repeat(100) {
                     if (isDestroyed) return@launch
                     if (chapter.state is ReaderChapter.State.Loaded) {
+                        val loadedPages = chapter.pages
+                        if (loadedPages != null) {
+                            for (pg in loadedPages) {
+                                try {
+                                    val shell = getPage(pg)
+                                    preloadPage(shell, prioritize = false)
+                                } catch (_: Exception) {}
+                            }
+                        }
                         chapterPreloadGuard.end(key)
                         currentPage?.let { if (!isDestroyed) preloadPages(it) }
                         return@launch
                     }
-                    delay(200.milliseconds)
+                    delay(50.milliseconds)
                 }
             } catch (e: CancellationException) {
                 throw e

@@ -28,10 +28,21 @@ class ChapterPreloadGuard {
     @Synchronized
     fun tryBegin(key: String): Boolean = inFlight.add(key)
 
+    @Synchronized
+    fun isInFlight(key: String): Boolean = key in inFlight
+
     /** Releases [key]. Idempotent and safe for keys that never began. */
     @Synchronized
     fun end(key: String) {
         inFlight.remove(key)
+    }
+
+    @Synchronized
+    fun tryBeginOrRequeueIfStale(key: String, isStale: () -> Boolean): Boolean {
+        if (key in inFlight && isStale()) {
+            inFlight.remove(key)
+        }
+        return inFlight.add(key)
     }
 }
 // KMK <--

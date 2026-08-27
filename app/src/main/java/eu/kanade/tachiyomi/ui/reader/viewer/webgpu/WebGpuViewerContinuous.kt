@@ -15,11 +15,30 @@ class WebGpuViewerContinuous(activity: ReaderActivity) :
 
     override val isContinuous: Boolean = true
 
-    override val preloadAhead = 1
-    override val preloadBehind = 1
+    override val preloadAhead = 3
+    override val preloadBehind = 2
 
     private fun scrollByHalfPage(direction: Int) {
         val state = (pager as ImageViewContinuous).state
+        val cur = currentPage
+        val canAdvance = if (direction > 0) {
+            val nxt = (cur as? ViewerReaderPage)?.next ?: cur?.next
+            nxt != null
+        } else {
+            val prv = (cur as? ViewerReaderPage)?.prev ?: cur?.prev
+            prv != null
+        }
+        if (!canAdvance) {
+            (cur as? ViewerReaderPage)?.let { rp ->
+                val targetChapter = if (direction > 0) rp.nextChapter else rp.prevChapter
+                targetChapter?.let { ch ->
+                    if (ch.state !is eu.kanade.tachiyomi.ui.reader.model.ReaderChapter.State.Loaded) {
+                        preloadChapterThenRetry(ch)
+                    }
+                }
+            }
+            return
+        }
         val totalDistance = direction * state.height / 2f
         state.animateScroll(totalDistance)
     }
