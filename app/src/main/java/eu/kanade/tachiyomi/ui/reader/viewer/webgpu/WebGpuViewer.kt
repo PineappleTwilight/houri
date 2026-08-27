@@ -423,7 +423,7 @@ open class WebGpuViewer(
      * polling cycle - many concurrent ChapterLoader runs and preload walks that showed
      * up as freezing/choppiness at chapter transitions.
      */
-    private fun preloadChapterThenRetry(chapter: ReaderChapter) {
+    internal fun preloadChapterThenRetry(chapter: ReaderChapter) {
         if (isDestroyed) return
         val key = chapter.chapter.url?.takeIf { it.isNotBlank() } ?: "chapter-${chapter.chapter.id}"
         // Reserve placeholder ProgressPage shells immediately so contentHeight reflects true length and scroll doesn't wrap
@@ -1557,10 +1557,10 @@ open class WebGpuViewer(
                     if (mgr != null && bytes != null && mgr.isEnabled()) {
                         scope.launch(Dispatchers.Default) {
                             try {
-                                if (mgr.shouldTranslateForManga(page.page.chapter.chapter.manga_id)) {
+                                if (mgr.shouldTranslateForManga(page.page.chapter.chapter.manga_id ?: 0L)) {
                                     val translatedWebP = mgr.translatePage(
-                                        mangaId = page.page.chapter.chapter.manga_id,
-                                        chapterId = page.page.chapter.chapter.id,
+                                        mangaId = page.page.chapter.chapter.manga_id ?: 0L,
+                                        chapterId = page.page.chapter.chapter.id ?: 0L,
                                         imageBytes = bytes,
                                         pageIndex = page.page.index,
                                     )
