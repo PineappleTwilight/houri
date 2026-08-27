@@ -5,6 +5,9 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
 import androidx.core.net.toUri
+import dev.zacsweers.metro.Assisted
+import dev.zacsweers.metro.AssistedFactory
+import dev.zacsweers.metro.AssistedInject
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.network.asObservableSuccess
 import eu.kanade.tachiyomi.network.await
@@ -78,7 +81,6 @@ import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
-import mihon.app.di.globalAppGraph
 import okhttp3.CacheControl
 import okhttp3.Headers
 import okhttp3.HttpUrl
@@ -107,13 +109,14 @@ import java.time.ZonedDateTime
 // TODO: Decompose this god class (~1500 lines, implements HttpSource + MetadataSource +
 //  UrlImportableSource + NamespaceSource + PagePreviewSource). Cohesive split candidates:
 //  favorites sync API client, search/page parsing, metadata raising, login/cookie handling.
+@AssistedInject
 class EHentai(
-    override val id: Long,
-    val exh: Boolean,
-    val context: Context,
-    // KMK -->
-    override val lang: String = "all",
-    // KMK <--
+    @Assisted override val id: Long,
+    @Assisted val exh: Boolean,
+    @Assisted override val lang: String = "all",
+    private val context: Context,
+    private val exhPreferences: ExhPreferences,
+    private val updateHelper: EHentaiUpdateHelper,
 ) : HttpSource(),
     // KMK -->
     EhBasedSource,
@@ -123,6 +126,13 @@ class EHentai(
     NamespaceSource,
     PagePreviewSource {
     override val metaClass = EHentaiSearchMetadata::class
+
+    constructor(
+        id: Long,
+        exh: Boolean,
+        context: Context,
+        lang: String = "all",
+    ) : this(id, exh, lang, context, mihon.app.di.globalAppGraph.exhPreferences, mihon.app.di.globalAppGraph.eHentaiUpdateHelper)
 
     private val domain: String
         get() = if (exh) {
@@ -147,8 +157,14 @@ class EHentai(
     }
     // KMK <--
 
-    private val exhPreferences: ExhPreferences by lazy { globalAppGraph.exhPreferences }
-    private val updateHelper: EHentaiUpdateHelper by lazy { globalAppGraph.eHentaiUpdateHelper }
+    @AssistedFactory
+    interface Factory {
+        fun create(
+            @Assisted id: Long,
+            @Assisted exh: Boolean,
+            @Assisted lang: String,
+        ): EHentai
+    }
 
     /**
      * Gallery list entry

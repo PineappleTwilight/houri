@@ -58,6 +58,7 @@ class AndroidSourceManager(
     private val sourceRepository: StubSourceRepository,
     private val exhPreferences: ExhPreferences,
     private val sourcePreferences: SourcePreferences,
+    private val ehentaiFactory: EHentai.Factory? = null,
 ) : SourceManager {
 
     private val _isInitialized = MutableStateFlow(false)
@@ -111,11 +112,13 @@ class AndroidSourceManager(
                             // KMK -->
                             if (isHentaiEnabled) {
                                 EHENTAI_EXT_SOURCES.forEach { (id, lang) ->
-                                    put(id, EHentai(id, false, context, lang))
+                                    val src = ehentaiFactory?.create(id, false, lang) ?: EHentai(id, false, context, lang)
+                                    put(id, src)
                                 }
                                 if (enableExhentai) {
                                     EXHENTAI_EXT_SOURCES.forEach { (id, lang) ->
-                                        put(id, EHentai(id, true, context, lang))
+                                        val src = ehentaiFactory?.create(id, true, lang) ?: EHentai(id, true, context, lang)
+                                        put(id, src)
                                     }
                                 }
                             }
