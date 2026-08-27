@@ -92,6 +92,15 @@
   - Reader: new `NovelViewer` implementing `Viewer` (parallel to `WebGpuViewer`/`Pager`), Compose `HorizontalPager` + `TextLayoutResult` pagination, reuse `WebGpuConfig`/`ReaderPreferences` shims (dual-page/cutout/navigation/progress), `TextPageCache` (5 MB LRU), `TTSPref`/`fontScale`/`lineHeight`, EPUB import via `core:archive` (`epublib`), `ReaderActivity` switches `isLightNovel() ? NovelViewer : WebGpuViewer`, reuses `ChapterPreloadGuard` (`preloadAhead=3`)
   - Pipeline: `:reader-text` module (`~2 MB`, no native deps), `NovelConfig` Metro `AppGraph`, `ChapterLoader` → `ViewerReaderPage` replacement; `DownloadManager` text-file path
   - Effort `~4.4d` (`+2d` EPUB/TTS/justify polish), reference `LNReader/lnreader` + `TachiyomiAT` delegated-source pattern
+- [ ] **New**: WebAssembly computation engine for extensions — *Feasibility: investigated 2026-08-27, feasible via J2V8 + WebAssembly, not bare wasmtime; for website wasm bundles (keygen/auth)*
+  - Goal is **website `*.wasm` bundles** (key generation, auth, `decrypt` as manga sites use Emscripten/`wasm-bindgen` with `env.memory`/`env.table`/`js.*` imports + `*.js` glue), not `STANDALONE_WASM` — bare `wasmtime`/`wasm3`/`WAMR` only provide `wasi_snapshot_preview1` and trap on `env.__memory_base`/`js.crypto_getRandomValues`
+  - Current `JavaScriptEngine` is `app.cash.quickjs:quickjs` which **has no `WebAssembly` global** → `WebAssembly.instantiate` throws; `V8`/`WebView` does (`WebAssembly.Memory/Table`)
+  - Host `:wasm-engine` (`~3.5 MB` `J2V8` `com.eclipsesource.j2v8` arm64 split, `+0.6 MB` `wasm3` optional for pure extension `STANDALONE_WASM`); `Metro @SingleIn(AppScope::class) @Inject class WasmEngine @Inject constructor(context: Context, client: OkHttpClient)` with LRU compiled `Module` cache (key `sha256(wasmUrl+jsUrl)`)
+  - Extension ABI (opt-in, backwards compatible): `abstract class HttpSource { open fun getWasmUrl(): String? = null; open fun getWasmJsUrl(): String? = null; open suspend fun computeWebsiteWasm(input: String): String? }` host does `GET wasmUrl` + `GET jsGlueUrl` → `J2V8.executeVoidScript(jsGlue)` → `WebAssembly.compile/new Uint8Array(wasmBytes) + instantiate(importObject)` via site’s own glue, then `export(arg)` → `ByteArray/String`
+  - Flow: extension `getPageList`/`getImageUrl` calls `computeWebsiteWasm(url)` → host `NetworkHelper` `CloudflareInterceptor` `GET` with `cf` cookies → `J2V8` `WebAssembly` → return key/token → reuse `NetworkToLocalManga` / `ChapterLoader` as normal; fallback to `wasmtime`/`wasm3` for bundled `STANDALONE_WASM` (`func descramble(i32,i32)->i32` no imports)
+  - Integration: no DB migration, no `SourceId` change; `AppGraph` `WasmEngine`, `DomainModule` no change; `wasmtime` dismissed for website case (would need per-site `env` shim reverse-engineering, brittle on deploy)
+  - Effort `~2.5d` (`0.5d` engine + `0.5d` Source ABI + `1d` sandbox/fuel `16 MB`/memory caps like `WebGpuViewer.rescale` + `0.5d` extension template `MangaBaka auth.wasm`); reference `bytecodealliance/wasmtime`, `wasm3/wasm3`, `WAMR`, `J2V8`
+  - Keep QuickJS for legacy `eval`; add J2V8 only for `WebAssembly` — WebView reuse already pulls Chromium V8 for `CloudflareInterceptor` but per-chapter `WebView` `~400 ms` + `30s` timeout is janky vs `J2V8` `2-8 ms` per keygen
 
 ## Bugfixes
 - [x] Fix UI transition choppiness.
@@ -181,6 +190,4 @@
 - [x] **Webhook Connection**: Improve Discord event embeds
 
 ## Drawing Board
-- [ ] **New**: WebAssembly computation engine
-  - [ ] Optional extension support via overridable method
 - [ ] **Anizen Port**: Multi-feed
