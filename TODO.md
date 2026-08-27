@@ -94,7 +94,8 @@
   - Effort `~4.4d` (`+2d` EPUB/TTS/justify polish), reference `LNReader/lnreader` + `TachiyomiAT` delegated-source pattern
   - LLM should leave "breadcrumb" note files for each chapter it translates detailing important chapter info and a summary.
     - These notes are then kept in a sliding window for future chapter translation consistency as context for the LLM
-    - This avoids having the user need to download all chapters at once and can instead flow naturally in reading order 
+    - This avoids having the user need to download all chapters at once and can instead flow naturally in reading order
+  - Biggest issue with this approach is the amount of API calls it would use. Free models would need to be investigated. 
 - [ ] **New**: WebAssembly computation engine for extensions — *Feasibility: investigated 2026-08-27, feasible via J2V8 + WebAssembly, not bare wasmtime; for website wasm bundles (keygen/auth)*
   - Goal is **website `*.wasm` bundles** (key generation, auth, `decrypt` as manga sites use Emscripten/`wasm-bindgen` with `env.memory`/`env.table`/`js.*` imports + `*.js` glue), not `STANDALONE_WASM` — bare `wasmtime`/`wasm3`/`WAMR` only provide `wasi_snapshot_preview1` and trap on `env.__memory_base`/`js.crypto_getRandomValues`
   - Current `JavaScriptEngine` is `app.cash.quickjs:quickjs` which **has no `WebAssembly` global** → `WebAssembly.instantiate` throws; `V8`/`WebView` does (`WebAssembly.Memory/Table`)
