@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import tachiyomi.data.DatabaseHandler
 import tachiyomi.domain.manga.interactor.NetworkToLocalManga
+import tachiyomi.domain.manga.repository.MangaMetadataRepository
 import tachiyomi.domain.source.model.SourceWithCount
 import tachiyomi.domain.source.model.StubSource
 import tachiyomi.domain.source.repository.SourcePagingSource
@@ -28,6 +29,7 @@ class SourceRepositoryImpl(
     private val sourceManager: SourceManager,
     private val handler: DatabaseHandler,
     private val networkToLocalManga: NetworkToLocalManga,
+    private val mangaMetadataRepository: MangaMetadataRepository,
 ) : SourceRepository {
 
     override fun getSources(): Flow<List<DomainSource>> {
@@ -89,7 +91,7 @@ class SourceRepositoryImpl(
         val source = sourceManager.getOrStub(sourceId)
         // SY -->
         if (source.isEhBasedSource()) {
-            return EHentaiSearchPagingSource(source, query, filterList, networkToLocalManga)
+            return EHentaiSearchPagingSource(source, query, filterList, networkToLocalManga, mangaMetadataRepository)
         }
         // SY <--
         return SourceSearchPagingSource(source, query, filterList, networkToLocalManga)
@@ -99,7 +101,7 @@ class SourceRepositoryImpl(
         val source = sourceManager.getOrStub(sourceId)
         // SY -->
         if (source.isEhBasedSource()) {
-            return EHentaiPopularPagingSource(source, networkToLocalManga)
+            return EHentaiPopularPagingSource(source, networkToLocalManga, mangaMetadataRepository)
         }
         // SY <--
         return SourcePopularPagingSource(source, networkToLocalManga)
@@ -109,7 +111,7 @@ class SourceRepositoryImpl(
         val source = sourceManager.getOrStub(sourceId)
         // SY -->
         if (source.isEhBasedSource()) {
-            return EHentaiLatestPagingSource(source, networkToLocalManga)
+            return EHentaiLatestPagingSource(source, networkToLocalManga, mangaMetadataRepository)
         }
         // SY <--
         return SourceLatestPagingSource(source, networkToLocalManga)

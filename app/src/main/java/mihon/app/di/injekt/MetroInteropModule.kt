@@ -15,6 +15,8 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.protobuf.ProtoBuf
 import nl.adaptivity.xmlutil.serialization.XML
 import tachiyomi.core.common.preference.PreferenceStore
+import tachiyomi.domain.manga.repository.MangaMetadataRepository
+import tachiyomi.domain.source.repository.SourceRepository
 import tachiyomi.domain.source.service.SourceManager
 import tachiyomi.domain.storage.service.StorageManager
 import uy.kohesive.injekt.api.InjektModule
@@ -56,6 +58,8 @@ class MetroInteropModule(
 
     // EH
     private val eHentaiUpdateHelper: EHentaiUpdateHelper,
+    private val mangaMetadataRepository: MangaMetadataRepository,
+    private val sourceRepository: SourceRepository,
 
     // Komikku-specific
     private val connectionsManager: ConnectionsManager,
@@ -88,6 +92,8 @@ class MetroInteropModule(
         // Storage
         addSingleton(storageManager)
         addSingleton(eHentaiUpdateHelper)
+        addSingleton(mangaMetadataRepository)
+        addSingleton(sourceRepository)
 
         // Komikku-specific
         addSingleton(connectionsManager)
