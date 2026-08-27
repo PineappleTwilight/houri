@@ -169,6 +169,7 @@
 - [x] **Subcategories**: Force parent category marked when subcategory is set in library manga add/management
 - [x] **WebGPU Reader**: Fix double-page scaling fix not applying on first page rendered when entering the reader (changing pages fixes it, but whenever the user leaves the reader and re-enters, issue comes back for that first page)
 - [x] **WebGPU Reader**: Fix persistent and intermittent double page scaling issues — scale shorter→taller deterministically, guard zero heights, fallback to opposite side when bytes evicted; fixes first-spread no-op and e-ink tiny-shrink (see `WebGpuViewer.maybeScheduleSpreadHeightMatch`)
+- [ ] **WebGPU Reader**: Fix wide pages getting cut off on the sides
 
 ## Chores
 - [x] Replace all Komikku icons/branding with houri icons/branding
