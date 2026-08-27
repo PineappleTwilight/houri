@@ -334,4 +334,13 @@
     <string name="rail_alignment_top">Top</string>
     <string name="rail_alignment_center">Center</string>
     <string name="rail_alignment_bottom">Bottom</string>
+    <string name="pref_yakuyomi_enabled">AI Translation</string>
+    <string name="pref_yakuyomi_enabled_summary">On-device detection + OCR + LLM translation with baked image replacement. Disabled by default; gated by Incognito/Censor before upload.</string>
+    <string name="pref_yakuyomi_target_lang">Target language</string>
+    <string name="pref_yakuyomi_api_key">API key (Gemini/OpenRouter)</string>
+    <string name="pref_yakuyomi_provider">Provider</string>
+    <string name="pref_yakuyomi_model">Model</string>
+    <string name="pref_yakuyomi_offline_fallback">Offline ML Kit fallback</string>
+    <string name="pref_yakuyomi_auto_download">Auto-translate on download</string>
+    <string name="pref_yakuyomi_cache_enabled">Cache translated pages</string>
 </resources>

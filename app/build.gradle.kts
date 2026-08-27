@@ -215,6 +215,7 @@ dependencies {
     implementation(projects.presentationCore)
     implementation(projects.presentationWidget)
     implementation(projects.telemetry)
+    implementation(projects.yakuyomiEngine)
 
     // Compose
     implementation(compose.activity)
