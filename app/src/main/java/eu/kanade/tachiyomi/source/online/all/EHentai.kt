@@ -156,40 +156,52 @@ class EHentai(
     data class ParsedManga(val fav: Int, val manga: SManga, val metadata: EHentaiSearchMetadata)
 
     private fun extendedGenericMangaParse(doc: Document) = with(doc) {
-        // Parse mangas (supports compact + extended layout)
-        val parsedMangas = select(".itg > tbody > tr").filter { element ->
-            // Do not parse header and ads
+        val parsedMangas = select(".itg tr, .itg > tbody > tr").filter { element ->
             element.selectFirst("th") == null && element.selectFirst(".itd") == null
         }.mapNotNull { body ->
-            val thumbnailElement = body.selectFirst(".gl1e img, .gl2c .glthumb img")
-                ?: return@mapNotNull null
-            val column2 = body.selectFirst(".gl3e, .gl2c")
-                ?: return@mapNotNull null
-            val linkElement = body.selectFirst(".gl3c > a, .gl2e > div > a")
-                ?: return@mapNotNull null
+            val isExtended = body.selectFirst(".gl1e") != null
+            val isThumbnail = body.selectFirst(".gl1t") != null
+            val thumbnailElement = when {
+                isExtended -> body.selectFirst(".gl1e img")
+                isThumbnail -> body.selectFirst(".gl1t img, .gl3t img")
+                else -> body.selectFirst(".gl2c .glthumb img, .gl1c img, .gl2c img")
+            } ?: body.selectFirst("img[src*='ehgt.org'], img[data-src*='ehgt.org']") ?: return@mapNotNull null
+            val column2 = body.selectFirst(".gl3e, .gl2c, .gl3t, .gl2m")
+                ?: body
+            val linkElement = when {
+                isExtended -> body.selectFirst(".gl2e > div > a, .gl4e a, .gl1e a")
+                isThumbnail -> body.selectFirst(".gl1t a, .gl3t a, .gl2t a")
+                else -> body.selectFirst(".gl3c > a, .gl3c a[href*='/g/'], .glname a")
+            } ?: body.selectFirst("a[href*='/g/']") ?: return@mapNotNull null
             val infoElement = body.selectFirst(".gl3e")
 
-            // why is column2 null
-            val favElement = column2.children().find { it.attr("style").startsWith("border-color") }
-            val infoElements = infoElement?.select("div")
+            val favElement = column2.children().find { it.attr("style").contains("border-color", ignoreCase = true) }
+                ?: body.selectFirst("[style*='border-color']")
             val parsedTags = mutableListOf<RaisedTag>()
 
             ParsedManga(
-                fav = FAVORITES_BORDER_HEX_COLORS.indexOf(
-                    favElement?.attr("style")?.substring(14, 17),
-                ),
+                fav = run {
+                    val style = favElement?.attr("style") ?: ""
+                    val hex = Regex("border-color\\s*:\\s*#?([0-9a-fA-F]{3,6})").find(style)?.groupValues?.getOrNull(1)?.lowercase()?.take(3) ?: style.substringAfter("#", "").take(3).lowercase()
+                    FAVORITES_BORDER_HEX_COLORS.indexOf(hex)
+                },
                 manga = SManga.create().apply {
-                    // Get title
-                    title = thumbnailElement.attr("title")
+                    val rawTitle = thumbnailElement.attr("title").ifBlank { thumbnailElement.attr("alt") }
+                    val linkTitle = linkElement.selectFirst(".glink")?.text()?.trimOrNull()
+                    title = when {
+                        rawTitle.isNotBlank() -> rawTitle
+                        !linkTitle.isNullOrBlank() -> linkTitle
+                        else -> linkElement.text().trim().ifBlank { return@mapNotNull null }
+                    }
                     url = EHentaiSearchMetadata.normalizeUrl(linkElement.attr("href"))
-                    // Get image
-                    thumbnail_url = thumbnailElement.attr("src")
+                    thumbnail_url = thumbnailElement.attr("src").ifBlank { thumbnailElement.attr("data-src") }.ifBlank { thumbnailElement.attr("data-original") }.ifBlank { thumbnailElement.attr("src") }
 
-                    if (infoElements != null) {
-                        linkElement.select("div div").getOrNull(1)?.select("tr")?.forEach { row ->
-                            val namespace = row.select(".tc").text().removeSuffix(":")
-                            parsedTags.addAll(
-                                row.select("div").map { element ->
+                    if (isExtended || infoElement != null) {
+                        val tagContainer = linkElement.selectFirst(".gl4e") ?: linkElement
+                        tagContainer.select("tr").forEach { row ->
+                            val namespace = row.selectFirst(".tc")?.text()?.removeSuffix(":")?.trim() ?: return@forEach
+                            row.select("div.gt, div.gtl, div.gtw").forEach { element ->
+                                parsedTags.add(
                                     RaisedTag(
                                         namespace,
                                         element.text().trim(),
@@ -198,22 +210,50 @@ class EHentai(
                                             element.hasClass("gtw") -> TAG_TYPE_WEAK
                                             else -> TAG_TYPE_NORMAL
                                         },
-                                    )
-                                },
-                            )
+                                    ),
+                                )
+                            }
+                            if (row.select("div.gt, div.gtl, div.gtw").isEmpty()) {
+                                row.select("div").forEach { element ->
+                                    val elemId = element.id()
+                                    val t = element.text().trim()
+                                    if (t.isNotBlank() && elemId.startsWith("td_")) {
+                                        val ns = elemId.substringAfter("td_").substringBefore(":")
+                                        parsedTags.add(RaisedTag(ns, t, TAG_TYPE_NORMAL))
+                                    }
+                                }
+                            }
                         }
                     } else {
-                        val tagElement = body.selectFirst(".gl3c > a")
-                            ?: return@mapNotNull null
-                        val tagElements = tagElement.select("div")
-                        tagElements.forEach { element ->
-                            if (element.className() == "gt") {
-                                val namespace = element.attr("title").substringBefore(":").trimOrNull() ?: "misc"
-                                parsedTags += RaisedTag(
-                                    namespace,
-                                    element.attr("title").substringAfter(":").trim(),
-                                    TAG_TYPE_NORMAL,
-                                )
+                        val tagElements = body.select("div.gt[title], div.gtl[title], div.gtw[title]")
+                        if (tagElements.isNotEmpty()) {
+                            tagElements.forEach { element ->
+                                val titleAttr = element.attr("title")
+                                val namespace = titleAttr.substringBefore(":").trimOrNull() ?: "misc"
+                                val name = titleAttr.substringAfter(":", "").trim().ifBlank { element.text().trim() }
+                                if (name.isNotBlank()) {
+                                    parsedTags += RaisedTag(
+                                        namespace,
+                                        name,
+                                        when {
+                                            element.hasClass("gtl") -> TAG_TYPE_LIGHT
+                                            element.hasClass("gtw") -> TAG_TYPE_WEAK
+                                            else -> TAG_TYPE_NORMAL
+                                        },
+                                    )
+                                }
+                            }
+                        } else {
+                            val fallbackTags = linkElement.select("div.gt")
+                            fallbackTags.forEach { element ->
+                                if (element.className() == "gt") {
+                                    val namespace = element.attr("title").substringBefore(":").trimOrNull() ?: "misc"
+                                    parsedTags += RaisedTag(
+                                        namespace,
+                                        element.attr("title").substringAfter(":").trim(),
+                                        TAG_TYPE_NORMAL,
+                                    )
+                                }
                             }
                         }
                     }
@@ -225,40 +265,34 @@ class EHentai(
 
                     censorshipStatus = detectCensorshipStatus()
 
-                    if (infoElements != null) {
-                        genre = EHentaiElementParsers.getGenre(infoElements.getOrNull(1))
-
-                        datePosted = EHentaiElementParsers.getDateTag(infoElements.getOrNull(2))
-
-                        averageRating = EHentaiElementParsers.getRating(infoElements.getOrNull(3))
-
-                        uploader = EHentaiElementParsers.getUploader(infoElements.getOrNull(4))
-
-                        length = EHentaiElementParsers.getPageCount(infoElements.getOrNull(5))
+                    if (isExtended && infoElement != null) {
+                        val gl3e = infoElement
+                        genre = EHentaiElementParsers.getGenre(gl3e.selectFirst(".cn") ?: gl3e.children().firstOrNull())
+                        datePosted = EHentaiElementParsers.getDateTag(EHentaiElementParsers.findDateElement(gl3e) ?: gl3e.children().getOrNull(1))
+                        averageRating = EHentaiElementParsers.getRating(gl3e.selectFirst(".ir") ?: gl3e)
+                        uploader = EHentaiElementParsers.getUploader(gl3e.selectFirst("a[href*='/uploader/']") ?: gl3e.children().find { it.selectFirst("a[href*='/uploader/']") != null })
+                        length = EHentaiElementParsers.getPageCount(EHentaiElementParsers.findPagesElement(gl3e) ?: gl3e.children().find { it.text().contains("pages", true) })
                     } else {
-                        genre = EHentaiElementParsers.getGenre(body.selectFirst(".gl1c div"))
-
+                        genre = EHentaiElementParsers.getGenre(body.selectFirst(".gl1c .cn") ?: body.selectFirst(".gl1c div") ?: body.selectFirst(".cn"))
                         val info = body.selectFirst(".gl2c")
                         val extraInfo = body.selectFirst(".gl4c")
-
                         if (info != null && extraInfo != null) {
-                            val infoList = info.select("div div")
-
-                            datePosted = EHentaiElementParsers.getDateTag(infoList.getOrNull(8))
-
-                            averageRating = EHentaiElementParsers.getRating(infoList.getOrNull(9))
-
-                            val extraInfoList = extraInfo.select("div")
-
-                            if (extraInfoList.getOrNull(2) == null) {
-                                uploader = EHentaiElementParsers.getUploader(extraInfoList.getOrNull(0))
-
-                                length = EHentaiElementParsers.getPageCount(extraInfoList.getOrNull(1))
-                            } else {
-                                uploader = EHentaiElementParsers.getUploader(extraInfoList.getOrNull(1))
-
-                                length = EHentaiElementParsers.getPageCount(extraInfoList.getOrNull(2))
-                            }
+                            datePosted = EHentaiElementParsers.getDateTag(EHentaiElementParsers.findDateElement(info) ?: info.selectFirst("div:containsOwn(202)"))
+                            averageRating = EHentaiElementParsers.getRating(info.selectFirst(".ir") ?: extraInfo.selectFirst(".ir") ?: body.selectFirst(".ir"))
+                            val uploaderEl = extraInfo.selectFirst("a[href*='/uploader/']") ?: extraInfo
+                            uploader = EHentaiElementParsers.getUploader(uploaderEl)
+                            length = EHentaiElementParsers.getPageCount(EHentaiElementParsers.findPagesElement(extraInfo) ?: extraInfo)
+                        } else if (isThumbnail) {
+                            val thumbContainer = body
+                            datePosted = EHentaiElementParsers.getDateTag(EHentaiElementParsers.findDateElement(thumbContainer))
+                            averageRating = EHentaiElementParsers.getRating(thumbContainer.selectFirst(".ir"))
+                            uploader = EHentaiElementParsers.getUploader(thumbContainer.selectFirst("a[href*='/uploader/']"))
+                            length = EHentaiElementParsers.getPageCount(EHentaiElementParsers.findPagesElement(thumbContainer))
+                        } else {
+                            datePosted = EHentaiElementParsers.getDateTag(EHentaiElementParsers.findDateElement(body))
+                            averageRating = EHentaiElementParsers.getRating(body.selectFirst(".ir"))
+                            uploader = EHentaiElementParsers.getUploader(body.selectFirst("a[href*='/uploader/']"))
+                            length = EHentaiElementParsers.getPageCount(EHentaiElementParsers.findPagesElement(body))
                         }
                     }
                 },
@@ -271,13 +305,16 @@ class EHentai(
         val parsedLocation = doc.location().toHttpUrlOrNull()
         val isReversed = parsedLocation != null && parsedLocation.queryParameterNames.contains(REVERSE_PARAM)
 
-        // Add to page if required
         val hasNextPage = if (isReversed) {
-            select(".searchnav >div > a")
-                .any { "prev" in it.attr("href") }
+            (select(".searchnav a, #unext, #dnext, #uprev, #dprev").any { "prev" in it.attr("href") }) ||
+                (html().contains("var prevurl=\"") && !html().contains("var prevurl=\"\""))
         } else {
-            select(".searchnav >div > a")
-                .any { "next" in it.attr("href") }
+            val hasNextAnchor = select(".searchnav a, #unext, #dnext, #next, #unext, a:contains(Next)").any { a ->
+                val href = a.attr("href")
+                href.contains("next") || href.contains("?next=")
+            }
+            val scriptNext = Regex("var nexturl\\s*=\\s*\"([^\"]+)\"").find(html())?.groupValues?.getOrNull(1)?.isNotBlank() == true
+            hasNextAnchor || scriptNext
         }
         val nextPage = if (parsedLocation?.pathSegments?.contains("toplist.php") == true) {
             ((parsedLocation.queryParameter("p")?.toLong() ?: 0) + 2).takeIf { it <= 200 }
@@ -379,30 +416,36 @@ class EHentai(
             scanlator = EHentaiSearchMetadata.galleryId(location),
         )
 
-        val newDisplay = doc.select("#gnd a")
+        val newDisplay = doc.select("#gnd a[href*='/g/'], #gd2 a[href*='/g/'], .gnd a[href*='/g/']").filter { it.attr("href").contains("/g/") }
 
         return if (DebugToggles.INCLUDE_ONLY_ROOT_WHEN_LOADING_EXH_VERSIONS.enabled) {
             listOf(self)
         } else {
-            newDisplay.mapIndexed { index, newGallery ->
-                val link = newGallery.attr("href")
-                val name = newGallery.text()
-                val posted = (newGallery.nextSibling() as? TextNode)?.text()?.removePrefix(", added ").orEmpty()
+            val versionChapters = newDisplay.mapIndexedNotNull { index, newGallery ->
+                val link = newGallery.attr("href").nullIfBlank() ?: return@mapIndexedNotNull null
+                if (!link.contains("/g/")) return@mapIndexedNotNull null
+                val name = newGallery.text().trim().ifBlank { return@mapIndexedNotNull null }
+                val posted = (newGallery.nextSibling() as? TextNode)?.text()?.removePrefix(", added ")?.trim().orEmpty()
                 SChapter(
                     url = EHentaiSearchMetadata.normalizeUrl(link),
                     name = "v${index + 2}: $name",
                     chapter_number = index + 2f,
                     date_upload = try {
-                        ZonedDateTime.parse(
-                            posted,
-                            MetadataUtil.EX_DATE_FORMAT.withZone(ZoneOffset.UTC),
-                        ).toInstant().toEpochMilli()
+                        if (posted.isBlank()) {
+                            0L
+                        } else {
+                            ZonedDateTime.parse(
+                                posted,
+                                MetadataUtil.EX_DATE_FORMAT.withZone(ZoneOffset.UTC),
+                            ).toInstant().toEpochMilli()
+                        }
                     } catch (_: Exception) {
                         0L
                     },
                     scanlator = EHentaiSearchMetadata.galleryId(link),
                 )
-            }.reversed() + self
+            }
+            versionChapters.reversed() + self
         }
     }
 
@@ -444,13 +487,18 @@ class EHentai(
     }
 
     private fun parseChapterPage(response: Element) = with(response) {
-        select(".gdtm a").map {
-            Pair(it.child(0).attr("alt").toInt(), it.attr("href"))
-        }.plus(
-            select("#gdt a").map {
-                Pair(it.child(0).attr("title").removePrefix("Page ").substringBefore(":").toInt(), it.attr("href"))
-            },
-        ).sortedBy(Pair<Int, String>::first).map { it.second }
+        val gdtm = select(".gdtm a").mapNotNull {
+            val alt = it.child(0).attr("alt").toIntOrNull() ?: return@mapNotNull null
+            val href = it.attr("href").nullIfBlank() ?: return@mapNotNull null
+            Pair(alt, href)
+        }
+        val gdt = select("#gdt a").mapNotNull {
+            val title = it.selectFirst("div[title]")?.attr("title") ?: it.child(0).attr("title")
+            val num = title.removePrefix("Page ").substringBefore(":").trim().toIntOrNull() ?: return@mapNotNull null
+            val href = it.attr("href").nullIfBlank() ?: return@mapNotNull null
+            Pair(num, href)
+        }
+        (gdtm + gdt).sortedBy(Pair<Int, String>::first).map { it.second }.distinct()
     }
 
     @Suppress("DEPRECATION")
@@ -461,8 +509,17 @@ class EHentai(
         return exGet(url = np, additionalHeaders = headers)
     }
 
-    private fun nextPageUrl(element: Element): String? = element.select("a[onclick=return false]").last()?.let {
-        return if (it.text() == ">") it.attr("href") else null
+    private fun nextPageUrl(element: Element): String? {
+        element.select("a[onclick=return false]").lastOrNull()?.let {
+            if (it.text().trim() == ">") return it.attr("href").nullIfBlank()
+        }
+        element.select("table.ptt a, table.ptb a, .ptt a, .ptb a").lastOrNull()?.let { last ->
+            if (last.text().trim() == ">") return last.attr("href").nullIfBlank()
+        }
+        element.select("td[onclick] a").lastOrNull()?.let { last ->
+            if (last.text().trim() == ">") return last.attr("href").nullIfBlank()
+        }
+        return null
     }
 
     @Suppress("DEPRECATION", "OVERRIDE_DEPRECATION")
@@ -690,7 +747,7 @@ class EHentai(
                 if (response.isSuccessful) {
                     // Pull to most recent
                     val doc = response.asJsoup()
-                    val newerGallery = doc.select("#gnd a").lastOrNull()
+                    val newerGallery = doc.select("#gnd a[href*='/g/']").lastOrNull()?.takeIf { it.attr("href").contains("/g/") }
                     val pre = if (
                         newerGallery != null && DebugToggles.PULL_TO_ROOT_WHEN_LOADING_EXH_MANGA_DETAILS.enabled
                     ) {
@@ -730,7 +787,7 @@ class EHentai(
         if (response.isSuccessful) {
             // Pull to most recent
             val doc = response.asJsoup()
-            val newerGallery = doc.select("#gnd a").lastOrNull()
+            val newerGallery = doc.select("#gnd a[href*='/g/']").lastOrNull()?.takeIf { it.attr("href").contains("/g/") }
             val pre = if (
                 newerGallery != null && DebugToggles.PULL_TO_ROOT_WHEN_LOADING_EXH_MANGA_DETAILS.enabled
             ) {
@@ -769,45 +826,54 @@ class EHentai(
 
                 altTitle = select("#gj").text().trimOrNull()
 
-                thumbnailUrl = select("#gd1 div").attr("style").nullIfBlank()?.let {
-                    it.substring(it.indexOf('(') + 1 until it.lastIndexOf(')'))
+                thumbnailUrl = selectFirst("#gd1 div, #gd1 img, #gleft img")?.let { el ->
+                    val style = el.attr("style").nullIfBlank()
+                    when {
+                        style != null && '(' in style && ')' in style -> style.substring(style.indexOf('(') + 1 until style.lastIndexOf(')')).trim().removeSurrounding("\"").removeSurrounding("'")
+                        el.tagName() == "img" -> el.attr("src").nullIfBlank() ?: el.attr("data-src").nullIfBlank()
+                        el.attr("src").isNotBlank() -> el.attr("src")
+                        else -> style
+                    }
+                }?.nullIfBlank() ?: selectFirst("#gd1 div")?.attr("style")?.let {
+                    if ('(' in it && ')' in it) it.substring(it.indexOf('(') + 1 until it.lastIndexOf(')')).trim() else null
                 }
-                genre = select(".cs")
-                    .attr("onclick")
-                    .trimOrNull()
-                    ?.substringAfterLast('/')
-                    ?.removeSuffix("'")
+                genre = selectFirst("#gdc .cs, .cs")?.let { EHentaiElementParsers.getGenre(it) }
 
-                uploader = select("#gdn").text().trimOrNull()
+                uploader = selectFirst("#gdn a, #gdn")?.text()?.trimOrNull() ?: select("#gdn").text().trimOrNull()
 
                 // Parse the table
                 select("#gdd tr").forEach {
-                    val left = it.select(".gdt1").text().trimOrNull()
+                    val left = it.select(".gdt1").text().trimOrNull()?.removeSuffix(":")?.lowercase() ?: return@forEach
                     val rightElement = it.selectFirst(".gdt2") ?: return@forEach
-                    val right = rightElement.text().trimOrNull()
-                    if (left != null && right != null) {
-                        ignore {
-                            when (left.removeSuffix(":").lowercase()) {
-                                "posted" -> datePosted = ZonedDateTime.parse(
-                                    right,
-                                    MetadataUtil.EX_DATE_FORMAT.withZone(ZoneOffset.UTC),
-                                ).toInstant().toEpochMilli()
-                                // Example gallery with parent: https://e-hentai.org/g/1390451/7f181c2426/
-                                // Example JP gallery: https://exhentai.org/g/1375385/03519d541b/
-                                // Parent is older variation of the gallery
-                                "parent" -> parent = if (!right.equals("None", true)) {
-                                    rightElement.child(0).attr("href")
-                                } else {
-                                    null
+                    val right = rightElement.text().trimOrNull() ?: return@forEach
+                    ignore {
+                        when (left) {
+                            "posted" -> {
+                                val parsed = try {
+                                    ZonedDateTime.parse(right, MetadataUtil.EX_DATE_FORMAT.withZone(ZoneOffset.UTC)).toInstant().toEpochMilli()
+                                } catch (_: Exception) {
+                                    EHentaiElementParsers.getDateTag(rightElement)
                                 }
-                                "visible" -> visible = right.nullIfBlank()
-                                "language" -> {
-                                    language = right.removeSuffix(TR_SUFFIX).trimOrNull()
-                                    translated = right.endsWith(TR_SUFFIX, true)
-                                }
-                                "file size" -> size = MetadataUtil.parseHumanReadableByteCount(right)?.toLong()
-                                "length" -> length = right.removeSuffix("pages").trimOrNull()?.toInt()
-                                "favorited" -> favorites = right.removeSuffix("times").trimOrNull()?.toInt()
+                                if (parsed != null) datePosted = parsed
+                            }
+                            "parent" -> parent = if (!right.equals("None", true)) {
+                                rightElement.selectFirst("a")?.attr("href")?.nullIfBlank() ?: rightElement.child(0).attr("href").nullIfBlank()
+                            } else {
+                                null
+                            }
+                            "visible" -> visible = right.nullIfBlank()
+                            "language" -> {
+                                language = right.removeSuffix(TR_SUFFIX).trimOrNull()
+                                translated = right.endsWith(TR_SUFFIX, true)
+                            }
+                            "file size" -> size = MetadataUtil.parseHumanReadableByteCount(right)?.toLong()
+                            "length" -> {
+                                val num = Regex("\\d+").find(right)?.value?.toIntOrNull()
+                                if (num != null) length = num else length = right.removeSuffix("pages").trimOrNull()?.toInt()
+                            }
+                            "favorited" -> {
+                                val num = Regex("\\d+").find(right)?.value?.toIntOrNull()
+                                favorites = num
                             }
                         }
                     }
@@ -823,31 +889,48 @@ class EHentai(
 
                 // Parse ratings
                 ignore {
-                    averageRating = select("#rating_label")
-                        .text()
-                        .removePrefix("Average:")
-                        .trimOrNull()
-                        ?.toDouble()
-                    ratingCount = select("#rating_count")
-                        .text()
-                        .trimOrNull()
-                        ?.toInt()
+                    val labelText = selectFirst("#rating_label")?.text() ?: select("#rating_label").text()
+                    averageRating = labelText.removePrefix("Average:").trimOrNull()?.let {
+                        Regex("[0-9]+\\.?[0-9]*").find(it)?.value?.toDoubleOrNull()
+                    } ?: Regex("average_rating\\s*=\\s*([0-9.]+)").find(html())?.groupValues?.getOrNull(1)?.toDoubleOrNull()
+                    val countText = selectFirst("#rating_count")?.text() ?: select("#rating_count").text()
+                    ratingCount = countText.trimOrNull()?.let { Regex("\\d+").find(it)?.value?.toIntOrNull() }
                 }
 
                 // Parse tags
                 tags.clear()
                 select("#taglist tr").forEach {
-                    val namespace = it.select(".tc").text().removeSuffix(":")
-                    tags += it.select("div").map { element ->
-                        RaisedTag(
-                            namespace,
-                            element.text().trim(),
-                            when {
-                                element.hasClass("gtl") -> TAG_TYPE_LIGHT
-                                element.hasClass("gtw") -> TAG_TYPE_WEAK
-                                else -> TAG_TYPE_NORMAL
-                            },
-                        )
+                    val namespace = it.selectFirst(".tc")?.text()?.removeSuffix(":")?.trim() ?: it.select(".tc").text().removeSuffix(":").trim()
+                    if (namespace.isBlank()) return@forEach
+                    val tagDivs = it.select("div.gt, div.gtl, div.gtw, div[id^='td_']")
+                    if (tagDivs.isNotEmpty()) {
+                        tags += tagDivs.mapNotNull { element ->
+                            val name = element.selectFirst("a")?.text()?.trimOrNull() ?: element.text().trimOrNull() ?: return@mapNotNull null
+                            if (name.isBlank()) return@mapNotNull null
+                            RaisedTag(
+                                namespace,
+                                name,
+                                when {
+                                    element.hasClass("gtl") -> TAG_TYPE_LIGHT
+                                    element.hasClass("gtw") -> TAG_TYPE_WEAK
+                                    else -> TAG_TYPE_NORMAL
+                                },
+                            )
+                        }
+                    } else {
+                        tags += it.select("div").mapNotNull { element ->
+                            val t = element.text().trim()
+                            if (t.isBlank()) return@mapNotNull null
+                            RaisedTag(
+                                namespace,
+                                t,
+                                when {
+                                    element.hasClass("gtl") -> TAG_TYPE_LIGHT
+                                    element.hasClass("gtw") -> TAG_TYPE_WEAK
+                                    else -> TAG_TYPE_NORMAL
+                                },
+                            )
+                        }
                     }
                 }
 
