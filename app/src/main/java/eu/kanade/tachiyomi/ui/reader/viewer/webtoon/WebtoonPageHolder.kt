@@ -17,6 +17,7 @@ import eu.kanade.tachiyomi.source.model.Page
 import eu.kanade.tachiyomi.ui.reader.model.ReaderPage
 import eu.kanade.tachiyomi.ui.reader.viewer.ReaderPageImageView
 import eu.kanade.tachiyomi.ui.reader.viewer.ReaderProgressIndicator
+import eu.kanade.tachiyomi.ui.reader.viewer.ReaderTranslation
 import eu.kanade.tachiyomi.ui.webview.WebViewActivity
 import eu.kanade.tachiyomi.util.system.dpToPx
 import kotlinx.coroutines.Job
@@ -193,26 +194,43 @@ class WebtoonPageHolder(
 
         val streamFn = page?.stream ?: return
 
+        // KMK -->
+        // Capture original encoded bytes for MTL translation (reused by the decode path below).
+        val translationBytes: ByteArray? = try {
+            streamFn().use { it.readBytes() }
+        } catch (_: Exception) {
+            null
+        }
+        // KMK <--
+
         try {
             val (source, isAnimated) = withIOContext {
                 val source = streamFn().use { process(Buffer().readFrom(it)) }
                 val isAnimated = ImageUtil.isAnimatedAndSupported(source)
                 Pair(source, isAnimated)
             }
+            val config = ReaderPageImageView.Config(
+                zoomDuration = viewer.config.doubleTapAnimDuration,
+                minimumScaleType = SubsamplingScaleImageView.SCALE_TYPE_FIT_WIDTH,
+                cropBorders =
+                (viewer.config.imageCropBorders && viewer.isContinuous) ||
+                    (viewer.config.continuousCropBorders && !viewer.isContinuous),
+            )
             withUIContext {
                 frame.setImage(
                     source,
                     isAnimated,
-                    ReaderPageImageView.Config(
-                        zoomDuration = viewer.config.doubleTapAnimDuration,
-                        minimumScaleType = SubsamplingScaleImageView.SCALE_TYPE_FIT_WIDTH,
-                        cropBorders =
-                        (viewer.config.imageCropBorders && viewer.isContinuous) ||
-                            (viewer.config.continuousCropBorders && !viewer.isContinuous),
-                    ),
+                    config,
                 )
                 removeErrorLayout()
             }
+
+            // KMK -->
+            val boundPage = page ?: return
+            ReaderTranslation.translate(scope, boundPage, translationBytes) { webpBytes ->
+                frame.setImage(Buffer().write(webpBytes), false, config)
+            }
+            // KMK <--
         } catch (e: Throwable) {
             logcat(LogPriority.ERROR, e)
             withUIContext {

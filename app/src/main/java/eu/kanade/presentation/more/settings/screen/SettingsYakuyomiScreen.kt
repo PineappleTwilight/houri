@@ -2,15 +2,14 @@ package eu.kanade.presentation.more.settings.screen
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ReadOnlyComposable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.platform.LocalContext
 import eu.kanade.presentation.more.settings.Preference
 import eu.kanade.tachiyomi.util.system.toast
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.persistentMapOf
-import kotlinx.collections.immutable.toImmutableMap
 import mihon.app.di.globalAppGraph
 import tachiyomi.i18n.kmk.KMR
 import tachiyomi.presentation.core.i18n.stringResource
@@ -23,19 +22,14 @@ object SettingsYakuyomiScreen : SearchableSettings {
 
     @Composable
     override fun getPreferences(): List<Preference> {
-        val context = LocalContext.current
-        val scope = rememberCoroutineScope()
         val prefs = remember { globalAppGraph.translationPreferences }
         val cache = remember { globalAppGraph.translationCache }
-
-        val enabled by prefs.enabled().collectAsState()
-        val targetLang by prefs.targetLang().collectAsState()
-        val provider by prefs.provider().collectAsState()
-        val model by prefs.model().collectAsState()
+        val modelManager = remember { globalAppGraph.modelManager }
 
         return listOf(
             getGeneralGroup(prefs),
             getProviderGroup(prefs),
+            getModelGroup(modelManager),
             getBehaviorGroup(prefs, cache),
         )
     }
@@ -110,6 +104,41 @@ object SettingsYakuyomiScreen : SearchableSettings {
                     title = stringResource(KMR.strings.pref_yakuyomi_model),
                     subtitle = if (provider == "gemini") "Gemini model (e.g. gemini-1.5-flash)" else "OpenRouter model (default: google/gemma-2-9b-it:free)",
                     enabled = enabled,
+                ),
+            ),
+        )
+    }
+
+    @Composable
+    private fun getModelGroup(modelManager: exh.yakuyomi.ModelManager): Preference.PreferenceGroup {
+        val status by modelManager.status.collectAsState()
+        val subtitle = when (status.state) {
+            exh.yakuyomi.ModelManager.State.READY ->
+                stringResource(KMR.strings.mtl_models_ready, status.downloadedBytes / 1024)
+            exh.yakuyomi.ModelManager.State.DOWNLOADING ->
+                stringResource(KMR.strings.mtl_models_downloading, (status.progress * 100).toInt())
+            exh.yakuyomi.ModelManager.State.ERROR ->
+                stringResource(KMR.strings.mtl_models_error, status.error ?: "unknown")
+            else -> stringResource(KMR.strings.mtl_models_missing)
+        }
+        val actionTitle = when (status.state) {
+            exh.yakuyomi.ModelManager.State.DOWNLOADING -> stringResource(KMR.strings.mtl_models_cancel)
+            exh.yakuyomi.ModelManager.State.READY -> stringResource(KMR.strings.mtl_models_redownload)
+            else -> stringResource(KMR.strings.mtl_models_download)
+        }
+        return Preference.PreferenceGroup(
+            title = stringResource(KMR.strings.mtl_models_title),
+            preferenceItems = persistentListOf(
+                Preference.PreferenceItem.InfoPreference(title = subtitle),
+                Preference.PreferenceItem.TextPreference(
+                    title = actionTitle,
+                    onClick = {
+                        if (status.state == exh.yakuyomi.ModelManager.State.DOWNLOADING) {
+                            modelManager.cancelDownload()
+                        } else {
+                            modelManager.startDownload()
+                        }
+                    },
                 ),
             ),
         )

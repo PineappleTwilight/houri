@@ -13,6 +13,7 @@ import eu.kanade.tachiyomi.ui.reader.model.InsertPage
 import eu.kanade.tachiyomi.ui.reader.model.ReaderPage
 import eu.kanade.tachiyomi.ui.reader.viewer.ReaderPageImageView
 import eu.kanade.tachiyomi.ui.reader.viewer.ReaderProgressIndicator
+import eu.kanade.tachiyomi.ui.reader.viewer.ReaderTranslation
 import eu.kanade.tachiyomi.ui.webview.WebViewActivity
 import eu.kanade.tachiyomi.widget.ViewPagerAdapter
 import kotlinx.coroutines.Job
@@ -180,6 +181,20 @@ class PagerPageHolder(
         val streamFn = page.stream ?: return
         val streamFn2 = extraPage?.stream
 
+        // KMK -->
+        // Capture the original encoded bytes (single page only) for MTL translation,
+        // reusing the same factory the decode path calls below.
+        val translationBytes: ByteArray? = if (extraPage == null) {
+            try {
+                streamFn().use { it.readBytes() }
+            } catch (_: Exception) {
+                null
+            }
+        } else {
+            null
+        }
+        // KMK <--
+
         try {
             val (source, isAnimated, background) = withIOContext {
                 streamFn().buffered(16).use { source ->
@@ -206,28 +221,36 @@ class PagerPageHolder(
                     }
                 }
             }
+            val config = Config(
+                zoomDuration = viewer.config.doubleTapAnimDuration,
+                minimumScaleType = viewer.config.imageScaleType,
+                cropBorders = viewer.config.imageCropBorders,
+                zoomStartPosition = viewer.config.imageZoomType,
+                landscapeZoom = viewer.config.landscapeZoom,
+                // KMK -->
+                disableZoomIn = viewer.config.disableZoomIn,
+                doubleTapZoom = viewer.config.doubleTapZoom,
+                landscapeZoomScaleType = viewer.config.landscapeZoomScaleType,
+                // KMK <--
+            )
             withUIContext {
                 setImage(
                     source,
                     isAnimated,
-                    Config(
-                        zoomDuration = viewer.config.doubleTapAnimDuration,
-                        minimumScaleType = viewer.config.imageScaleType,
-                        cropBorders = viewer.config.imageCropBorders,
-                        zoomStartPosition = viewer.config.imageZoomType,
-                        landscapeZoom = viewer.config.landscapeZoom,
-                        // KMK -->
-                        disableZoomIn = viewer.config.disableZoomIn,
-                        doubleTapZoom = viewer.config.doubleTapZoom,
-                        landscapeZoomScaleType = viewer.config.landscapeZoomScaleType,
-                        // KMK <--
-                    ),
+                    config,
                 )
                 if (!isAnimated) {
                     pageBackground = background
                 }
                 removeErrorLayout()
             }
+
+            // KMK -->
+            ReaderTranslation.translate(scope, page, translationBytes) { webpBytes ->
+                val buffer = Buffer().write(webpBytes)
+                setImage(buffer, false, config)
+            }
+            // KMK <--
         } catch (e: Throwable) {
             logcat(LogPriority.ERROR, e)
             withUIContext {

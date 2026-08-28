@@ -345,4 +345,17 @@
     <string name="pref_yakuyomi_cache_enabled">Cache translated pages</string>
     <string name="pref_translate_manga">Translate Manga</string>
     <string name="pref_translate_manga_summary">Use AI translation for this manga (pages cached per model). Disabled by default.</string>
+    <string name="mtl_translating">Translating…</string>
+    <string name="mtl_translating_progress">Translating… %1$d/%2$d pages</string>
+    <string name="mtl_translated">Translated</string>
+    <string name="mtl_translation_failed">Translation failed</string>
+    <string name="mtl_retry">Retry</string>
+    <string name="mtl_models_title">AI models</string>
+    <string name="mtl_models_missing">Models not installed — translation disabled</string>
+    <string name="mtl_models_downloading">Downloading… %1$d%%</string>
+    <string name="mtl_models_ready">Models installed (%1$d KB)</string>
+    <string name="mtl_models_download">Download AI models</string>
+    <string name="mtl_models_redownload">Redownload AI models</string>
+    <string name="mtl_models_cancel">Cancel download</string>
+    <string name="mtl_models_error">Download failed: %1$s</string>
 </resources>

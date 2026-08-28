@@ -41,6 +41,8 @@ class TranslationManager(
     private val client: OkHttpClient,
     private val perMangaStore: TranslateMangaStore,
     private val preferenceStore: PreferenceStore,
+    private val status: TranslationStatus,
+    private val models: ModelManager,
 ) {
     private val json = Json {
         ignoreUnknownKeys = true
@@ -59,6 +61,10 @@ class TranslationManager(
         if (!isEnabled()) return false
         if (isGated()) {
             xLogD("Translation gated: incognito/censor")
+            return false
+        }
+        if (!models.isReady()) {
+            xLogD("Translation gated: AI models not installed")
             return false
         }
         return true
@@ -89,10 +95,14 @@ class TranslationManager(
             cache.getIfExists(pageHash, targetLang, model)?.let { f ->
                 try {
                     val bytes = f.readBytes()
-                    if (bytes.isNotEmpty()) return@withContext bytes
+                    if (bytes.isNotEmpty()) {
+                        status.pageCached(mangaId, chapterId, pageIndex)
+                        return@withContext bytes
+                    }
                 } catch (_: Exception) {}
             }
         }
+        status.pageTranslating(mangaId, chapterId, pageIndex)
         var bitmap: Bitmap? = null
         var cleaned: Bitmap? = null
         var typeset: Bitmap? = null
@@ -100,32 +110,51 @@ class TranslationManager(
             // Decode with bounds check to avoid OOM on huge images (e.g., long strip)
             val opts = BitmapFactory.Options().apply { inJustDecodeBounds = true }
             BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size, opts)
-            if (opts.outWidth <= 0 || opts.outHeight <= 0) return@withContext null
+            if (opts.outWidth <= 0 || opts.outHeight <= 0) {
+                status.pageError(mangaId, chapterId, pageIndex, "Unable to decode image bounds")
+                return@withContext null
+            }
             // If image is > 4096 on either side, downsample for detection (keep original for final typeset)
             val needsSample = opts.outWidth > 4096 || opts.outHeight > 4096
             val sampleOpts = if (needsSample) BitmapFactory.Options().apply { inSampleSize = 2 } else null
-            bitmap = BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size, sampleOpts) ?: return@withContext null
+            bitmap = BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size, sampleOpts)
+            if (bitmap == null) {
+                status.pageError(mangaId, chapterId, pageIndex, "Unable to decode image")
+                return@withContext null
+            }
 
             val blocks = engine.detectTextBlocks(bitmap)
             if (blocks.isEmpty()) {
-                // No text detected; avoid re-running detection by caching a sentinel is overkill,
-                // but we avoid writing cache here to keep original untouched.
+                // No text detected; page passes through unchanged.
+                status.pageSkipped(mangaId, chapterId, pageIndex)
                 return@withContext null
             }
             val ocrBlocks = engine.ocrBlocks(bitmap, blocks)
             val originalTexts = ocrBlocks.mapNotNull { it.text.trim().takeIf { t -> t.isNotEmpty() } }
-            if (originalTexts.isEmpty()) return@withContext null
+            if (originalTexts.isEmpty()) {
+                status.pageSkipped(mangaId, chapterId, pageIndex)
+                return@withContext null
+            }
             // Ensure ocrBlocks and translated alignment: filter ocrBlocks to those with non-empty text
             val filteredOcr = ocrBlocks.filter { it.text.trim().isNotEmpty() }
-            if (filteredOcr.isEmpty()) return@withContext null
+            if (filteredOcr.isEmpty()) {
+                status.pageSkipped(mangaId, chapterId, pageIndex)
+                return@withContext null
+            }
 
             // Build prompt with breadcrumb context (capped)
             val breadcrumb = notes.buildContextPrompt(mangaId)
             val translatedTexts = translateTexts(originalTexts, sourceLangHint, targetLang, breadcrumb)
             // Ensure we have same count; if mismatch, zip will truncate, so fallback to original count check
-            if (translatedTexts.isEmpty()) return@withContext null
+            if (translatedTexts.isEmpty()) {
+                status.pageError(mangaId, chapterId, pageIndex, "No translated text produced")
+                return@withContext null
+            }
             val pairedCount = minOf(filteredOcr.size, translatedTexts.size)
-            if (pairedCount == 0) return@withContext null
+            if (pairedCount == 0) {
+                status.pageError(mangaId, chapterId, pageIndex, "Translation produced no usable lines")
+                return@withContext null
+            }
             val paired = filteredOcr.take(pairedCount).zip(translatedTexts.take(pairedCount))
 
             cleaned = engine.removeText(bitmap, filteredOcr)
@@ -138,9 +167,11 @@ class TranslationManager(
             try {
                 notes.appendFromTranslation(mangaId, chapterId, translatedTexts)
             } catch (_: Exception) {}
+            status.pageDone(mangaId, chapterId, pageIndex)
             webp
         } catch (e: Exception) {
             xLogE("translatePage failed", e)
+            status.pageError(mangaId, chapterId, pageIndex, e.message ?: "Unknown translation error")
             null
         } finally {
             // Recycle transient bitmaps to reduce peak memory; bitmap is the sampled decode,

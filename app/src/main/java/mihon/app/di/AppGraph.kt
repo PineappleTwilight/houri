@@ -92,10 +92,12 @@ import exh.pref.DelegateSourcePreferences
 import exh.search.SearchEngine
 import exh.source.ExhPreferences
 import exh.yakuyomi.BreadcrumbNotes
+import exh.yakuyomi.ModelManager
 import exh.yakuyomi.TranslateMangaStore
 import exh.yakuyomi.TranslationCache
 import exh.yakuyomi.TranslationManager
 import exh.yakuyomi.TranslationPreferences
+import exh.yakuyomi.TranslationStatus
 import exh.yakuyomi.YakuyomiEngine
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.protobuf.ProtoBuf
@@ -445,6 +447,8 @@ interface AppGraph : ViewModelGraph {
     val yakuyomiEngine: YakuyomiEngine
     val breadcrumbNotes: BreadcrumbNotes
     val translateMangaStore: TranslateMangaStore
+    val translationStatus: TranslationStatus
+    val modelManager: ModelManager
     // KMK <--
 
     @DependencyGraph.Factory
