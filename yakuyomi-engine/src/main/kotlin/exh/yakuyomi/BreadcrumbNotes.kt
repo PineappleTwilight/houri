@@ -47,31 +47,61 @@ class BreadcrumbNotes(
     fun loadWindow(mangaId: Long, windowSize: Int = prefs.breadcrumbWindowSize().get()): List<BreadcrumbNote> {
         val dir = notesDir(mangaId)
         if (!dir.exists()) return emptyList()
-        return dir.listFiles()
-            ?.sortedByDescending { it.lastModified() }
-            ?.take(windowSize)
-            ?.mapNotNull { f ->
-                try {
-                    json.decodeFromString<BreadcrumbNote>(f.readText())
-                } catch (_: Exception) {
-                    null
-                }
+        val files = dir.listFiles() ?: return emptyList()
+        return files.mapNotNull { f ->
+            try {
+                json.decodeFromString<BreadcrumbNote>(f.readText())
+            } catch (_: Exception) {
+                // Delete corrupt file
+                try { f.delete() } catch (_: Exception) {}
+                null
             }
-            ?.reversed() ?: emptyList()
+        }
+            // Sort by embedded timestamp, not file lastModified which is unreliable after restore
+            .sortedByDescending { it.timestamp }
+            .take(windowSize.coerceIn(1, 20))
+            .reversed()
     }
 
     fun buildContextPrompt(mangaId: Long): String {
         val notes = loadWindow(mangaId)
         if (notes.isEmpty()) return ""
-        return notes.joinToString("\n") { n ->
+        // Cap total prompt contribution to ~800 chars to avoid LLM token overflow
+        val joined = notes.joinToString("\n") { n ->
             "Chapter ${n.chapterId}: ${n.summary} | Entities: ${n.keyEntities.joinToString(", ")}"
         }
+        return joined.take(800)
     }
 
     fun appendFromTranslation(mangaId: Long, chapterId: Long, translatedTexts: List<String>) {
         if (translatedTexts.isEmpty()) return
-        val summary = translatedTexts.take(3).joinToString(" | ").take(400)
-        val entities = translatedTexts.flatMap { it.split(" ").filter { w -> w.firstOrNull()?.isUpperCase() == true } }.distinct().take(8)
+        // Filter blanks and cap
+        val clean = translatedTexts.mapNotNull { it.trim().takeIf { t -> t.isNotEmpty() } }
+        if (clean.isEmpty()) return
+        val summary = clean.take(3).joinToString(" | ").take(400)
+        // Extract entities: for EN fallback, capitalised words; for CJK-translated EN, same logic works
+        // Filter short words and deduplicate, keep only plausible proper nouns length 2..24
+        val entities = clean.flatMap { line ->
+            line.split(Regex("[\\s,.;:!?\"'()\\[\\]{}]+"))
+                .filter { w -> w.length in 2..24 && w.firstOrNull()?.isUpperCase() == true && w.all { ch -> ch.isLetter() } }
+        }.distinct().take(8)
         saveNote(BreadcrumbNote(chapterId = chapterId, mangaId = mangaId, summary = summary, keyEntities = entities))
+    }
+
+    fun clearForManga(mangaId: Long) {
+        try {
+            notesDir(mangaId).deleteRecursively()
+        } catch (_: Exception) {}
+    }
+
+    fun pruneOld(mangaId: Long, keep: Int = prefs.breadcrumbWindowSize().get()) {
+        try {
+            val dir = notesDir(mangaId)
+            if (!dir.exists()) return
+            val notes = dir.listFiles()?.mapNotNull { f ->
+                try { f to json.decodeFromString<BreadcrumbNote>(f.readText()) } catch (_: Exception) { null }
+            }?.sortedByDescending { it.second.timestamp } ?: return
+            notes.drop(keep).forEach { (file, _) -> try { file.delete() } catch (_: Exception) {} }
+        } catch (_: Exception) {}
     }
 }

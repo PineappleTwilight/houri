@@ -1519,7 +1519,19 @@ private fun onChapterItemClick(
 @Composable
 fun TranslateMangaToggle(manga: tachiyomi.domain.manga.model.Manga) {
     val store = androidx.compose.runtime.remember(manga.id) { mihon.app.di.globalAppGraph.translateMangaStore }
-    var checked by androidx.compose.runtime.remember(manga.id) { androidx.compose.runtime.mutableStateOf(store.isEnabled(manga.id)) }
+    val prefs = androidx.compose.runtime.remember { mihon.app.di.globalAppGraph.translationPreferences }
+    val preferenceStore = androidx.compose.runtime.remember { mihon.app.di.globalAppGraph.preferenceStore }
+    val globalEnabled by prefs.enabled().collectAsState()
+    val perMangaEnabled by store.asFlow(manga.id).collectAsState(initial = store.isEnabled(manga.id))
+    // Gate UI when incognito/censor is on — still show row but disabled with hint
+    val incognito by preferenceStore.getBoolean(tachiyomi.core.common.preference.Preference.appStateKey("incognito_mode"), false).collectAsState()
+    val censor by preferenceStore.getBoolean("pref_censor_lewd_manga", false).collectAsState()
+    val isGated = incognito || censor
+    val subtitle = when {
+        isGated -> stringResource(tachiyomi.i18n.kmk.KMR.strings.pref_yakuyomi_enabled_summary)
+        !globalEnabled -> stringResource(tachiyomi.i18n.MR.strings.requires_app_restart) + " — " + stringResource(tachiyomi.i18n.kmk.KMR.strings.pref_yakuyomi_enabled) + " " + stringResource(tachiyomi.i18n.MR.strings.disabled)
+        else -> stringResource(tachiyomi.i18n.kmk.KMR.strings.pref_translate_manga_summary)
+    }
     androidx.compose.foundation.layout.Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -1533,15 +1545,15 @@ fun TranslateMangaToggle(manga: tachiyomi.domain.manga.model.Manga) {
                 style = androidx.compose.material3.MaterialTheme.typography.titleMedium,
             )
             androidx.compose.material3.Text(
-                text = stringResource(tachiyomi.i18n.kmk.KMR.strings.pref_translate_manga_summary),
+                text = subtitle,
                 style = androidx.compose.material3.MaterialTheme.typography.bodySmall,
                 color = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
         androidx.compose.material3.Switch(
-            checked = checked,
+            checked = perMangaEnabled,
+            enabled = globalEnabled && !isGated,
             onCheckedChange = {
-                checked = it
                 store.setEnabled(manga.id, it)
             },
         )

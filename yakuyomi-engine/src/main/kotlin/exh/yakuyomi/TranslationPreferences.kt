@@ -28,4 +28,8 @@ class TranslationPreferences(
     fun cacheEnabled() = preferenceStore.getBoolean("pref_yakuyomi_cache_enabled", true)
 
     fun breadcrumbWindowSize() = preferenceStore.getInt("pref_yakuyomi_breadcrumb_window", 5)
+
+    fun isConfigured(): Boolean = enabled().get() && targetLang().get().isNotBlank()
+
+    fun hasApiKey(): Boolean = apiKey().get().isNotBlank()
 }

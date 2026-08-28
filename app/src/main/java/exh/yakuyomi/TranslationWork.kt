@@ -17,9 +17,27 @@ class TranslationWork(
         if (mangaId == -1L || chapterId == -1L) return Result.failure()
         return try {
             val manager = globalAppGraph.translationManager
+            val prefs = globalAppGraph.translationPreferences
             if (!manager.isEnabled()) return Result.success()
-            // Auto-translate is gated; actual page translation happens lazily in viewer hook.
-            // This worker just ensures cache directory exists and pre-warms breadcrumb notes.
+            if (manager.isGated()) {
+                xLogD("TranslationWork gated: incognito/censor, skip manga=$mangaId chapter=$chapterId")
+                return Result.success()
+            }
+            if (!prefs.autoTranslateOnDownload().get()) {
+                xLogD("TranslationWork autoTranslate disabled, prewarm only manga=$mangaId chapter=$chapterId")
+                return Result.success()
+            }
+            if (!manager.isPerMangaEnabled(mangaId)) {
+                xLogD("TranslationWork per-manga disabled manga=$mangaId")
+                return Result.success()
+            }
+            // Prewarm breadcrumb window and ensure cache dir exists
+            try {
+                globalAppGraph.translationCache.pruneIfNeeded()
+            } catch (_: Exception) {}
+            try {
+                globalAppGraph.breadcrumbNotes.buildContextPrompt(mangaId)
+            } catch (_: Exception) {}
             xLogD("TranslationWork prewarm manga=$mangaId chapter=$chapterId")
             Result.success()
         } catch (e: Exception) {

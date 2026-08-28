@@ -36,11 +36,16 @@ class YakuyomiEngine {
 
     suspend fun ocrBlocks(bitmap: Bitmap, blocks: List<TextBlock>): List<TextBlock> = withContext(Dispatchers.Default) {
         // Stub ONNX int8 OCR 48px CTC
-        blocks
+        // Filter empty input and trim
+        blocks.mapNotNull { b ->
+            val t = b.text.trim()
+            if (t.isEmpty()) null else b.copy(text = t)
+        }
     }
 
     suspend fun removeText(bitmap: Bitmap, blocks: List<TextBlock>): Bitmap = withContext(Dispatchers.Default) {
         // Stub AOT-GAN removal tile 768: return copy with inpaint
+        if (blocks.isEmpty()) return@withContext bitmap
         try {
             val out = bitmap.copy(Bitmap.Config.ARGB_8888, true)
             val canvas = Canvas(out)
@@ -49,7 +54,14 @@ class YakuyomiEngine {
                 style = Paint.Style.FILL
             }
             for (b in blocks) {
-                canvas.drawRect(b.bounds, paint)
+                // Clamp bounds to bitmap dimensions to avoid drawing outside
+                val left = b.bounds.left.coerceIn(0, out.width)
+                val top = b.bounds.top.coerceIn(0, out.height)
+                val right = b.bounds.right.coerceIn(0, out.width)
+                val bottom = b.bounds.bottom.coerceIn(0, out.height)
+                if (right > left && bottom > top) {
+                    canvas.drawRect(left.toFloat(), top.toFloat(), right.toFloat(), bottom.toFloat(), paint)
+                }
             }
             out
         } catch (e: Exception) {
@@ -66,73 +78,73 @@ class YakuyomiEngine {
         if (blocks.isEmpty()) return@withContext base
         val out = base.copy(Bitmap.Config.ARGB_8888, true)
         val canvas = Canvas(out)
-        val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = Color.BLACK
-            textSize = 28f
-            isFakeBoldText = true
-        }
-        val bgPaint = Paint().apply {
+        // Pre-create paints to avoid per-block allocation and style churn
+        val bgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             color = Color.WHITE
             style = Paint.Style.FILL
             alpha = 220
         }
+        val textFillPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = Color.BLACK
+            isFakeBoldText = true
+        }
+        val textStrokePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = Color.WHITE
+            style = Paint.Style.STROKE
+            strokeWidth = 3f
+            isFakeBoldText = true
+        }
         for ((block, translated) in blocks) {
+            val clean = translated.trim()
+            if (clean.isEmpty()) continue
             val bounds = block.bounds
-            // Adaptive font size, kinsoku, tilt-aware quad angle, luminance-based color + outline stub
-            val fontSize = (bounds.height() * 0.6f).coerceIn(18f, 48f)
-            paint.textSize = fontSize
-            // Simple wrapping
-            val words = translated.split(" ")
+            if (bounds.width() <= 0 || bounds.height() <= 0) continue
+            // Adaptive font size, clamped; consider language: CJK may need smaller size for same height
+            val isCjkTarget = targetLang.uppercase() in setOf("JA", "KO", "ZH", "ZH-HANS", "ZH-HANT")
+            val baseSize = bounds.height() * if (isCjkTarget) 0.5f else 0.6f
+            val fontSize = baseSize.coerceIn(14f, 44f)
+            textFillPaint.textSize = fontSize
+            textStrokePaint.textSize = fontSize
+
+            // Word-aware wrapping; for CJK without spaces, wrap by character
+            val words = if (clean.contains(" ")) clean.split(" ") else clean.map { it.toString() }
             var y = bounds.top + fontSize
+            // Ensure we don't draw beyond bottom of block with ellipsis
+            val maxY = bounds.bottom - 4
+            val lines = mutableListOf<String>()
             var line = StringBuilder()
             for (w in words) {
-                val test = if (line.isEmpty()) w else "$line $w"
-                if (paint.measureText(test) > bounds.width() - 8) {
-                    val text = line.toString()
-                    val x = bounds.left + (bounds.width() - paint.measureText(text)) / 2
-                    canvas.drawRoundRect(
-                        bounds.left.toFloat() - 4,
-                        y - fontSize - 4,
-                        bounds.right.toFloat() + 4,
-                        y + 6,
-                        8f,
-                        8f,
-                        bgPaint,
-                    )
-                    // Outline
-                    paint.style = Paint.Style.STROKE
-                    paint.strokeWidth = 3f
-                    paint.color = Color.WHITE
-                    canvas.drawText(text, x, y, paint)
-                    paint.style = Paint.Style.FILL
-                    paint.color = Color.BLACK
-                    canvas.drawText(text, x, y, paint)
-                    y += fontSize + 4
+                if (w.isEmpty()) continue
+                val test = if (line.isEmpty()) w else if (clean.contains(" ")) "$line $w" else line.toString() + w
+                val widthNeeded = if (clean.contains(" ")) textFillPaint.measureText(test) else textFillPaint.measureText(test)
+                val available = bounds.width() - 8
+                if (widthNeeded > available && line.isNotEmpty()) {
+                    lines.add(line.toString())
                     line = StringBuilder(w)
+                    if (y + fontSize > maxY && lines.size >= 4) break
                 } else {
-                    if (line.isNotEmpty()) line.append(" ")
+                    if (line.isNotEmpty() && clean.contains(" ")) line.append(" ")
                     line.append(w)
                 }
             }
-            if (line.isNotEmpty()) {
-                val text = line.toString()
-                val x = bounds.left + (bounds.width() - paint.measureText(text)) / 2
-                canvas.drawRoundRect(
-                    bounds.left.toFloat() - 4,
-                    y - fontSize - 4,
-                    bounds.right.toFloat() + 4,
-                    y + 6,
-                    8f,
-                    8f,
-                    bgPaint,
-                )
-                paint.style = Paint.Style.STROKE
-                paint.strokeWidth = 3f
-                paint.color = Color.WHITE
-                canvas.drawText(text, x, y, paint)
-                paint.style = Paint.Style.FILL
-                paint.color = Color.BLACK
-                canvas.drawText(text, x, y, paint)
+            if (line.isNotEmpty() && y <= maxY) lines.add(line.toString())
+            // Truncate if too many lines for height
+            val maxLines = ((bounds.height() / (fontSize + 4)).toInt()).coerceAtLeast(1)
+            val displayLines = if (lines.size > maxLines) lines.take(maxLines - 1) + listOf(lines[maxLines - 1].take(20) + "…") else lines
+            var curY = bounds.top + fontSize
+            for (text in displayLines) {
+                if (curY > maxY) break
+                val x = bounds.left + (bounds.width() - textFillPaint.measureText(text)) / 2
+                // Background pill
+                val bgLeft = (bounds.left - 4).coerceAtLeast(0).toFloat()
+                val bgRight = (bounds.right + 4).coerceAtMost(out.width).toFloat()
+                val bgTop = (curY - fontSize - 4).coerceAtLeast(0f)
+                val bgBottom = (curY + 6).coerceAtMost(out.height.toFloat())
+                canvas.drawRoundRect(bgLeft, bgTop, bgRight, bgBottom, 8f, 8f, bgPaint)
+                // Outline + fill for contrast
+                canvas.drawText(text, x, curY, textStrokePaint)
+                canvas.drawText(text, x, curY, textFillPaint)
+                curY += fontSize + 4
             }
         }
         out
@@ -140,7 +152,9 @@ class YakuyomiEngine {
 
     fun bitmapToWebP(bitmap: Bitmap, quality: Int = 85): ByteArray {
         val stream = java.io.ByteArrayOutputStream()
-        bitmap.compress(Bitmap.CompressFormat.WEBP_LOSSY, quality, stream)
+        // WEBP_LOSSY 85 is default; clamp quality
+        val q = quality.coerceIn(1, 100)
+        bitmap.compress(Bitmap.CompressFormat.WEBP_LOSSY, q, stream)
         return stream.toByteArray()
     }
 

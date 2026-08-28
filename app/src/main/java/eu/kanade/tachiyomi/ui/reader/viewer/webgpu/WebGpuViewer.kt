@@ -1422,20 +1422,23 @@ open class WebGpuViewer(
                 }
             }
 
-            val bytes: ByteArray? = try {
-                // Always capture bytes for translation cache (WEBP per pageHash+targetLang+model), cap 32MB
-                val limited = input.readBytes()
-                if (limited.size > 32 * 1024 * 1024) null else limited
+            // Capture bytes once; keep full decode bytes while gating translation on 32MB cap.
+            // Previous code nulled bytes on oversize and fell back to already-consumed input, breaking decode.
+            val decodeBytes: ByteArray? = try {
+                input.readBytes()
             } catch (e: OutOfMemoryError) {
                 System.gc()
                 null
             } catch (_: Exception) {
                 null
             }
+            if (decodeBytes == null) throw Exception("Failed to read page bytes")
+            // Translation gate: only small-enough pages are sent to LLM/cache
+            val translationBytes: ByteArray? = if (decodeBytes.size in 1..32 * 1024 * 1024) decodeBytes else null
 
-            page.spreadPosition = if (bytes != null) {
+            page.spreadPosition = run {
                 val tag = try {
-                    Kim.readMetadata(bytes.inputStream(), bytes.size.toLong())
+                    Kim.readMetadata(decodeBytes.inputStream(), decodeBytes.size.toLong())
                         ?.findStringValue(TiffTag.TIFF_TAG_PAGE_NAME)
                 } catch (_: Exception) {
                     null
@@ -1452,22 +1455,19 @@ open class WebGpuViewer(
                     }
                     else -> SpreadPosition.SINGLE
                 }
-            } else {
-                SpreadPosition.SINGLE
             }
 
             if (config.matchDoublePageHeights &&
-                bytes != null &&
                 page.spreadPosition != SpreadPosition.SINGLE &&
-                bytes.size in 1..32 * 1024 * 1024
+                decodeBytes.size in 1..32 * 1024 * 1024
             ) {
-                page.spreadBytes = bytes
+                page.spreadBytes = decodeBytes
             } else {
                 page.spreadBytes = null
             }
 
             val dec = try {
-                ImageDecoder.new(bytes?.inputStream() ?: input)
+                ImageDecoder.new(decodeBytes.inputStream())
             } catch (e: Exception) {
                 throw Exception("ImageDecoder init failed: ${e.message}", e)
             }
@@ -1554,16 +1554,23 @@ open class WebGpuViewer(
                     pager.state.invalidate()
                     // Hook AI translation: baked Image replacement (handles dual-page height-match, no overlay drift)
                     val mgr = translationManager
-                    if (mgr != null && bytes != null && mgr.isEnabled()) {
-                        scope.launch(Dispatchers.Default) {
-                            try {
-                                if (mgr.shouldTranslateForManga(page.page.chapter.chapter.manga_id ?: 0L)) {
-                                    val translatedWebP = mgr.translatePage(
-                                        mangaId = page.page.chapter.chapter.manga_id ?: 0L,
-                                        chapterId = page.page.chapter.chapter.id ?: 0L,
-                                        imageBytes = bytes,
-                                        pageIndex = page.page.index,
-                                    )
+                    // Gates: global enabled + not incognito/censor (cheap), translationBytes cap, per-manga via manager
+                    if (mgr != null && translationBytes != null && mgr.isEnabled() && !mgr.isGated()) {
+                        // Resolve mangaId robustly; chapter.manga_id can be null for non-library entries — fallback to viewerChapters
+                        val resolvedMangaId = page.page.chapter.chapter.manga_id
+                            ?: viewerChapters?.currChapter?.manga?.id
+                            ?: 0L
+                        // Early per-manga check without suspend — avoid launching if disabled
+                        if (mgr.isPerMangaEnabled(resolvedMangaId)) {
+                            scope.launch(Dispatchers.Default) {
+                                try {
+                                    if (mgr.shouldTranslateForManga(resolvedMangaId)) {
+                                        val translatedWebP = mgr.translatePage(
+                                            mangaId = resolvedMangaId,
+                                            chapterId = page.page.chapter.chapter.id ?: 0L,
+                                            imageBytes = translationBytes,
+                                            pageIndex = page.page.index,
+                                        )
                                     if (translatedWebP != null) {
                                         val translatedBitmap = android.graphics.BitmapFactory.decodeByteArray(translatedWebP, 0, translatedWebP.size)
                                         if (translatedBitmap != null) {
@@ -1602,6 +1609,7 @@ open class WebGpuViewer(
                                 }
                             } catch (_: Exception) {}
                         }
+                    }
                     }
                 } else {
                     if (pageInCache(page)) page.state = PageState.IDLE

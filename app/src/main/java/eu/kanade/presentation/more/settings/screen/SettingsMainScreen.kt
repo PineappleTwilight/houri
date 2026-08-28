@@ -17,6 +17,7 @@ import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Link
 import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material.icons.outlined.Language
 import androidx.compose.material.icons.outlined.Security
 import androidx.compose.material.icons.outlined.Storage
 import androidx.compose.material.icons.outlined.Sync
@@ -253,6 +254,12 @@ object SettingsMainScreen : Screen() {
             screen = SettingsMangadexScreen,
         ),
         // SY <--
+        Item(
+            titleRes = KMR.strings.pref_yakuyomi_enabled,
+            subtitleRes = KMR.strings.pref_yakuyomi_enabled_summary,
+            icon = Icons.Outlined.Language,
+            screen = SettingsYakuyomiScreen,
+        ),
         Item(
             titleRes = MR.strings.pref_category_advanced,
             subtitleRes = MR.strings.pref_advanced_summary,
