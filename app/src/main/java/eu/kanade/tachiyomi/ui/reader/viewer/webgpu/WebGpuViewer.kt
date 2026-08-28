@@ -1558,7 +1558,7 @@ open class WebGpuViewer(
                     if (mgr != null && translationBytes != null && mgr.isEnabled() && !mgr.isGated()) {
                         // Resolve mangaId robustly; chapter.manga_id can be null for non-library entries — fallback to viewerChapters
                         val resolvedMangaId = page.page.chapter.chapter.manga_id
-                            ?: viewerChapters?.currChapter?.manga?.id
+                            ?: viewerChapters?.currChapter?.chapter?.manga_id
                             ?: 0L
                         // Early per-manga check without suspend — avoid launching if disabled
                         if (mgr.isPerMangaEnabled(resolvedMangaId)) {
@@ -1571,45 +1571,45 @@ open class WebGpuViewer(
                                             imageBytes = translationBytes,
                                             pageIndex = page.page.index,
                                         )
-                                    if (translatedWebP != null) {
-                                        val translatedBitmap = android.graphics.BitmapFactory.decodeByteArray(translatedWebP, 0, translatedWebP.size)
-                                        if (translatedBitmap != null) {
-                                            val translatedImage = ca.mpreg.webgpuviewer.renderer.Image(
-                                                java.nio.ByteBuffer.allocateDirect(translatedBitmap.width * translatedBitmap.height * 4).apply {
-                                                    translatedBitmap.copyPixelsToBuffer(this)
-                                                    rewind()
-                                                },
-                                                translatedBitmap.width,
-                                                translatedBitmap.height,
-                                                createMipMaps = true,
-                                                backgroundColor = if (config.automaticBackground) null else readerBackgroundColor(),
-                                            )
-                                            val translatedPage = ImagePage.ImageSingle(translatedImage)
-                                            synchronized(lock) {
-                                                if (pageInCache(page) && page.imagePage === imagePage) {
-                                                    val old = page.imagePage
-                                                    page.imagePage = translatedPage
-                                                    old.cleanup()
-                                                    translatedPage.let { tp ->
-                                                        if (tp is ImagePage.ImageSingle) {
-                                                            if (page.spreadPosition == SpreadPosition.SINGLE) {
-                                                                if (!applyWideZoomIfNeeded(tp)) applyFitModeAnchor(tp)
+                                        if (translatedWebP != null) {
+                                            val translatedBitmap = android.graphics.BitmapFactory.decodeByteArray(translatedWebP, 0, translatedWebP.size)
+                                            if (translatedBitmap != null) {
+                                                val translatedImage = ca.mpreg.webgpuviewer.renderer.Image(
+                                                    java.nio.ByteBuffer.allocateDirect(translatedBitmap.width * translatedBitmap.height * 4).apply {
+                                                        translatedBitmap.copyPixelsToBuffer(this)
+                                                        rewind()
+                                                    },
+                                                    translatedBitmap.width,
+                                                    translatedBitmap.height,
+                                                    createMipMaps = true,
+                                                    backgroundColor = if (config.automaticBackground) null else readerBackgroundColor(),
+                                                )
+                                                val translatedPage = ImagePage.ImageSingle(translatedImage)
+                                                synchronized(lock) {
+                                                    if (pageInCache(page) && page.imagePage === imagePage) {
+                                                        val old = page.imagePage
+                                                        page.imagePage = translatedPage
+                                                        old.cleanup()
+                                                        translatedPage.let { tp ->
+                                                            if (tp is ImagePage.ImageSingle) {
+                                                                if (page.spreadPosition == SpreadPosition.SINGLE) {
+                                                                    if (!applyWideZoomIfNeeded(tp)) applyFitModeAnchor(tp)
+                                                                }
+                                                                applyDoubleTapZoomPolicy(tp)
                                                             }
-                                                            applyDoubleTapZoomPolicy(tp)
                                                         }
+                                                        pager.state.invalidate()
+                                                    } else {
+                                                        translatedPage.cleanup()
                                                     }
-                                                    pager.state.invalidate()
-                                                } else {
-                                                    translatedPage.cleanup()
                                                 }
+                                                translatedBitmap.recycle()
                                             }
-                                            translatedBitmap.recycle()
                                         }
                                     }
-                                }
-                            } catch (_: Exception) {}
+                                } catch (_: Exception) {}
+                            }
                         }
-                    }
                     }
                 } else {
                     if (pageInCache(page)) page.state = PageState.IDLE

@@ -115,7 +115,13 @@ class YakuyomiEngine {
             var line = StringBuilder()
             for (w in words) {
                 if (w.isEmpty()) continue
-                val test = if (line.isEmpty()) w else if (clean.contains(" ")) "$line $w" else line.toString() + w
+                val test = if (line.isEmpty()) {
+                    w
+                } else if (clean.contains(" ")) {
+                    "$line $w"
+                } else {
+                    line.toString() + w
+                }
                 val widthNeeded = if (clean.contains(" ")) textFillPaint.measureText(test) else textFillPaint.measureText(test)
                 val available = bounds.width() - 8
                 if (widthNeeded > available && line.isNotEmpty()) {

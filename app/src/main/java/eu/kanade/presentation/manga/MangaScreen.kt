@@ -1522,7 +1522,7 @@ fun TranslateMangaToggle(manga: tachiyomi.domain.manga.model.Manga) {
     val prefs = androidx.compose.runtime.remember { mihon.app.di.globalAppGraph.translationPreferences }
     val preferenceStore = androidx.compose.runtime.remember { mihon.app.di.globalAppGraph.preferenceStore }
     val globalEnabled by prefs.enabled().collectAsState()
-    val perMangaEnabled by store.asFlow(manga.id).collectAsState(initial = store.isEnabled(manga.id))
+    val perMangaEnabled by store.getPreference(manga.id).collectAsState()
     // Gate UI when incognito/censor is on — still show row but disabled with hint
     val incognito by preferenceStore.getBoolean(tachiyomi.core.common.preference.Preference.appStateKey("incognito_mode"), false).collectAsState()
     val censor by preferenceStore.getBoolean("pref_censor_lewd_manga", false).collectAsState()

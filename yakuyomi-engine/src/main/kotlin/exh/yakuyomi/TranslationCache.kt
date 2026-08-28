@@ -54,9 +54,13 @@ class TranslationCache(
             }
         } catch (e: Exception) {
             xLogD("TranslationCache put failed: ${e.message}")
-            try { tmp.delete() } catch (_: Exception) {}
+            try {
+                tmp.delete()
+            } catch (_: Exception) {}
             // Fallback direct write
-            try { f.writeBytes(webpBytes) } catch (_: Exception) {}
+            try {
+                f.writeBytes(webpBytes)
+            } catch (_: Exception) {}
         }
         pruneIfNeeded()
         return f
@@ -101,6 +105,8 @@ class TranslationCache(
     fun sizeBytes(): Long {
         return try {
             cacheDir().listFiles()?.filter { it.isFile }?.sumOf { it.length() } ?: 0L
-        } catch (_: Exception) { 0L }
+        } catch (_: Exception) {
+            0L
+        }
     }
 }

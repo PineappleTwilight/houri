@@ -53,7 +53,9 @@ class BreadcrumbNotes(
                 json.decodeFromString<BreadcrumbNote>(f.readText())
             } catch (_: Exception) {
                 // Delete corrupt file
-                try { f.delete() } catch (_: Exception) {}
+                try {
+                    f.delete()
+                } catch (_: Exception) {}
                 null
             }
         }
@@ -99,9 +101,17 @@ class BreadcrumbNotes(
             val dir = notesDir(mangaId)
             if (!dir.exists()) return
             val notes = dir.listFiles()?.mapNotNull { f ->
-                try { f to json.decodeFromString<BreadcrumbNote>(f.readText()) } catch (_: Exception) { null }
+                try {
+                    f to json.decodeFromString<BreadcrumbNote>(f.readText())
+                } catch (_: Exception) {
+                    null
+                }
             }?.sortedByDescending { it.second.timestamp } ?: return
-            notes.drop(keep).forEach { (file, _) -> try { file.delete() } catch (_: Exception) {} }
+            notes.drop(keep).forEach { (file, _) ->
+                try {
+                    file.delete()
+                } catch (_: Exception) {}
+            }
         } catch (_: Exception) {}
     }
 }

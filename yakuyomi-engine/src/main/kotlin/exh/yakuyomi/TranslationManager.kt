@@ -42,7 +42,10 @@ class TranslationManager(
     private val perMangaStore: TranslateMangaStore,
     private val preferenceStore: PreferenceStore,
 ) {
-    private val json = Json { ignoreUnknownKeys = true; isLenient = true }
+    private val json = Json {
+        ignoreUnknownKeys = true
+        isLenient = true
+    }
 
     fun isEnabled(): Boolean = prefs.enabled().get()
 
@@ -132,7 +135,9 @@ class TranslationManager(
                 cache.put(pageHash, targetLang, model, webp)
             }
             // Append breadcrumb only after successful translation
-            try { notes.appendFromTranslation(mangaId, chapterId, translatedTexts) } catch (_: Exception) {}
+            try {
+                notes.appendFromTranslation(mangaId, chapterId, translatedTexts)
+            } catch (_: Exception) {}
             webp
         } catch (e: Exception) {
             xLogE("translatePage failed", e)
