@@ -177,6 +177,7 @@
 - [ ] **E-Hentai**: Fix browse list showing every entry as having 2026 pages
   - Manga details page does not have this bug for some reason
 - [ ] **WebGPU Reader**: Fix double-page counter logic
+- [ ] **All Readers**: Fix obscure double-page bug if identified and present (See PR: https://github.com/komikku-app/komikku/issues/1696)
 
 ## Chores
 - [x] Replace all Komikku icons/branding with houri icons/branding
