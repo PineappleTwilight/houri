@@ -13,7 +13,7 @@ class TranslationPreferences(
 ) {
     fun enabled() = preferenceStore.getBoolean("pref_yakuyomi_enabled", false)
 
-    fun targetLang() = preferenceStore.getString("pref_yakuyomi_target_lang", "EN")
+    fun targetLang() = preferenceStore.getString("pref_yakuyomi_target_lang", "en")
 
     fun apiKey() = preferenceStore.getString(Preference.privateKey("pref_yakuyomi_api_key"), "")
 
@@ -21,11 +21,19 @@ class TranslationPreferences(
 
     fun model() = preferenceStore.getString("pref_yakuyomi_model", "google/gemma-2-9b-it:free")
 
-    fun offlineFallback() = preferenceStore.getBoolean("pref_yakuyomi_offline_fallback", true)
+    fun offlineFallback() = preferenceStore.getBoolean("pref_yakuyomi_offline_fallback", false)
 
     fun autoTranslateOnDownload() = preferenceStore.getBoolean("pref_yakuyomi_auto_download", false)
 
+    fun saveTranslatedPages() = preferenceStore.getBoolean("pref_yakuyomi_save_translated_pages", true)
+
+    fun autoSaveWhileReading() = preferenceStore.getBoolean("pref_yakuyomi_auto_save_while_reading", true)
+
     fun cacheEnabled() = preferenceStore.getBoolean("pref_yakuyomi_cache_enabled", true)
+
+    fun customBaseUrl() = preferenceStore.getString("pref_yakuyomi_custom_base_url", "")
+
+    fun customHeaders() = preferenceStore.getString("pref_yakuyomi_custom_headers", "")
 
     fun breadcrumbWindowSize() = preferenceStore.getInt("pref_yakuyomi_breadcrumb_window", 5)
 

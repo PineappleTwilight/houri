@@ -6,6 +6,8 @@ import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import li.joye.yakuyomi.engine.Detector
 import li.joye.yakuyomi.engine.Inpainter
@@ -46,6 +48,13 @@ class YakuyomiEngine(
     @Volatile
     private var components: Components? = null
 
+    private val pipelineMutex = Mutex()
+
+    private val defaultConfig = li.joye.yakuyomi.engine.EngineConfig()
+    private val horizontalConfig = defaultConfig.copy(
+        render = defaultConfig.render.copy(orientation = li.joye.yakuyomi.engine.TextOrientation.HORIZONTAL),
+    )
+
     private fun loadAlphabet(): List<String> =
         context.assets.open("yakuyomi_alphabet.txt").bufferedReader().readLines()
 
@@ -76,12 +85,32 @@ class YakuyomiEngine(
     }
 
     /**
+     * Best-effort warm-up: builds the native components (downloading nothing) so the first page
+     * translation does not pay the cold-start cost. Idempotent and cheap after first build.
+     */
+    fun prewarm(): Boolean = ensureComponents() != null
+
+    /**
      * Runs the full library pipeline (detect → OCR → group → translate → inpaint → render) on one
      * page. [translator] is the breadcrumb-aware LLM stage; pass null to skip translation (debug).
+     * Serialized via Mutex because NCNN native backends are not thread-safe.
      */
-    suspend fun translatePage(bitmap: Bitmap, translator: Translator?): PageResult = withContext(Dispatchers.Default) {
+    suspend fun translatePage(bitmap: Bitmap, translator: Translator?, targetLang: String? = null): PageResult = withContext(Dispatchers.Default) {
         val c = ensureComponents() ?: return@withContext PageResult.Failed("models not ready")
-        Pipeline(c.detector, c.ocr, translator, c.inpainter).translatePage(bitmap)
+        pipelineMutex.withLock {
+            val cfg = if (shouldForceHorizontal(targetLang)) horizontalConfig else defaultConfig
+            Pipeline(c.detector, c.ocr, translator, c.inpainter, cfg).translatePage(bitmap)
+        }
+    }
+
+    private fun shouldForceHorizontal(lang: String?): Boolean {
+        if (lang == null) return false
+        val l = lang.trim().lowercase()
+        // Keep AUTO for CJK targets where vertical layout is expected; force horizontal for Latin/other LTR targets
+        val cjkTargets = setOf("ja", "zh", "ko")
+        if (cjkTargets.any { l.startsWith(it) }) return false
+        // For Latin and other LTR languages, force horizontal to avoid vertical rendering inherited from source
+        return true
     }
 
     fun bitmapToWebP(bitmap: Bitmap, quality: Int = 85): ByteArray {

@@ -15,6 +15,10 @@ class TranslationWork(
     context: Context,
     params: WorkerParameters,
 ) : CoroutineWorker(context, params) {
+    companion object {
+        private const val MAX_ATTEMPTS = 3
+    }
+
     override suspend fun doWork(): Result {
         val mangaId = inputData.getLong("mangaId", -1)
         val chapterId = inputData.getLong("chapterId", -1)
@@ -27,12 +31,14 @@ class TranslationWork(
                 xLogD("TranslationWork gated: incognito/censor, skip manga=$mangaId chapter=$chapterId")
                 return Result.success()
             }
-            if (!prefs.autoTranslateOnDownload().get()) {
-                xLogD("TranslationWork autoTranslate disabled, prewarm only manga=$mangaId chapter=$chapterId")
-                return Result.success()
-            }
             if (!manager.isPerMangaEnabled(mangaId)) {
                 xLogD("TranslationWork per-manga disabled manga=$mangaId")
+                return Result.success()
+            }
+            // Prewarm native components so the background run (and later reading) is not cold.
+            globalAppGraph.yakuyomiEngine.prewarm()
+            if (!prefs.autoTranslateOnDownload().get()) {
+                xLogD("TranslationWork autoTranslate disabled, prewarmed only manga=$mangaId chapter=$chapterId")
                 return Result.success()
             }
             val manga = globalAppGraph.getManga.await(mangaId) ?: return Result.success()
@@ -91,6 +97,7 @@ class TranslationWork(
                 // Translate collected pages in order
                 var translated = 0
                 var cached = 0
+                var errored = 0
                 for ((index, bytes) in pages.sortedBy { it.first }) {
                     try {
                         val before = globalAppGraph.translationStatus.chapterStatus(mangaId, chapterId)?.pages?.get(index)
@@ -98,15 +105,30 @@ class TranslationWork(
                         val after = globalAppGraph.translationStatus.chapterStatus(mangaId, chapterId)?.pages?.get(index)
                         if (result != null) {
                             translated++
-                        } else if (after?.state == TranslationStatus.PageState.CACHED || after?.state == TranslationStatus.PageState.DONE || after?.state == TranslationStatus.PageState.SKIPPED) {
-                            cached++
+                        } else {
+                            when (after?.state) {
+                                TranslationStatus.PageState.CACHED,
+                                TranslationStatus.PageState.DONE,
+                                TranslationStatus.PageState.SKIPPED,
+                                -> cached++
+                                TranslationStatus.PageState.ERROR,
+                                -> errored++
+                                else -> {}
+                            }
                         }
                         xLogD("TranslationWork page $index result=${if (result != null) "ok" else "null"} before=$before after=$after")
                     } catch (e: Exception) {
+                        errored++
                         xLogE("TranslationWork translate page $index failed", e)
                     }
                 }
-                xLogD("TranslationWork processed ${pages.size} pages manga=$mangaId chapter=$chapterId translated=$translated cached/skipped=$cached")
+                xLogD("TranslationWork processed ${pages.size} pages manga=$mangaId chapter=$chapterId translated=$translated cached/skipped=$cached errored=$errored")
+                // If every page failed (e.g. transient LLM/network error), retry with backoff a
+                // bounded number of times instead of silently marking the chapter "done".
+                if (errored > 0 && translated == 0 && runAttemptCount < MAX_ATTEMPTS) {
+                    xLogD("TranslationWork retrying manga=$mangaId chapter=$chapterId attempt=${runAttemptCount + 1} errored=$errored")
+                    return Result.retry()
+                }
             } else {
                 xLogD("TranslationWork chapter dir not found manga=$mangaId chapter=$chapterId")
             }

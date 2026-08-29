@@ -348,6 +348,8 @@
     <string name="mtl_translating">Translating…</string>
     <string name="mtl_translating_progress">Translating… %1$d/%2$d pages</string>
     <string name="mtl_translated">Translated</string>
+    <string name="mtl_skipped_single">Skipped — no text detected</string>
+    <string name="mtl_skipped_pages">Skipped %1$d pages — no text detected</string>
     <string name="mtl_translation_failed">Translation failed</string>
     <string name="mtl_retry">Retry</string>
     <string name="mtl_models_title">AI models</string>

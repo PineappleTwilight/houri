@@ -1033,9 +1033,11 @@ class MangaScreenModel(
                 else -> Download.State.NOT_DOWNLOADED
             }
 
-            val transStatus = translationStatus.chapterStatus(manga.id, chapter.id)
+            val translationManager = globalAppGraph.translationManager
+            val mtlEnabled = translationManager.isEnabled() && translationManager.isPerMangaEnabled(manga.id)
+            val transStatus = if (mtlEnabled) translationStatus.chapterStatus(manga.id, chapter.id) else null
             val translationProgress = if (transStatus != null && transStatus.totalPages > 0) {
-                (transStatus.doneCount * 100 / transStatus.totalPages).coerceIn(0, 100)
+                (transStatus.translatedCount * 100 / transStatus.totalPages).coerceIn(0, 100)
             } else {
                 0
             }

@@ -54,6 +54,15 @@ class TranslationStatus {
         val isTranslating: Boolean
             get() = pages.values.any { it.state == PageState.TRANSLATING }
 
+        /** Pages that actually received a translated/rendered image (DONE + CACHED). */
+        val translatedCount: Int
+            get() = pages.values.count { it.state in TRANSLATED_STATES }
+
+        /** Pages with no actionable text (kept original; not an error, not a translation). */
+        val skippedCount: Int
+            get() = pages.values.count { it.state == PageState.SKIPPED }
+
+        /** Legacy alias: everything processed that "didn't error", including skipped pages. */
         val doneCount: Int
             get() = pages.values.count { it.state in DONE_STATES }
 
@@ -61,13 +70,14 @@ class TranslationStatus {
             get() = pages.values.count { it.state == PageState.ERROR }
 
         val hasTranslatedPages: Boolean
-            get() = doneCount > 0
+            get() = translatedCount > 0
 
         /** Number of pages that still need a translated (or cached) result. */
         val pendingCount: Int
-            get() = (totalPages - doneCount).coerceAtLeast(0)
+            get() = (totalPages - translatedCount).coerceAtLeast(0)
 
         companion object {
+            private val TRANSLATED_STATES = setOf(PageState.DONE, PageState.CACHED)
             private val DONE_STATES = setOf(PageState.DONE, PageState.CACHED, PageState.SKIPPED)
         }
     }

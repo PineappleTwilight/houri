@@ -1,11 +1,23 @@
 package eu.kanade.presentation.more.settings.screen
 
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
 import eu.kanade.presentation.more.settings.Preference
 import eu.kanade.tachiyomi.util.system.toast
 import kotlinx.collections.immutable.persistentListOf
@@ -48,22 +60,22 @@ object SettingsYakuyomiScreen : SearchableSettings {
                 Preference.PreferenceItem.ListPreference(
                     preference = prefs.targetLang(),
                     entries = persistentMapOf(
-                        "EN" to "English (EN)",
-                        "ES" to "Español (ES)",
-                        "FR" to "Français (FR)",
-                        "DE" to "Deutsch (DE)",
-                        "PT" to "Português (PT)",
-                        "RU" to "Русский (RU)",
-                        "IT" to "Italiano (IT)",
-                        "PL" to "Polski (PL)",
-                        "TR" to "Türkçe (TR)",
-                        "ID" to "Indonesia (ID)",
-                        "AR" to "العربية (AR)",
-                        "ZH" to "中文 (ZH)",
-                        "JA" to "日本語 (JA)",
-                        "KO" to "한국어 (KO)",
-                        "TH" to "ไทย (TH)",
-                        "VI" to "Tiếng Việt (VI)",
+                        "en" to "English (EN)",
+                        "es" to "Español (ES)",
+                        "fr" to "Français (FR)",
+                        "de" to "Deutsch (DE)",
+                        "pt" to "Português (PT)",
+                        "ru" to "Русский (RU)",
+                        "it" to "Italiano (IT)",
+                        "pl" to "Polski (PL)",
+                        "tr" to "Türkçe (TR)",
+                        "id" to "Indonesia (ID)",
+                        "ar" to "العربية (AR)",
+                        "zh" to "中文 (ZH)",
+                        "ja" to "日本語 (JA)",
+                        "ko" to "한국어 (KO)",
+                        "th" to "ไทย (TH)",
+                        "vi" to "Tiếng Việt (VI)",
                     ),
                     title = stringResource(KMR.strings.pref_yakuyomi_target_lang),
                     subtitle = stringResource(KMR.strings.pref_yakuyomi_target_lang) + ": %s",
@@ -90,6 +102,7 @@ object SettingsYakuyomiScreen : SearchableSettings {
                     entries = persistentMapOf(
                         "openrouter" to "OpenRouter",
                         "gemini" to "Gemini",
+                        "custom_openai" to "Custom OpenAI",
                     ),
                     title = stringResource(KMR.strings.pref_yakuyomi_provider),
                     enabled = enabled,
@@ -103,8 +116,20 @@ object SettingsYakuyomiScreen : SearchableSettings {
                 Preference.PreferenceItem.EditTextPreference(
                     preference = prefs.model(),
                     title = stringResource(KMR.strings.pref_yakuyomi_model),
-                    subtitle = if (provider == "gemini") "Gemini model (e.g. gemini-1.5-flash)" else "OpenRouter model (default: google/gemma-2-9b-it:free)",
+                    subtitle = if (provider == "gemini") "Gemini model (e.g. gemini-1.5-flash)" else "OpenRouter/Custom model (default: google/gemma-2-9b-it:free)",
                     enabled = enabled,
+                ),
+                Preference.PreferenceItem.EditTextPreference(
+                    preference = prefs.customBaseUrl(),
+                    title = "Custom API Base URL",
+                    subtitle = "Base URL for OpenAI-compatible endpoint, e.g. https://api.example.com/v1",
+                    enabled = enabled && provider == "custom_openai",
+                ),
+                Preference.PreferenceItem.EditTextPreference(
+                    preference = prefs.customHeaders(),
+                    title = "Custom Headers",
+                    subtitle = "Key: Value per line, e.g. X-API-Key: abc",
+                    enabled = enabled && provider == "custom_openai",
                 ),
             ),
         )
@@ -113,15 +138,6 @@ object SettingsYakuyomiScreen : SearchableSettings {
     @Composable
     private fun getModelGroup(modelManager: exh.yakuyomi.ModelManager): Preference.PreferenceGroup {
         val status by modelManager.status.collectAsState()
-        val subtitle = when (status.state) {
-            exh.yakuyomi.ModelManager.State.READY ->
-                stringResource(KMR.strings.mtl_models_ready, status.downloadedBytes / 1024)
-            exh.yakuyomi.ModelManager.State.DOWNLOADING ->
-                stringResource(KMR.strings.mtl_models_downloading, (status.progress * 100).toInt())
-            exh.yakuyomi.ModelManager.State.ERROR ->
-                stringResource(KMR.strings.mtl_models_error, status.error ?: "unknown")
-            else -> stringResource(KMR.strings.mtl_models_missing)
-        }
         val actionTitle = when (status.state) {
             exh.yakuyomi.ModelManager.State.DOWNLOADING -> stringResource(KMR.strings.mtl_models_cancel)
             exh.yakuyomi.ModelManager.State.READY -> stringResource(KMR.strings.mtl_models_redownload)
@@ -130,7 +146,53 @@ object SettingsYakuyomiScreen : SearchableSettings {
         return Preference.PreferenceGroup(
             title = stringResource(KMR.strings.mtl_models_title),
             preferenceItems = persistentListOf(
-                Preference.PreferenceItem.InfoPreference(title = subtitle),
+                Preference.PreferenceItem.CustomPreference(
+                    title = stringResource(KMR.strings.mtl_models_title),
+                    content = {
+                        Column(modifier = Modifier.padding(vertical = 8.dp)) {
+                            when (status.state) {
+                                exh.yakuyomi.ModelManager.State.READY -> {
+                                    Text(
+                                        text = stringResource(KMR.strings.mtl_models_ready, status.downloadedBytes / 1024),
+                                        style = MaterialTheme.typography.bodyMedium,
+                                    )
+                                }
+                                exh.yakuyomi.ModelManager.State.DOWNLOADING -> {
+                                    val percent = (status.progress * 100).toInt()
+                                    Text(
+                                        text = stringResource(KMR.strings.mtl_models_downloading, percent),
+                                        style = MaterialTheme.typography.bodyMedium,
+                                    )
+                                    Spacer(modifier = Modifier.padding(vertical = 4.dp))
+                                    LinearProgressIndicator(
+                                        progress = { status.progress },
+                                        modifier = Modifier.fillMaxWidth(),
+                                    )
+                                    if (!status.currentFile.isNullOrBlank()) {
+                                        Spacer(modifier = Modifier.padding(vertical = 4.dp))
+                                        Text(
+                                            text = "File: ${status.currentFile}",
+                                            style = MaterialTheme.typography.bodySmall,
+                                        )
+                                    }
+                                }
+                                exh.yakuyomi.ModelManager.State.ERROR -> {
+                                    Text(
+                                        text = stringResource(KMR.strings.mtl_models_error, status.error ?: "unknown"),
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.error,
+                                    )
+                                }
+                                else -> {
+                                    Text(
+                                        text = stringResource(KMR.strings.mtl_models_missing),
+                                        style = MaterialTheme.typography.bodyMedium,
+                                    )
+                                }
+                            }
+                        }
+                    },
+                ),
                 Preference.PreferenceItem.TextPreference(
                     title = actionTitle,
                     onClick = {
@@ -159,7 +221,7 @@ object SettingsYakuyomiScreen : SearchableSettings {
                 Preference.PreferenceItem.SwitchPreference(
                     preference = prefs.offlineFallback(),
                     title = stringResource(KMR.strings.pref_yakuyomi_offline_fallback),
-                    subtitle = "Use offline ML Kit when API key is empty or call fails",
+                    subtitle = "Keep original art when the API call fails (otherwise pages are marked failed and retried)",
                     enabled = enabled,
                 ),
                 Preference.PreferenceItem.SwitchPreference(
@@ -172,6 +234,18 @@ object SettingsYakuyomiScreen : SearchableSettings {
                     preference = prefs.autoTranslateOnDownload(),
                     title = stringResource(KMR.strings.pref_yakuyomi_auto_download),
                     subtitle = "Prewarm translation when chapters are downloaded (respects per-manga toggle)",
+                    enabled = enabled,
+                ),
+                Preference.PreferenceItem.SwitchPreference(
+                    preference = prefs.saveTranslatedPages(),
+                    title = "Save translated pages to chapter folder",
+                    subtitle = "Keep translated WEBP images alongside originals to avoid re-translating",
+                    enabled = enabled,
+                ),
+                Preference.PreferenceItem.SwitchPreference(
+                    preference = prefs.autoSaveWhileReading(),
+                    title = "Auto-save while reading",
+                    subtitle = "Save translated pages as you read to avoid re-translating later",
                     enabled = enabled,
                 ),
                 Preference.PreferenceItem.ListPreference(

@@ -26,6 +26,7 @@ class TranslationManager(
     private val perMangaStore: TranslateMangaStore,
     private val preferenceStore: PreferenceStore,
     private val status: TranslationStatus,
+    private val pageStore: TranslatedPageStore,
 ) {
     fun isEnabled(): Boolean = prefs.enabled().get()
 
@@ -53,6 +54,37 @@ class TranslationManager(
 
     fun setPerMangaEnabled(mangaId: Long, enabled: Boolean) = perMangaStore.setEnabled(mangaId, enabled)
 
+    /**
+     * Fast path for pages already translated in this session/on disk: serves the saved page or the
+     * hash cache without running the detection/OCR/LLM pipeline. Returns null when nothing is stored
+     * (caller should fall back to [translatePage]).
+     */
+    suspend fun getTranslatedBytes(
+        mangaId: Long,
+        chapterId: Long,
+        imageBytes: ByteArray,
+        pageIndex: Int,
+    ): ByteArray? = withContext(Dispatchers.IO) {
+        if (!prefs.enabled().get() || isGated() || !perMangaStore.isEnabled(mangaId)) return@withContext null
+        val targetLang = prefs.targetLang().get().ifBlank { "en" }
+        val model = prefs.model().get().ifBlank { "google/gemma-2-9b-it:free" }
+        if (prefs.saveTranslatedPages().get()) {
+            pageStore.loadIfExists(mangaId, chapterId, pageIndex)?.let { bytes ->
+                if (bytes.isNotEmpty()) return@withContext bytes
+            }
+        }
+        if (prefs.cacheEnabled().get()) {
+            val pageHash = cache.pageHash(imageBytes)
+            cache.getIfExists(pageHash, targetLang, model)?.let { f ->
+                try {
+                    val bytes = f.readBytes()
+                    if (bytes.isNotEmpty()) return@withContext bytes
+                } catch (_: Exception) {}
+            }
+        }
+        null
+    }
+
     suspend fun translatePage(
         mangaId: Long,
         chapterId: Long,
@@ -61,15 +93,30 @@ class TranslationManager(
         sourceLangHint: String = "JA",
     ): ByteArray? = withContext(Dispatchers.IO) {
         if (!prefs.enabled().get() || isGated() || !perMangaStore.isEnabled(mangaId)) return@withContext null
-        val targetLang = prefs.targetLang().get().ifBlank { "EN" }
+        val targetLang = prefs.targetLang().get().ifBlank { "en" }
         val model = prefs.model().get().ifBlank { "google/gemma-2-9b-it:free" }
         val cacheEnabled = prefs.cacheEnabled().get()
+
+        // Prefer saved translated page to avoid re-translation
+        if (prefs.saveTranslatedPages().get()) {
+            pageStore.loadIfExists(mangaId, chapterId, pageIndex)?.let { bytes ->
+                if (bytes.isNotEmpty()) {
+                    status.pageCached(mangaId, chapterId, pageIndex)
+                    return@withContext bytes
+                }
+            }
+        }
+
         val pageHash = cache.pageHash(imageBytes)
         if (cacheEnabled) {
             cache.getIfExists(pageHash, targetLang, model)?.let { f ->
                 try {
                     val bytes = f.readBytes()
                     if (bytes.isNotEmpty()) {
+                        // Ensure saved copy exists for future fast load
+                        if (prefs.saveTranslatedPages().get() && prefs.autoSaveWhileReading().get()) {
+                            pageStore.save(mangaId, chapterId, pageIndex, bytes)
+                        }
                         status.pageCached(mangaId, chapterId, pageIndex)
                         return@withContext bytes
                     }
@@ -102,13 +149,18 @@ class TranslationManager(
                 model = model,
                 offlineFallback = prefs.offlineFallback().get(),
                 client = client,
+                customBaseUrl = prefs.customBaseUrl().get(),
+                customHeaders = prefs.customHeaders().get(),
             )
 
-            when (val result = engine.translatePage(bitmap, translator)) {
+            when (val result = engine.translatePage(bitmap, translator, targetLang)) {
                 is PageResult.Translated -> {
                     val webp = engine.bitmapToWebP(result.page, quality = 85)
                     if (cacheEnabled) {
                         cache.put(pageHash, targetLang, model, webp)
+                    }
+                    if (prefs.saveTranslatedPages().get() && prefs.autoSaveWhileReading().get()) {
+                        pageStore.save(mangaId, chapterId, pageIndex, webp)
                     }
                     val translatedTexts = result.analysis?.regions?.map { it.translatedText } ?: emptyList()
                     try {

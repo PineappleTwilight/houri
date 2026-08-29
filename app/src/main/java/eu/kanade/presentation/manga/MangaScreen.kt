@@ -1531,10 +1531,12 @@ fun TranslateMangaToggle(manga: tachiyomi.domain.manga.model.Manga) {
     val incognito by preferenceStore.getBoolean(tachiyomi.core.common.preference.Preference.appStateKey("incognito_mode"), false).collectAsState()
     val censor by preferenceStore.getBoolean("pref_censor_lewd_manga", false).collectAsState()
     val isGated = incognito || censor
-    val subtitle = when {
-        isGated -> stringResource(tachiyomi.i18n.kmk.KMR.strings.pref_yakuyomi_enabled_summary)
-        !globalEnabled -> stringResource(tachiyomi.i18n.MR.strings.requires_app_restart) + " — " + stringResource(tachiyomi.i18n.kmk.KMR.strings.pref_yakuyomi_enabled) + " " + stringResource(tachiyomi.i18n.MR.strings.disabled)
-        else -> stringResource(tachiyomi.i18n.kmk.KMR.strings.pref_translate_manga_summary)
+    // When global MTL is off, hide the per-manga toggle entirely.
+    if (!globalEnabled) return
+    val subtitle = if (isGated) {
+        stringResource(tachiyomi.i18n.kmk.KMR.strings.pref_yakuyomi_enabled_summary)
+    } else {
+        stringResource(tachiyomi.i18n.kmk.KMR.strings.pref_translate_manga_summary)
     }
     androidx.compose.foundation.layout.Row(
         modifier = Modifier

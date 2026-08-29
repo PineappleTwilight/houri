@@ -46,6 +46,9 @@ fun MtlTranslationOverlay(
     modifier: Modifier = Modifier,
 ) {
     if (mangaId == null || chapterId == null || chapterId == 0L) return
+    val manager = remember { globalAppGraph.translationManager }
+    // Hide the whole overlay when MTL is disabled or per-manga translation is off.
+    if (!manager.isEnabled() || !manager.isPerMangaEnabled(mangaId)) return
 
     val status = remember { globalAppGraph.translationStatus }
     val chapters by status.chapters.collectAsState()
@@ -67,7 +70,8 @@ fun MtlTranslationOverlay(
 
     val isTranslating = chapterStatus?.isTranslating == true
     val errorCount = chapterStatus?.errorCount ?: 0
-    val doneCount = chapterStatus?.doneCount ?: 0
+    val translatedCount = chapterStatus?.translatedCount ?: 0
+    val skippedCount = chapterStatus?.skippedCount ?: 0
 
     val visible = isTranslating || (errorCount > 0 && !isTranslating) || showTranslated
     AnimatedVisibility(
@@ -83,8 +87,9 @@ fun MtlTranslationOverlay(
             shadowElevation = 4.dp,
         ) {
             when {
-                isTranslating -> TranslatingChip(doneCount = doneCount, totalPages = totalPages)
+                isTranslating -> TranslatingChip(doneCount = translatedCount, totalPages = totalPages)
                 errorCount > 0 -> ErrorChip(errorCount = errorCount, onRetry = onRetry)
+                skippedCount > 0 && translatedCount == 0 -> SkippedChip(skippedCount = skippedCount)
                 showTranslated -> TranslatedChip()
                 else -> {}
             }
@@ -99,16 +104,42 @@ private fun TranslatingChip(doneCount: Int, totalPages: Int) {
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
     ) {
-        CircularProgressIndicator(
-            strokeWidth = 2.dp,
-            modifier = Modifier.padding(2.dp),
-        )
+        if (totalPages > 0) {
+            val progress = (doneCount.coerceAtMost(totalPages)).toFloat() / totalPages.toFloat()
+            CircularProgressIndicator(
+                progress = { progress },
+                strokeWidth = 2.dp,
+                modifier = Modifier.padding(2.dp),
+            )
+            Text(
+                text = stringResource(KMR.strings.mtl_translating_progress, doneCount.coerceAtMost(totalPages), totalPages),
+                style = MaterialTheme.typography.bodyMedium,
+            )
+        } else {
+            CircularProgressIndicator(
+                strokeWidth = 2.dp,
+                modifier = Modifier.padding(2.dp),
+            )
+            Text(
+                text = stringResource(KMR.strings.mtl_translating),
+                style = MaterialTheme.typography.bodyMedium,
+            )
+        }
+    }
+}
+
+@Composable
+private fun SkippedChip(skippedCount: Int) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+    ) {
         Text(
-            text = if (totalPages > 0) {
-                stringResource(KMR.strings.mtl_translating_progress, doneCount.coerceAtMost(totalPages), totalPages)
-            } else {
-                stringResource(KMR.strings.mtl_translating)
-            },
+            text = stringResource(
+                if (skippedCount > 1) KMR.strings.mtl_skipped_pages else KMR.strings.mtl_skipped_single,
+                skippedCount,
+            ),
             style = MaterialTheme.typography.bodyMedium,
         )
     }

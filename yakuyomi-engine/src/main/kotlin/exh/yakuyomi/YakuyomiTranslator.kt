@@ -1,5 +1,6 @@
 package exh.yakuyomi
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
@@ -15,7 +16,6 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
-import tachiyomi.core.common.util.system.logcat
 import java.util.concurrent.TimeUnit
 
 /**
@@ -23,6 +23,13 @@ import java.util.concurrent.TimeUnit
  * injected into the library pipeline; it keeps Komikku's custom sliding-window breadcrumb prompt
  * (context notes about prior chapters) that the library's default [li.joye.yakuyomi.engine.LlmTranslator]
  * does not implement.
+ *
+ * Failure handling: a failed provider call must NOT be silently reported as "translated". The
+ * library pipeline treats `translatedText == sourceText` as "nothing to translate" and marks the
+ * whole page SKIPPED (permanent, no retry). To make transient LLM/network failures visible and
+ * retryable we throw [TranslationException]; the pipeline then reports the page as FAILED. When
+ * [offlineFallback] is enabled the original text is returned unchanged so the page keeps its
+ * original art (SKIPPED) instead of erroring.
  */
 class YakuyomiTranslator(
     private val apiKey: String,
@@ -33,6 +40,8 @@ class YakuyomiTranslator(
     private val model: String,
     private val offlineFallback: Boolean,
     private val client: OkHttpClient,
+    private val customBaseUrl: String = "",
+    private val customHeaders: String = "",
 ) : Translator {
 
     private val json = Json {
@@ -43,20 +52,31 @@ class YakuyomiTranslator(
     override suspend fun translate(queries: List<String>): List<String> = withContext(Dispatchers.IO) {
         if (queries.isEmpty()) return@withContext emptyList()
         if (apiKey.isBlank()) {
-            return@withContext fallback(queries)
+            if (offlineFallback) return@withContext queries.map { it.trim() }
+            throw TranslationException("Yakuyomi API key not configured (set it in Settings → Translation)")
         }
         val isEnFix = sourceLang.equals("EN", true) && targetLang.equals("EN", true)
         val prompt = buildPrompt(queries, sourceLang, targetLang, breadcrumb, isEnFix)
-        val result = when (provider.lowercase()) {
-            "gemini" -> callGemini(prompt, apiKey, model)
-            else -> callOpenRouter(prompt, apiKey, model)
+        val result = try {
+            when (provider.lowercase()) {
+                "gemini" -> callGemini(prompt, apiKey, model)
+                "custom_openai" -> callCustomOpenAI(prompt, apiKey, model)
+                else -> callOpenRouter(prompt, apiKey, model)
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: TranslationException) {
+            if (offlineFallback) return@withContext queries.map { it.trim() }
+            throw e
+        } catch (e: Exception) {
+            if (offlineFallback) return@withContext queries.map { it.trim() }
+            throw TranslationException("Yakuyomi $provider request failed: ${e.message}")
         }
-        if (result == null) return@withContext fallback(queries)
+        if (result == null) {
+            if (offlineFallback) return@withContext queries.map { it.trim() }
+            throw TranslationException("Yakuyomi $provider returned no usable translation")
+        }
         align(result, queries)
-    }
-
-    private fun fallback(queries: List<String>): List<String> {
-        return if (offlineFallback) queries.map { it.trim() } else queries.map { it.trim() }
     }
 
     private fun align(result: List<String>, queries: List<String>): List<String> {
@@ -74,6 +94,64 @@ class YakuyomiTranslator(
             "${breadcrumbSection}Fix grammar, preserve names, output only EN. Texts:\n$joined\n\nReturn each corrected line prefixed with '- ' exactly, one per input line, no extra commentary."
         } else {
             "${breadcrumbSection}Translate $sourceLang → $targetLang. Preserve names, honorifics, output only $targetLang. Texts:\n$joined\n\nReturn each translated line prefixed with '- ' exactly, one per input line, no extra commentary."
+        }
+    }
+
+    private suspend fun callCustomOpenAI(prompt: String, apiKey: String, model: String): List<String>? = withContext(Dispatchers.IO) {
+        try {
+            val baseUrl = customBaseUrl
+            if (baseUrl.isBlank()) throw TranslationException("Custom OpenAI base URL not configured")
+            val url = baseUrl.trimEnd('/') + "/chat/completions"
+            val body = buildJsonObject {
+                put("model", model)
+                putJsonArray("messages") {
+                    add(
+                        buildJsonObject {
+                            put("role", "user")
+                            put("content", prompt)
+                        },
+                    )
+                }
+                put("max_tokens", 2048)
+            }.toString().toRequestBody("application/json".toMediaType())
+            val reqBuilder = Request.Builder()
+                .url(url)
+                .post(body)
+                .header("Authorization", "Bearer $apiKey")
+                .header("Content-Type", "application/json")
+            parseCustomHeaders(customHeaders)?.forEach { (k, v) -> reqBuilder.header(k, v) }
+            val req = reqBuilder.build()
+            val callClient = client.newBuilder().callTimeout(30, TimeUnit.SECONDS).build()
+            callClient.newCall(req).execute().use { resp ->
+                if (!resp.isSuccessful) {
+                    throw TranslationException("Custom OpenAI HTTP ${resp.code}: ${resp.message}")
+                }
+                val txt = resp.body.string() ?: throw TranslationException("Custom OpenAI empty response")
+                parseOpenRouterResponse(txt)
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: TranslationException) {
+            throw e
+        } catch (e: Exception) {
+            throw TranslationException("Custom OpenAI call failed: ${e.message}", e)
+        }
+    }
+
+    private fun parseCustomHeaders(raw: String): Map<String, String>? {
+        if (raw.isBlank()) return emptyMap()
+        return try {
+            raw.lines()
+                .map { it.trim() }
+                .filter { it.isNotBlank() && it.contains(":") }
+                .associate {
+                    val idx = it.indexOf(":")
+                    val k = it.substring(0, idx).trim()
+                    val v = it.substring(idx + 1).trim()
+                    k to v
+                }
+        } catch (_: Exception) {
+            null
         }
     }
 
@@ -105,15 +183,17 @@ class YakuyomiTranslator(
                 .build()
             callClient.newCall(req).execute().use { resp ->
                 if (!resp.isSuccessful) {
-                    logcat { "OpenRouter error ${resp.code}: ${resp.message}" }
-                    return@withContext null
+                    throw TranslationException("OpenRouter HTTP ${resp.code}: ${resp.message}")
                 }
-                val txt = resp.body.string() ?: return@withContext null
+                val txt = resp.body.string() ?: throw TranslationException("OpenRouter empty response")
                 parseOpenRouterResponse(txt)
             }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: TranslationException) {
+            throw e
         } catch (e: Exception) {
-            logcat { "OpenRouter call failed: ${e.message}" }
-            null
+            throw TranslationException("OpenRouter call failed: ${e.message}", e)
         }
     }
 
@@ -137,15 +217,17 @@ class YakuyomiTranslator(
             val callClient = client.newBuilder().callTimeout(30, TimeUnit.SECONDS).build()
             callClient.newCall(req).execute().use { resp ->
                 if (!resp.isSuccessful) {
-                    logcat { "Gemini error ${resp.code}: ${resp.message}" }
-                    return@withContext null
+                    throw TranslationException("Gemini HTTP ${resp.code}: ${resp.message}")
                 }
-                val txt = resp.body.string() ?: return@withContext null
+                val txt = resp.body.string() ?: throw TranslationException("Gemini empty response")
                 parseGeminiResponse(txt)
             }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: TranslationException) {
+            throw e
         } catch (e: Exception) {
-            logcat { "Gemini call failed: ${e.message}" }
-            null
+            throw TranslationException("Gemini call failed: ${e.message}", e)
         }
     }
 
@@ -177,13 +259,21 @@ class YakuyomiTranslator(
     }
 
     private fun parseLinesFromContent(content: String): List<String>? {
-        val dashLines = content.lines().map { it.trim() }.filter { it.startsWith("- ") }.map { it.removePrefix("- ").trim() }.filter { it.isNotBlank() }
+        val cleaned = content.trim()
+        // Strip common LLM code fences or markdown wrappers that hide the dash list.
+        val fenced = Regex("```[a-zA-Z]*\\s*").replace(cleaned, "")
+        val working = if (fenced.startsWith("- ") || fenced.startsWith("1.") || fenced.startsWith("1)") || fenced.contains("\n- ")) {
+            fenced
+        } else {
+            cleaned
+        }
+        val dashLines = working.lines().map { it.trim() }.filter { it.startsWith("- ") }.map { it.removePrefix("- ").trim() }.filter { it.isNotBlank() }
         if (dashLines.isNotEmpty()) return dashLines
-        val numbered = content.lines().map { it.trim() }.mapNotNull { line ->
+        val numbered = working.lines().map { it.trim() }.mapNotNull { line ->
             Regex("""^\d+[.)]\s*(.+)""").find(line)?.groupValues?.getOrNull(1)?.trim()?.takeIf { it.isNotBlank() }
         }
         if (numbered.isNotEmpty()) return numbered
-        val split = content.lines().map { it.trim() }.filter { it.isNotBlank() }
+        val split = working.lines().map { it.trim() }.filter { it.isNotBlank() }
         if (split.isNotEmpty()) return split
         return null
     }
@@ -201,3 +291,10 @@ class YakuyomiTranslator(
         }
     }
 }
+
+/**
+ * Raised when the LLM provider cannot complete a translation request (missing API key, HTTP
+ * error, unparseable/empty response). The library pipeline converts this into a FAILED page
+ * so it can be retried instead of being permanently marked SKIPPED.
+ */
+class TranslationException(message: String, cause: Throwable? = null) : Exception(message, cause)
