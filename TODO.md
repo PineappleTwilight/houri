@@ -179,6 +179,7 @@
 - [x] **WebGPU Reader**: Fix double-page counter logic
 - [x] **All Readers**: Fix obscure double-page bug if identified and present (See PR: https://github.com/komikku-app/komikku/issues/1696)
 - [x] **App**: Disable feeds by default (opt-in preference)
+- [ ] **MTL Engine**: Drastically harden the workflow pipeline and thoroughly investigate the UI wiring for bugs/improvements
 
 ## Chores
 - [x] Replace all Komikku icons/branding with houri icons/branding
