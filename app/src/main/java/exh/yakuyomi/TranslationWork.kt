@@ -46,7 +46,8 @@ class TranslationWork(
             val provider = globalAppGraph.downloadProvider
             val sourceManager = globalAppGraph.sourceManager
             val source = sourceManager.getOrStub(manga.source)
-            val chapterDir: UniFile? = provider.findChapterDir(chapter.name, chapter.scanlator, chapter.url, manga.title, source)
+            val mangaTitle = manga.ogTitle.ifBlank { manga.title }
+            val chapterDir: UniFile? = provider.findChapterDir(chapter.name, chapter.scanlator, chapter.url, mangaTitle, source)
             if (chapterDir != null && chapterDir.exists()) {
                 val files = chapterDir.listFiles().orEmpty().sortedBy { it.name }
                 xLogD("TranslationWork processing ${files.size} pages manga=$mangaId chapter=$chapterId")
