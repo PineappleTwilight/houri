@@ -74,7 +74,7 @@
   - Works in manga details and the library catalogue
 - [x] **New**: Source-level manga filtering
   - Ability to set filters as default on a per-sort basis too
-- [ ] **New**: AI-powered translation / English grammar and vocab fixer — *Feasibility: investigated 2026-08-26, feasible via hybrid Yakuyomi-engine*
+- [x] **New**: AI-powered translation / English grammar and vocab fixer — *Feasibility: investigated 2026-08-26, feasible via hybrid Yakuyomi-engine*
   - Disabled by default, gated by `isIncognito` / `censorLewdManga` before upload; cached `WEBP` per `pageHash+targetLang+model`
   - Hybrid pipeline: on-device `NCNN` detection + `ONNX int8` OCR (48px CTC) + `AOT-GAN` removal (tile 768) + `Canvas` typesetting → baked `Image` replacement for `WebGPU`/`Pager` (handles dual-page height-match, no overlay drift)
   - Translation via cloud LLM (`Gemini`/`OpenRouter`, user `API_KEY`, `gemma-2-9b-it:free` default) with `ML Kit` offline fallback; `JA/KO/ZH → any` + `EN→EN` grammar/vocab fix via same prompt (`fix grammar, preserve names, output only EN`)
@@ -95,7 +95,7 @@
   - LLM should leave "breadcrumb" note files for each chapter it translates detailing important chapter info and a summary.
     - These notes are then kept in a sliding window for future chapter translation consistency as context for the LLM
     - This avoids having the user need to download all chapters at once and can instead flow naturally in reading order
-  - Biggest issue with this approach is the amount of API calls it would use. Free models would need to be investigated. 
+  - Biggest issue with this approach is the amount of API calls it would use. Free models would need to be investigated.
 - [ ] **New**: WebAssembly computation engine for extensions — *Feasibility: investigated 2026-08-27, feasible via J2V8 + WebAssembly, not bare wasmtime; for website wasm bundles (keygen/auth)*
   - Goal is **website `*.wasm` bundles** (key generation, auth, `decrypt` as manga sites use Emscripten/`wasm-bindgen` with `env.memory`/`env.table`/`js.*` imports + `*.js` glue), not `STANDALONE_WASM` — bare `wasmtime`/`wasm3`/`WAMR` only provide `wasi_snapshot_preview1` and trap on `env.__memory_base`/`js.crypto_getRandomValues`
   - Current `JavaScriptEngine` is `app.cash.quickjs:quickjs` which **has no `WebAssembly` global** → `WebAssembly.instantiate` throws; `V8`/`WebView` does (`WebAssembly.Memory/Table`)
@@ -174,6 +174,9 @@
 - [x] **WebGPU Reader**: Fix double-page scaling fix not applying on first page rendered when entering the reader (changing pages fixes it, but whenever the user leaves the reader and re-enters, issue comes back for that first page)
 - [x] **WebGPU Reader**: Fix persistent and intermittent double page scaling issues — scale shorter→taller deterministically, guard zero heights, fallback to opposite side when bytes evicted; fixes first-spread no-op and e-ink tiny-shrink (see `WebGpuViewer.maybeScheduleSpreadHeightMatch`)
 - [ ] **WebGPU Reader**: Fix wide pages getting cut off on the sides
+- [ ] **E-Hentai**: Fix browse list showing every entry as having 2026 pages
+  - Manga details page does not have this bug for some reason
+- [ ] **WebGPU Reader**: Fix double-page counter logic
 
 ## Chores
 - [x] Replace all Komikku icons/branding with houri icons/branding
