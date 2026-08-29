@@ -7,15 +7,23 @@ import android.graphics.Paint
 import android.graphics.Rect
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.TextRecognition
+import com.google.mlkit.vision.text.TextRecognizer
+import com.google.mlkit.vision.text.chinese.ChineseTextRecognizerOptions
 import com.google.mlkit.vision.text.japanese.JapaneseTextRecognizerOptions
+import com.google.mlkit.vision.text.korean.KoreanTextRecognizerOptions
+import com.google.mlkit.vision.text.latin.TextRecognizerOptions
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 import tachiyomi.core.common.util.system.logcat
 import java.nio.ByteBuffer
+import kotlin.math.max
+import kotlin.math.min
 
 data class TextBlock(
     val text: String,
@@ -26,28 +34,103 @@ data class TextBlock(
 @SingleIn(AppScope::class)
 @Inject
 class YakuyomiEngine {
-    private val recognizer by lazy {
+    private val latinRecognizer: TextRecognizer by lazy {
+        TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
+    }
+    private val japaneseRecognizer: TextRecognizer by lazy {
         TextRecognition.getClient(JapaneseTextRecognizerOptions.Builder().build())
     }
+    private val chineseRecognizer: TextRecognizer by lazy {
+        TextRecognition.getClient(ChineseTextRecognizerOptions.Builder().build())
+    }
+    private val koreanRecognizer: TextRecognizer by lazy {
+        TextRecognition.getClient(KoreanTextRecognizerOptions.Builder().build())
+    }
 
-    suspend fun detectTextBlocks(bitmap: Bitmap): List<TextBlock> = withContext(Dispatchers.Default) {
-        if (bitmap.width <= 0 || bitmap.height <= 0) return@withContext emptyList()
-        try {
-            val image = InputImage.fromBitmap(bitmap, 0)
+    /**
+     * Multilingual detection: runs Latin, Japanese, Chinese and Korean recognizers.
+     * If [sourceLangHint] is provided (JA/KO/ZH/EN), that recognizer is tried first and
+     * early-exits on success to save work; otherwise all run in parallel and results are merged
+     * with IoU-based deduplication.
+     */
+    suspend fun detectTextBlocks(bitmap: Bitmap, sourceLangHint: String? = null): List<TextBlock> =
+        withContext(Dispatchers.Default) {
+            if (bitmap.width <= 0 || bitmap.height <= 0) return@withContext emptyList()
+            try {
+                val image = InputImage.fromBitmap(bitmap, 0)
+                val hint = sourceLangHint?.trim()?.uppercase()
+                val ordered = when (hint) {
+                    "JA", "JP", "JPN" -> listOf(
+                        japaneseRecognizer to "JA",
+                        chineseRecognizer to "ZH",
+                        koreanRecognizer to "KO",
+                        latinRecognizer to "EN",
+                    )
+                    "KO", "KR", "KOR" -> listOf(
+                        koreanRecognizer to "KO",
+                        japaneseRecognizer to "JA",
+                        chineseRecognizer to "ZH",
+                        latinRecognizer to "EN",
+                    )
+                    "ZH", "ZH-HANS", "ZH-HANT", "CN" -> listOf(
+                        chineseRecognizer to "ZH",
+                        japaneseRecognizer to "JA",
+                        koreanRecognizer to "KO",
+                        latinRecognizer to "EN",
+                    )
+                    "EN" -> listOf(
+                        latinRecognizer to "EN",
+                        japaneseRecognizer to "JA",
+                        chineseRecognizer to "ZH",
+                        koreanRecognizer to "KO",
+                    )
+                    else -> listOf(
+                        japaneseRecognizer to "JA",
+                        chineseRecognizer to "ZH",
+                        koreanRecognizer to "KO",
+                        latinRecognizer to "EN",
+                    )
+                }
+
+                // If hinted, try hinted recognizer first and early-exit if it finds text
+                if (hint != null) {
+                    val primary = ordered.first()
+                    val primaryBlocks = recognizeWith(primary.first, image, bitmap)
+                    if (primaryBlocks.isNotEmpty()) return@withContext primaryBlocks
+                    // Fall through to run remaining
+                }
+
+                // Run all in parallel and merge
+                val deferred = ordered.map { (rec, _) ->
+                    async { recognizeWith(rec, image, bitmap) }
+                }
+                val allLists = deferred.awaitAll()
+                mergeBlocks(allLists.flatten(), bitmap.width, bitmap.height)
+            } catch (e: Exception) {
+                logcat { "Yakuyomi detect failed: ${e.message}" }
+                emptyList()
+            }
+        }
+
+    // Backwards-compatible overload
+    suspend fun detectTextBlocks(bitmap: Bitmap): List<TextBlock> = detectTextBlocks(bitmap, null)
+
+    private suspend fun recognizeWith(
+        recognizer: TextRecognizer,
+        image: InputImage,
+        bitmap: Bitmap,
+    ): List<TextBlock> {
+        return try {
             val result = recognizer.process(image).await()
-            // Use line-level granularity for better inpaint/typeset alignment
             val blocks = mutableListOf<TextBlock>()
             for (block in result.textBlocks) {
-                // Prefer lines; fallback to block if no lines
                 val lines = block.lines
                 if (lines.isNotEmpty()) {
                     for (line in lines) {
                         val box = line.boundingBox ?: continue
-                        val txt = line.text?.trim().orEmpty()
-                        // Keep even empty text blocks for detection, OCR will filter later
-                        // But skip zero-area boxes
                         if (box.width() <= 0 || box.height() <= 0) continue
-                        // Clamp to bitmap bounds
+                        val txt = line.text?.trim().orEmpty()
+                        if (txt.isEmpty()) continue
                         val clamped = Rect(
                             box.left.coerceIn(0, bitmap.width),
                             box.top.coerceIn(0, bitmap.height),
@@ -60,6 +143,8 @@ class YakuyomiEngine {
                 } else {
                     val box = block.boundingBox ?: continue
                     if (box.width() <= 0 || box.height() <= 0) continue
+                    val txt = block.text?.trim().orEmpty()
+                    if (txt.isEmpty()) continue
                     val clamped = Rect(
                         box.left.coerceIn(0, bitmap.width),
                         box.top.coerceIn(0, bitmap.height),
@@ -67,20 +152,55 @@ class YakuyomiEngine {
                         box.bottom.coerceIn(0, bitmap.height),
                     )
                     if (clamped.width() <= 0 || clamped.height() <= 0) continue
-                    blocks.add(TextBlock(text = block.text?.trim().orEmpty(), bounds = clamped))
+                    blocks.add(TextBlock(text = txt, bounds = clamped))
                 }
             }
-            // If ML Kit found nothing, return empty so caller can SKIPP (matches original stub behavior for blank pages)
             blocks
-        } catch (e: Exception) {
-            logcat { "Yakuyomi detect failed: ${e.message}" }
+        } catch (_: Exception) {
             emptyList()
         }
     }
 
+    private fun mergeBlocks(blocks: List<TextBlock>, width: Int, height: Int): List<TextBlock> {
+        if (blocks.isEmpty()) return emptyList()
+        // Sort by area descending so large blocks keep priority
+        val sorted = blocks.sortedByDescending { it.bounds.width() * it.bounds.height() }
+        val kept = mutableListOf<TextBlock>()
+        for (candidate in sorted) {
+            var overlaps = false
+            for (existing in kept) {
+                if (iou(existing.bounds, candidate.bounds) > 0.5f) {
+                    overlaps = true
+                    break
+                }
+                // Also treat near-identical text at similar location as duplicate
+                if (candidate.text == existing.text && iou(existing.bounds, candidate.bounds) > 0.3f) {
+                    overlaps = true
+                    break
+                }
+            }
+            if (!overlaps) kept.add(candidate)
+        }
+        // Return in reading order (top-to-bottom, left-to-right)
+        return kept.sortedWith(compareBy({ it.bounds.top }, { it.bounds.left }))
+    }
+
+    private fun iou(a: Rect, b: Rect): Float {
+        val interLeft = max(a.left, b.left)
+        val interTop = max(a.top, b.top)
+        val interRight = min(a.right, b.right)
+        val interBottom = min(a.bottom, b.bottom)
+        val interW = (interRight - interLeft).coerceAtLeast(0)
+        val interH = (interBottom - interTop).coerceAtLeast(0)
+        val interArea = interW * interH
+        if (interArea == 0) return 0f
+        val areaA = a.width() * a.height()
+        val areaB = b.width() * b.height()
+        val union = areaA + areaB - interArea
+        return if (union <= 0) 0f else interArea.toFloat() / union
+    }
+
     suspend fun ocrBlocks(bitmap: Bitmap, blocks: List<TextBlock>): List<TextBlock> = withContext(Dispatchers.Default) {
-        // ML Kit already OCR'd during detection; just trim and filter empty
-        // Keep blocks with non-empty text after trim; if all empty, return empty to signal SKIPP
         blocks.mapNotNull { b ->
             val t = b.text.trim()
             if (t.isEmpty()) null else b.copy(text = t)

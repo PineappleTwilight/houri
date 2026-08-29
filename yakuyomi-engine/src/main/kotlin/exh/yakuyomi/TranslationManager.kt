@@ -63,10 +63,6 @@ class TranslationManager(
             xLogD("Translation gated: incognito/censor")
             return false
         }
-        if (!models.isReady()) {
-            xLogD("Translation gated: AI models not installed")
-            return false
-        }
         return true
     }
 
@@ -102,10 +98,6 @@ class TranslationManager(
                 } catch (_: Exception) {}
             }
         }
-        if (!models.isReady()) {
-            xLogD("Translation gated: AI models not installed")
-            return@withContext null
-        }
         status.pageTranslating(mangaId, chapterId, pageIndex)
         var bitmap: Bitmap? = null
         var cleaned: Bitmap? = null
@@ -127,7 +119,7 @@ class TranslationManager(
                 return@withContext null
             }
 
-            val blocks = engine.detectTextBlocks(bitmap)
+            val blocks = engine.detectTextBlocks(bitmap, sourceLangHint)
             if (blocks.isEmpty()) {
                 // No text detected; page passes through unchanged.
                 status.pageSkipped(mangaId, chapterId, pageIndex)

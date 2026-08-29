@@ -20,7 +20,10 @@ ben-manes-versions = "0.54.0"
 kim = "0.37.0"
 webgpuviewer = "37"
 mpreg-imagedecoder = "10"
+mlkit_text = "16.0.0"
+mlkit_text_chinese = "16.0.0"
 mlkit_text_japanese = "16.0.0"
+mlkit_text_korean = "16.0.0"
 
 [libraries]
 desugar = "com.android.tools:desugar_jdk_libs:2.1.5"
@@ -129,7 +132,10 @@ mpreg-imagedecoder = { module = "ca.mpreg:imagedecoder", version.ref = "mpreg-im
 
 materialKolor = { module = "com.materialkolor:material-kolor", version.ref = "materialKolor" }
 
+mlkit-text = { module = "com.google.mlkit:text-recognition", version.ref = "mlkit_text" }
+mlkit-text-chinese = { module = "com.google.mlkit:text-recognition-chinese", version.ref = "mlkit_text_chinese" }
 mlkit-text-japanese = { module = "com.google.mlkit:text-recognition-japanese", version.ref = "mlkit_text_japanese" }
+mlkit-text-korean = { module = "com.google.mlkit:text-recognition-korean", version.ref = "mlkit_text_korean" }
 coroutines-play-services = "org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.8.1"
 
 [plugins]
