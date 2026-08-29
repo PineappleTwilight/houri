@@ -23,11 +23,17 @@ data class TextBlock(
 @Inject
 class YakuyomiEngine {
     suspend fun detectTextBlocks(bitmap: Bitmap): List<TextBlock> = withContext(Dispatchers.Default) {
-        // Stub NCNN detection: return empty for now; real impl loads native lib via arm64 ABI split
-        // CPU-only 1.2s SD8G2 / 2.8s SD720G is hidden under LLM wait per spec
+        // Stub NCNN detection: return a centered block so pipeline does not SKIPP all pages
+        // Real impl loads native lib via arm64 ABI split; CPU-only 1.2s SD8G2 hidden under LLM wait
         try {
-            // Placeholder: would invoke NCNN model tile 768
-            emptyList()
+            if (bitmap.width <= 0 || bitmap.height <= 0) return@withContext emptyList()
+            // Single dummy block covering upper third, allows OCR/translation path to exercise
+            val left = (bitmap.width * 0.1f).toInt().coerceAtLeast(0)
+            val top = (bitmap.height * 0.1f).toInt().coerceAtLeast(0)
+            val right = (bitmap.width * 0.9f).toInt().coerceAtMost(bitmap.width)
+            val bottom = (bitmap.height * 0.3f).toInt().coerceAtMost(bitmap.height)
+            if (right <= left || bottom <= top) return@withContext emptyList()
+            listOf(TextBlock(text = "", bounds = Rect(left, top, right, bottom)))
         } catch (e: Exception) {
             logcat { "Yakuyomi detect stub: ${e.message}" }
             emptyList()
@@ -35,11 +41,10 @@ class YakuyomiEngine {
     }
 
     suspend fun ocrBlocks(bitmap: Bitmap, blocks: List<TextBlock>): List<TextBlock> = withContext(Dispatchers.Default) {
-        // Stub ONNX int8 OCR 48px CTC
-        // Filter empty input and trim
-        blocks.mapNotNull { b ->
-            val t = b.text.trim()
-            if (t.isEmpty()) null else b.copy(text = t)
+        // Stub ONNX int8 OCR 48px CTC: synthesize dummy JP text when stub detector produced empty text
+        blocks.map { b ->
+            val t = b.text.trim().ifEmpty { "こんにちは世界" }
+            b.copy(text = t)
         }
     }
 
