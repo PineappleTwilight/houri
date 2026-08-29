@@ -20,6 +20,7 @@ ben-manes-versions = "0.54.0"
 kim = "0.37.0"
 webgpuviewer = "37"
 mpreg-imagedecoder = "10"
+mlkit_text_japanese = "16.0.0"
 
 [libraries]
 desugar = "com.android.tools:desugar_jdk_libs:2.1.5"
@@ -127,6 +128,9 @@ webgpuviewer = { module = "ca.mpreg:webgpuviewer", version.ref = "webgpuviewer" 
 mpreg-imagedecoder = { module = "ca.mpreg:imagedecoder", version.ref = "mpreg-imagedecoder" }
 
 materialKolor = { module = "com.materialkolor:material-kolor", version.ref = "materialKolor" }
+
+mlkit-text-japanese = { module = "com.google.mlkit:text-recognition-japanese", version.ref = "mlkit_text_japanese" }
+coroutines-play-services = "org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.8.1"
 
 [plugins]
 google-services = { id = "com.google.gms.google-services", version = "4.5.0" }

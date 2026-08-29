@@ -27,6 +27,8 @@ dependencies {
     api(libs.preferencektx)
     implementation(libs.metro.runtime)
     implementation(projects.core.metro)
+    implementation(libs.mlkit.text.japanese)
+    implementation(libs.coroutines.play.services)
     // Stubbed native deps — real NCNN/ONNX/AOT-GAN provided via app abi split when enabled
     compileOnly(libs.okio)
 }
