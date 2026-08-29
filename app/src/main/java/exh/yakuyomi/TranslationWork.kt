@@ -4,10 +4,12 @@ import android.content.Context
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.hippo.unifile.UniFile
+import eu.kanade.tachiyomi.util.lang.compareToCaseInsensitiveNaturalOrder
 import exh.log.xLogD
 import exh.log.xLogE
-import mihon.core.archive.archiveReader
 import mihon.app.di.globalAppGraph
+import mihon.core.archive.archiveReader
+import tachiyomi.core.common.util.system.ImageUtil
 
 class TranslationWork(
     context: Context,
@@ -55,8 +57,9 @@ class TranslationWork(
                 if (chapterDir.isDirectory) {
                     val files = chapterDir.listFiles().orEmpty()
                     xLogD("TranslationWork chapterDir name='${chapterDir.name}' fileCount=${files.size}")
-                    val sortedFiles = files.filter { it.isFile }.sortedBy { it.name }
-                    xLogD("TranslationWork processing ${sortedFiles.size} pages manga=$mangaId chapter=$chapterId")
+                    val sortedFiles = files.filter { !it.isDirectory && ImageUtil.isImage(it.name) { it.openInputStream() } }
+                        .sortedWith { f1, f2 -> f1.name.orEmpty().compareToCaseInsensitiveNaturalOrder(f2.name.orEmpty()) }
+                    xLogD("TranslationWork processing ${sortedFiles.size} image pages manga=$mangaId chapter=$chapterId (skipped ${files.size - sortedFiles.size} non-images)")
                     for ((index, file) in sortedFiles.withIndex()) {
                         try {
                             val bytes = file.openInputStream().use { it.readBytes() }
@@ -68,10 +71,10 @@ class TranslationWork(
                 } else if (chapterDir.isFile) {
                     try {
                         chapterDir.archiveReader(applicationContext).use { reader ->
-                            val entries = reader.useEntries { it.toList() }
-                                .filter { it.isFile }
-                                .sortedBy { it.name }
-                            xLogD("TranslationWork archive chapterDir name='${chapterDir.name}' entryCount=${entries.size}")
+                            val allEntries = reader.useEntries { it.toList() }
+                            val entries = allEntries.filter { it.isFile && ImageUtil.isImage(it.name) { reader.getInputStream(it.name)!! } }
+                                .sortedWith { a, b -> a.name.compareToCaseInsensitiveNaturalOrder(b.name) }
+                            xLogD("TranslationWork archive chapterDir name='${chapterDir.name}' entryCount=${allEntries.size} imageCount=${entries.size}")
                             for ((index, entry) in entries.withIndex()) {
                                 try {
                                     val bytes = reader.getInputStream(entry.name)?.use { it.readBytes() } ?: continue
@@ -86,10 +89,20 @@ class TranslationWork(
                     }
                 }
                 // Translate collected pages in order
+                var translated = 0
+                var cached = 0
                 for ((index, bytes) in pages.sortedBy { it.first }) {
-                    manager.translatePage(mangaId, chapterId, bytes, index)
+                    try {
+                        val before = globalAppGraph.translationStatus.chapterStatus(mangaId, chapterId)?.pages?.get(index)
+                        val result = manager.translatePage(mangaId, chapterId, bytes, index)
+                        val after = globalAppGraph.translationStatus.chapterStatus(mangaId, chapterId)?.pages?.get(index)
+                        if (result != null) translated++ else if (after?.state == TranslationStatus.PageState.CACHED || after?.state == TranslationStatus.PageState.DONE || after?.state == TranslationStatus.PageState.SKIPPED) cached++
+                        xLogD("TranslationWork page $index result=${if (result != null) "ok" else "null"} before=$before after=$after")
+                    } catch (e: Exception) {
+                        xLogE("TranslationWork translate page $index failed", e)
+                    }
                 }
-                xLogD("TranslationWork processed ${pages.size} pages manga=$mangaId chapter=$chapterId")
+                xLogD("TranslationWork processed ${pages.size} pages manga=$mangaId chapter=$chapterId translated=$translated cached/skipped=${cached}")
             } else {
                 xLogD("TranslationWork chapter dir not found manga=$mangaId chapter=$chapterId")
             }
