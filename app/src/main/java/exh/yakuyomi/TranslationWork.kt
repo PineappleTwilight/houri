@@ -48,7 +48,7 @@ class TranslationWork(
             val source = sourceManager.getOrStub(manga.source)
             val mangaTitle = manga.ogTitle.ifBlank { manga.title }
             val chapterDir: UniFile? = provider.findChapterDir(chapter.name, chapter.scanlator, chapter.url, mangaTitle, source)
-            xLogD("TranslationWork lookup mangaTitle='$mangaTitle' source=${source.id} chapter='${chapter.name}' scanlator='${chapter.scanlator}' url='${chapter.url}' dir='${chapterDir?.path}' exists=${chapterDir?.exists()}")
+            xLogD("TranslationWork lookup mangaTitle='$mangaTitle' source=${source.id} chapter='${chapter.name}' scanlator='${chapter.scanlator}' url='${chapter.url}' dir='${chapterDir?.toString()}' exists=${chapterDir?.exists()}")
             if (chapterDir != null && chapterDir.exists()) {
                 val files = chapterDir.listFiles().orEmpty().sortedBy { it.name }
                 xLogD("TranslationWork processing ${files.size} pages manga=$mangaId chapter=$chapterId")
