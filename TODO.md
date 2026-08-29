@@ -173,11 +173,12 @@
 - [x] **Subcategories**: Force parent category marked when subcategory is set in library manga add/management
 - [x] **WebGPU Reader**: Fix double-page scaling fix not applying on first page rendered when entering the reader (changing pages fixes it, but whenever the user leaves the reader and re-enters, issue comes back for that first page)
 - [x] **WebGPU Reader**: Fix persistent and intermittent double page scaling issues — scale shorter→taller deterministically, guard zero heights, fallback to opposite side when bytes evicted; fixes first-spread no-op and e-ink tiny-shrink (see `WebGpuViewer.maybeScheduleSpreadHeightMatch`)
-- [x] **WebGPU Reader**: Fix wide pages getting cut off on the sides
-- [x] **E-Hentai**: Fix browse list showing every entry as having 2026 pages
+- [ ] **WebGPU Reader**: Fix wide pages getting cut off on the sides
+- [ ] **E-Hentai**: Fix browse list showing every entry as having 2026 pages
   - Manga details page does not have this bug for some reason
-- [x] **WebGPU Reader**: Fix double-page counter logic
-- [x] **All Readers**: Fix obscure double-page bug if identified and present (See PR: https://github.com/komikku-app/komikku/issues/1696)
+- [ ] **WebGPU Reader**: Fix double-page counter logic
+- [ ] **All Readers**: Fix obscure double-page bug if identified and present (See PR: https://github.com/komikku-app/komikku/issues/1696)
+- [ ] **App**: Disable feeds by default (opt-in preference)
 
 ## Chores
 - [x] Replace all Komikku icons/branding with houri icons/branding
