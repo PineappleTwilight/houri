@@ -6,6 +6,7 @@ import androidx.work.WorkerParameters
 import com.hippo.unifile.UniFile
 import exh.log.xLogD
 import exh.log.xLogE
+import mihon.core.archive.archiveReader
 import mihon.app.di.globalAppGraph
 
 class TranslationWork(
@@ -50,19 +51,45 @@ class TranslationWork(
             val chapterDir: UniFile? = provider.findChapterDir(chapter.name, chapter.scanlator, chapter.url, mangaTitle, source)
             xLogD("TranslationWork lookup mangaTitle='$mangaTitle' source=${source.id} chapter='${chapter.name}' scanlator='${chapter.scanlator}' url='${chapter.url}' dir='${chapterDir?.toString()}' exists=${chapterDir?.exists()} isDir=${chapterDir?.isDirectory}")
             if (chapterDir != null && chapterDir.exists()) {
-                val files = chapterDir.listFiles().orEmpty()
-                xLogD("TranslationWork chapterDir name='${chapterDir.name}' fileCount=${files.size}")
-                val sortedFiles = files.sortedBy { it.name }
-                xLogD("TranslationWork processing ${sortedFiles.size} pages manga=$mangaId chapter=$chapterId")
-                for ((index, file) in sortedFiles.withIndex()) {
+                val pages = mutableListOf<Pair<Int, ByteArray>>()
+                if (chapterDir.isDirectory) {
+                    val files = chapterDir.listFiles().orEmpty()
+                    xLogD("TranslationWork chapterDir name='${chapterDir.name}' fileCount=${files.size}")
+                    val sortedFiles = files.filter { it.isFile }.sortedBy { it.name }
+                    xLogD("TranslationWork processing ${sortedFiles.size} pages manga=$mangaId chapter=$chapterId")
+                    for ((index, file) in sortedFiles.withIndex()) {
+                        try {
+                            val bytes = file.openInputStream().use { it.readBytes() }
+                            pages.add(index to bytes)
+                        } catch (e: Exception) {
+                            xLogE("TranslationWork page $index failed", e)
+                        }
+                    }
+                } else if (chapterDir.isFile) {
                     try {
-                        if (!file.isFile) continue
-                        val bytes = file.openInputStream().use { it.readBytes() }
-                        manager.translatePage(mangaId, chapterId, bytes, index)
+                        chapterDir.archiveReader(applicationContext).use { reader ->
+                            val entries = reader.useEntries { it.toList() }
+                                .filter { it.isFile }
+                                .sortedBy { it.name }
+                            xLogD("TranslationWork archive chapterDir name='${chapterDir.name}' entryCount=${entries.size}")
+                            for ((index, entry) in entries.withIndex()) {
+                                try {
+                                    val bytes = reader.getInputStream(entry.name)?.use { it.readBytes() } ?: continue
+                                    pages.add(index to bytes)
+                                } catch (e: Exception) {
+                                    xLogE("TranslationWork archive page $index failed", e)
+                                }
+                            }
+                        }
                     } catch (e: Exception) {
-                        xLogE("TranslationWork page $index failed", e)
+                        xLogE("TranslationWork archive read failed", e)
                     }
                 }
+                // Translate collected pages in order
+                for ((index, bytes) in pages.sortedBy { it.first }) {
+                    manager.translatePage(mangaId, chapterId, bytes, index)
+                }
+                xLogD("TranslationWork processed ${pages.size} pages manga=$mangaId chapter=$chapterId")
             } else {
                 xLogD("TranslationWork chapter dir not found manga=$mangaId chapter=$chapterId")
             }
