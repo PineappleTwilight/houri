@@ -84,6 +84,7 @@ import exh.source.isMergedSourceId
 import exh.source.mangaDexSourceIds
 import exh.util.nullIfEmpty
 import exh.util.trimOrNull
+import exh.yakuyomi.TranslationStatus
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.ImmutableSet
 import kotlinx.collections.immutable.toImmutableList
@@ -229,6 +230,7 @@ class MangaScreenModel(
     private val updateMangaFromRemote: UpdateMangaFromRemote = globalAppGraph.updateMangaFromRemote,
     val snackbarHostState: SnackbarHostState = SnackbarHostState(),
     // KMK -->
+    private val translationStatus: TranslationStatus = globalAppGraph.translationStatus,
     private val deleteLibraryUpdateErrors: DeleteLibraryUpdateErrors = globalAppGraph.deleteLibraryUpdateErrors,
     private val insertLibraryUpdateErrors: InsertLibraryUpdateErrors = globalAppGraph.insertLibraryUpdateErrors,
     private val insertLibraryUpdateErrorMessages: InsertLibraryUpdateErrorMessages = globalAppGraph.insertLibraryUpdateErrorMessages,
@@ -1031,6 +1033,14 @@ class MangaScreenModel(
                 else -> Download.State.NOT_DOWNLOADED
             }
 
+            val transStatus = translationStatus.chapterStatus(manga.id, chapter.id)
+            val translationProgress = if (transStatus != null && transStatus.totalPages > 0) {
+                (transStatus.doneCount * 100 / transStatus.totalPages).coerceIn(0, 100)
+            } else {
+                0
+            }
+            val isTranslating = transStatus?.isTranslating ?: false
+
             ChapterList.Item(
                 chapter = chapter,
                 downloadState = downloadState,
@@ -1040,6 +1050,8 @@ class MangaScreenModel(
                 sourceName = source?.getNameForMangaInfo(),
                 showScanlator = !isExhManga,
                 // SY <--
+                translationProgress = translationProgress,
+                isTranslating = isTranslating,
             )
         }
     }
@@ -1867,6 +1879,8 @@ sealed class ChapterList {
         val sourceName: String?,
         val showScanlator: Boolean,
         // SY <--
+        val translationProgress: Int = 0,
+        val isTranslating: Boolean = false,
     ) : ChapterList() {
         val id = chapter.id
         val isDownloaded = downloadState == Download.State.DOWNLOADED

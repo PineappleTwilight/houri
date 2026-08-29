@@ -1497,6 +1497,10 @@ private fun LazyListScope.sharedChapterItems(
                     onChapterSwipe = {
                         onChapterSwipe(item, it)
                     },
+                    // KMK -->
+                    translationProgress = item.translationProgress,
+                    isTranslating = item.isTranslating,
+                    // KMK <--
                 )
             }
         }

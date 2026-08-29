@@ -68,6 +68,8 @@ fun MangaChapterListItem(
     onDownloadClick: ((ChapterDownloadAction) -> Unit)?,
     onChapterSwipe: (LibraryPreferences.ChapterSwipeAction) -> Unit,
     modifier: Modifier = Modifier,
+    translationProgress: Int = 0,
+    isTranslating: Boolean = false,
 ) {
     // KMK -->
     val swipeBackground = MaterialTheme.colorScheme.primaryContainer
@@ -206,6 +208,17 @@ fun MangaChapterListItem(
                 downloadProgressProvider = downloadProgressProvider,
                 onClick = { onDownloadClick?.invoke(it) },
             )
+            // KMK --> Translation progress indicator
+            if (isTranslating || translationProgress > 0) {
+                Text(
+                    text = if (isTranslating) "Translating $translationProgress%" else "Translated $translationProgress%",
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    color = MaterialTheme.colorScheme.secondary.copy(alpha = SECONDARY_ALPHA),
+                    modifier = Modifier.padding(start = 4.dp),
+                )
+            }
+            // KMK <--
         }
     }
 }

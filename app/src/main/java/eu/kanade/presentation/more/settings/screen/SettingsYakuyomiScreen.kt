@@ -81,6 +81,7 @@ object SettingsYakuyomiScreen : SearchableSettings {
     private fun getProviderGroup(prefs: exh.yakuyomi.TranslationPreferences): Preference.PreferenceGroup {
         val enabled by prefs.enabled().collectAsState()
         val provider by prefs.provider().collectAsState()
+        val apiKey by prefs.apiKey().collectAsState()
         return Preference.PreferenceGroup(
             title = stringResource(KMR.strings.pref_yakuyomi_provider),
             preferenceItems = persistentListOf(
@@ -96,7 +97,7 @@ object SettingsYakuyomiScreen : SearchableSettings {
                 Preference.PreferenceItem.EditTextPreference(
                     preference = prefs.apiKey(),
                     title = stringResource(KMR.strings.pref_yakuyomi_api_key),
-                    subtitle = if (prefs.apiKey().get().isBlank()) "Not set — will use offline fallback" else "••••••••",
+                    subtitle = if (apiKey.isBlank()) "Not set — will use offline fallback" else "••••••••",
                     enabled = enabled,
                 ),
                 Preference.PreferenceItem.EditTextPreference(

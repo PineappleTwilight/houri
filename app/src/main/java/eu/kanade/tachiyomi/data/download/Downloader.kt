@@ -1,6 +1,9 @@
 package eu.kanade.tachiyomi.data.download
 
 import android.content.Context
+import androidx.work.Data
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
 import com.hippo.unifile.UniFile
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.Inject
@@ -24,6 +27,7 @@ import exh.source.isEhBasedSource
 import exh.source.isMergedSourceId
 import exh.util.DataSaver
 import exh.util.DataSaver.Companion.getImage
+import exh.yakuyomi.TranslationWork
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.DelicateCoroutinesApi
@@ -477,6 +481,24 @@ class Downloader(
             DiskUtil.createNoMediaFile(tmpDir, context)
 
             download.status = Download.State.DOWNLOADED
+
+            // KMK --> Enqueue translation after successful download if enabled
+            try {
+                val translationEnabled = globalAppGraph.translationManager.isEnabled()
+                val autoTranslate = globalAppGraph.translationPreferences.autoTranslateOnDownload().get()
+                val perMangaEnabled = globalAppGraph.translationManager.isPerMangaEnabled(download.manga.id)
+                if (translationEnabled && autoTranslate && perMangaEnabled && !globalAppGraph.translationManager.isGated()) {
+                    val data = Data.Builder()
+                        .putLong("mangaId", download.manga.id)
+                        .putLong("chapterId", download.chapter.id)
+                        .build()
+                    val request = OneTimeWorkRequestBuilder<TranslationWork>()
+                        .setInputData(data)
+                        .build()
+                    WorkManager.getInstance(context).enqueue(request)
+                }
+            } catch (_: Exception) {}
+            // KMK <--
         } catch (error: Throwable) {
             if (error is CancellationException) throw error
             // If the page list threw, it will resume here

@@ -86,7 +86,7 @@ class TranslationManager(
         pageIndex: Int,
         sourceLangHint: String = "JA",
     ): ByteArray? = withContext(Dispatchers.IO) {
-        if (!shouldTranslateForManga(mangaId)) return@withContext null
+        if (!prefs.enabled().get() || isGated() || !perMangaStore.isEnabled(mangaId)) return@withContext null
         val targetLang = prefs.targetLang().get().ifBlank { "EN" }
         val model = prefs.model().get().ifBlank { "google/gemma-2-9b-it:free" }
         val cacheEnabled = prefs.cacheEnabled().get()
@@ -101,6 +101,10 @@ class TranslationManager(
                     }
                 } catch (_: Exception) {}
             }
+        }
+        if (!models.isReady()) {
+            xLogD("Translation gated: AI models not installed")
+            return@withContext null
         }
         status.pageTranslating(mangaId, chapterId, pageIndex)
         var bitmap: Bitmap? = null
