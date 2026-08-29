@@ -14,6 +14,9 @@ import java.time.ZonedDateTime
 internal object EHentaiElementParsers {
 
     private val PAGE_COUNT_REGEX = "\\d+".toRegex()
+    // Matches "N pages" (count immediately before the word "pages"); avoids grabbing a year/date
+    // number that happens to appear earlier in the same element's text (e.g. "2026-08-29 12:00").
+    private val PAGES_REGEX = "(\\d+)\\s*pages".toRegex(RegexOption.IGNORE_CASE)
     private val RATING_REGEX = "(-?\\d+)px".toRegex()
     private val DATE_REGEX = "\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}".toRegex()
 
@@ -89,20 +92,25 @@ internal object EHentaiElementParsers {
 
     fun getPageCount(element: Element?): Int? {
         if (element == null) return null
-        // Search inside element and descendants for "X pages"
+        // Search inside element and descendants for "N pages", preferring the count that
+        // immediately precedes the word "pages". The old logic grabbed the first number in any
+        // text containing "pages", which returned the posted year (e.g. 2026) when the page-count
+        // value lived in a nested element while " pages" and the date shared the parent's text.
         val candidates = mutableListOf<Element>()
         candidates.add(element)
         candidates.addAll(element.select("*"))
         for (candidate in candidates) {
-            val text = candidate.ownText().trimOrNull() ?: candidate.text().trimOrNull() ?: continue
-            if (text.contains("pages", ignoreCase = true)) {
-                val match = PAGE_COUNT_REGEX.find(text)?.value?.toIntOrNull()
-                if (match != null) return match
+            val text = candidate.text().trimOrNull() ?: continue
+            val match = PAGES_REGEX.find(text)
+            if (match != null) {
+                val count = match.groupValues[1].toIntOrNull()
+                if (count != null) return count
             }
         }
         // Fallback: raw text of element
         val pageCount = element.text().trimOrNull() ?: return null
-        return PAGE_COUNT_REGEX.find(pageCount)?.value?.toIntOrNull()
+        return PAGES_REGEX.find(pageCount)?.groupValues?.getOrNull(1)?.toIntOrNull()
+            ?: PAGE_COUNT_REGEX.find(pageCount)?.value?.toIntOrNull()
     }
 
     /** Helper to find a date element inside a container by scanning for date pattern */

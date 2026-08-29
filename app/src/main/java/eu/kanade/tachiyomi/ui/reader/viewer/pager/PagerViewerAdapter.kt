@@ -250,8 +250,13 @@ class PagerViewerAdapter(
             }
         } else {
             val pagedItems = mutableListOf<MutableList<ReaderPage?>>()
-            val otherItems = mutableListOf<ReaderItem>()
+            // Transition (or null) that must follow each page segment, aligned by index.
+            // A transition is bound to the segment it directly precedes in [subItems], so a
+            // skipped chapter-boundary transition (e.g. prev chapter already loaded) cannot
+            // shift later transitions (like "no new chapters") into the middle of a chapter.
+            val trailingItems = mutableListOf<ReaderItem?>()
             pagedItems.add(mutableListOf())
+            trailingItems.add(null)
 
             // Step 1: segment the pages and transition pages
             subItems.forEach { readerItem ->
@@ -261,12 +266,15 @@ class PagerViewerAdapter(
                             pagedItems.last().last()?.chapter?.chapter?.id != readerItem.chapter.chapter.id
                         ) {
                             pagedItems.add(mutableListOf())
+                            trailingItems.add(null)
                         }
                         pagedItems.last().add(readerItem)
                     }
                     is ChapterTransition -> {
-                        otherItems.add(readerItem)
+                        // This transition follows the segment accumulated so far.
+                        trailingItems[trailingItems.lastIndex] = readerItem
                         pagedItems.add(mutableListOf())
+                        trailingItems.add(null)
                     }
                 }
             }
@@ -274,7 +282,7 @@ class PagerViewerAdapter(
             val subJoinedItems = mutableListOf<Pair<ReaderItem, ReaderItem?>>()
 
             // Step 2: run through each set of pages
-            pagedItems.forEach { items ->
+            pagedItems.forEachIndexed { segmentIndex, items ->
                 items.forEach { it?.shiftedPage = false }
 
                 // Step 3: If pages have been shifted,
@@ -333,7 +341,7 @@ class PagerViewerAdapter(
                     subJoinedItems.addAll(items.chunked(2).map { Pair(it.first()!!, it.getOrNull(1)) })
                 }
 
-                otherItems.getOrNull(pagedItems.indexOf(items))?.let {
+                trailingItems.getOrNull(segmentIndex)?.let {
                     subJoinedItems.add(Pair(it, null))
                 }
             }

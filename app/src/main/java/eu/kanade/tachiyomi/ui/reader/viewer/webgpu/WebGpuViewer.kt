@@ -1675,11 +1675,18 @@ open class WebGpuViewer(
         }
         if (screenW <= 0 || screenH <= 0) return false
 
-        // Wide page: half the image width is wider than the screen aspect ratio
-        if (image.width.toFloat() / image.height <= 2f * screenW.toFloat() / screenH) return false
+        // Don't zoom if the trimmed page already fits at original scale.
+        if (page.trimWidth <= screenW) return false
+
+        // Wide page: half the (trimmed) image width is wider than the screen aspect ratio.
+        val aspectRatio = minOf(
+            page.trimWidth.toFloat() / page.trimHeight.toFloat(),
+            image.width.toFloat() / image.height.toFloat(),
+        )
+        if (aspectRatio <= 2f * screenW.toFloat() / screenH) return false
 
         // Scale to fit half the image width to the full screen width
-        val wideScale = screenW.toFloat() / (image.width / 2f)
+        val wideScale = screenW.toFloat() / (page.trimWidth / 2f)
 
         page.homeScale = wideScale
 
@@ -1818,6 +1825,15 @@ open class WebGpuViewer(
     }
 
     /**
+     * Reports the active [page] to the activity. When the page forms a spread in dual-page mode,
+     * marks it as having an extra page so the counter shows "N-N+1" instead of just "N".
+     */
+    private fun reportPageSelected(page: ViewerReaderPage) {
+        val hasExtraPage = isDualPageMode() && canFormSpread(page)
+        activity.onPageSelected(page.page, hasExtraPage)
+    }
+
+    /**
      * Tells this viewer to set the given [chapters] as active. If the pager is currently idle,
      * it sets the chapters immediately, otherwise they are saved and set when it becomes idle.
      */
@@ -1832,7 +1848,7 @@ open class WebGpuViewer(
         // Get the page and align to spread anchor if needed
         val page = currentPage ?: getPage(requestedPage)
         currentPage = getSpreadAnchor(page)
-        (currentPage as? ViewerReaderPage)?.let { activity.onPageSelected(it.page) }
+        (currentPage as? ViewerReaderPage)?.let { reportPageSelected(it) }
         preloadPages(currentPage!!)
 
         pager.state.apply {
@@ -1851,7 +1867,7 @@ open class WebGpuViewer(
                 }
 
                 currentPage = page
-                (page as? ViewerReaderPage)?.let { activity.onPageSelected(it.page) }
+                (page as? ViewerReaderPage)?.let { reportPageSelected(it) }
                 preloadPages(page)
 
                 (page as? ViewerTransitionPage)?.let { viewerTransitionPage ->
@@ -1878,7 +1894,7 @@ open class WebGpuViewer(
         val previousPage = currentPage
 
         currentPage = newPage
-        (newPage as? ViewerReaderPage)?.let { activity.onPageSelected(it.page) }
+        (newPage as? ViewerReaderPage)?.let { reportPageSelected(it) }
         preloadPages(newPage)
 
         (newPage as? ViewerTransitionPage)?.let { viewerTransitionPage ->
