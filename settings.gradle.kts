@@ -7,7 +7,7 @@ pluginManagement {
             }
         }
         dependencies {
-            classpath("com.android.tools:r8:9.1.29")
+            classpath("com.android.tools:r8:9.4.17")
         }
     }
     resolutionStrategy {
@@ -73,4 +73,6 @@ include(":presentation-widget")
 include(":source-api")
 include(":source-local")
 include(":telemetry")
-include(":yakuyomi-engine")
+include(":yakuyomi")
+project(":yakuyomi").projectDir = file("yakuyomi-engine")
+includeBuild("external/yakuyomi-engine")

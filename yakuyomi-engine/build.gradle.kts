@@ -26,10 +26,5 @@ dependencies {
     api(libs.preferencektx)
     implementation(libs.metro.runtime)
     implementation(projects.core.metro)
-    implementation(libs.mlkit.text)
-    implementation(libs.mlkit.text.chinese)
-    implementation(libs.mlkit.text.japanese)
-    implementation(libs.mlkit.text.korean)
-    implementation(libs.coroutines.play.services)
-    implementation(libs.okio)
+    implementation("li.joye.yakuyomi:engine")
 }

@@ -96,13 +96,17 @@ class TranslationWork(
                         val before = globalAppGraph.translationStatus.chapterStatus(mangaId, chapterId)?.pages?.get(index)
                         val result = manager.translatePage(mangaId, chapterId, bytes, index)
                         val after = globalAppGraph.translationStatus.chapterStatus(mangaId, chapterId)?.pages?.get(index)
-                        if (result != null) translated++ else if (after?.state == TranslationStatus.PageState.CACHED || after?.state == TranslationStatus.PageState.DONE || after?.state == TranslationStatus.PageState.SKIPPED) cached++
+                        if (result != null) {
+                            translated++
+                        } else if (after?.state == TranslationStatus.PageState.CACHED || after?.state == TranslationStatus.PageState.DONE || after?.state == TranslationStatus.PageState.SKIPPED) {
+                            cached++
+                        }
                         xLogD("TranslationWork page $index result=${if (result != null) "ok" else "null"} before=$before after=$after")
                     } catch (e: Exception) {
                         xLogE("TranslationWork translate page $index failed", e)
                     }
                 }
-                xLogD("TranslationWork processed ${pages.size} pages manga=$mangaId chapter=$chapterId translated=$translated cached/skipped=${cached}")
+                xLogD("TranslationWork processed ${pages.size} pages manga=$mangaId chapter=$chapterId translated=$translated cached/skipped=$cached")
             } else {
                 xLogD("TranslationWork chapter dir not found manga=$mangaId chapter=$chapterId")
             }

@@ -39,11 +39,13 @@ import com.mikepenz.markdown.compose.elements.listDepth
 import com.mikepenz.markdown.model.DefaultMarkdownColors
 import com.mikepenz.markdown.model.DefaultMarkdownInlineContent
 import com.mikepenz.markdown.model.DefaultMarkdownTypography
+import com.mikepenz.markdown.model.MarkdownAlertPadding
 import com.mikepenz.markdown.model.MarkdownAnnotator
 import com.mikepenz.markdown.model.MarkdownColors
 import com.mikepenz.markdown.model.MarkdownPadding
 import com.mikepenz.markdown.model.MarkdownTypography
 import com.mikepenz.markdown.model.NoOpImageTransformerImpl
+import com.mikepenz.markdown.model.markdownAlertPadding
 import com.mikepenz.markdown.model.markdownAnnotator
 import com.mikepenz.markdown.model.rememberMarkdownState
 import org.intellij.markdown.MarkdownTokenTypes.Companion.HTML_TAG
@@ -154,6 +156,7 @@ private val markdownPadding = object : MarkdownPadding {
     override val listIndent: Dp = 8.dp
     override val listItemBottom: Dp = 0.dp
     override val listItemTop: Dp = 0.dp
+    override val alert: MarkdownAlertPadding = markdownAlertPadding()
 }
 
 private val markdownComponents = markdownComponents(
@@ -222,6 +225,7 @@ private val markdownComponents = markdownComponents(
         if (type in DISALLOWED_MARKDOWN_TYPES) {
             MarkdownText(
                 content = model.content.substring(model.node.startOffset, model.node.endOffset),
+                node = model.node,
                 style = model.typography.text,
             )
         }
