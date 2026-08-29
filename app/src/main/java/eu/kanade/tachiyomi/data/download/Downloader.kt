@@ -23,6 +23,7 @@ import eu.kanade.tachiyomi.source.online.HttpSource
 import eu.kanade.tachiyomi.util.storage.DiskUtil
 import eu.kanade.tachiyomi.util.storage.DiskUtil.NOMEDIA_FILE
 import eu.kanade.tachiyomi.util.storage.saveTo
+import exh.log.xLogD
 import exh.source.isEhBasedSource
 import exh.source.isMergedSourceId
 import exh.util.DataSaver
@@ -487,7 +488,9 @@ class Downloader(
                 val translationEnabled = globalAppGraph.translationManager.isEnabled()
                 val autoTranslate = globalAppGraph.translationPreferences.autoTranslateOnDownload().get()
                 val perMangaEnabled = globalAppGraph.translationManager.isPerMangaEnabled(download.manga.id)
-                if (translationEnabled && autoTranslate && perMangaEnabled && !globalAppGraph.translationManager.isGated()) {
+                val gated = globalAppGraph.translationManager.isGated()
+                xLogD("Downloader translation gate manga=${download.manga.id} chapter=${download.chapter.id} enabled=$translationEnabled auto=$autoTranslate perManga=$perMangaEnabled gated=$gated")
+                if (translationEnabled && autoTranslate && perMangaEnabled && !gated) {
                     val data = Data.Builder()
                         .putLong("mangaId", download.manga.id)
                         .putLong("chapterId", download.chapter.id)
@@ -496,8 +499,13 @@ class Downloader(
                         .setInputData(data)
                         .build()
                     WorkManager.getInstance(context).enqueue(request)
+                    xLogD("Downloader enqueued TranslationWork manga=${download.manga.id} chapter=${download.chapter.id}")
+                } else {
+                    xLogD("Downloader skipped TranslationWork gate")
                 }
-            } catch (_: Exception) {}
+            } catch (e: Exception) {
+                xLogD("Downloader TranslationWork enqueue failed ${e.message}")
+            }
             // KMK <--
         } catch (error: Throwable) {
             if (error is CancellationException) throw error
