@@ -1,9 +1,14 @@
 package eu.kanade.tachiyomi.ui.more
 
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import cafe.adriel.voyager.core.model.ScreenModel
 import cafe.adriel.voyager.core.model.screenModelScope
 import cafe.adriel.voyager.core.model.rememberScreenModel
+import cafe.adriel.voyager.navigator.LocalNavigator
+import cafe.adriel.voyager.navigator.currentOrThrow
 import eu.kanade.presentation.util.Screen
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
@@ -28,10 +33,10 @@ class RoadmapScreen : Screen() {
     @Composable
     override fun Content() {
         val screenModel = rememberScreenModel { RoadmapScreenModel() }
-        val state by androidx.compose.runtime.collectAsState(screenModel.state)
+        val state by collectAsState(screenModel.state)
         eu.kanade.presentation.more.RoadmapScreen(
             state = state,
-            onBack = cafe.adriel.voyager.navigator.LocalNavigator.currentOrThrow::pop,
+            onBack = LocalNavigator.currentOrThrow::pop,
             onRetry = screenModel::refresh,
         )
     }

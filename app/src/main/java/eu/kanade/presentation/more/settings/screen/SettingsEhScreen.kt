@@ -200,7 +200,7 @@ object SettingsEhScreen : SearchableSettings {
             onValueChanged = { newVal ->
                 val toggleIncognito = globalAppGraph.toggleIncognito
                 toggleIncognito.await(EH_PACKAGE, newVal)
-                newVal
+                true
             },
         )
     }
