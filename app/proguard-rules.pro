@@ -179,6 +179,15 @@
 # MPReg ImageDecoder — ships empty ProGuard rules, uses JNI native methods.
 # decode() and encode() are native; R8 renaming/stripping breaks JNI binding.
 -keep class ca.mpreg.imagedecoder.** { *; }
+
+# Yakuyomi engine — ships only ONNX keep rules of its own. The engine uses two
+# JNI backends with static symbol binding (Java_li_joye_yakuyomi_engine_* and
+# Java_ai_onnxruntime_*), so the native methods AND the classes that declare them
+# must survive R8 shrinking. Stripping them yields UnsatisfiedLinkError at runtime.
+-keep class li.joye.yakuyomi.engine.** { *; }
+-keepclasseswithmembernames class * {
+    native <methods>;
+}
 # KMK <--
 
 # Firebase
