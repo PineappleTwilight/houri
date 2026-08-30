@@ -181,6 +181,7 @@
 - [x] **App**: Disable feeds by default (opt-in preference)
 - [ ] **MTL Engine**: Drastically harden the workflow pipeline and thoroughly investigate the UI wiring for bugs/improvements
 - [ ] **MTL Engine**: Translate manga toggle does not show up on tablet UI mode.
+- [ ] **MTL Engine**: Make translations not wrap in the middle of words. Only start a new line after a full word is at the end of the previous one (no hanging letters)
 
 ## Chores
 - [x] Replace all Komikku icons/branding with houri icons/branding
