@@ -66,7 +66,7 @@ class TranslationManager(
         if (raw.isNullOrBlank()) return "Translation failed (unknown reason)"
         val lower = raw.lowercase()
         return when {
-            "models not ready" in lower || "model" in lower && "download" in lower ->
+            "models not ready" in lower || ("model" in lower && "download" in lower) ->
                 "AI models not installed — download them in Settings → Translation"
             "api key" in lower && ("not configured" in lower || "blank" in lower) ->
                 "No API key set — add one in Settings → Translation"
