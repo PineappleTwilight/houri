@@ -105,8 +105,8 @@
   - Integration: no DB migration, no `SourceId` change; `AppGraph` `WasmEngine`, `DomainModule` no change; `wasmtime` dismissed for website case (would need per-site `env` shim reverse-engineering, brittle on deploy)
   - Effort `~2.5d` (`0.5d` engine + `0.5d` Source ABI + `1d` sandbox/fuel `16 MB`/memory caps like `WebGpuViewer.rescale` + `0.5d` extension template `MangaBaka auth.wasm`); reference `bytecodealliance/wasmtime`, `wasm3/wasm3`, `WAMR`, `J2V8`
   - Keep QuickJS for legacy `eval`; add J2V8 only for `WebAssembly` — WebView reuse already pulls Chromium V8 for `CloudflareInterceptor` but per-chapter `WebView` `~400 ms` + `30s` timeout is janky vs `J2V8` `2-8 ms` per keygen
-- [ ] **MTL Engine**: Translation manga font (default) + translation font preference
-- [ ] **MTL Engine**: More meaningful user-facing failure messages (tell the user why the translation failed) 
+- [x] **MTL Engine**: Translation manga font (default) + translation font preference
+- [x] **MTL Engine**: More meaningful user-facing failure messages (tell the user why the translation failed) 
 
 ## Bugfixes
 - [x] Fix UI transition choppiness.
@@ -181,21 +181,21 @@
 - [x] **WebGPU Reader**: Fix double-page counter logic
 - [x] **All Readers**: Fix obscure double-page bug if identified and present (See PR: https://github.com/komikku-app/komikku/issues/1696)
 - [x] **App**: Disable feeds by default (opt-in preference)
-- [ ] **MTL Engine**: Drastically harden the workflow pipeline and thoroughly investigate the UI wiring for bugs/improvements
-- [ ] **MTL Engine**: Translate manga toggle does not show up on tablet UI mode.
-- [ ] **MTL Engine**: Make translations not wrap in the middle of words. Only start a new line after a full word is at the end of the previous one (no hanging letters)
-- [ ] **MTL Engine**: Fix downloaded chapter translation status not showing up until after translation is complete, in which it always says 0%.
+- [x] **MTL Engine**: Drastically harden the workflow pipeline and thoroughly investigate the UI wiring for bugs/improvements
+- [x] **MTL Engine**: Translate manga toggle does not show up on tablet UI mode.
+- [x] **MTL Engine**: Make translations not wrap in the middle of words. Only start a new line after a full word is at the end of the previous one (no hanging letters)
+- [x] **MTL Engine**: Fix downloaded chapter translation status not showing up until after translation is complete, in which it always says 0%.
   - This should also be migrated to a progress icon with a similar style to the actual chapter download button
-- [ ] **MTL Engine**: Wire into legacy reader
-- [ ] **MTL Engine**: Improve handling of common user errors (forgot to download models, wrong model string, API key ratelimited, etc)
-- [ ] **MTL Engine**: Improve wiring with both readers (states, communication, etc)
-- [ ] **MTL Engine**: Reduce UI jank
+- [x] **MTL Engine**: Wire into legacy reader
+- [x] **MTL Engine**: Improve handling of common user errors (forgot to download models, wrong model string, API key ratelimited, etc)
+- [x] **MTL Engine**: Improve wiring with both readers (states, communication, etc)
+- [x] **MTL Engine**: Reduce UI jank
   - Model downloading progress bar needs padding on the sides
   - Model selector should be a selection box instead of a string field
     - Should be populated automatically via relevant get available model endpoints per provider
   - More providers should be added (e.g. opencode Zen, nvidia NIM, etc)
   - Validation for all appropriate fields
-- [ ] **WebGPU Reader**: Fix next chapter preload causing current chapter to turn black until the next chapter has preloaded (reverts to loading screen while it is preloading, interrupting current chapter reading) 
+- [x] **WebGPU Reader**: Fix next chapter preload causing current chapter to turn black until the next chapter has preloaded (reverts to loading screen while it is preloading, interrupting current chapter reading) 
 
 
 ## Chores

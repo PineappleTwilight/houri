@@ -37,6 +37,12 @@ class TranslationPreferences(
 
     fun breadcrumbWindowSize() = preferenceStore.getInt("pref_yakuyomi_breadcrumb_window", 5)
 
+    /**
+     * Font used to typeset translated text. Maps to an Android system font family
+     * (e.g. "casual" for a comic/manga look). "default" keeps the system default.
+     */
+    fun fontFamily() = preferenceStore.getString("pref_yakuyomi_font_family", "casual")
+
     fun isConfigured(): Boolean = enabled().get() && targetLang().get().isNotBlank()
 
     fun hasApiKey(): Boolean = apiKey().get().isNotBlank()

@@ -37,6 +37,9 @@ object ReaderTranslation {
         val chapterId = page.chapter.chapter.id ?: 0L
         val pageIndex = page.index
 
+        // Declare the chapter's page count so chapter-list/overlay progress is accurate.
+        manager.setChapterTotalPages(mangaId, chapterId, page.chapter.pages?.size ?: 0)
+
         // Avoid re-translating pages already processed in this session, but still serve any
         // stored translated bytes so the reader keeps showing the translated image on re-bind.
         val existing = statusStore.chapterStatus(mangaId, chapterId)?.pages?.get(pageIndex)

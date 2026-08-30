@@ -31,8 +31,8 @@ import eu.kanade.presentation.util.Screen
 import eu.kanade.tachiyomi.BuildConfig
 import eu.kanade.tachiyomi.data.updater.AppUpdateChecker
 import eu.kanade.tachiyomi.data.updater.RELEASE_URL
-import eu.kanade.tachiyomi.ui.more.ComingUpdatesScreen
 import eu.kanade.tachiyomi.ui.more.NewUpdateScreen
+import eu.kanade.tachiyomi.ui.more.RoadmapScreen
 import eu.kanade.tachiyomi.util.CrashLogUtil
 import eu.kanade.tachiyomi.util.lang.toDateTimestampString
 import eu.kanade.tachiyomi.util.system.copyToClipboard
@@ -73,10 +73,6 @@ class AboutScreen : Screen() {
         val handleBack = LocalBackPress.current
         val navigator = LocalNavigator.currentOrThrow
         var isCheckingUpdates by remember { mutableStateOf(false) }
-
-        // KMK -->
-        var isCheckingWhatsComing by remember { mutableStateOf(false) }
-        // KMK <--
 
         Scaffold(
             topBar = { scrollBehavior ->
@@ -155,37 +151,8 @@ class AboutScreen : Screen() {
                     item {
                         TextPreferenceWidget(
                             title = stringResource(KMR.strings.whats_coming),
-                            widget = {
-                                AnimatedVisibility(visible = isCheckingWhatsComing) {
-                                    CircularProgressIndicator(
-                                        modifier = Modifier.size(28.dp),
-                                        strokeWidth = 3.dp,
-                                    )
-                                }
-                            },
                             onPreferenceClick = {
-                                if (!isCheckingWhatsComing) {
-                                    scope.launch {
-                                        isCheckingWhatsComing = true
-
-                                        checkVersion(
-                                            context = context,
-                                            onAvailableUpdate = { result ->
-                                                val updateScreen = ComingUpdatesScreen(
-                                                    versionName = result.release.version,
-                                                    changelogInfo = result.release.info,
-                                                    releaseLink = result.release.releaseLink,
-                                                    downloadLink = result.release.downloadLink,
-                                                )
-                                                navigator.push(updateScreen)
-                                            },
-                                            onFinish = {
-                                                isCheckingWhatsComing = false
-                                            },
-                                            peekIntoPreview = true,
-                                        )
-                                    }
-                                }
+                                navigator.push(RoadmapScreen())
                             },
                         )
                     }
@@ -267,15 +234,8 @@ class AboutScreen : Screen() {
         context: Context,
         onAvailableUpdate: (GetApplicationRelease.Result.NewUpdate) -> Unit,
         onFinish: () -> Unit,
-        // KMK -->
-        peekIntoPreview: Boolean = false,
-        // KMK <--
     ) {
-        val updateChecker = AppUpdateChecker(
-            // KMK -->
-            peekIntoPreview = peekIntoPreview,
-            // KMK <--
-        )
+        val updateChecker = AppUpdateChecker()
         withUIContext {
             try {
                 when (val result = withIOContext { updateChecker.checkForUpdate(context, forceCheck = true) }) {

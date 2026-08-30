@@ -87,6 +87,17 @@ class TranslationStatus {
 
     fun chapterStatus(mangaId: Long, chapterId: Long): ChapterStatus? = _chapters.value[mangaId to chapterId]
 
+    /**
+     * Declares the known page count for a chapter before translation starts. Without this,
+     * [ChapterStatus.totalPages] stays 0 and UI progress clamps to 0%.
+     */
+    fun setTotalPages(mangaId: Long, chapterId: Long, totalPages: Int) = update(mangaId, chapterId) {
+        it.copy(
+            totalPages = totalPages.coerceAtLeast(it.pages.size),
+            lastUpdated = now(),
+        )
+    }
+
     fun pageTranslating(mangaId: Long, chapterId: Long, pageIndex: Int, totalPages: Int = 0) = update(mangaId, chapterId) {
         it.copy(
             totalPages = if (totalPages > 0) totalPages else it.totalPages,

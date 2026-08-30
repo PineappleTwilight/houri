@@ -4,6 +4,7 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -88,7 +89,11 @@ fun MtlTranslationOverlay(
         ) {
             when {
                 isTranslating -> TranslatingChip(doneCount = translatedCount, totalPages = totalPages)
-                errorCount > 0 -> ErrorChip(errorCount = errorCount, onRetry = onRetry)
+                errorCount > 0 -> ErrorChip(
+                    errorCount = errorCount,
+                    reason = chapterStatus?.lastError,
+                    onRetry = onRetry,
+                )
                 skippedCount > 0 && translatedCount == 0 -> SkippedChip(skippedCount = skippedCount)
                 showTranslated -> TranslatedChip()
                 else -> {}
@@ -165,36 +170,49 @@ private fun TranslatedChip() {
 }
 
 @Composable
-private fun ErrorChip(errorCount: Int, onRetry: () -> Unit) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
+private fun ErrorChip(errorCount: Int, reason: String?, onRetry: () -> Unit) {
+    Column(
         modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
     ) {
-        Icon(
-            imageVector = Icons.Filled.ErrorOutline,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.error,
-        )
-        Text(
-            text = stringResource(KMR.strings.mtl_translation_failed),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurface,
-        )
-        if (errorCount > 1) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Icon(
+                imageVector = Icons.Filled.ErrorOutline,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.error,
+            )
             Text(
-                text = "($errorCount)",
+                text = stringResource(KMR.strings.mtl_translation_failed),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            if (errorCount > 1) {
+                Text(
+                    text = "($errorCount)",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            TextButton(onClick = onRetry) {
+                Icon(
+                    imageVector = Icons.Filled.Refresh,
+                    contentDescription = stringResource(KMR.strings.mtl_retry),
+                    modifier = Modifier.padding(end = 4.dp),
+                )
+                Text(text = stringResource(KMR.strings.mtl_retry))
+            }
+        }
+        if (!reason.isNullOrBlank()) {
+            Text(
+                text = reason,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 2,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                modifier = Modifier.padding(bottom = 4.dp),
             )
-        }
-        TextButton(onClick = onRetry) {
-            Icon(
-                imageVector = Icons.Filled.Refresh,
-                contentDescription = stringResource(KMR.strings.mtl_retry),
-                modifier = Modifier.padding(end = 4.dp),
-            )
-            Text(text = stringResource(KMR.strings.mtl_retry))
         }
     }
 }

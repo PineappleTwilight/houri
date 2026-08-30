@@ -1042,6 +1042,7 @@ class MangaScreenModel(
                 0
             }
             val isTranslating = transStatus?.isTranslating ?: false
+            val isTranslationError = transStatus?.errorCount?.let { it > 0 } ?: false
 
             ChapterList.Item(
                 chapter = chapter,
@@ -1054,6 +1055,7 @@ class MangaScreenModel(
                 // SY <--
                 translationProgress = translationProgress,
                 isTranslating = isTranslating,
+                isTranslationError = isTranslationError,
             )
         }
     }
@@ -1883,6 +1885,7 @@ sealed class ChapterList {
         // SY <--
         val translationProgress: Int = 0,
         val isTranslating: Boolean = false,
+        val isTranslationError: Boolean = false,
     ) : ChapterList() {
         val id = chapter.id
         val isDownloaded = downloadState == Download.State.DOWNLOADED

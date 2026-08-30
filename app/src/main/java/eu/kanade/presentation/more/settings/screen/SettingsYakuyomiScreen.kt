@@ -1,28 +1,30 @@
 package eu.kanade.presentation.more.settings.screen
 
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.ui.Alignment
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import eu.kanade.presentation.more.settings.Preference
 import eu.kanade.tachiyomi.util.system.toast
+import exh.yakuyomi.ModelCatalog
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.persistentMapOf
 import mihon.app.di.globalAppGraph
+import tachiyomi.core.common.util.lang.withIOContext
 import tachiyomi.i18n.kmk.KMR
 import tachiyomi.presentation.core.i18n.stringResource
 import tachiyomi.presentation.core.util.collectAsState
@@ -81,6 +83,22 @@ object SettingsYakuyomiScreen : SearchableSettings {
                     subtitle = stringResource(KMR.strings.pref_yakuyomi_target_lang) + ": %s",
                     enabled = enabled,
                 ),
+                Preference.PreferenceItem.ListPreference(
+                    preference = prefs.fontFamily(),
+                    entries = persistentMapOf(
+                        "casual" to "Manga (Casual)",
+                        "sans-serif" to "Sans-serif",
+                        "sans-serif-condensed" to "Sans-serif Condensed",
+                        "serif" to "Serif",
+                        "serif-monospace" to "Serif Monospace",
+                        "monospace" to "Monospace",
+                        "cursive" to "Cursive",
+                        "default" to "System default",
+                    ),
+                    title = stringResource(KMR.strings.pref_yakuyomi_font_family),
+                    subtitle = stringResource(KMR.strings.pref_yakuyomi_font_family_summary) + ": %s",
+                    enabled = enabled,
+                ),
                 Preference.PreferenceItem.InfoPreference(
                     title = "EN → EN uses grammar/vocab fix (same LLM). " +
                         "Disabled by default; uploads are gated by Incognito/Censor.",
@@ -94,6 +112,44 @@ object SettingsYakuyomiScreen : SearchableSettings {
         val enabled by prefs.enabled().collectAsState()
         val provider by prefs.provider().collectAsState()
         val apiKey by prefs.apiKey().collectAsState()
+        val baseUrl by prefs.customBaseUrl().collectAsState()
+        val model by prefs.model().collectAsState()
+
+        var fetchedModels by remember { mutableStateOf<List<String>>(emptyList()) }
+        var fetchingModels by remember { mutableStateOf(false) }
+        var modelFetchFailed by remember { mutableStateOf(false) }
+        var refreshTick by remember { mutableStateOf(0) }
+
+        // Populate the model selector automatically from the provider's models endpoint.
+        LaunchedEffect(provider, apiKey, baseUrl, refreshTick) {
+            fetchingModels = true
+            val models = withIOContext {
+                runCatching {
+                    ModelCatalog.fetchModels(provider, apiKey, baseUrl, globalAppGraph.networkHelper.client)
+                }.getOrDefault(emptyList())
+            }
+            if (models.isNotEmpty()) {
+                fetchedModels = models
+                modelFetchFailed = false
+            } else {
+                modelFetchFailed = true
+            }
+            fetchingModels = false
+        }
+
+        val entries = remember(fetchedModels, provider, model) {
+            // Always seed with the curated list so the selector works offline; fetched models
+            // from the provider endpoint extend it. The current value is always included.
+            val base = ModelCatalog.fallbackModels[provider].orEmpty()
+            val all = (fetchedModels + base + listOfNotNull(model)).distinct().sorted()
+            persistentMapOf(*all.map { it to it }.toTypedArray())
+        }
+
+        val apiKeySubtitle = when {
+            apiKey.isBlank() -> stringResource(KMR.strings.pref_yakuyomi_api_key_missing)
+            else -> apiKey.take(4) + "••••••••"
+        }
+
         return Preference.PreferenceGroup(
             title = stringResource(KMR.strings.pref_yakuyomi_provider),
             preferenceItems = persistentListOf(
@@ -102,6 +158,8 @@ object SettingsYakuyomiScreen : SearchableSettings {
                     entries = persistentMapOf(
                         "openrouter" to "OpenRouter",
                         "gemini" to "Gemini",
+                        "opencode_zen" to "OpenCode Zen",
+                        "nvidia_nim" to "NVIDIA NIM",
                         "custom_openai" to "Custom OpenAI",
                     ),
                     title = stringResource(KMR.strings.pref_yakuyomi_provider),
@@ -110,26 +168,46 @@ object SettingsYakuyomiScreen : SearchableSettings {
                 Preference.PreferenceItem.EditTextPreference(
                     preference = prefs.apiKey(),
                     title = stringResource(KMR.strings.pref_yakuyomi_api_key),
-                    subtitle = if (apiKey.isBlank()) "Not set — will use offline fallback" else "••••••••",
+                    subtitle = apiKeySubtitle,
                     enabled = enabled,
                 ),
-                Preference.PreferenceItem.EditTextPreference(
+                Preference.PreferenceItem.ListPreference(
                     preference = prefs.model(),
+                    entries = entries,
                     title = stringResource(KMR.strings.pref_yakuyomi_model),
-                    subtitle = if (provider == "gemini") "Gemini model (e.g. gemini-1.5-flash)" else "OpenRouter/Custom model (default: google/gemma-2-9b-it:free)",
+                    subtitle = "%s",
+                    subtitleProvider = { v, _ -> v },
+                    enabled = enabled,
+                ),
+                Preference.PreferenceItem.TextPreference(
+                    title = stringResource(KMR.strings.pref_yakuyomi_model_refresh),
+                    subtitle = when {
+                        fetchingModels -> stringResource(KMR.strings.pref_yakuyomi_model_fetching)
+                        modelFetchFailed -> stringResource(KMR.strings.pref_yakuyomi_model_fetch_failed)
+                        fetchedModels.isNotEmpty() ->
+                            stringResource(KMR.strings.pref_yakuyomi_model_fetch_done, fetchedModels.size)
+                        else -> null
+                    },
+                    onClick = {
+                        refreshTick++
+                    },
                     enabled = enabled,
                 ),
                 Preference.PreferenceItem.EditTextPreference(
                     preference = prefs.customBaseUrl(),
                     title = "Custom API Base URL",
-                    subtitle = "Base URL for OpenAI-compatible endpoint, e.g. https://api.example.com/v1",
+                    subtitle = if (provider == "custom_openai" && baseUrl.isBlank()) {
+                        stringResource(KMR.strings.pref_yakuyomi_base_url_required)
+                    } else {
+                        "Base URL for OpenAI-compatible endpoint, e.g. https://api.example.com/v1"
+                    },
                     enabled = enabled && provider == "custom_openai",
                 ),
                 Preference.PreferenceItem.EditTextPreference(
                     preference = prefs.customHeaders(),
                     title = "Custom Headers",
                     subtitle = "Key: Value per line, e.g. X-API-Key: abc",
-                    enabled = enabled && provider == "custom_openai",
+                    enabled = enabled && provider in setOf("custom_openai", "opencode_zen", "nvidia_nim"),
                 ),
             ),
         )
@@ -164,9 +242,12 @@ object SettingsYakuyomiScreen : SearchableSettings {
                                         style = MaterialTheme.typography.bodyMedium,
                                     )
                                     Spacer(modifier = Modifier.padding(vertical = 4.dp))
+                                    // Padding on both sides so the bar doesn't touch the screen edges.
                                     LinearProgressIndicator(
                                         progress = { status.progress },
-                                        modifier = Modifier.fillMaxWidth(),
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(horizontal = 16.dp),
                                     )
                                     if (!status.currentFile.isNullOrBlank()) {
                                         Spacer(modifier = Modifier.padding(vertical = 4.dp))

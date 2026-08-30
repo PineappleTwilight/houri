@@ -1,7 +1,9 @@
 package eu.kanade.presentation.manga.components
 
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.height
@@ -16,11 +18,15 @@ import androidx.compose.material.icons.outlined.BookmarkRemove
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Done
 import androidx.compose.material.icons.outlined.Download
+import androidx.compose.material.icons.outlined.ErrorOutline
 import androidx.compose.material.icons.outlined.FileDownloadOff
 import androidx.compose.material.icons.outlined.RemoveDone
+import androidx.compose.material.icons.outlined.Translate
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ProgressIndicatorDefaults
 import androidx.compose.material3.ProvideTextStyle
 import androidx.compose.material3.Text
 import androidx.compose.material3.contentColorFor
@@ -33,6 +39,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextOverflow
@@ -41,7 +48,9 @@ import eu.kanade.tachiyomi.data.download.model.Download
 import me.saket.swipe.SwipeableActionsBox
 import tachiyomi.domain.library.service.LibraryPreferences
 import tachiyomi.i18n.MR
+import tachiyomi.i18n.kmk.KMR
 import tachiyomi.presentation.core.components.material.DISABLED_ALPHA
+import tachiyomi.presentation.core.components.material.IconButtonTokens
 import tachiyomi.presentation.core.components.material.SECONDARY_ALPHA
 import tachiyomi.presentation.core.i18n.stringResource
 import tachiyomi.presentation.core.util.selectedBackground
@@ -70,6 +79,7 @@ fun MangaChapterListItem(
     modifier: Modifier = Modifier,
     translationProgress: Int = 0,
     isTranslating: Boolean = false,
+    isTranslationError: Boolean = false,
 ) {
     // KMK -->
     val swipeBackground = MaterialTheme.colorScheme.primaryContainer
@@ -208,13 +218,12 @@ fun MangaChapterListItem(
                 downloadProgressProvider = downloadProgressProvider,
                 onClick = { onDownloadClick?.invoke(it) },
             )
-            // KMK --> Translation progress indicator
-            if (isTranslating || translationProgress > 0) {
-                Text(
-                    text = if (isTranslating) "Translating $translationProgress%" else "Translated $translationProgress%",
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    color = MaterialTheme.colorScheme.secondary.copy(alpha = SECONDARY_ALPHA),
+            // KMK --> Translation progress indicator (styled like the chapter download button)
+            if (isTranslating || translationProgress > 0 || isTranslationError) {
+                TranslationProgressIndicator(
+                    isTranslating = isTranslating,
+                    progress = translationProgress,
+                    isError = isTranslationError,
                     modifier = Modifier.padding(start = 4.dp),
                 )
             }
@@ -281,3 +290,64 @@ internal fun swipeAction(
 }
 
 internal val swipeActionThreshold = 56.dp
+
+/**
+ * Circular MTL progress icon, visually mirroring [ChapterDownloadIndicator]: a ring that fills
+ * with progress and a translate glyph in the middle. Shows an error badge on failure.
+ */
+@Composable
+private fun TranslationProgressIndicator(
+    isTranslating: Boolean,
+    progress: Int,
+    isError: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    val accent = if (isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
+    Box(
+        modifier = modifier.size(IconButtonTokens.StateLayerSize),
+        contentAlignment = Alignment.Center,
+    ) {
+        when {
+            isError -> {
+                Icon(
+                    imageVector = Icons.Outlined.ErrorOutline,
+                    contentDescription = stringResource(MR.strings.chapter_error),
+                    modifier = Modifier.size(IndicatorSize),
+                    tint = accent,
+                )
+            }
+            isTranslating || progress in 1 until 100 -> {
+                val animatedProgress by animateFloatAsState(
+                    targetValue = (progress.coerceIn(0, 100)) / 100f,
+                    animationSpec = ProgressIndicatorDefaults.ProgressAnimationSpec,
+                    label = "translationProgress",
+                )
+                CircularProgressIndicator(
+                    progress = { animatedProgress },
+                    modifier = Modifier
+                        .size(IndicatorSize)
+                        .padding(2.dp),
+                    color = accent,
+                    strokeWidth = 2.dp,
+                    trackColor = Color.Transparent,
+                    strokeCap = StrokeCap.Butt,
+                    gapSize = 0.dp,
+                )
+                Icon(
+                    imageVector = Icons.Outlined.Translate,
+                    contentDescription = null,
+                    modifier = Modifier.size(IndicatorSize - 8.dp),
+                    tint = accent,
+                )
+            }
+            else -> {
+                Icon(
+                    imageVector = Icons.Outlined.Translate,
+                    contentDescription = stringResource(KMR.strings.pref_translate_manga),
+                    modifier = Modifier.size(IndicatorSize),
+                    tint = accent,
+                )
+            }
+        }
+    }
+}

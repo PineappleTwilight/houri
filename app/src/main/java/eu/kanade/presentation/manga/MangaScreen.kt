@@ -1205,6 +1205,9 @@ private fun MangaScreenLargeImpl(
                             onRereadClicked = onStartRereadingClick ?: onStopRereadingClick,
                             // KMK <--
                         )
+                        // KMK --> Tablet layout was missing the per-manga Translate toggle.
+                        TranslateMangaToggle(manga = state.manga)
+                        // KMK <--
                         // SY -->
                         metadataDescription?.invoke(
                             state,
@@ -1500,6 +1503,7 @@ private fun LazyListScope.sharedChapterItems(
                     // KMK -->
                     translationProgress = item.translationProgress,
                     isTranslating = item.isTranslating,
+                    isTranslationError = item.isTranslationError,
                     // KMK <--
                 )
             }

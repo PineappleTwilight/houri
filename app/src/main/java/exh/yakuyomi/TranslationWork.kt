@@ -98,7 +98,10 @@ class TranslationWork(
                 var translated = 0
                 var cached = 0
                 var errored = 0
-                for ((index, bytes) in pages.sortedBy { it.first }) {
+                val orderedPages = pages.sortedBy { it.first }
+                // Declare the page count up front so the chapter list shows live progress instead of 0%.
+                globalAppGraph.translationStatus.setTotalPages(mangaId, chapterId, orderedPages.size)
+                for ((index, bytes) in orderedPages) {
                     try {
                         val before = globalAppGraph.translationStatus.chapterStatus(mangaId, chapterId)?.pages?.get(index)
                         val result = manager.translatePage(mangaId, chapterId, bytes, index)

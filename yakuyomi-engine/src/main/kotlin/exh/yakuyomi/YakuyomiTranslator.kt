@@ -60,7 +60,11 @@ class YakuyomiTranslator(
         val result = try {
             when (provider.lowercase()) {
                 "gemini" -> callGemini(prompt, apiKey, model)
-                "custom_openai" -> callCustomOpenAI(prompt, apiKey, model)
+                // OpenAI-compatible endpoints with a fixed base URL.
+                "opencode_zen" -> callOpenAICompatible(prompt, apiKey, model, "https://opencode.ai/zen/v1", customHeaders)
+                "nvidia_nim" -> callOpenAICompatible(prompt, apiKey, model, "https://integrate.api.nvidia.com/v1", customHeaders)
+                // User-provided base URL.
+                "custom_openai" -> callOpenAICompatible(prompt, apiKey, model, customBaseUrl, customHeaders)
                 else -> callOpenRouter(prompt, apiKey, model)
             }
         } catch (e: CancellationException) {
@@ -97,10 +101,9 @@ class YakuyomiTranslator(
         }
     }
 
-    private suspend fun callCustomOpenAI(prompt: String, apiKey: String, model: String): List<String>? = withContext(Dispatchers.IO) {
+    private suspend fun callOpenAICompatible(prompt: String, apiKey: String, model: String, baseUrl: String, customHeaders: String): List<String>? = withContext(Dispatchers.IO) {
         try {
-            val baseUrl = customBaseUrl
-            if (baseUrl.isBlank()) throw TranslationException("Custom OpenAI base URL not configured")
+            if (baseUrl.isBlank()) throw TranslationException("Base URL not configured for this provider")
             val url = baseUrl.trimEnd('/') + "/chat/completions"
             val body = buildJsonObject {
                 put("model", model)
@@ -124,9 +127,9 @@ class YakuyomiTranslator(
             val callClient = client.newBuilder().callTimeout(30, TimeUnit.SECONDS).build()
             callClient.newCall(req).execute().use { resp ->
                 if (!resp.isSuccessful) {
-                    throw TranslationException("Custom OpenAI HTTP ${resp.code}: ${resp.message}")
+                    throw TranslationException("OpenAI-compatible HTTP ${resp.code}: ${resp.message}")
                 }
-                val txt = resp.body.string() ?: throw TranslationException("Custom OpenAI empty response")
+                val txt = resp.body.string() ?: throw TranslationException("OpenAI-compatible empty response")
                 parseOpenRouterResponse(txt)
             }
         } catch (e: CancellationException) {
@@ -134,7 +137,7 @@ class YakuyomiTranslator(
         } catch (e: TranslationException) {
             throw e
         } catch (e: Exception) {
-            throw TranslationException("Custom OpenAI call failed: ${e.message}", e)
+            throw TranslationException("OpenAI-compatible call failed: ${e.message}", e)
         }
     }
 

@@ -177,6 +177,11 @@
     <string name="permission_writing_external_storage_succeed">Permission granted. Try action again.</string>
     <!-- About section -->
     <string name="whats_coming">What\'s coming (soon)</string>
+    <string name="whats_coming_error">Couldn\'t fetch the roadmap: %s</string>
+    <string name="whats_coming_retry">Retry</string>
+    <string name="whats_coming_empty">Nothing planned yet — all tasks are done!</string>
+    <string name="whats_coming_fetched">Updated %s</string>
+    <string name="whats_coming_open_full">Open full TODO.md</string>
     <!-- Manga info -->
     <string name="action_allow_duplicate_manga">Allow it</string>
     <string name="action_skip_duplicate_manga">Skip it</string>
@@ -337,9 +342,17 @@
     <string name="pref_yakuyomi_enabled">AI Translation</string>
     <string name="pref_yakuyomi_enabled_summary">On-device detection + OCR + LLM translation with baked image replacement. Disabled by default; gated by Incognito/Censor before upload.</string>
     <string name="pref_yakuyomi_target_lang">Target language</string>
-    <string name="pref_yakuyomi_api_key">API key (Gemini/OpenRouter)</string>
+    <string name="pref_yakuyomi_api_key">API key</string>
+    <string name="pref_yakuyomi_api_key_missing">API key required — pages will fail until it is set</string>
     <string name="pref_yakuyomi_provider">Provider</string>
     <string name="pref_yakuyomi_model">Model</string>
+    <string name="pref_yakuyomi_model_refresh">Fetch available models</string>
+    <string name="pref_yakuyomi_model_fetching">Fetching models…</string>
+    <string name="pref_yakuyomi_model_fetch_failed">Couldn\'t fetch models — showing a default list</string>
+    <string name="pref_yakuyomi_model_fetch_done">Loaded %1$d models</string>
+    <string name="pref_yakuyomi_base_url_required">Base URL required for Custom OpenAI</string>
+    <string name="pref_yakuyomi_font_family">Translation font</string>
+    <string name="pref_yakuyomi_font_family_summary">Font used to render translated text</string>
     <string name="pref_yakuyomi_offline_fallback">Offline ML Kit fallback</string>
     <string name="pref_yakuyomi_auto_download">Auto-translate on download</string>
     <string name="pref_yakuyomi_cache_enabled">Cache translated pages</string>

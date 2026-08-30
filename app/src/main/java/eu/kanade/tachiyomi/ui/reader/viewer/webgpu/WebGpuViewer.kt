@@ -11,7 +11,6 @@ import android.view.MotionEvent
 import android.view.View
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.util.fastCoerceIn
 import androidx.core.graphics.createBitmap
 import androidx.webgpu.GPUTexture
 import ca.mpreg.imagedecoder.ImageDecoder
@@ -63,9 +62,12 @@ import tachiyomi.core.common.util.system.logcat
 import tachiyomi.i18n.MR
 import java.nio.ByteBuffer
 import java.util.concurrent.Executors
+import kotlin.math.PI
 import kotlin.math.abs
+import kotlin.math.cos
 import kotlin.math.min
 import kotlin.math.roundToInt
+import kotlin.math.sin
 import kotlin.time.Duration.Companion.milliseconds
 
 open class WebGpuViewer(
@@ -250,6 +252,21 @@ open class WebGpuViewer(
                 logcat(LogPriority.ERROR, e) { "Decode worker died" }
             }
         }
+
+        // KMK -->
+        // Drives the live spin of the ProgressPage pineapple while a page is loading.
+        // ProgressPage is time-based; without periodic invalidate the viewer would render
+        // it once and the animation would freeze.
+        scope.launch {
+            while (!isDestroyed) {
+                try {
+                    (currentPage?.imagePage as? ProgressPage)?.invalidate()
+                } catch (_: Exception) {
+                }
+                delay(33.milliseconds)
+            }
+        }
+        // KMK <--
     }
 
     /**
@@ -429,10 +446,15 @@ open class WebGpuViewer(
         val key = chapter.chapter.url?.takeIf { it.isNotBlank() } ?: "chapter-${chapter.chapter.id}"
         // Reserve placeholder ProgressPage shells immediately so contentHeight reflects true length and scroll doesn't wrap
         val pages = chapter.pages
+        // Reference eviction from the page the user is actually reading. Without this, getPage
+        // falls back to using the newly created shell as the eviction reference and background
+        // preload evicts the current chapter's pages - including the page on screen - which
+        // reverts the reader to a loading screen (black flash) until the next chapter is decoded.
+        val evictionReference = currentPage
         if (pages != null) {
             for (pg in pages) {
                 try {
-                    val shell = getPage(pg)
+                    val shell = getPage(pg, evictionReference)
                     preloadPage(shell, prioritize = false)
                 } catch (_: Exception) {}
             }
@@ -459,7 +481,7 @@ open class WebGpuViewer(
                         if (loadedPages != null) {
                             for (pg in loadedPages) {
                                 try {
-                                    val shell = getPage(pg)
+                                    val shell = getPage(pg, evictionReference)
                                     preloadPage(shell, prioritize = false)
                                 } catch (_: Exception) {}
                             }
@@ -567,7 +589,6 @@ open class WebGpuViewer(
             if (isDestroyed || dst.width <= 0 || dst.height <= 0) return
             val cx = dst.width * (0.5f + scale * x)
             val cy = dst.height * (0.5f + scale * y)
-
             val full = try {
                 width * 0.5f * scale
             } catch (_: Exception) {
@@ -575,16 +596,55 @@ open class WebGpuViewer(
             }
             if (full <= 0f) return
             try {
-                circle(cx, cy, full / 2f, 0xAAAAAAAA.toInt())
+                drawProgressRing(cx, cy, full)
+                drawSpinningPineapple(cx, cy, full)
             } catch (_: Exception) {
             }
+        }
 
-            val diameter = full * progress.fastCoerceIn(0f, 1f)
-            if (diameter > 0) {
-                try {
-                    circle(cx, cy, diameter / 2f, foregroundColor)
-                } catch (_: Exception) {
-                }
+        /** Dotted ring around the pineapple that fills with [progress]. */
+        private fun drawProgressRing(cx: Float, cy: Float, full: Float) {
+            val ringR = full * 0.42f
+            val dotR = full * 0.05f
+            val dots = 12
+            val lit = (progress * dots).toInt().coerceIn(0, dots)
+            val dim = 0x30FFFFFF.toInt()
+            for (i in 0 until dots) {
+                val a = -PI.toFloat() / 2f + i * (2f * PI.toFloat() / dots)
+                val dx = cx + cos(a) * ringR
+                val dy = cy + sin(a) * ringR
+                circle(dx, dy, dotR, if (i < lit) foregroundColor else dim)
+            }
+        }
+
+        /** Spinning pineapple: golden body with leaves orbiting it, time-based so it animates live. */
+        private fun drawSpinningPineapple(cx: Float, cy: Float, full: Float) {
+            val bodyR = full * 0.20f
+            val bodyCx = cx
+            val bodyCy = cy + bodyR * 0.30f
+            val gold = 0xFFE0A52E.toInt()
+            val goldDark = 0xFFB9781E.toInt()
+            val leafGreen = 0xFF43A047.toInt()
+            val leafDark = 0xFF2E7D32.toInt()
+
+            // Body
+            circle(bodyCx, bodyCy, bodyR, gold)
+            // Facet shading (reads as a pineapple body, not a plain disc)
+            circle(bodyCx - bodyR * 0.42f, bodyCy - bodyR * 0.28f, bodyR * 0.16f, goldDark)
+            circle(bodyCx + bodyR * 0.42f, bodyCy + bodyR * 0.30f, bodyR * 0.14f, goldDark)
+            circle(bodyCx, bodyCy + bodyR * 0.48f, bodyR * 0.12f, goldDark)
+
+            // Crown leaves orbiting the body center = the "spin".
+            val spin = (System.currentTimeMillis() % 900L) / 900f * 2f * PI.toFloat()
+            val leafR = bodyR * 1.30f
+            val leaf = bodyR * 0.30f
+            val leaves = 6
+            for (i in 0 until leaves) {
+                val a = spin + i * (2f * PI.toFloat() / leaves)
+                val lx = bodyCx + cos(a) * leafR * 0.70f
+                val ly = bodyCy - sin(a) * leafR * 0.55f
+                rect(lx - leaf / 2f, ly - leaf / 2f, leaf, leaf, leafGreen)
+                circle(lx, ly, leaf * 0.18f, leafDark)
             }
         }
     }
@@ -1583,6 +1643,9 @@ open class WebGpuViewer(
         val originalImagePage = page.imagePage
         val chapterId = page.page.chapter.chapter.id ?: 0L
         val pageIndex = page.page.index
+
+        // Declare the chapter's page count so chapter-list/overlay progress is accurate.
+        mgr.setChapterTotalPages(mangaId, chapterId, page.page.chapter.pages?.size ?: 0)
 
         scope.launch(Dispatchers.Default) {
             try {

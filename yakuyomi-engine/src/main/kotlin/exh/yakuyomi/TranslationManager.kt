@@ -54,6 +54,38 @@ class TranslationManager(
 
     fun setPerMangaEnabled(mangaId: Long, enabled: Boolean) = perMangaStore.setEnabled(mangaId, enabled)
 
+    /** Declares the page count up front so chapter-list progress is accurate while translating. */
+    fun setChapterTotalPages(mangaId: Long, chapterId: Long, totalPages: Int) =
+        status.setTotalPages(mangaId, chapterId, totalPages)
+
+    /**
+     * Maps raw pipeline/LLM failure strings to a short, actionable message a normal user can
+     * act on (download models, fix the API key, pick a different model, etc.).
+     */
+    fun friendlyError(raw: String?): String {
+        if (raw.isNullOrBlank()) return "Translation failed (unknown reason)"
+        val lower = raw.lowercase()
+        return when {
+            "models not ready" in lower || "model" in lower && "download" in lower ->
+                "AI models not installed — download them in Settings → Translation"
+            "api key" in lower && ("not configured" in lower || "blank" in lower) ->
+                "No API key set — add one in Settings → Translation"
+            "429" in lower || "rate limit" in lower ->
+                "Provider rate-limited you (HTTP 429) — wait and retry, or switch models"
+            "401" in lower || "403" in lower || "unauthorized" in lower || "forbidden" in lower ->
+                "API key rejected — check it's valid for the selected provider"
+            "404" in lower || "not found" in lower ->
+                "Model not found — check the model name for the selected provider"
+            "400" in lower || "bad request" in lower ->
+                "Provider rejected the request — wrong model or unsupported target language"
+            "no usable translation" in lower || "empty response" in lower ->
+                "Provider returned an empty/invalid translation — try a different model"
+            "timeout" in lower || "timed out" in lower ->
+                "Provider timed out — check your connection and retry"
+            else -> "Translation failed: $raw"
+        }
+    }
+
     /**
      * Fast path for pages already translated in this session/on disk: serves the saved page or the
      * hash cache without running the detection/OCR/LLM pipeline. Returns null when nothing is stored
@@ -174,13 +206,13 @@ class TranslationManager(
                     null
                 }
                 is PageResult.Failed -> {
-                    status.pageError(mangaId, chapterId, pageIndex, result.reason)
+                    status.pageError(mangaId, chapterId, pageIndex, friendlyError(result.reason))
                     null
                 }
             }
         } catch (e: Exception) {
             xLogE("translatePage failed", e)
-            status.pageError(mangaId, chapterId, pageIndex, e.message ?: "Unknown translation error")
+            status.pageError(mangaId, chapterId, pageIndex, friendlyError(e.message ?: "Unknown translation error"))
             null
         }
     }

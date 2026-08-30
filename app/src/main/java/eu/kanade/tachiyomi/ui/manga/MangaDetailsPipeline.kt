@@ -123,6 +123,9 @@ internal class MangaDetailsPipeline(
             // KMK -->
             // Value discarded; re-emission on toggle is what refreshes the chapter list
             .combine(libraryPreferences.smartScanlatorMerge().changes()) { state, _ -> state }
+            // Re-emit whenever MTL status changes so the chapter list reflects live translation
+            // progress (and lets it surface "downloaded chapter" status without reopening the screen).
+            .combine(globalAppGraph.translationStatus.chapters) { state, _ -> state }
         // KMK <--
     }
 

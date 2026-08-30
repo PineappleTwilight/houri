@@ -373,7 +373,15 @@ class ReaderActivity : BaseActivity() {
                     mangaId = state.manga?.id,
                     chapterId = state.currentChapter?.chapter?.id,
                     totalPages = state.totalPages,
-                    onRetry = { (state.viewer as? WebGpuViewer)?.retryCurrentPageTranslation() },
+                    onRetry = {
+                        val viewer = state.viewer
+                        when (viewer) {
+                            is WebGpuViewer -> viewer.retryCurrentPageTranslation()
+                            is PagerViewer -> retryLegacyTranslation(viewer.currentPage as? ReaderPage)
+                            is WebtoonViewer -> retryLegacyTranslation(viewer.currentPage as? ReaderPage)
+                            else -> {}
+                        }
+                    },
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
                         .navigationBarsPadding()
@@ -935,6 +943,18 @@ class ReaderActivity : BaseActivity() {
         val currentPage = (((viewer as? PagerViewer)?.currentPage ?: (viewer as? WebtoonViewer)?.currentPage) as? ReaderPage)?.index
         return currentPage?.let { viewModel.state.value.viewerChapters?.currChapter?.pages?.getOrNull(it) }
     }
+
+    // KMK -->
+    /**
+     * Retries MTL translation for the currently displayed page on the legacy (pager/webtoon)
+     * readers. Re-queues the page so the holder re-runs the decode → translate → display path.
+     */
+    private fun retryLegacyTranslation(page: ReaderPage?) {
+        page ?: return
+        page.status = Page.State.Queue
+        page.chapter.pageLoader?.retryPage(page)
+    }
+    // KMK <--
 
     fun reloadChapters(doublePages: Boolean, force: Boolean = false) {
         val viewer = viewModel.state.value.viewer as? PagerViewer ?: return

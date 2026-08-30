@@ -2,6 +2,7 @@ package exh.yakuyomi
 
 import android.content.Context
 import android.graphics.Bitmap
+import android.graphics.Typeface
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
@@ -29,6 +30,7 @@ import java.io.File
 @Inject
 class YakuyomiEngine(
     private val context: Context,
+    private val prefs: TranslationPreferences,
 ) {
     private fun modelsDir(): File = File(context.filesDir, "yakuyomi_models")
 
@@ -91,6 +93,21 @@ class YakuyomiEngine(
     fun prewarm(): Boolean = ensureComponents() != null
 
     /**
+     * Resolves the user-selected typeset font to an Android [Typeface]. Returns null for
+     * "default" so the engine falls back to the system default. Resolved per call (cheap)
+     * so preference changes take effect without restarting.
+     */
+    private fun resolveTypeface(): Typeface? {
+        val name = prefs.fontFamily().get()
+        if (name.isBlank() || name.equals("default", ignoreCase = true)) return null
+        return try {
+            Typeface.create(name, Typeface.NORMAL)
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    /**
      * Runs the full library pipeline (detect → OCR → group → translate → inpaint → render) on one
      * page. [translator] is the breadcrumb-aware LLM stage; pass null to skip translation (debug).
      * Serialized via Mutex because NCNN native backends are not thread-safe.
@@ -99,7 +116,7 @@ class YakuyomiEngine(
         val c = ensureComponents() ?: return@withContext PageResult.Failed("models not ready")
         pipelineMutex.withLock {
             val cfg = if (shouldForceHorizontal(targetLang)) horizontalConfig else defaultConfig
-            Pipeline(c.detector, c.ocr, translator, c.inpainter, cfg).translatePage(bitmap)
+            Pipeline(c.detector, c.ocr, translator, c.inpainter, cfg, resolveTypeface()).translatePage(bitmap)
         }
     }
 
