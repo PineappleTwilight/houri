@@ -180,6 +180,7 @@
 - [x] **All Readers**: Fix obscure double-page bug if identified and present (See PR: https://github.com/komikku-app/komikku/issues/1696)
 - [x] **App**: Disable feeds by default (opt-in preference)
 - [ ] **MTL Engine**: Drastically harden the workflow pipeline and thoroughly investigate the UI wiring for bugs/improvements
+- [ ] **MTL Engine**: Translate manga toggle does not show up on tablet UI mode.
 
 ## Chores
 - [x] Replace all Komikku icons/branding with houri icons/branding
