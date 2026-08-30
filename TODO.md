@@ -188,6 +188,13 @@
   - This should also be migrated to a progress icon with a similar style to the actual chapter download button
 - [ ] **MTL Engine**: Wire into legacy reader
 - [ ] **MTL Engine**: Improve handling of common user errors (forgot to download models, wrong model string, API key ratelimited, etc)
+- [ ] **MTL Engine**: Improve wiring with both readers (states, communication, etc)
+- [ ] **MTL Engine**: Reduce UI jank
+  - Model downloading progress bar needs padding on the sides
+  - Model selector should be a selection box instead of a string field
+    - Should be populated automatically via relevant get available model endpoints per provider
+  - More providers should be added (e.g. opencode Zen, nvidia NIM, etc)
+  - Validation for all appropriate fields
 
 
 ## Chores
