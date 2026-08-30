@@ -183,6 +183,8 @@
 - [ ] **MTL Engine**: Drastically harden the workflow pipeline and thoroughly investigate the UI wiring for bugs/improvements
 - [ ] **MTL Engine**: Translate manga toggle does not show up on tablet UI mode.
 - [ ] **MTL Engine**: Make translations not wrap in the middle of words. Only start a new line after a full word is at the end of the previous one (no hanging letters)
+- [ ] **MTL Engine**: Fix downloaded chapter translation status not showing up until after translation is complete, in which it always says 0%.
+  - This should also be migrated to a progress icon with a similar style to the actual chapter download button
 
 ## Chores
 - [x] Replace all Komikku icons/branding with houri icons/branding
