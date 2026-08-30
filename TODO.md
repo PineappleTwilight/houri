@@ -106,6 +106,7 @@
   - Effort `~2.5d` (`0.5d` engine + `0.5d` Source ABI + `1d` sandbox/fuel `16 MB`/memory caps like `WebGpuViewer.rescale` + `0.5d` extension template `MangaBaka auth.wasm`); reference `bytecodealliance/wasmtime`, `wasm3/wasm3`, `WAMR`, `J2V8`
   - Keep QuickJS for legacy `eval`; add J2V8 only for `WebAssembly` — WebView reuse already pulls Chromium V8 for `CloudflareInterceptor` but per-chapter `WebView` `~400 ms` + `30s` timeout is janky vs `J2V8` `2-8 ms` per keygen
 - [ ] **MTL Engine**: Translation manga font (default) + translation font preference
+- [ ] **MTL Engine**: More meaningful user-facing failure messages (tell the user why the translation failed) 
 
 ## Bugfixes
 - [x] Fix UI transition choppiness.
