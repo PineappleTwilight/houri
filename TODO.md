@@ -186,6 +186,9 @@
 - [ ] **MTL Engine**: Make translations not wrap in the middle of words. Only start a new line after a full word is at the end of the previous one (no hanging letters)
 - [ ] **MTL Engine**: Fix downloaded chapter translation status not showing up until after translation is complete, in which it always says 0%.
   - This should also be migrated to a progress icon with a similar style to the actual chapter download button
+- [ ] **MTL Engine**: Wire into legacy reader
+- [ ] **MTL Engine**: Improve handling of common user errors (forgot to download models, wrong model string, API key ratelimited, etc)
+
 
 ## Chores
 - [x] Replace all Komikku icons/branding with houri icons/branding
