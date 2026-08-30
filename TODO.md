@@ -195,6 +195,7 @@
     - Should be populated automatically via relevant get available model endpoints per provider
   - More providers should be added (e.g. opencode Zen, nvidia NIM, etc)
   - Validation for all appropriate fields
+- [ ] **WebGPU Reader**: Fix next chapter preload causing current chapter to turn black until the next chapter has preloaded (reverts to loading screen while it is preloading, interrupting current chapter reading) 
 
 
 ## Chores
