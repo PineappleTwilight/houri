@@ -30,6 +30,7 @@ jobs:
     name: Build app
     runs-on: 'ubuntu-24.04'
     environment: Primary
+    timeout-minutes: 90
 
     steps:
       - name: Clone repo

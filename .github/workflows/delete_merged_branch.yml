@@ -10,19 +10,18 @@ permissions:
 jobs:
   delete_merged_branch:
     runs-on: 'ubuntu-24.04'
+    timeout-minutes: 5
     if: github.event.pull_request.merged == true && github.repository == github.event.pull_request.head.repo.full_name
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
-
       - name: Delete branch
         run: |
-          branch_name=$(echo "${{ github.event.pull_request.head.ref }}")
-          if [ "$branch_name" != "main" ] && [ "$branch_name" != "master" ]; then
-            echo "Deleting branch ${branch_name}"
-            git push origin --delete $branch_name
-          else
+          branch_name="${{ github.event.pull_request.head.ref }}"
+          if [ "$branch_name" = "main" ] || [ "$branch_name" = "master" ]; then
             echo "Skipping deletion of main or master branch"
+            exit 0
           fi
+          # gh api handles ref-name encoding; a checkout is not needed to delete a branch.
+          gh api -X DELETE "repos/${{ github.repository }}/git/refs/heads/$branch_name"
+          echo "Deleted branch ${branch_name}"
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

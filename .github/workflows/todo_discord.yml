@@ -4,6 +4,12 @@ on:
   push:
     branches:
       - master
+    # GitHub evaluates these against the whole push (the union of files changed
+    # across every commit), so a multi-commit push touching TODO.md still triggers.
+    # This keeps the notifier from burning a checkout + python run on every push
+    # to master that has nothing to do with the todo list.
+    paths:
+      - 'TODO.md'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -18,6 +24,7 @@ jobs:
   notify:
     name: Report TODO changes
     runs-on: 'ubuntu-24.04'
+    timeout-minutes: 10
     steps:
       - name: Clone repo
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0

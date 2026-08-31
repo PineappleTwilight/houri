@@ -25,6 +25,7 @@ import os
 import re
 import subprocess
 import sys
+import time
 import urllib.error
 import urllib.request
 from pathlib import Path
@@ -35,6 +36,13 @@ CATEGORY_RE = re.compile(r"^##\s+(.+?)\s*$")
 MAX_FIELDS = 10
 FIELD_VALUE_BUDGET = 1000  # stay safely under Discord's 1024 char field limit
 ITEM_CLIP = 180  # max rendered length of a single task line
+
+# Discord sits behind Cloudflare; the default Python-urllib UA is bot-flagged
+# and rejected with 403 "error code: 1010" on CI IPs.
+USER_AGENT = "Houri-TODO-Notifier/1.0 (GitHub Actions; +https://github.com/PineappleTwilight/komikku-pineapple)"
+
+MAX_ATTEMPTS = 4
+BASE_BACKOFF = 2
 
 # (key, heading, emoji) order of sections inside each category field
 SECTIONS = [
@@ -248,6 +256,50 @@ def build_embed(
     return embed
 
 
+def post_with_retry(webhook: str, payload: dict) -> None:
+    """POST a JSON payload to the webhook with retry/backoff.
+
+    Transient failures are retried: 429 honours Discord's Retry-After header,
+    5xx and network errors back off exponentially. 4xx (bad secret, malformed
+    payload) are not retried — retrying cannot fix them and they should fail
+    loudly so the misconfiguration surfaces.
+    """
+    data = json.dumps(payload).encode("utf-8")
+    headers = {
+        "Content-Type": "application/json",
+        "User-Agent": USER_AGENT,
+    }
+    for attempt in range(1, MAX_ATTEMPTS + 1):
+        try:
+            request = urllib.request.Request(webhook, data=data, headers=headers, method="POST")
+            with urllib.request.urlopen(request, timeout=15) as response:
+                print(f"Discord webhook responded {response.status}")
+                return
+        except urllib.error.HTTPError as error:
+            body = error.read().decode(errors="replace")
+            if error.code == 429:
+                retry_after = float(error.headers.get("Retry-After", 1) or 1)
+                wait = retry_after + BASE_BACKOFF ** (attempt - 1)
+            elif error.code >= 500:
+                wait = BASE_BACKOFF ** attempt
+            else:
+                print(f"Discord webhook error {error.code}: {body}")
+                raise
+            if attempt == MAX_ATTEMPTS:
+                print(f"Discord webhook still failing after {MAX_ATTEMPTS} attempts: {body}")
+                raise
+            print(f"Discord webhook {error.code}, retrying in {wait:.1f}s (attempt {attempt}/{MAX_ATTEMPTS})")
+            time.sleep(wait)
+        except (urllib.error.URLError, TimeoutError, OSError) as error:
+            if attempt == MAX_ATTEMPTS:
+                print(f"Discord webhook unreachable after {MAX_ATTEMPTS} attempts: {error}")
+                raise
+            wait = BASE_BACKOFF ** attempt
+            print(f"Discord webhook network error: {error}; retrying in {wait}s (attempt {attempt}/{MAX_ATTEMPTS})")
+            time.sleep(wait)
+    raise RuntimeError("Discord webhook delivery failed after retries")
+
+
 def send(embed: dict) -> None:
     webhook = os.environ.get("DISCORD_WEBHOOK_URL", "").strip()
     payload = {
@@ -258,24 +310,10 @@ def send(embed: dict) -> None:
         print("DISCORD_WEBHOOK_URL not set - dry run. Payload:")
         print(json.dumps(payload, indent=2))
         return
-
-    request = urllib.request.Request(
-        webhook,
-        data=json.dumps(payload).encode("utf-8"),
-        headers={
-            "Content-Type": "application/json",
-            # Discord sits behind Cloudflare; the default Python-urllib UA is
-            # bot-flagged and rejected with 403 "error code: 1010" on CI IPs.
-            "User-Agent": "Houri-TODO-Notifier/1.0 (GitHub Actions; +https://github.com/PineappleTwilight/komikku-pineapple)",
-        },
-        method="POST",
-    )
-    try:
-        with urllib.request.urlopen(request, timeout=15) as response:
-            print(f"Discord webhook responded {response.status}")
-    except urllib.error.HTTPError as error:
-        print(f"Discord webhook error {error.code}: {error.read().decode(errors='replace')}")
-        raise
+    if not webhook.startswith("https://"):
+        # Never send the payload (or a stale secret) over plain HTTP.
+        raise ValueError("DISCORD_WEBHOOK_URL must be an https:// URL; refusing to send")
+    post_with_retry(webhook, payload)
 
 
 def main() -> int:

@@ -16,12 +16,15 @@ permissions:
 jobs:
   prepare-build:
     runs-on: 'ubuntu-24.04'
+    timeout-minutes: 15
     outputs:
       VERSION_TAG: ${{ steps.get_tag.outputs.VERSION_TAG }}
       CURRENT_SHA: ${{ steps.current_commit.outputs.CURRENT_SHA }}
       PREV_RELEASE_SHA: ${{ steps.previous_commit.outputs.PREV_RELEASE_SHA }}
       COMMIT_LOGS: ${{ steps.commit_logs.outputs.COMMIT_LOGS }}
       PREV_TAG_NAME: ${{ steps.previous_commit.outputs.PREV_TAG_NAME }}
+      TODO_COMPLETED: ${{ steps.todo_checklist.outputs.COMPLETED }}
+      TODO_OPEN: ${{ steps.todo_checklist.outputs.OPEN }}
     steps:
       - name: Get tag name (${{ github.ref }})
         id: get_tag
@@ -82,6 +85,12 @@ jobs:
           echo "PREV_TAG_NAME=$tag"
           echo "PREV_TAG_NAME=$tag" >> $GITHUB_OUTPUT
 
+      - name: TODO checklist since last release
+        id: todo_checklist
+        env:
+          PREV_TAG_NAME: ${{ steps.previous_commit.outputs.PREV_TAG_NAME }}
+        run: python3 .github/scripts/todo_release_checklist.py --gh-output
+
       - name: Commit logs
         id: commit_logs
         run: |
@@ -101,6 +110,7 @@ jobs:
     needs: prepare-build
     environment: Primary
     if: startsWith(github.ref, 'refs/tags/v')
+    timeout-minutes: 90
     steps:
       - name: Clone Repository (${{ needs.prepare-build.outputs.VERSION_TAG }})
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -164,6 +174,7 @@ jobs:
     needs:
       - prepare-build
       - build-app
+    timeout-minutes: 15
     steps:
       - name: Download artifacts
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
@@ -222,6 +233,87 @@ jobs:
             Houri-armeabi-v7a-${{ needs.prepare-build.outputs.VERSION_TAG }}.apk
             Houri-x86-${{ needs.prepare-build.outputs.VERSION_TAG }}.apk
             Houri-x86_64-${{ needs.prepare-build.outputs.VERSION_TAG }}.apk
-          draft: true
+          draft: false
           prerelease: false
           token: ${{ secrets.GITHUB_TOKEN }}
+
+  notify-discord:
+    name: Announce release on Discord
+    runs-on: 'ubuntu-24.04'
+    needs:
+      - prepare-build
+      - release-app
+    environment: Primary
+    timeout-minutes: 10
+    steps:
+      - name: Send release announcement
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.RELEASE_DISCORD_WEBHOOK }}
+          VERSION_TAG: ${{ needs.prepare-build.outputs.VERSION_TAG }}
+          RELEASE_URL: https://github.com/${{ github.repository }}/releases/tag/${{ needs.prepare-build.outputs.VERSION_TAG }}
+          AVATAR_URL: https://raw.githubusercontent.com/${{ github.repository }}/master/.github/readme-images/app-icon.png
+          CHANGELOG: ${{ needs.prepare-build.outputs.COMMIT_LOGS }}
+          PREV_TAG_NAME: ${{ needs.prepare-build.outputs.PREV_TAG_NAME }}
+          TODO_COMPLETED: ${{ needs.prepare-build.outputs.TODO_COMPLETED }}
+          TODO_OPEN: ${{ needs.prepare-build.outputs.TODO_OPEN }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "$DISCORD_WEBHOOK_URL" ]; then
+            echo "RELEASE_DISCORD_WEBHOOK not set; skipping Discord announcement."
+            exit 0
+          fi
+
+          version_number="${VERSION_TAG#v}"
+
+          # Keep at least one bullet; trim the rest to stay under Discord's 2000-char content limit.
+          changes=$(printf '%s\n' "${CHANGELOG:-}" | awk '
+            {
+              if (over) { hidden++; next }
+              total += length($0) + 1
+              if (total > 1650 && shown >= 1) { over = 1; hidden++; next }
+              print; shown++
+            }
+            END { if (hidden > 0) printf "- *…and %d more*\n", hidden }
+          ')
+          [ -n "$changes" ] || changes="- No notable changes"
+
+          content=$(printf '# 🍍 Houri %s is out!\n\n### **What changed:**\n\n%s\n\ndetails can be found [here](%s)\n-# ||<@&1540511662824759336>||' \
+            "$version_number" "$changes" "$RELEASE_URL")
+
+          payload=$(jq -n \
+            --arg content "$content" \
+            --arg avatar_url "$AVATAR_URL" \
+            --arg prev_tag "$PREV_TAG_NAME" \
+            --arg todo_url "https://github.com/${{ github.repository }}/blob/master/TODO.md" \
+            --arg completed "$TODO_COMPLETED" \
+            --arg open "$TODO_OPEN" \
+            '{
+              username: "Houri Releases",
+              avatar_url: $avatar_url,
+              content: $content,
+              allowed_mentions: { parse: [], roles: ["1540511662824759336"] }
+            }
+            | ([ (if ($completed|length) > 0
+                  then { name: "✅ Checked off", value: $completed }
+                  else empty end),
+                 (if ($open|length) > 0
+                  then { name: "📋 Still open", value: $open }
+                  else empty end) ]) as $fields
+            | if ($fields|length) > 0
+              then . + { embeds: [{
+                    title: ("📋 TODO progress since " + $prev_tag),
+                    url: $todo_url,
+                    color: (if ($open|length) == 0 then 5763719 else 15714844 end),
+                    fields: $fields
+                  }] }
+              else . end')
+
+          echo "$payload"
+
+          curl --fail --silent --show-error --retry 3 --retry-delay 2 \
+            -H 'Content-Type: application/json' \
+            -H 'User-Agent: Houri-Release-Notifier/1.0 (GitHub Actions)' \
+            -d "$payload" \
+            "$DISCORD_WEBHOOK_URL"
+          echo "Discord announcement sent."
