@@ -196,6 +196,8 @@
   - More providers should be added (e.g. opencode Zen, nvidia NIM, etc)
   - Validation for all appropriate fields
 - [x] **WebGPU Reader**: Fix next chapter preload causing current chapter to turn black until the next chapter has preloaded (reverts to loading screen while it is preloading, interrupting current chapter reading) 
+- [ ] **MTL Engine**: Make "clear chapter cache" button refresh the used cache to, presumably, 0 immediately after press
+  - Current behavior requires user to exit the settings menu and go back in
 
 
 ## Chores
