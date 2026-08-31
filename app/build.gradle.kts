@@ -26,6 +26,7 @@ android {
     defaultConfig {
         applicationId = "app.houri"
 
+        // These need to be updated for every new release that should be automatically pushed
         versionCode = 148
         versionName = "1.21.3"
 
