@@ -40,6 +40,15 @@ class YakuyomiEngine(
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
+    /**
+     * Serializes native-session access (build/close/translate) because the NCNN backends are not
+     * thread-safe. MUST be declared before the [init] block: the status collector launched there
+     * may run on a worker thread while the constructor is still executing the later field
+     * initializers, and [invalidateComponents] reads this field — a not-yet-initialized mutex
+     * crashes with NPE on `MutexImpl.lock`.
+     */
+    private val pipelineMutex = Mutex()
+
     init {
         // Keep the cached native sessions aligned with the on-disk model state: rebuild (or
         // drop) them when models are (re)downloaded or cleared, so the engine never serves
@@ -81,8 +90,6 @@ class YakuyomiEngine(
 
     @Volatile
     private var components: Components? = null
-
-    private val pipelineMutex = Mutex()
 
     private val defaultConfig = li.joye.yakuyomi.engine.EngineConfig()
     private val horizontalConfig = defaultConfig.copy(
