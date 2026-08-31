@@ -106,7 +106,7 @@
   - Effort `~2.5d` (`0.5d` engine + `0.5d` Source ABI + `1d` sandbox/fuel `16 MB`/memory caps like `WebGpuViewer.rescale` + `0.5d` extension template `MangaBaka auth.wasm`); reference `bytecodealliance/wasmtime`, `wasm3/wasm3`, `WAMR`, `J2V8`
   - Keep QuickJS for legacy `eval`; add J2V8 only for `WebAssembly` — WebView reuse already pulls Chromium V8 for `CloudflareInterceptor` but per-chapter `WebView` `~400 ms` + `30s` timeout is janky vs `J2V8` `2-8 ms` per keygen
 - [x] **MTL Engine**: Translation manga font (default) + translation font preference
-- [x] **MTL Engine**: More meaningful user-facing failure messages (tell the user why the translation failed) 
+- [x] **MTL Engine**: More meaningful user-facing failure messages (tell the user why the translation failed)
 - [ ] **Smart Release Predictor**: Improve algorithm
 
 ## Bugfixes
@@ -196,12 +196,12 @@
     - Should be populated automatically via relevant get available model endpoints per provider
   - More providers should be added (e.g. opencode Zen, nvidia NIM, etc)
   - Validation for all appropriate fields
-- [x] **WebGPU Reader**: Fix next chapter preload causing current chapter to turn black until the next chapter has preloaded (reverts to loading screen while it is preloading, interrupting current chapter reading) 
-- [ ] **MTL Engine**: Make "clear chapter cache" button refresh the used cache to, presumably, 0 immediately after press
+- [x] **WebGPU Reader**: Fix next chapter preload causing current chapter to turn black until the next chapter has preloaded (reverts to loading screen while it is preloading, interrupting current chapter reading)
+- [x] **MTL Engine**: Make "clear chapter cache" button refresh the used cache to, presumably, 0 immediately after press
   - Current behavior requires user to exit the settings menu and go back in
-- [ ] **MTL Engine**: Fix redownload models button not doing anything and overall needing improving
+- [x] **MTL Engine**: Fix redownload models button not doing anything and overall needing improving
   - The entire model download and storage system should be improved/reworked/optimized
-  - Another button should also be added to clear the downloaded models instead of re-downloading 
+  - Another button should also be added to clear the downloaded models instead of re-downloading
 - [ ] **E/ExHentai**: Fix start button not appearing until exiting a manga and going back into it
 
 
