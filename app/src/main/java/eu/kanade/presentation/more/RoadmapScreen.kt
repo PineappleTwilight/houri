@@ -121,7 +121,7 @@ fun RoadmapScreen(
                                 lastSection = item.section
                                 item(key = "section-$lastSection") {
                                     Text(
-                                        text = lastSection!!,
+                                        text = lastSection,
                                         style = MaterialTheme.typography.titleSmall,
                                         color = MaterialTheme.colorScheme.primary,
                                         modifier = Modifier.padding(

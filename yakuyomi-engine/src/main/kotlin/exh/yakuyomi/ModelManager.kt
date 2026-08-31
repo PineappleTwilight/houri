@@ -215,8 +215,8 @@ class ModelManager(
             val request = Request.Builder().url(MANIFEST_URL).get().build()
             client.newCall(request).execute().use { resp ->
                 if (resp.isSuccessful) {
-                    val body = resp.body?.string()
-                    if (!body.isNullOrBlank()) {
+                    val body = resp.body.string()
+                    if (body.isNotBlank()) {
                         val manifest = json.decodeFromString<ModelManifest>(body)
                         if (manifest.models.isNotEmpty()) {
                             models = manifest.models
@@ -235,7 +235,7 @@ class ModelManager(
             if (!resp.isSuccessful) {
                 throw IllegalStateException("HTTP ${resp.code} for ${model.name}")
             }
-            val body = resp.body ?: throw IllegalStateException("Empty body for ${model.name}")
+            val body = resp.body
             val tmp = File(modelsDir, "${model.name}.tmp")
             body.byteStream().use { input ->
                 tmp.outputStream().use { output ->

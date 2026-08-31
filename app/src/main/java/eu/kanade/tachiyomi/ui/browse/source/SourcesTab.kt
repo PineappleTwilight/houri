@@ -66,7 +66,7 @@ fun Screen.sourcesTab(
         ).let {
             when (smartSearchConfig) {
                 null -> {
-                    it.add(
+                    it.adding(
                         AppBar.Action(
                             title = stringResource(MR.strings.action_filter),
                             icon = Icons.Outlined.FilterList,

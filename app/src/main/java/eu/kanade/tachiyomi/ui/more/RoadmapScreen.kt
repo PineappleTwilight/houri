@@ -5,8 +5,8 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import cafe.adriel.voyager.core.model.ScreenModel
-import cafe.adriel.voyager.core.model.screenModelScope
 import cafe.adriel.voyager.core.model.rememberScreenModel
+import cafe.adriel.voyager.core.model.screenModelScope
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
 import eu.kanade.presentation.util.Screen
@@ -33,7 +33,7 @@ class RoadmapScreen : Screen() {
     @Composable
     override fun Content() {
         val screenModel = rememberScreenModel { RoadmapScreenModel() }
-        val state by collectAsState(screenModel.state)
+        val state by screenModel.state.collectAsState()
         eu.kanade.presentation.more.RoadmapScreen(
             state = state,
             onBack = LocalNavigator.currentOrThrow::pop,
@@ -94,7 +94,7 @@ class RoadmapScreenModel : ScreenModel {
             if (!resp.isSuccessful) {
                 throw IllegalStateException("HTTP ${resp.code}")
             }
-            val body = resp.body?.string() ?: ""
+            val body = resp.body.string()
             return parseTodo(body)
         }
     }

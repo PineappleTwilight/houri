@@ -129,7 +129,7 @@ class YakuyomiTranslator(
                 if (!resp.isSuccessful) {
                     throw TranslationException("OpenAI-compatible HTTP ${resp.code}: ${resp.message}")
                 }
-                val txt = resp.body.string() ?: throw TranslationException("OpenAI-compatible empty response")
+                val txt = resp.body.string()
                 parseOpenRouterResponse(txt)
             }
         } catch (e: CancellationException) {
@@ -188,7 +188,7 @@ class YakuyomiTranslator(
                 if (!resp.isSuccessful) {
                     throw TranslationException("OpenRouter HTTP ${resp.code}: ${resp.message}")
                 }
-                val txt = resp.body.string() ?: throw TranslationException("OpenRouter empty response")
+                val txt = resp.body.string()
                 parseOpenRouterResponse(txt)
             }
         } catch (e: CancellationException) {
@@ -222,7 +222,7 @@ class YakuyomiTranslator(
                 if (!resp.isSuccessful) {
                     throw TranslationException("Gemini HTTP ${resp.code}: ${resp.message}")
                 }
-                val txt = resp.body.string() ?: throw TranslationException("Gemini empty response")
+                val txt = resp.body.string()
                 parseGeminiResponse(txt)
             }
         } catch (e: CancellationException) {

@@ -59,7 +59,7 @@ class BackupCreateJob(private val context: Context, workerParams: WorkerParamete
                 globalAppGraph.webhookNotifier.notify(
                     WebhookEvent.BACKUP_CREATED,
                     mapOf(
-                        "location" to location.toString(),
+                        "location" to location,
                         "automatic" to isAutoBackup.toString(),
                     ),
                 )

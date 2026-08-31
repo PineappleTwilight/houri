@@ -108,6 +108,7 @@ open class WebGpuViewer(
     private val decodeDispatcher = decodeExecutor.asCoroutineDispatcher()
 
     // Single lock for all page cache and queue operations
+    @Suppress("PLATFORM_CLASS_MAPPED_TO_KOTLIN")
     private val lock = Object()
 
     // Page cache - keyed by stable PageKey for O(1) lookup
@@ -443,7 +444,7 @@ open class WebGpuViewer(
      */
     internal fun preloadChapterThenRetry(chapter: ReaderChapter) {
         if (isDestroyed) return
-        val key = chapter.chapter.url?.takeIf { it.isNotBlank() } ?: "chapter-${chapter.chapter.id}"
+        val key = chapter.chapter.url.takeIf { it.isNotBlank() } ?: "chapter-${chapter.chapter.id}"
         // Reserve placeholder ProgressPage shells immediately so contentHeight reflects true length and scroll doesn't wrap
         val pages = chapter.pages
         // Reference eviction from the page the user is actually reading. Without this, getPage
@@ -1016,7 +1017,7 @@ open class WebGpuViewer(
             synchronized(lock) {
                 sourcePage.rescaleInFlight = false
                 if (scaledImage != null && pageInCache(sourcePage)) {
-                    val scaledSingle = ImagePage.ImageSingle(scaledImage!!)
+                    val scaledSingle = ImagePage.ImageSingle(scaledImage)
                     applyDoubleTapZoomPolicy(scaledSingle)
                     val oldImagePage = sourcePage.imagePage
                     sourcePage.imagePage = scaledSingle
@@ -1677,12 +1678,10 @@ open class WebGpuViewer(
                                 page.imagePage = translatedPage
                                 old.cleanup()
                                 translatedPage.let { tp ->
-                                    if (tp is ImagePage.ImageSingle) {
-                                        if (page.spreadPosition == SpreadPosition.SINGLE) {
-                                            if (!applyWideZoomIfNeeded(tp)) applyFitModeAnchor(tp)
-                                        }
-                                        applyDoubleTapZoomPolicy(tp)
+                                    if (page.spreadPosition == SpreadPosition.SINGLE) {
+                                        if (!applyWideZoomIfNeeded(tp)) applyFitModeAnchor(tp)
                                     }
+                                    applyDoubleTapZoomPolicy(tp)
                                 }
                                 pager.state.invalidate()
                             } else {
