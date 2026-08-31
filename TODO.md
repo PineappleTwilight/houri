@@ -107,6 +107,7 @@
   - Keep QuickJS for legacy `eval`; add J2V8 only for `WebAssembly` — WebView reuse already pulls Chromium V8 for `CloudflareInterceptor` but per-chapter `WebView` `~400 ms` + `30s` timeout is janky vs `J2V8` `2-8 ms` per keygen
 - [x] **MTL Engine**: Translation manga font (default) + translation font preference
 - [x] **MTL Engine**: More meaningful user-facing failure messages (tell the user why the translation failed) 
+- [ ] **Smart Release Predictor**: Improve algorithm
 
 ## Bugfixes
 - [x] Fix UI transition choppiness.
