@@ -368,9 +368,12 @@
     <string name="mtl_models_title">AI models</string>
     <string name="mtl_models_missing">Models not installed — translation disabled</string>
     <string name="mtl_models_downloading">Downloading… %1$d%%</string>
-    <string name="mtl_models_ready">Models installed (%1$d KB)</string>
+    <string name="mtl_models_ready">Models installed (%1$d MB)</string>
     <string name="mtl_models_download">Download AI models</string>
     <string name="mtl_models_redownload">Redownload AI models</string>
     <string name="mtl_models_cancel">Cancel download</string>
     <string name="mtl_models_error">Download failed: %1$s</string>
+    <string name="mtl_models_clear">Clear downloaded models</string>
+    <string name="mtl_models_clear_summary">Remove model files from disk — they must be re-downloaded to translate</string>
+    <string name="mtl_models_cleared">Models cleared</string>
 </resources>

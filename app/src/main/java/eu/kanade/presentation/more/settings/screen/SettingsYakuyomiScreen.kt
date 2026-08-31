@@ -216,6 +216,8 @@ object SettingsYakuyomiScreen : SearchableSettings {
     @Composable
     private fun getModelGroup(modelManager: exh.yakuyomi.ModelManager): Preference.PreferenceGroup {
         val status by modelManager.status.collectAsState()
+        val context = LocalContext.current
+        val modelsClearedText = stringResource(KMR.strings.mtl_models_cleared)
         val actionTitle = when (status.state) {
             exh.yakuyomi.ModelManager.State.DOWNLOADING -> stringResource(KMR.strings.mtl_models_cancel)
             exh.yakuyomi.ModelManager.State.READY -> stringResource(KMR.strings.mtl_models_redownload)
@@ -231,7 +233,7 @@ object SettingsYakuyomiScreen : SearchableSettings {
                             when (status.state) {
                                 exh.yakuyomi.ModelManager.State.READY -> {
                                     Text(
-                                        text = stringResource(KMR.strings.mtl_models_ready, status.downloadedBytes / 1024),
+                                        text = stringResource(KMR.strings.mtl_models_ready, status.downloadedBytes / (1024 * 1024)),
                                         style = MaterialTheme.typography.bodyMedium,
                                     )
                                 }
@@ -277,12 +279,21 @@ object SettingsYakuyomiScreen : SearchableSettings {
                 Preference.PreferenceItem.TextPreference(
                     title = actionTitle,
                     onClick = {
-                        if (status.state == exh.yakuyomi.ModelManager.State.DOWNLOADING) {
-                            modelManager.cancelDownload()
-                        } else {
-                            modelManager.startDownload()
+                        when (status.state) {
+                            exh.yakuyomi.ModelManager.State.DOWNLOADING -> modelManager.cancelDownload()
+                            exh.yakuyomi.ModelManager.State.READY -> modelManager.startDownload(force = true)
+                            else -> modelManager.startDownload()
                         }
                     },
+                ),
+                Preference.PreferenceItem.TextPreference(
+                    title = stringResource(KMR.strings.mtl_models_clear),
+                    subtitle = stringResource(KMR.strings.mtl_models_clear_summary),
+                    onClick = {
+                        modelManager.clearModels()
+                        context.toast(modelsClearedText)
+                    },
+                    enabled = status.state != exh.yakuyomi.ModelManager.State.DOWNLOADING,
                 ),
             ),
         )
@@ -295,7 +306,7 @@ object SettingsYakuyomiScreen : SearchableSettings {
     ): Preference.PreferenceGroup {
         val context = LocalContext.current
         val enabled by prefs.enabled().collectAsState()
-        val cacheBytes = remember { cache.sizeBytes() }
+        var cacheBytes by remember { mutableStateOf(cache.sizeBytes()) }
         return Preference.PreferenceGroup(
             title = "Behavior & Cache",
             preferenceItems = persistentListOf(
@@ -346,6 +357,7 @@ object SettingsYakuyomiScreen : SearchableSettings {
                     subtitle = "Current: ${cacheBytes / 1024} KB / 32768 KB",
                     onClick = {
                         cache.clearAll()
+                        cacheBytes = cache.sizeBytes()
                         context.toast("Translation cache cleared")
                     },
                     enabled = enabled,

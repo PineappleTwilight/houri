@@ -6,7 +6,12 @@ import android.graphics.Typeface
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
@@ -31,21 +36,48 @@ import java.io.File
 class YakuyomiEngine(
     private val context: Context,
     private val prefs: TranslationPreferences,
+    private val modelManager: ModelManager,
 ) {
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+
+    init {
+        // Keep the cached native sessions aligned with the on-disk model state: rebuild (or
+        // drop) them when models are (re)downloaded or cleared, so the engine never serves
+        // sessions loaded from deleted files and honestly reports "not ready" when they're gone.
+        modelManager.status
+            .onEach { s ->
+                if (s.state == ModelManager.State.READY || s.state == ModelManager.State.NOT_INSTALLED) {
+                    invalidateComponents()
+                }
+            }
+            .launchIn(scope)
+    }
+
     private fun modelsDir(): File = File(context.filesDir, "yakuyomi_models")
 
     private fun libModelSet(): ModelSet? {
         val dir = modelsDir()
         if (!dir.exists()) return null
         val files = dir.listFiles()?.map { it.name to it.absolutePath } ?: return null
-        return ModelSet.resolve(files)
+        val set = ModelSet.resolve(files) ?: return null
+        // resolve() name-matches the .param/.onnx only; the NCNN roles also need their .bin
+        // siblings or the native load fails. Match the downloader's five-file readiness check.
+        val params = listOfNotNull(set.detectorNcnn, set.aotInpainterNcnn)
+        if (params.any { !File(it.removeSuffix(".param") + ".bin").isFile }) return null
+        return set
     }
 
     private class Components(
         val detector: Detector,
         val ocr: Ocr,
         val inpainter: Inpainter,
-    )
+    ) {
+        fun closeAll() {
+            runCatching { detector.close() }
+            runCatching { ocr.close() }
+            runCatching { inpainter.close() }
+        }
+    }
 
     @Volatile
     private var components: Components? = null
@@ -60,10 +92,23 @@ class YakuyomiEngine(
     private fun loadAlphabet(): List<String> =
         context.assets.open("yakuyomi_alphabet.txt").bufferedReader().readLines()
 
-    private fun ensureComponents(): Components? {
-        components?.let { return it }
-        return synchronized(this) {
-            components ?: buildComponents()?.also { components = it } ?: return@synchronized null
+    private fun buildIfNeeded(): Components? = synchronized(this) {
+        components ?: buildComponents()?.also { components = it }
+    }
+
+    /**
+     * Drops the cached native sessions so the next [translatePage] rebuilds from the current
+     * on-disk models. Runs the close under [pipelineMutex] — the same lock that guards pipeline
+     * execution — so an in-flight translatePage can never touch a closed session.
+     */
+    private fun invalidateComponents() {
+        scope.launch {
+            pipelineMutex.withLock {
+                val old = synchronized(this@YakuyomiEngine) {
+                    components.also { components = null }
+                }
+                if (old != null) old.closeAll()
+            }
         }
     }
 
@@ -90,7 +135,7 @@ class YakuyomiEngine(
      * Best-effort warm-up: builds the native components (downloading nothing) so the first page
      * translation does not pay the cold-start cost. Idempotent and cheap after first build.
      */
-    fun prewarm(): Boolean = ensureComponents() != null
+    fun prewarm(): Boolean = buildIfNeeded() != null
 
     /**
      * Resolves the user-selected typeset font to an Android [Typeface]. Returns null for
@@ -113,8 +158,10 @@ class YakuyomiEngine(
      * Serialized via Mutex because NCNN native backends are not thread-safe.
      */
     suspend fun translatePage(bitmap: Bitmap, translator: Translator?, targetLang: String? = null): PageResult = withContext(Dispatchers.Default) {
-        val c = ensureComponents() ?: return@withContext PageResult.Failed("models not ready")
+        // Build and run under the same lock [invalidateComponents] uses to close stale
+        // sessions, so this call can never race a close of the components it captured.
         pipelineMutex.withLock {
+            val c = buildIfNeeded() ?: return@withContext PageResult.Failed("models not ready")
             val cfg = if (shouldForceHorizontal(targetLang)) horizontalConfig else defaultConfig
             Pipeline(c.detector, c.ocr, translator, c.inpainter, cfg, resolveTypeface()).translatePage(bitmap)
         }

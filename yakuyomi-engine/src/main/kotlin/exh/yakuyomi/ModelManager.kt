@@ -4,6 +4,7 @@ import android.content.Context
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
+import exh.log.xLogW
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -121,6 +122,7 @@ class ModelManager(
 
     init {
         refresh()
+        verifyInBackground()
     }
 
     private fun file(model: RemoteModel): File = File(modelsDir, model.name)
@@ -151,6 +153,25 @@ class ModelManager(
         model.name to verifyFile(model)
     }
 
+    /**
+     * Full sha256 pass over every model file, off the main thread. The size-only [refresh]
+     * is fine for instant UI, but the engine's native loaders reject corrupt-but-right-size
+     * files — flip to NOT_INSTALLED so the UI never claims READY for files the engine can't
+     * load. Runs at startup and after each download (files skipped by [startDownload] are
+     * only size-checked there).
+     */
+    private fun verifyInBackground() {
+        scope.launch {
+            val corrupt = verify().filterValues { !it }.keys
+            if (corrupt.isNotEmpty()) {
+                xLogW("Yakuyomi model files missing/corrupt: $corrupt")
+                _status.value = Status(State.NOT_INSTALLED, downloadedBytes = installedBytes())
+            } else {
+                refresh()
+            }
+        }
+    }
+
     private fun verifyFile(model: RemoteModel): Boolean {
         val f = file(model)
         if (!f.exists() || f.length() != model.size) return false
@@ -161,18 +182,27 @@ class ModelManager(
         }
     }
 
-    fun startDownload() {
+    /**
+     * Downloads any missing or unverifiable model files.
+     *
+     * @param force when true, wipes the existing model files first so a full re-download
+     *   happens even when every file currently verifies (the "Redownload" action).
+     */
+    fun startDownload(force: Boolean = false) {
         if (downloadJob?.isActive == true) return
         downloadJob = scope.launch {
+            if (force) clearModelFiles()
             refreshManifest()
             val toFetch = models.filterNot(::verifyFile)
             if (toFetch.isEmpty()) {
                 refresh()
+                verifyInBackground()
                 return@launch
             }
 
             val total = toFetch.sumOf { it.size }
-            var completed = installedBytes()
+            // Count only bytes fetched this run; installedBytes() double-counts verified files.
+            var completed = 0L
             _status.value = Status(State.DOWNLOADING, completed, total)
 
             try {
@@ -185,6 +215,7 @@ class ModelManager(
                     }
                 }
                 refresh()
+                verifyInBackground()
             } catch (e: CancellationException) {
                 refresh()
             } catch (e: Exception) {
@@ -200,6 +231,13 @@ class ModelManager(
     }
 
     fun clearModels() {
+        downloadJob?.cancel()
+        downloadJob = null
+        clearModelFiles()
+        refresh()
+    }
+
+    private fun clearModelFiles() {
         try {
             models.forEach { model ->
                 file(model).delete()
@@ -207,7 +245,6 @@ class ModelManager(
             }
         } catch (_: Exception) {
         }
-        refresh()
     }
 
     private suspend fun refreshManifest() {
