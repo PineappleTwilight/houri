@@ -125,7 +125,10 @@ class YakuyomiEngine(
             ocr.warmUp()
             inpainter.warmUp()
             Components(detector, ocr, inpainter)
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
+            // Throwable, not Exception: UnsatisfiedLinkError (missing native lib on
+            // ABIs without engine support, e.g. x86) is an Error and must degrade to
+            // "not ready" instead of crashing the reader.
             logcat { "Yakuyomi engine init failed: ${e.message}" }
             null
         }
