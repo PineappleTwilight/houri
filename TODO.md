@@ -200,6 +200,7 @@
   - Current behavior requires user to exit the settings menu and go back in
 - [ ] **MTL Engine**: Fix redownload models button not doing anything and overall needing improving
   - The entire model download and storage system should be improved/reworked/optimized
+  - Another button should also be added to clear the downloaded models instead of re-downloading 
 
 
 ## Chores
