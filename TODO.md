@@ -202,6 +202,7 @@
 - [ ] **MTL Engine**: Fix redownload models button not doing anything and overall needing improving
   - The entire model download and storage system should be improved/reworked/optimized
   - Another button should also be added to clear the downloaded models instead of re-downloading 
+- [ ] **E/ExHentai**: Fix start button not appearing until exiting a manga and going back into it
 
 
 ## Chores
