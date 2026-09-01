@@ -29,10 +29,6 @@ import tachiyomi.core.common.util.system.logcat
  * extra context (speakers, layout, onomatopoeia, scene) alongside the OCR'd text lines.
  * The line-by-line translation protocol is unchanged — vision augments, never replaces,
  * the detected text.
- *
- * Failure handling mirrors [YakuyomiTranslator]: unsupported device or a failed call raises
- * [TranslationException] so the page is marked FAILED (retryable) instead of silently
- * SKIPPED, unless [offlineFallback] keeps the original art.
  */
 @dev.zacsweers.metro.SingleIn(dev.zacsweers.metro.AppScope::class)
 @dev.zacsweers.metro.Inject
@@ -50,8 +46,9 @@ class GeminiNanoTranslator(
         }
     }
 
+    // checkStatus() returns an Int status code (FeatureStatus is an @IntDef annotation).
     @Volatile
-    private var status: FeatureStatus? = null
+    private var status: Int? = null
 
     @Volatile
     private var lastStatusCheckMs = 0L
@@ -66,7 +63,7 @@ class GeminiNanoTranslator(
     /** Whether Gemini Nano is currently usable for inference on this device. */
     suspend fun isAvailable(): Boolean = refreshStatus() == FeatureStatus.AVAILABLE
 
-    private suspend fun refreshStatus(): FeatureStatus {
+    private suspend fun refreshStatus(): Int {
         val m = model ?: return FeatureStatus.UNAVAILABLE.also { status = it }
         val cached = status
         val now = System.currentTimeMillis()
@@ -92,7 +89,7 @@ class GeminiNanoTranslator(
     /**
      * Kicks off (once) the AICore-managed download of the Gemini Nano model when the
      * device supports it but the model isn't installed yet. The download runs in the
-     * background; translation falls back to the cloud provider until [status] flips to
+     * background; translation falls back to the cloud provider until the status flips to
      * AVAILABLE on completion.
      */
     private fun ensureDownloaded(m: GenerativeModel) {
@@ -139,18 +136,20 @@ class GeminiNanoTranslator(
                 } else {
                     ""
                 }
-                val text = m.generateContent(
-                    generateContentRequest(
-                        *if (pageBitmap != null) {
-                            arrayOf(ImagePart(pageBitmap), TextPart(buildPrompt(queries, imagePrompt, sourceLang)))
-                        } else {
-                            arrayOf(TextPart(buildPrompt(queries, imagePrompt, sourceLang)))
-                        },
-                    ) {
+                val prompt = buildPrompt(queries, imagePrompt, sourceLang)
+                val request = if (pageBitmap != null) {
+                    generateContentRequest(ImagePart(pageBitmap), TextPart(prompt)) {
                         temperature = 0.3f
                         maxOutputTokens = 2048
-                    },
-                ).candidates.firstOrNull()?.text?.takeIf { it.isNotBlank() }
+                    }
+                } else {
+                    generateContentRequest(TextPart(prompt)) {
+                        temperature = 0.3f
+                        maxOutputTokens = 2048
+                    }
+                }
+                val text = m.generateContent(request)
+                    .candidates.firstOrNull()?.text?.takeIf { it.isNotBlank() }
                 if (text == null) return@withContext null
                 parseTranslationLines(text)?.let { alignTranslationLines(it, queries) }
             } catch (e: CancellationException) {

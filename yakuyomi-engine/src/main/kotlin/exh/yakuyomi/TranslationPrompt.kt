@@ -1,12 +1,5 @@
 package exh.yakuyomi
 
-/**
- * Shared prompt-building and response-parsing helpers for the translation LLM stage.
- * Used by both the cloud [YakuyomiTranslator] and the on-device [GeminiNanoTranslator]
- * so every provider produces the same "- " dash-list protocol and accepts the same
- * output shapes.
- */
-
 /** Builds the breadcrumb-aware translation/fix prompt for a batch of text lines. */
 internal fun buildTranslationPrompt(
     texts: List<String>,

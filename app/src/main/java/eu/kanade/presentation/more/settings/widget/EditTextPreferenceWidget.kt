@@ -32,6 +32,7 @@ fun EditTextPreferenceWidget(
     icon: ImageVector?,
     value: String,
     widget: @Composable (() -> Unit)? = null,
+    validator: (String) -> Boolean = { it.isNotBlank() },
     onConfirm: suspend (String) -> Boolean,
 ) {
     var isDialogShown by remember { mutableStateOf(false) }
@@ -50,6 +51,7 @@ fun EditTextPreferenceWidget(
         var textFieldValue by rememberSaveable(stateSaver = TextFieldValue.Saver) {
             mutableStateOf(TextFieldValue(value))
         }
+        val isValid = validator(textFieldValue.text)
         AlertDialog(
             onDismissRequest = onDismissRequest,
             title = { Text(text = title) },
@@ -58,7 +60,7 @@ fun EditTextPreferenceWidget(
                     value = textFieldValue,
                     onValueChange = { textFieldValue = it },
                     trailingIcon = {
-                        if (textFieldValue.text.isBlank()) {
+                        if (textFieldValue.text.isBlank() || !isValid) {
                             Icon(imageVector = Icons.Filled.Error, contentDescription = null)
                         } else {
                             IconButton(onClick = { textFieldValue = TextFieldValue("") }) {
@@ -66,7 +68,7 @@ fun EditTextPreferenceWidget(
                             }
                         }
                     },
-                    isError = textFieldValue.text.isBlank(),
+                    isError = textFieldValue.text.isBlank() || !isValid,
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
@@ -76,7 +78,7 @@ fun EditTextPreferenceWidget(
             ),
             confirmButton = {
                 TextButton(
-                    enabled = textFieldValue.text != value && textFieldValue.text.isNotBlank(),
+                    enabled = textFieldValue.text != value && textFieldValue.text.isNotBlank() && isValid,
                     onClick = {
                         scope.launch {
                             if (onConfirm(textFieldValue.text)) {

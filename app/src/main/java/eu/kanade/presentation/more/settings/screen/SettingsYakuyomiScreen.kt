@@ -99,6 +99,28 @@ object SettingsYakuyomiScreen : SearchableSettings {
                     subtitle = stringResource(KMR.strings.pref_yakuyomi_font_family_summary) + ": %s",
                     enabled = enabled,
                 ),
+                Preference.PreferenceItem.ListPreference(
+                    preference = prefs.translationTextColor(),
+                    entries = persistentMapOf(
+                        0xFF000000.toInt() to "Black (default)",
+                        0xFFFFFFFF.toInt() to "White",
+                        0xFF0000FF.toInt() to "Blue",
+                        0xFFFF0000.toInt() to "Red",
+                        0xFF008000.toInt() to "Green",
+                        0xFFFF8C00.toInt() to "Orange",
+                        0xFF800080.toInt() to "Purple",
+                    ),
+                    title = stringResource(KMR.strings.pref_yakuyomi_text_color),
+                    subtitle = stringResource(KMR.strings.pref_yakuyomi_text_color_summary) + ": %s",
+                    enabled = enabled,
+                ),
+                Preference.PreferenceItem.EditTextPreference(
+                    preference = prefs.translationTextColorHex(),
+                    title = stringResource(KMR.strings.pref_yakuyomi_text_color_custom),
+                    subtitle = "Custom hex color (e.g. #FFFFFF). Overrides the preset when valid: %s",
+                    validator = { it.isBlank() || HEX_COLOR_REGEX.matches(it.trim().removePrefix("#")) },
+                    enabled = enabled,
+                ),
                 Preference.PreferenceItem.InfoPreference(
                     title = "EN → EN uses grammar/vocab fix (same LLM). " +
                         "Disabled by default; uploads are gated by Incognito/Censor.",
@@ -392,3 +414,6 @@ object SettingsYakuyomiScreen : SearchableSettings {
         )
     }
 }
+
+// 6-digit (RRGGBB) or 8-digit (AARRGGBB) hex color, no '#'.
+private val HEX_COLOR_REGEX = Regex("^[0-9a-fA-F]{6}([0-9a-fA-F]{2})?$")

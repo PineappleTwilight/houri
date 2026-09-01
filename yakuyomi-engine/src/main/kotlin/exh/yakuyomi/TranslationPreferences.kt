@@ -50,6 +50,19 @@ class TranslationPreferences(
      */
     fun fontFamily() = preferenceStore.getString("pref_yakuyomi_font_family", "casual")
 
+    /**
+     * Color of the translated text rendered onto the page, as an ARGB int. Defaults to
+     * opaque black. The outline is still chosen from the background luminance so the
+     * text stays readable on any bubble/panel color.
+     */
+    fun translationTextColor() = preferenceStore.getInt("pref_yakuyomi_text_color", 0xFF000000.toInt())
+
+    /**
+     * Optional manual hex override for the translated text color (e.g. "#FFFFFF", "ffffff").
+     * When blank or unparseable, [translationTextColor] (the preset) is used.
+     */
+    fun translationTextColorHex() = preferenceStore.getString("pref_yakuyomi_text_color_hex", "")
+
     fun isConfigured(): Boolean = enabled().get() && targetLang().get().isNotBlank()
 
     fun hasApiKey(): Boolean = apiKey().get().isNotBlank()

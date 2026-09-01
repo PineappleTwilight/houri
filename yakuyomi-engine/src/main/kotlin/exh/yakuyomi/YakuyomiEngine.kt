@@ -91,10 +91,34 @@ class YakuyomiEngine(
     @Volatile
     private var components: Components? = null
 
-    private val defaultConfig = li.joye.yakuyomi.engine.EngineConfig()
-    private val horizontalConfig = defaultConfig.copy(
-        render = defaultConfig.render.copy(orientation = li.joye.yakuyomi.engine.TextOrientation.HORIZONTAL),
-    )
+    private fun renderConfig(): li.joye.yakuyomi.engine.RenderConfig =
+        li.joye.yakuyomi.engine.EngineConfig().render.copy(
+            colorMode = "fixed",
+            fixedTextColor = resolveTextColor(),
+        )
+
+    /** Custom hex override wins when parseable; otherwise the preset int preference. */
+    private fun resolveTextColor(): Int {
+        val hex = prefs.translationTextColorHex().get().trim().removePrefix("#")
+        if (hex.isNotEmpty()) {
+            val v = hex.toLongOrNull(16) ?: return prefs.translationTextColor().get()
+            return when (hex.length) {
+                6 -> 0xFF000000.toInt() or v.toInt() // RRGGBB → opaque
+                8 -> v.toInt() // AARRGGBB
+                else -> prefs.translationTextColor().get()
+            }
+        }
+        return prefs.translationTextColor().get()
+    }
+
+    private val defaultConfig: li.joye.yakuyomi.engine.EngineConfig by lazy {
+        li.joye.yakuyomi.engine.EngineConfig(render = renderConfig())
+    }
+    private val horizontalConfig: li.joye.yakuyomi.engine.EngineConfig by lazy {
+        defaultConfig.copy(
+            render = defaultConfig.render.copy(orientation = li.joye.yakuyomi.engine.TextOrientation.HORIZONTAL),
+        )
+    }
 
     private fun loadAlphabet(): List<String> =
         context.assets.open("yakuyomi_alphabet.txt").bufferedReader().readLines()
@@ -172,6 +196,7 @@ class YakuyomiEngine(
         // sessions, so this call can never race a close of the components it captured.
         pipelineMutex.withLock {
             val c = buildIfNeeded() ?: return@withContext PageResult.Failed("models not ready")
+            // Resolved per call so text color/font pref changes apply without restarting.
             val cfg = if (shouldForceHorizontal(targetLang)) horizontalConfig else defaultConfig
             Pipeline(c.detector, c.ocr, translator, c.inpainter, cfg, resolveTypeface()).translatePage(bitmap)
         }
