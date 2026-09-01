@@ -187,17 +187,32 @@ object SettingsYakuyomiScreen : SearchableSettings {
                         var statusText by remember { mutableStateOf("Checking…") }
                         LaunchedEffect(Unit) {
                             statusText = withIOContext {
+                                val nano = globalAppGraph.geminiNanoTranslator
                                 when {
                                     !prefs.geminiNanoEnabled().get() -> "Disabled by toggle — cloud provider will be used"
-                                    globalAppGraph.geminiNanoTranslator.isAvailable() -> "Available — on-device translation active"
-                                    else -> "Not available on this device — cloud provider will be used"
+                                    nano.isAvailable() -> "Available — on-device translation active"
+                                    else -> {
+                                        val err = nano.statusError()
+                                        if (!err.isNullOrBlank() && (
+                                                err.contains("601") || err.contains("BINDING") ||
+                                                    err.contains("606") || err.contains("FEATURE_NOT_FOUND")
+                                                )
+                                        ) {
+                                            "AICore is still setting up (${err.substringAfter("error code ").substringBefore(":").trim()}) — " +
+                                                "update Google AI Core / restart the device, then check again. Cloud provider will be used meanwhile."
+                                        } else {
+                                            "Not available on this device right now — cloud provider will be used. " +
+                                                "If this device supports Gemini Nano (e.g. Pixel 8+/Samsung S24+), AICore may still be provisioning — " +
+                                                "update Google AI Core and restart, then re-open this screen."
+                                        }
+                                    }
                                 }
                             }
                         }
                         Text(
                             text = statusText,
                             style = MaterialTheme.typography.bodyMedium,
-                            modifier = Modifier.padding(vertical = 8.dp),
+                            modifier = Modifier.padding(start = MaterialTheme.padding.medium, end = MaterialTheme.padding.medium, vertical = 8.dp),
                         )
                     },
                 ),

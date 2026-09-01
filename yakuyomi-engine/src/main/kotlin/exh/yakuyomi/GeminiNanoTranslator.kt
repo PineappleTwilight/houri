@@ -51,6 +51,9 @@ class GeminiNanoTranslator(
     private var status: Int? = null
 
     @Volatile
+    private var statusError: String? = null
+
+    @Volatile
     private var lastStatusCheckMs = 0L
 
     @Volatile
@@ -59,6 +62,12 @@ class GeminiNanoTranslator(
     // checkStatus() queries AICore; the result only changes on download events, so cache it
     // briefly to keep per-page translation from hammering the system call.
     private val statusTtlMs = 30_000L
+
+    /** Current device/model availability: FeatureStatus code or null before the first check. */
+    fun statusCode(): Int? = status
+
+    /** Last error from the availability check (AICore provisioning failure, etc.), or null. */
+    fun statusError(): String? = statusError
 
     /** Whether Gemini Nano is currently usable for inference on this device. */
     suspend fun isAvailable(): Boolean = refreshStatus() == FeatureStatus.AVAILABLE
@@ -73,6 +82,7 @@ class GeminiNanoTranslator(
         return try {
             val s = m.checkStatus()
             status = s
+            statusError = null
             lastStatusCheckMs = now
             if (s == FeatureStatus.DOWNLOADABLE || s == FeatureStatus.DOWNLOADING) {
                 ensureDownloaded(m)
@@ -80,8 +90,17 @@ class GeminiNanoTranslator(
             s
         } catch (e: CancellationException) {
             throw e
+        } catch (e: GenAiException) {
+            // AICore provisioning can lag model availability (601 BINDING_FAILURE /
+            // 606 FEATURE_NOT_FOUND until AICore downloads its config, minutes to hours
+            // after setup). Surface the code so the settings row can explain instead of
+            // the user assuming the device is unsupported.
+            logcat { "Gemini Nano status check GenAiException: ${e.message}" }
+            statusError = e.message
+            FeatureStatus.UNAVAILABLE.also { status = it }
         } catch (e: Exception) {
             logcat { "Gemini Nano status check failed: ${e.message}" }
+            statusError = e.message
             FeatureStatus.UNAVAILABLE.also { status = it }
         }
     }
