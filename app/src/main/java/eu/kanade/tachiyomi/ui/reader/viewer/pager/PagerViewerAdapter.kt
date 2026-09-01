@@ -237,121 +237,13 @@ class PagerViewerAdapter(
     // SY -->
     private fun setJoinedItems(useSecondPage: Boolean = false) {
         val oldCurrent = joinedItems.getOrNull(viewer.pager.currentItem)
-        if (!viewer.config.doublePages) {
-            // If not in double mode, set up items like before
-            subItems.forEach { readerItem ->
-                if (readerItem is ReaderPage) {
-                    readerItem.shiftedPage = false
-                }
-            }
-            this.joinedItems = subItems.map { Pair(it, null) }.toMutableList()
-            if (viewer is R2LPagerViewer) {
-                joinedItems.reverse()
-            }
-        } else {
-            val pagedItems = mutableListOf<MutableList<ReaderPage?>>()
-            // Transition (or null) that must follow each page segment, aligned by index.
-            // A transition is bound to the segment it directly precedes in [subItems], so a
-            // skipped chapter-boundary transition (e.g. prev chapter already loaded) cannot
-            // shift later transitions (like "no new chapters") into the middle of a chapter.
-            val trailingItems = mutableListOf<ReaderItem?>()
-            pagedItems.add(mutableListOf())
-            trailingItems.add(null)
-
-            // Step 1: segment the pages and transition pages
-            subItems.forEach { readerItem ->
-                when (readerItem) {
-                    is ReaderPage -> {
-                        if (pagedItems.last().isNotEmpty() &&
-                            pagedItems.last().last()?.chapter?.chapter?.id != readerItem.chapter.chapter.id
-                        ) {
-                            pagedItems.add(mutableListOf())
-                            trailingItems.add(null)
-                        }
-                        pagedItems.last().add(readerItem)
-                    }
-                    is ChapterTransition -> {
-                        // This transition follows the segment accumulated so far.
-                        trailingItems[trailingItems.lastIndex] = readerItem
-                        pagedItems.add(mutableListOf())
-                        trailingItems.add(null)
-                    }
-                }
-            }
-
-            val subJoinedItems = mutableListOf<Pair<ReaderItem, ReaderItem?>>()
-
-            // Step 2: run through each set of pages
-            pagedItems.forEachIndexed { segmentIndex, items ->
-                items.forEach { it?.shiftedPage = false }
-
-                // Step 3: If pages have been shifted,
-                if (viewer.config.shiftDoublePage) {
-                    val index = items.indexOf(pageToShift)
-                    // Go from the current page and work your way back to the first page,
-                    // or the first page that's a full page.
-                    // This is done in case user tries to shift a page after a full page
-                    val fullPageBeforeIndex = if (index > -1) {
-                        items.take(index).indexOfLast { it?.fullPage == true }
-                    } else {
-                        -1
-                    }.coerceAtLeast(0)
-
-                    // Add a shifted page to the first place there isnt a full page
-                    run loop@{
-                        (fullPageBeforeIndex until items.size).forEach {
-                            if (items[it]?.fullPage == false) {
-                                items[it]?.shiftedPage = true
-                                return@loop
-                            }
-                        }
-                    }
-                }
-
-                // Step 4: Add blanks for chunking
-                var itemIndex = 0
-                while (itemIndex < items.size) {
-                    val currentItem = items[itemIndex]
-                    currentItem?.isolatedPage = false
-                    if (currentItem?.fullPage == true || currentItem?.shiftedPage == true) {
-                        // Add a 'blank' page after each full page. It will be used when chunked to solo a page
-                        items.add(itemIndex + 1, null)
-                        if (
-                            currentItem.fullPage &&
-                            itemIndex > 0 &&
-                            items[itemIndex - 1] != null &&
-                            (itemIndex - 1) % 2 == 0
-                        ) {
-                            // If a page is a full page, check if the previous page needs to be isolated
-                            // we should check if it's an even or odd page, since even pages need shifting
-                            // For example if Page 1 is full, Page 0 needs to be isolated
-                            // No need to take account shifted pages, because null additions should
-                            // always have an odd index in the list
-                            items[itemIndex - 1]?.isolatedPage = true
-                            items.add(itemIndex, null)
-                            itemIndex++
-                        }
-                        itemIndex++
-                    }
-                    itemIndex++
-                }
-
-                // Step 5: chunk em
-                if (items.isNotEmpty()) {
-                    subJoinedItems.addAll(items.chunked(2).map { Pair(it.first()!!, it.getOrNull(1)) })
-                }
-
-                trailingItems.getOrNull(segmentIndex)?.let {
-                    subJoinedItems.add(Pair(it, null))
-                }
-            }
-
-            if (viewer is R2LPagerViewer) {
-                subJoinedItems.reverse()
-            }
-
-            this.joinedItems = subJoinedItems
-        }
+        this.joinedItems = PagerJoinedItemsBuilder.build(
+            subItems = subItems,
+            pageToShift = pageToShift,
+            isR2L = viewer is R2LPagerViewer,
+            doublePages = viewer.config.doublePages,
+            shiftDoublePage = viewer.config.shiftDoublePage,
+        )
         notifyDataSetChanged()
 
         // Step 6: Move back to our previous page or transition page

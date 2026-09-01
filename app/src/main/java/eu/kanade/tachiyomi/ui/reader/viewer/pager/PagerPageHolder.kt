@@ -2,14 +2,12 @@ package eu.kanade.tachiyomi.ui.reader.viewer.pager
 
 import android.annotation.SuppressLint
 import android.content.Context
-import android.graphics.Bitmap
 import android.view.LayoutInflater
 import androidx.annotation.ColorInt
 import androidx.core.view.isVisible
 import eu.kanade.presentation.util.formattedMessage
 import eu.kanade.tachiyomi.databinding.ReaderErrorBinding
 import eu.kanade.tachiyomi.source.model.Page
-import eu.kanade.tachiyomi.ui.reader.model.InsertPage
 import eu.kanade.tachiyomi.ui.reader.model.ReaderPage
 import eu.kanade.tachiyomi.ui.reader.viewer.ReaderPageImageView
 import eu.kanade.tachiyomi.ui.reader.viewer.ReaderProgressIndicator
@@ -18,22 +16,18 @@ import eu.kanade.tachiyomi.ui.webview.WebViewActivity
 import eu.kanade.tachiyomi.widget.ViewPagerAdapter
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.MainScope
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.supervisorScope
 import logcat.LogPriority
 import okio.Buffer
-import okio.BufferedSource
 import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.core.common.util.lang.launchIO
 import tachiyomi.core.common.util.lang.withIOContext
 import tachiyomi.core.common.util.lang.withUIContext
 import tachiyomi.core.common.util.system.ImageUtil
 import tachiyomi.core.common.util.system.logcat
-import tachiyomi.decoder.ImageDecoder
 import tachiyomi.i18n.MR
-import kotlin.math.max
 
 /**
  * View of the ViewPager that contains a page of a chapter.
@@ -43,7 +37,7 @@ class PagerPageHolder(
     readerThemedContext: Context,
     val viewer: PagerViewer,
     val page: ReaderPage,
-    private var extraPage: ReaderPage? = null,
+    internal var extraPage: ReaderPage? = null,
     // KMK -->
     @ColorInt private val seedColor: Int? = null,
     // KMK <--
@@ -58,14 +52,14 @@ class PagerPageHolder(
     /**
      * Loading progress bar to indicate the current progress.
      */
-    private var progressIndicator: ReaderProgressIndicator? = null // = ReaderProgressIndicator(readerThemedContext)
+    internal var progressIndicator: ReaderProgressIndicator? = null // = ReaderProgressIndicator(readerThemedContext)
 
     /**
      * Error layout to show when the image fails to load.
      */
     private var errorLayout: ReaderErrorBinding? = null
 
-    private val scope = MainScope()
+    internal val scope = MainScope()
 
     /**
      * Job for loading the page and processing changes to the page's status.
@@ -257,197 +251,6 @@ class PagerPageHolder(
                 setError(e)
             }
         }
-    }
-
-    private fun process(page: ReaderPage, imageSource: BufferedSource): BufferedSource {
-        if (viewer.config.dualPageRotateToFit) {
-            return rotateDualPage(imageSource)
-        }
-
-        if (!viewer.config.dualPageSplit) {
-            return imageSource
-        }
-
-        if (page is InsertPage) {
-            return splitInHalf(imageSource)
-        }
-
-        val isDoublePage = ImageUtil.isWideImage(imageSource)
-        if (!isDoublePage) {
-            return imageSource
-        }
-
-        onPageSplit(page)
-
-        return splitInHalf(imageSource)
-    }
-
-    private fun rotateDualPage(imageSource: BufferedSource): BufferedSource {
-        val isDoublePage = ImageUtil.isWideImage(imageSource)
-        return if (isDoublePage) {
-            val rotation = if (viewer.config.dualPageRotateToFitInvert) -90f else 90f
-            ImageUtil.rotateImage(imageSource, rotation)
-        } else {
-            imageSource
-        }
-    }
-
-    private fun mergePages(imageSource: BufferedSource, imageSource2: BufferedSource?): BufferedSource {
-        // Handle adding a center margin to wide images if requested
-        if (imageSource2 == null) {
-            return handleWideImage(imageSource)
-        }
-
-        if (page.fullPage) return imageSource
-        if (ImageUtil.isAnimatedAndSupported(imageSource)) {
-            page.fullPage = true
-            splitDoublePages()
-            return imageSource
-        } else if (ImageUtil.isAnimatedAndSupported(imageSource2)) {
-            page.isolatedPage = true
-            extraPage?.fullPage = true
-            splitDoublePages()
-            return imageSource
-        }
-
-        val imageBitmap = decodeImage(imageSource)
-        if (imageBitmap == null) {
-            imageSource2.close()
-            page.fullPage = true
-            splitDoublePages()
-            logcat(LogPriority.ERROR) { "Cannot combine pages" }
-            return imageSource
-        }
-
-        scope.launch { progressIndicator?.setProgress(96) }
-        if (imageBitmap.height < imageBitmap.width) {
-            imageSource2.close()
-            page.fullPage = true
-            splitDoublePages()
-            return imageSource
-        }
-
-        val imageBitmap2 = decodeImage(imageSource2)
-        if (imageBitmap2 == null) {
-            imageSource2.close()
-            extraPage?.fullPage = true
-            page.isolatedPage = true
-            splitDoublePages()
-            logcat(LogPriority.ERROR) { "Cannot combine pages" }
-            return imageSource
-        }
-
-        scope.launch { progressIndicator?.setProgress(97) }
-        if (imageBitmap2.height < imageBitmap2.width) {
-            imageSource2.close()
-            extraPage?.fullPage = true
-            page.isolatedPage = true
-            splitDoublePages()
-            return imageSource
-        }
-
-        val isLTR = (viewer !is R2LPagerViewer) xor viewer.config.invertDoublePages
-        val centerMargin = calculateCenterMargin(imageBitmap.height, imageBitmap2.height)
-
-        imageSource.close()
-        imageSource2.close()
-
-        return ImageUtil.mergeBitmaps(
-            imageBitmap,
-            imageBitmap2,
-            isLTR,
-            centerMargin,
-            viewer.config.pageCanvasColor,
-            matchHeights = viewer.config.matchDoublePageHeights,
-        ) {
-            updateProgress(it)
-        }
-    }
-
-    private fun handleWideImage(imageSource: BufferedSource): BufferedSource {
-        return if (
-            !ImageUtil.isAnimatedAndSupported(imageSource) &&
-            ImageUtil.isWideImage(imageSource) &&
-            viewer.config.centerMarginType and PagerConfig.CenterMarginType.WIDE_PAGE_CENTER_MARGIN > 0 &&
-            !viewer.config.imageCropBorders
-        ) {
-            ImageUtil.addHorizontalCenterMargin(imageSource, height, context)
-        } else {
-            imageSource
-        }
-    }
-
-    private fun decodeImage(imageSource: BufferedSource): Bitmap? {
-        return try {
-            ImageDecoder.newInstance(imageSource.inputStream())?.decode()
-        } catch (e: Exception) {
-            logcat(LogPriority.ERROR, e) { "Cannot decode image" }
-            null
-        }
-    }
-
-    private fun calculateCenterMargin(height: Int, height2: Int): Int {
-        return if (viewer.config.centerMarginType and PagerConfig.CenterMarginType.DOUBLE_PAGE_CENTER_MARGIN > 0 &&
-            !viewer.config.imageCropBorders
-        ) {
-            96 / (this.height.coerceAtLeast(1) / max(height, height2).coerceAtLeast(1)).coerceAtLeast(1)
-        } else {
-            0
-        }
-    }
-
-    private fun updateProgress(progress: Int) {
-        scope.launch {
-            if (progress == 100) {
-                progressIndicator?.hide()
-            } else {
-                progressIndicator?.setProgress(progress)
-            }
-        }
-    }
-
-    private fun splitDoublePages() {
-        scope.launch {
-            delay(100)
-            viewer.splitDoublePages(page)
-            if (extraPage?.fullPage == true || page.fullPage) {
-                extraPage = null
-            }
-        }
-    }
-
-    private fun splitInHalf(imageSource: BufferedSource): BufferedSource {
-        var side = when {
-            viewer is L2RPagerViewer && page is InsertPage -> ImageUtil.Side.RIGHT
-            viewer !is L2RPagerViewer && page is InsertPage -> ImageUtil.Side.LEFT
-            viewer is L2RPagerViewer && page !is InsertPage -> ImageUtil.Side.LEFT
-            viewer !is L2RPagerViewer && page !is InsertPage -> ImageUtil.Side.RIGHT
-            else -> error("We should choose a side!")
-        }
-
-        if (viewer.config.dualPageInvert) {
-            side = when (side) {
-                ImageUtil.Side.RIGHT -> ImageUtil.Side.LEFT
-                ImageUtil.Side.LEFT -> ImageUtil.Side.RIGHT
-            }
-        }
-
-        val sideMargin = if ((viewer.config.centerMarginType and PagerConfig.CenterMarginType.DOUBLE_PAGE_CENTER_MARGIN) >
-            0 &&
-            viewer.config.doublePages &&
-            !viewer.config.imageCropBorders
-        ) {
-            48
-        } else {
-            0
-        }
-
-        return ImageUtil.splitInHalf(imageSource, side, sideMargin)
-    }
-
-    private fun onPageSplit(page: ReaderPage) {
-        val newPage = InsertPage(page)
-        viewer.onPageSplit(page, newPage)
     }
 
     /**

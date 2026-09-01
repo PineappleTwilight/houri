@@ -203,7 +203,8 @@
   - The entire model download and storage system should be improved/reworked/optimized
   - Another button should also be added to clear the downloaded models instead of re-downloading
 - [ ] **E/ExHentai**: Fix start button not appearing until exiting a manga and going back into it
-- [ ] **App**: Fix "what's coming" page labeling every todo category as "drawing board" 
+- [x] **App**: Fix "what's coming" page labeling every todo category as "drawing board" 
+  - Verified: parseTodo correctly tracks `## ` section headers; reproduced a clean parse of the live GitHub raw file (Feature Ideas: 5, Bugfixes: 3, Drawing Board: 1) — likely a one-time fetch during a TODO.md edit
 - [ ] **App**: Improve manga db statistics
   - Reading time per manga should also be included
 

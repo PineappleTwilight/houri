@@ -7,7 +7,7 @@ import androidx.recyclerview.widget.RecyclerView
 
 abstract class WebtoonBaseHolder(
     view: View,
-    protected val viewer: WebtoonViewer,
+    val viewer: WebtoonViewer,
 ) : RecyclerView.ViewHolder(view) {
 
     /**
