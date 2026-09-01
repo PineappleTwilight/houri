@@ -19,10 +19,10 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import java.util.concurrent.TimeUnit
 
 /**
- * Breadcrumb-aware LLM translator backed by OpenRouter / Gemini. This is the translation stage
- * injected into the library pipeline; it keeps Komikku's custom sliding-window breadcrumb prompt
- * (context notes about prior chapters) that the library's default [li.joye.yakuyomi.engine.LlmTranslator]
- * does not implement.
+ * Breadcrumb-aware LLM translator backed by OpenRouter / Gemini / OpenAI-compatible providers.
+ * This is the translation stage injected into the library pipeline; it keeps Komikku's custom
+ * sliding-window breadcrumb prompt (context notes about prior chapters) that the library's
+ * default [li.joye.yakuyomi.engine.LlmTranslator] does not implement.
  *
  * Failure handling: a failed provider call must NOT be silently reported as "translated". The
  * library pipeline treats `translatedText == sourceText` as "nothing to translate" and marks the
@@ -56,7 +56,7 @@ class YakuyomiTranslator(
             throw TranslationException("Yakuyomi API key not configured (set it in Settings → Translation)")
         }
         val isEnFix = sourceLang.equals("EN", true) && targetLang.equals("EN", true)
-        val prompt = buildPrompt(queries, sourceLang, targetLang, breadcrumb, isEnFix)
+        val prompt = buildTranslationPrompt(queries, sourceLang, targetLang, breadcrumb, isEnFix)
         val result = try {
             when (provider.lowercase()) {
                 "gemini" -> callGemini(prompt, apiKey, model)
@@ -80,25 +80,7 @@ class YakuyomiTranslator(
             if (offlineFallback) return@withContext queries.map { it.trim() }
             throw TranslationException("Yakuyomi $provider returned no usable translation")
         }
-        align(result, queries)
-    }
-
-    private fun align(result: List<String>, queries: List<String>): List<String> {
-        return when {
-            result.size == queries.size -> result
-            result.size < queries.size -> result + queries.drop(result.size).map { it.trim() }
-            else -> result.take(queries.size)
-        }
-    }
-
-    private fun buildPrompt(texts: List<String>, sourceLang: String, targetLang: String, breadcrumb: String, isEnFix: Boolean): String {
-        val joined = texts.joinToString("\n") { "- $it" }
-        val breadcrumbSection = if (breadcrumb.isNotBlank()) "Context notes (sliding window):\n$breadcrumb\n\n" else ""
-        return if (isEnFix) {
-            "${breadcrumbSection}Fix grammar, preserve names, output only EN. Texts:\n$joined\n\nReturn each corrected line prefixed with '- ' exactly, one per input line, no extra commentary."
-        } else {
-            "${breadcrumbSection}Translate $sourceLang → $targetLang. Preserve names, honorifics, output only $targetLang. Texts:\n$joined\n\nReturn each translated line prefixed with '- ' exactly, one per input line, no extra commentary."
-        }
+        alignTranslationLines(result, queries)
     }
 
     private suspend fun callOpenAICompatible(prompt: String, apiKey: String, model: String, baseUrl: String, customHeaders: String): List<String>? = withContext(Dispatchers.IO) {
@@ -237,60 +219,27 @@ class YakuyomiTranslator(
     private fun parseOpenRouterResponse(jsonStr: String): List<String>? {
         return try {
             val root = json.parseToJsonElement(jsonStr).jsonObject
-            val choices = root["choices"]?.jsonArray ?: return parseLinesFallback(jsonStr)
-            val first = choices.firstOrNull()?.jsonObject ?: return parseLinesFallback(jsonStr)
-            val message = first["message"]?.jsonObject ?: return parseLinesFallback(jsonStr)
-            val content = message["content"]?.jsonPrimitive?.contentOrNull ?: return parseLinesFallback(jsonStr)
-            parseLinesFromContent(content) ?: parseLinesFallback(jsonStr)
+            val choices = root["choices"]?.jsonArray ?: return parseTranslationLinesFromJson(jsonStr)
+            val first = choices.firstOrNull()?.jsonObject ?: return parseTranslationLinesFromJson(jsonStr)
+            val message = first["message"]?.jsonObject ?: return parseTranslationLinesFromJson(jsonStr)
+            val content = message["content"]?.jsonPrimitive?.contentOrNull ?: return parseTranslationLinesFromJson(jsonStr)
+            parseTranslationLines(content) ?: parseTranslationLinesFromJson(jsonStr)
         } catch (_: Exception) {
-            parseLinesFallback(jsonStr)
+            parseTranslationLinesFromJson(jsonStr)
         }
     }
 
     private fun parseGeminiResponse(jsonStr: String): List<String>? {
         return try {
             val root = json.parseToJsonElement(jsonStr).jsonObject
-            val candidates = root["candidates"]?.jsonArray ?: return parseLinesFallback(jsonStr)
-            val first = candidates.firstOrNull()?.jsonObject ?: return parseLinesFallback(jsonStr)
-            val content = first["content"]?.jsonObject ?: return parseLinesFallback(jsonStr)
-            val parts = content["parts"]?.jsonArray ?: return parseLinesFallback(jsonStr)
+            val candidates = root["candidates"]?.jsonArray ?: return parseTranslationLinesFromJson(jsonStr)
+            val first = candidates.firstOrNull()?.jsonObject ?: return parseTranslationLinesFromJson(jsonStr)
+            val content = first["content"]?.jsonObject ?: return parseTranslationLinesFromJson(jsonStr)
+            val parts = content["parts"]?.jsonArray ?: return parseTranslationLinesFromJson(jsonStr)
             val text = parts.mapNotNull { it.jsonObject["text"]?.jsonPrimitive?.contentOrNull }.joinToString("\n")
-            if (text.isBlank()) parseLinesFallback(jsonStr) else parseLinesFromContent(text)
+            if (text.isBlank()) parseTranslationLinesFromJson(jsonStr) else parseTranslationLines(text)
         } catch (_: Exception) {
-            parseLinesFallback(jsonStr)
-        }
-    }
-
-    private fun parseLinesFromContent(content: String): List<String>? {
-        val cleaned = content.trim()
-        // Strip common LLM code fences or markdown wrappers that hide the dash list.
-        val fenced = Regex("```[a-zA-Z]*\\s*").replace(cleaned, "")
-        val working = if (fenced.startsWith("- ") || fenced.startsWith("1.") || fenced.startsWith("1)") || fenced.contains("\n- ")) {
-            fenced
-        } else {
-            cleaned
-        }
-        val dashLines = working.lines().map { it.trim() }.filter { it.startsWith("- ") }.map { it.removePrefix("- ").trim() }.filter { it.isNotBlank() }
-        if (dashLines.isNotEmpty()) return dashLines
-        val numbered = working.lines().map { it.trim() }.mapNotNull { line ->
-            Regex("""^\d+[.)]\s*(.+)""").find(line)?.groupValues?.getOrNull(1)?.trim()?.takeIf { it.isNotBlank() }
-        }
-        if (numbered.isNotEmpty()) return numbered
-        val split = working.lines().map { it.trim() }.filter { it.isNotBlank() }
-        if (split.isNotEmpty()) return split
-        return null
-    }
-
-    private fun parseLinesFallback(jsonStr: String): List<String>? {
-        return try {
-            val lines = jsonStr.lines().map { it.trim() }.filter { it.startsWith("- ") }.map { it.removePrefix("- ").trim() }.filter { it.isNotBlank() }
-            if (lines.isNotEmpty()) return lines
-            val regex = Regex("\"content\"\\s*:\\s*\"((?:\\\\\"|[^\"])*)\"")
-            val match = regex.find(jsonStr)?.groupValues?.getOrNull(1) ?: return null
-            val unescaped = match.replace("\\n", "\n").replace("\\\"", "\"").replace("\\\\", "\\")
-            parseLinesFromContent(unescaped)
-        } catch (_: Exception) {
-            null
+            parseTranslationLinesFromJson(jsonStr)
         }
     }
 }

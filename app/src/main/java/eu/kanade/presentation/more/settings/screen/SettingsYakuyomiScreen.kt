@@ -153,6 +153,32 @@ object SettingsYakuyomiScreen : SearchableSettings {
         return Preference.PreferenceGroup(
             title = stringResource(KMR.strings.pref_yakuyomi_provider),
             preferenceItems = persistentListOf(
+                Preference.PreferenceItem.SwitchPreference(
+                    preference = prefs.geminiNanoEnabled(),
+                    title = stringResource(KMR.strings.pref_yakuyomi_gemini_nano),
+                    subtitle = stringResource(KMR.strings.pref_yakuyomi_gemini_nano_summary),
+                    enabled = enabled,
+                ),
+                Preference.PreferenceItem.CustomPreference(
+                    title = "Gemini Nano device status",
+                    content = {
+                        var statusText by remember { mutableStateOf("Checking…") }
+                        LaunchedEffect(Unit) {
+                            statusText = withIOContext {
+                                when {
+                                    !prefs.geminiNanoEnabled().get() -> "Disabled by toggle — cloud provider will be used"
+                                    globalAppGraph.geminiNanoTranslator.isAvailable() -> "Available — on-device translation active"
+                                    else -> "Not available on this device — cloud provider will be used"
+                                }
+                            }
+                        }
+                        Text(
+                            text = statusText,
+                            style = MaterialTheme.typography.bodyMedium,
+                            modifier = Modifier.padding(vertical = 8.dp),
+                        )
+                    },
+                ),
                 Preference.PreferenceItem.ListPreference(
                     preference = prefs.provider(),
                     entries = persistentMapOf(

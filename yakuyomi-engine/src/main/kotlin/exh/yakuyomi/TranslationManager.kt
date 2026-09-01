@@ -27,6 +27,9 @@ class TranslationManager(
     private val preferenceStore: PreferenceStore,
     private val status: TranslationStatus,
     private val pageStore: TranslatedPageStore,
+    // KMK -->
+    private val geminiNano: GeminiNanoTranslator,
+    // KMK <--
 ) {
     fun isEnabled(): Boolean = prefs.enabled().get()
 
@@ -68,6 +71,8 @@ class TranslationManager(
         return when {
             "models not ready" in lower || ("model" in lower && "download" in lower) ->
                 "AI models not installed — download them in Settings → Translation"
+            "gemini nano" in lower && "unavailable" in lower ->
+                "Gemini Nano not available on this device — it fell back to the cloud provider. Check the provider/API key in Settings → Translation"
             "api key" in lower && ("not configured" in lower || "blank" in lower) ->
                 "No API key set — add one in Settings → Translation"
             "429" in lower || "rate limit" in lower ->
@@ -87,6 +92,18 @@ class TranslationManager(
     }
 
     /**
+     * Resolves the cache key for the LLM that would translate a page. When Gemini Nano is
+     * active the key is the on-device model; otherwise the configured cloud model. Keeps
+     * cache entries from mixing providers when the user toggles Gemini Nano on/off.
+     */
+    private suspend fun effectiveModel(): String {
+        if (prefs.geminiNanoEnabled().get() && geminiNano.isAvailable()) {
+            return "gemini-nano"
+        }
+        return prefs.model().get().ifBlank { "google/gemma-2-9b-it:free" }
+    }
+
+    /**
      * Fast path for pages already translated in this session/on disk: serves the saved page or the
      * hash cache without running the detection/OCR/LLM pipeline. Returns null when nothing is stored
      * (caller should fall back to [translatePage]).
@@ -99,7 +116,7 @@ class TranslationManager(
     ): ByteArray? = withContext(Dispatchers.IO) {
         if (!prefs.enabled().get() || isGated() || !perMangaStore.isEnabled(mangaId)) return@withContext null
         val targetLang = prefs.targetLang().get().ifBlank { "en" }
-        val model = prefs.model().get().ifBlank { "google/gemma-2-9b-it:free" }
+        val model = effectiveModel()
         if (prefs.saveTranslatedPages().get()) {
             pageStore.loadIfExists(mangaId, chapterId, pageIndex)?.let { bytes ->
                 if (bytes.isNotEmpty()) return@withContext bytes
@@ -126,7 +143,7 @@ class TranslationManager(
     ): ByteArray? = withContext(Dispatchers.IO) {
         if (!prefs.enabled().get() || isGated() || !perMangaStore.isEnabled(mangaId)) return@withContext null
         val targetLang = prefs.targetLang().get().ifBlank { "en" }
-        val model = prefs.model().get().ifBlank { "google/gemma-2-9b-it:free" }
+        val model = effectiveModel()
         val cacheEnabled = prefs.cacheEnabled().get()
 
         // Prefer saved translated page to avoid re-translation
@@ -172,18 +189,36 @@ class TranslationManager(
             }
 
             val breadcrumb = notes.buildContextPrompt(mangaId)
-            val translator = YakuyomiTranslator(
-                apiKey = prefs.apiKey().get(),
-                sourceLang = sourceLangHint,
-                targetLang = targetLang,
-                breadcrumb = breadcrumb,
-                provider = prefs.provider().get().lowercase(),
-                model = model,
-                offlineFallback = prefs.offlineFallback().get(),
-                client = client,
-                customBaseUrl = prefs.customBaseUrl().get(),
-                customHeaders = prefs.customHeaders().get(),
-            )
+            // KMK -->
+            // Gemini Nano (on-device) is the priority LLM provider when the toggle is on and
+            // the device has the model available; otherwise fall back to the cloud provider.
+            // The page bitmap is passed along for visual context (vision augments the OCR'd
+            // text lines — it never replaces them).
+            val useGeminiNano = prefs.geminiNanoEnabled().get() && geminiNano.isAvailable()
+            val translator: li.joye.yakuyomi.engine.Translator = if (useGeminiNano) {
+                object : li.joye.yakuyomi.engine.Translator {
+                    override suspend fun translate(queries: List<String>): List<String> {
+                        val result = geminiNano.translate(queries, bitmap, sourceLangHint)
+                        if (result != null) return result
+                        if (prefs.offlineFallback().get()) return queries.map { it.trim() }
+                        throw TranslationException("Gemini Nano unavailable on this device — enable a cloud provider in Settings → Translation")
+                    }
+                }
+            } else {
+                YakuyomiTranslator(
+                    apiKey = prefs.apiKey().get(),
+                    sourceLang = sourceLangHint,
+                    targetLang = targetLang,
+                    breadcrumb = breadcrumb,
+                    provider = prefs.provider().get().lowercase(),
+                    model = model,
+                    offlineFallback = prefs.offlineFallback().get(),
+                    client = client,
+                    customBaseUrl = prefs.customBaseUrl().get(),
+                    customHeaders = prefs.customHeaders().get(),
+                )
+            }
+            // KMK <--
 
             when (val result = engine.translatePage(bitmap, translator, targetLang)) {
                 is PageResult.Translated -> {

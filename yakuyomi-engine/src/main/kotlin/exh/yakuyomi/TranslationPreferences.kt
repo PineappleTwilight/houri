@@ -21,6 +21,13 @@ class TranslationPreferences(
 
     fun model() = preferenceStore.getString("pref_yakuyomi_model", "google/gemma-2-9b-it:free")
 
+    /**
+     * Whether to attempt on-device Gemini Nano (ML Kit GenAI / AICore) as the priority LLM
+     * provider when the device supports it. Defaults to enabled; unsupported devices fall
+     * back to the configured cloud provider automatically.
+     */
+    fun geminiNanoEnabled() = preferenceStore.getBoolean("pref_yakuyomi_gemini_nano", true)
+
     fun offlineFallback() = preferenceStore.getBoolean("pref_yakuyomi_offline_fallback", false)
 
     fun autoTranslateOnDownload() = preferenceStore.getBoolean("pref_yakuyomi_auto_download", false)

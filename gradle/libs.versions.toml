@@ -24,6 +24,7 @@ mlkit_text = "16.0.1"
 mlkit_text_chinese = "16.0.1"
 mlkit_text_japanese = "16.0.1"
 mlkit_text_korean = "16.0.1"
+mlkit_genai_prompt = "1.0.0-beta4"
 onnxruntime = "1.19.2"
 
 [libraries]
@@ -137,6 +138,7 @@ mlkit-text = { module = "com.google.mlkit:text-recognition", version.ref = "mlki
 mlkit-text-chinese = { module = "com.google.mlkit:text-recognition-chinese", version.ref = "mlkit_text_chinese" }
 mlkit-text-japanese = { module = "com.google.mlkit:text-recognition-japanese", version.ref = "mlkit_text_japanese" }
 mlkit-text-korean = { module = "com.google.mlkit:text-recognition-korean", version.ref = "mlkit_text_korean" }
+mlkit-genai-prompt = { module = "com.google.mlkit:genai-prompt", version.ref = "mlkit_genai_prompt" }
 onnxruntime-android = { module = "ai.onnxruntime:onnxruntime-android", version.ref = "onnxruntime" }
 coroutines-play-services = "org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.11.0"
 

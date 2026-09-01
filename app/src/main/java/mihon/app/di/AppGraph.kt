@@ -92,6 +92,7 @@ import exh.pref.DelegateSourcePreferences
 import exh.search.SearchEngine
 import exh.source.ExhPreferences
 import exh.yakuyomi.BreadcrumbNotes
+import exh.yakuyomi.GeminiNanoTranslator
 import exh.yakuyomi.ModelManager
 import exh.yakuyomi.TranslateMangaStore
 import exh.yakuyomi.TranslationCache
@@ -449,6 +450,7 @@ interface AppGraph : ViewModelGraph {
     val translateMangaStore: TranslateMangaStore
     val translationStatus: TranslationStatus
     val modelManager: ModelManager
+    val geminiNanoTranslator: GeminiNanoTranslator
     // KMK <--
 
     @DependencyGraph.Factory
