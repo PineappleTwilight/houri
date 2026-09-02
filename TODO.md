@@ -110,6 +110,7 @@
 - [ ] **Smart Release Predictor**: Improve algorithm
 - [ ] **Subcategories**: Make subcategory chips collapsable
   - This should likely be done by hold tapping on the default "All" button which collapses the row and turns into a plus button
+- [ ] **MTL Engine**: Translate manga info (title, description, etc)
 
 
 ## Bugfixes
