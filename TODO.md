@@ -212,6 +212,7 @@
   - Reading time per manga should also be included
 - [ ] **Subcategories**: Wire android backstack navigation to subcategories
   - Should properly exit the subcategory instead of exiting the app
+- [ ] **MTL Engine**: Fix output LTR text being constrained vertically (like a top-to-bottom language) instead of allowing the full bubble width to fill
 
 ## Chores
 - [x] Replace all Komikku icons/branding with houri icons/branding
