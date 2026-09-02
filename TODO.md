@@ -231,6 +231,9 @@
 - [x] **App**: Make icon better, expect sleek modern minimalist material pineapple icon
 - [x] **App**: Add icon to webhooks connection and remove description on the selection screen (description is shown when tapped into anyway)
 - [x] **Webhook Connection**: Improve Discord event embeds
+- [ ] **App**: Split APKs into MTL and no-MTL varients
+  - This helps users save storage space if they know their device can't run MTL or if they just don't want it
+
 
 ## Drawing Board
 - [ ] **Anizen Port**: Multi-feed
