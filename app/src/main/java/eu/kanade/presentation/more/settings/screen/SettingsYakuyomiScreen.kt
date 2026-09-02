@@ -26,6 +26,7 @@ import kotlinx.collections.immutable.persistentMapOf
 import mihon.app.di.globalAppGraph
 import tachiyomi.core.common.util.lang.withIOContext
 import tachiyomi.i18n.kmk.KMR
+import tachiyomi.presentation.core.components.material.padding
 import tachiyomi.presentation.core.i18n.stringResource
 import tachiyomi.presentation.core.util.collectAsState
 
@@ -212,7 +213,7 @@ object SettingsYakuyomiScreen : SearchableSettings {
                         Text(
                             text = statusText,
                             style = MaterialTheme.typography.bodyMedium,
-                            modifier = Modifier.padding(start = MaterialTheme.padding.medium, end = MaterialTheme.padding.medium, vertical = 8.dp),
+                            modifier = Modifier.padding(horizontal = MaterialTheme.padding.medium, vertical = 8.dp),
                         )
                     },
                 ),
