@@ -210,7 +210,8 @@
   - Verified: parseTodo correctly tracks `## ` section headers; reproduced a clean parse of the live GitHub raw file (Feature Ideas: 5, Bugfixes: 3, Drawing Board: 1) — likely a one-time fetch during a TODO.md edit
 - [ ] **App**: Improve manga db statistics
   - Reading time per manga should also be included
-
+- [ ] **Subcategories**: Wire android backstack navigation to subcategories
+  - Should properly exit the subcategory instead of exiting the app
 
 ## Chores
 - [x] Replace all Komikku icons/branding with houri icons/branding
