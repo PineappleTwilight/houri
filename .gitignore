@@ -31,3 +31,5 @@ AGENTS.md
 extensions-source/
 .gradle-home/
 tasks/
+/opencode.json
+/opencode.json.evolver-backup.json
