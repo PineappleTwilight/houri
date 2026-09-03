@@ -19,11 +19,13 @@ if (Config.includeTelemetry) {
         apply(libs.plugins.firebase.crashlytics.get().pluginId)
     }
     // KMK --> The nomtl variant uses a separate applicationId (app.houri.nomtl) that may not be
-    // registered in google-services.json; skip Firebase resource generation for it instead of
-    // failing the build when the client is missing.
+    // registered in google-services.json. Skip Firebase resource generation AND the Crashlytics
+    // upload tasks (which depend on the generated gmpAppId file) for it, instead of failing the
+    // build when the client is missing.
     // KMK <--
     tasks.configureEach {
-        if (name.contains("GoogleServices") && name.contains("Nomtl", ignoreCase = true)) {
+        val isNomtlTask = name.contains("Nomtl", ignoreCase = true)
+        if (isNomtlTask && (name.contains("GoogleServices") || name.contains("Crashlytics"))) {
             enabled = false
         }
     }
