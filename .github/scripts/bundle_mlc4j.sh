@@ -60,7 +60,9 @@ cd "$WORK/mlc-llm"
 git submodule update --init --recursive
 
 # The mlc_llm python package ships as prebuilt wheels on MLC's own index (not PyPI).
-python3 -m pip install --quiet --pre -U -f https://mlc.ai/wheels mlc-llm-nightly-cpu mlc-ai-nightly-cpu
+# Use a venv: the host Python is PEP 668 externally-managed (Homebrew/Ubuntu).
+python3 -m venv "$WORK/venv"
+"$WORK/venv/bin/pip" install --quiet --pre -U -f https://mlc.ai/wheels mlc-llm-nightly-cpu mlc-ai-nightly-cpu
 
 # Package config: compile the runtime plus the catalog's MLC model libraries for Android.
 cat > android/MLCChat/mlc-package-config.json <<'EOF'
@@ -79,7 +81,7 @@ EOF
 export MLC_LLM_SOURCE_DIR="$WORK/mlc-llm"
 export ANDROID_NDK="${ANDROID_NDK:-$ANDROID_HOME/ndk/27.0.12077973}"
 cd android/MLCChat
-mlc_llm package || {
+"$WORK/venv/bin/mlc_llm" package || {
   echo "::warning::mlc_llm package failed — the mtl build will ship without the on-device LLM runtime. Check the MLC build log above."
   exit 0
 }
