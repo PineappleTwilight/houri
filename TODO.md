@@ -112,6 +112,7 @@
   - This should likely be done by hold tapping on the default "All" button which collapses the row and turns into a plus button
 - [x] **MTL Engine**: Translate manga info (title, description, etc)
 - [ ] **DB Per-Manga Reading Time**: Expand feature with details from upstream [PR](https://github.com/mihonapp/mihon/pull/2728)
+- [ ] **WebGPU Reader**: Port latest upstream [PR](https://github.com/mihonapp/mihon/pull/3886) changes if not already implemented
 
 ## Bugfixes
 - [x] Fix UI transition choppiness.
