@@ -44,6 +44,7 @@ android {
         buildConfigField("String", "BUILD_TIME", "\"${getBuildTime(useLastCommitTime = false)}\"")
         buildConfigField("boolean", "TELEMETRY_INCLUDED", "${Config.includeTelemetry}")
         buildConfigField("boolean", "UPDATER_ENABLED", "${Config.enableUpdater}")
+        buildConfigField("boolean", "IS_NOMTL", "false")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -62,6 +63,7 @@ android {
             applicationIdSuffix = ".nomtl"
             // KMK --> no telemetry in the lean variant (and no google-services client needed)
             buildConfigField("boolean", "TELEMETRY_INCLUDED", "false")
+            buildConfigField("boolean", "IS_NOMTL", "true")
             // KMK <--
         }
     }

@@ -77,6 +77,10 @@ class GetApplicationRelease(
         val repository: String,
         /** Force check for new update */
         val forceCheck: Boolean = false,
+        // KMK -->
+        /** Whether this is the lean no-MTL variant (release assets are prefixed "nomtl"). */
+        val nomtl: Boolean = false,
+        // KMK <--
     )
 
     sealed interface Result {

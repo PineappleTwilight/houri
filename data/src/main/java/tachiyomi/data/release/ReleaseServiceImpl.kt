@@ -30,7 +30,7 @@ class ReleaseServiceImpl(
                 .parseAs<GithubRelease>()
         }
 
-        val downloadLink = getDownloadLink(release = release, isFoss = arguments.isFoss) ?: return null
+        val downloadLink = getDownloadLink(release = release, isFoss = arguments.isFoss, nomtl = arguments.nomtl) ?: return null
 
         return Release(
             version = release.version,
@@ -42,9 +42,14 @@ class ReleaseServiceImpl(
         )
     }
 
-    private fun getDownloadLink(release: GithubRelease, isFoss: Boolean): String? {
-        val map = release.assets.associate { asset ->
-            BUILD_TYPES.find { "-$it" in asset.name } to asset.downloadLink
+    private fun getDownloadLink(release: GithubRelease, isFoss: Boolean, nomtl: Boolean): String? {
+        // The no-MTL variant publishes assets prefixed "nomtl" (Houri-nomtl-<abi>-<tag>.apk);
+        // each variant must only ever match its own assets.
+        val assets = release.assets.filter { asset ->
+            if (nomtl) "-nomtl-" in asset.name else "-nomtl-" !in asset.name
+        }
+        val map = assets.associate { asset ->
+            BUILD_TYPES.find { "-$it-" in asset.name } to asset.downloadLink
         }
 
         return if (!isFoss) {
@@ -56,6 +61,7 @@ class ReleaseServiceImpl(
 
     companion object {
         private const val FOSS = "foss"
+        // x86_64 before x86: the substring "-x86-" would otherwise swallow x86_64 assets.
         private val BUILD_TYPES = listOf(FOSS, "arm64-v8a", "armeabi-v7a", "x86_64", "x86")
 
         /**

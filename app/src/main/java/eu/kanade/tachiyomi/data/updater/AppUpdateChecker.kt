@@ -32,6 +32,9 @@ class AppUpdateChecker(
                     versionName = BuildConfig.VERSION_NAME,
                     repository = getGithubRepo(peekIntoPreview),
                     forceCheck = forceCheck,
+                    // KMK --> the no-MTL variant must fetch its own (nomtl-prefixed) APK assets
+                    nomtl = BuildConfig.IS_NOMTL,
+                    // KMK <--
                 ),
             )
         }

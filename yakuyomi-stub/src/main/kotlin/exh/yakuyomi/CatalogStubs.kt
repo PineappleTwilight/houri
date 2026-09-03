@@ -1,7 +1,6 @@
 package exh.yakuyomi
 
 import android.content.Context
-import okhttp3.OkHttpClient
 
 /** Stub of [LocalLlmBackendType] for the no-MTL APK variant. */
 enum class LocalLlmBackendType {
@@ -58,19 +57,10 @@ object LocalLlmCatalog {
     fun bestForDevice(totalRamBytes: Long): LocalLlmModel? = null
 }
 
-/** Stub of [ModelCatalog] for the no-MTL APK variant. */
-object ModelCatalog {
-    val fallbackModels: Map<String, List<String>> = emptyMap()
-
-    suspend fun fetchModels(
-        provider: String,
-        apiKey: String,
-        baseUrl: String,
-        client: OkHttpClient,
-    ): List<String> = emptyList()
-}
-
-/** No-op stub of [GeminiNanoTranslator] for the no-MTL APK variant. */
+/**
+ * No-op stub of [GeminiNanoTranslator] for the no-MTL APK variant.
+ * (ModelCatalog intentionally lives only in the app source set — see app/exh/yakuyomi/ModelCatalog.kt.)
+ */
 @dev.zacsweers.metro.SingleIn(dev.zacsweers.metro.AppScope::class)
 @dev.zacsweers.metro.Inject
 class GeminiNanoTranslator {
