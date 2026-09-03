@@ -62,7 +62,7 @@ git submodule update --init --recursive
 # The mlc_llm python package ships as prebuilt wheels on MLC's own index (not PyPI).
 # Use a venv: the host Python is PEP 668 externally-managed (Homebrew/Ubuntu).
 python3 -m venv "$WORK/venv"
-"$WORK/venv/bin/pip" install --quiet --pre -U -f https://mlc.ai/wheels mlc-llm-nightly-cpu mlc-ai-nightly-cpu
+"$WORK/venv/bin/pip" install --quiet --pre -U -f https://mlc.ai/wheels mlc-llm-nightly-cpu mlc-ai-nightly-cpu psutil
 
 # Package config: compile the runtime plus the catalog's MLC model libraries for Android.
 cat > android/MLCChat/mlc-package-config.json <<'EOF'
