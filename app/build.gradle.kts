@@ -18,6 +18,15 @@ if (Config.includeTelemetry) {
         apply(libs.plugins.google.services.get().pluginId)
         apply(libs.plugins.firebase.crashlytics.get().pluginId)
     }
+    // KMK --> The nomtl variant uses a separate applicationId (app.houri.nomtl) that may not be
+    // registered in google-services.json; skip Firebase resource generation for it instead of
+    // failing the build when the client is missing.
+    // KMK <--
+    tasks.configureEach {
+        if (name.contains("GoogleServices") && name.contains("Nomtl", ignoreCase = true)) {
+            enabled = false
+        }
+    }
 }
 
 android {
@@ -51,6 +60,9 @@ android {
         create("nomtl") {
             dimension = "engine"
             applicationIdSuffix = ".nomtl"
+            // KMK --> no telemetry in the lean variant (and no google-services client needed)
+            buildConfigField("boolean", "TELEMETRY_INCLUDED", "false")
+            // KMK <--
         }
     }
 
