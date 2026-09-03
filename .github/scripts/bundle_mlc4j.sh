@@ -81,7 +81,8 @@ EOF
 export MLC_LLM_SOURCE_DIR="$WORK/mlc-llm"
 export ANDROID_NDK="${ANDROID_NDK:-$ANDROID_HOME/ndk/27.0.12077973}"
 cd android/MLCChat
-"$WORK/venv/bin/mlc_llm" package || {
+# The wheel exposes the CLI as a module (`python -m mlc_llm`), not a console script.
+"$WORK/venv/bin/python" -m mlc_llm package || {
   echo "::warning::mlc_llm package failed — the mtl build will ship without the on-device LLM runtime. Check the MLC build log above."
   exit 0
 }
