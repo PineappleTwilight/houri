@@ -13,7 +13,8 @@
 #      build log will say so loudly.
 set -euo pipefail
 
-ENGINE_DIR="yakuyomi-engine"
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+ENGINE_DIR="$REPO_ROOT/yakuyomi-engine"
 JNI_DIR="$ENGINE_DIR/src/main/jniLibs"
 MLC_TAG="${MLC_TAG:-v0.20.0}"          # pinned MLC-LLM release
 MLC4J_RELEASE_URL="${MLC4J_RELEASE_URL:-}"
@@ -53,11 +54,13 @@ fi
 # 2) Build from source
 echo "Building mlc4j from MLC-LLM $MLC_TAG (this can take a while)..."
 WORK="$(mktemp -d)"
+trap 'rm -rf "$WORK"' EXIT
 git clone --depth 1 --branch "$MLC_TAG" https://github.com/mlc-ai/mlc-llm.git "$WORK/mlc-llm"
 cd "$WORK/mlc-llm"
 git submodule update --init --recursive
 
-python3 -m pip install --quiet "mlc-llm"
+# The mlc_llm python package ships as prebuilt wheels on MLC's own index (not PyPI).
+python3 -m pip install --quiet --pre -U -f https://mlc.ai/wheels mlc-llm-nightly-cpu mlc-ai-nightly-cpu
 
 # Package config: compile the runtime plus the catalog's MLC model libraries for Android.
 cat > android/MLCChat/mlc-package-config.json <<'EOF'
@@ -78,12 +81,10 @@ export ANDROID_NDK="${ANDROID_NDK:-$ANDROID_HOME/ndk/27.0.12077973}"
 cd android/MLCChat
 mlc_llm package || {
   echo "::warning::mlc_llm package failed — the mtl build will ship without the on-device LLM runtime. Check the MLC build log above."
-  rm -rf "$WORK"
   exit 0
 }
 
-# Copy outputs into the engine module (repo-relative; caller must be repo root).
-cd "$OLDPWD" || cd "$(git rev-parse --show-toplevel)"
+# Copy outputs into the engine module.
 for abi in "${ABIS[@]}"; do
   if [ -f "$WORK/mlc-llm/android/MLCChat/dist/lib/mlc4j/output/$abi/libtvm4j_runtime_packed.so" ]; then
     mkdir -p "$JNI_DIR/$abi"
@@ -98,5 +99,4 @@ fi
 MODEL_LIB_DIR="$ENGINE_DIR/src/main/assets/mlc-model-libs"
 mkdir -p "$MODEL_LIB_DIR"
 find "$WORK/mlc-llm/android/MLCChat/dist" -name "lib*.so" -path "*output*" -exec cp {} "$MODEL_LIB_DIR/" \;
-rm -rf "$WORK"
 echo "mlc4j bundled from source."
