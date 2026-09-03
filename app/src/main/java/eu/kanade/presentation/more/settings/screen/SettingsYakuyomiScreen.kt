@@ -323,6 +323,30 @@ object SettingsYakuyomiScreen : SearchableSettings {
             persistentMapOf(*((base + models).toList()).toTypedArray())
         }
 
+        // KMK --> Custom GGUF loader: pick a file, copy it into app storage, and point the
+        // manager at it (llama.cpp needs a real filesystem path, not a content URI).
+        // KMK <--
+        val customFilePref = prefs.localModelFile()
+        val customPath by customFilePref.collectAsState()
+        val customLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+            androidx.activity.result.contract.ActivityResultContracts.OpenDocument(),
+        ) { uri ->
+            if (uri != null) {
+                val out = java.io.File(context.filesDir, "local_llm_models/custom/model.gguf")
+                runCatching {
+                    out.parentFile?.mkdirs()
+                    context.contentResolver.openInputStream(uri)?.use { input ->
+                        out.outputStream().use { output -> input.copyTo(output) }
+                    }
+                }.onSuccess {
+                    customFilePref.set(out.absolutePath)
+                    context.toast("Custom GGUF loaded")
+                }.onFailure { e ->
+                    context.toast("Failed to load GGUF: ${e.message}")
+                }
+            }
+        }
+
         val actionTitle = when (status.state) {
             exh.yakuyomi.LocalLlmDownloadManager.State.DOWNLOADING -> "Cancel download"
             exh.yakuyomi.LocalLlmDownloadManager.State.READY -> "Redownload"
@@ -348,7 +372,7 @@ object SettingsYakuyomiScreen : SearchableSettings {
             title = "Local (On-device LLM)",
             preferenceItems = persistentListOf(
                 Preference.PreferenceItem.InfoPreference(
-                    title = "Runs a small LLM fully offline on this device — no API key needed. Uses MLC-LLM on the GPU, or ExecuTorch when an NPU is detected.",
+                    title = "Runs a small LLM fully offline on this device — no API key needed. Uses llama.cpp (GGUF models); you can also load your own GGUF file.",
                 ),
                 Preference.PreferenceItem.ListPreference(
                     preference = prefs.localModel(),
@@ -361,11 +385,19 @@ object SettingsYakuyomiScreen : SearchableSettings {
                     title = buildString {
                         append("Recommended for this device: ${best?.displayName ?: "none"}")
                         if (!runtimeBundled) {
-                            append("\nThe on-device LLM runtime isn't bundled in this build — the local provider needs a build with the MLC-LLM/ExecuTorch runtimes.")
+                            append("\nThe on-device LLM runtime isn't bundled in this build — the local provider needs a build with the llama.cpp runtime.")
                         } else {
                             append("\nRuntime available. Only the RAM gate (3GB+) is enforced — any model you pick will run if it fits.")
                         }
                     },
+                ),
+                Preference.PreferenceItem.TextPreference(
+                    title = if (customPath.isBlank()) "Load custom GGUF…" else "Custom GGUF: ${customPath.substringAfterLast('/')}",
+                    subtitle = "Pick any .gguf file from your device (it is copied into app storage)",
+                    onClick = {
+                        customLauncher.launch(arrayOf("application/octet-stream", "*/*"))
+                    },
+                    enabled = localEnabled,
                 ),
                 Preference.PreferenceItem.CustomPreference(
                     title = "Download",

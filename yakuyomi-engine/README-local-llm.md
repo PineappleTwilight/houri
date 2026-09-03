@@ -1,90 +1,43 @@
 # On-device Local LLM provider — build & bundling guide
 
-The "Local (On-device LLM)" translation provider runs a small LLM fully offline. It has two
-native backends:
+The "Local (On-device LLM)" translation provider runs a small LLM fully offline via **llama.cpp**
+(Llamatik runtime, `com.llamatik:library` from Maven Central). Any **GGUF** model can be loaded
+directly — no per-model compilation — so users can also load their own GGUF files from device
+storage. No native bundling or CI build step is needed: the runtime ships as a regular AAR.
 
-| Backend | Hardware | Runtime | Status |
+## Backends
+
+| Backend | Runtime | Hardware | Notes |
 |---|---|---|---|
-| **MLC-LLM** | GPU (OpenCL on Adreno/Mali) | `mlc4j` (built from the MLC-LLM source tree) | primary; needs bundling |
-| **ExecuTorch** | NPU (Qualcomm QNN / MediaTek NeuroPilot) or CPU (XNNPACK) | `org.pytorch:executorch-android` (Maven Central) | works out of the box; needs `.pte` model artifacts |
+| **llama.cpp** (LLAMACPP) | `com.llamatik:library` (Maven Central) | CPU (ARM NEON), GPU via Vulkan where supported | the only backend; loads any GGUF |
 
-The ExecuTorch AAR is a normal Maven dependency (already wired in `yakuyomi-engine/build.gradle.kts`).
-The MLC-LLM runtime is **not** on Maven Central, so it must be built from source and bundled — the
-code drives it through reflection, so the app compiles and runs fine without it (the local provider
-simply reports "runtime not bundled").
+The MLC-LLM and ExecuTorch backends were retired: MLC required compiling per-model TVM libraries
+(fragile JIT, segfaulted in CI) and ExecuTorch needed per-SoC `.pte` artifacts. GGUF via llama.cpp
+is the download-and-run path.
 
-## Bundling the MLC-LLM runtime (`mlc4j`)
+## Model catalog
 
-1. Clone MLC-LLM and prepare its Android package:
+Entries are GGUF files on HuggingFace (imatrix K-quants like Q5_K_M preferred). Verified repos:
 
-   ```bash
-   git clone https://github.com/mlc-ai/mlc-llm.git && cd mlc-llm
-   git submodule update --init --recursive
-   pip install mlc-llm     # the python package used by `mlc_llm package`
-   ```
-
-2. Define the model list for the app in `android/MLCChat/mlc-package-config.json`. The compiled
-   model libraries for the catalog's archs are produced here; weights stay on HuggingFace and are
-   downloaded at runtime by the app.
-
-3. Build the runtime + model libraries:
-
-   ```bash
-   cd android/MLCChat
-   export MLC_LLM_SOURCE_DIR=/path/to/mlc-llm
-   export ANDROID_NDK=/path/to/ndk
-   mlc_llm package
-   ```
-
-   This produces `dist/lib/mlc4j` — a Gradle subproject with `libtvm4j_runtime_packed.so`
-   (per ABI) and `tvm4j_core.jar`.
-
-4. Bundle it: add the produced `.so` files to `yakuyomi-engine/src/main/jniLibs/<abi>/` and the
-   `tvm4j_core.jar` as a packaged jar (or include `:mlc4j` as a composite build). After bundling,
-   `LocalLlmCatalog.isMlcRuntimeBundled()` flips to `true` and the MLC models activate.
-
-## Model conversion pipeline (Gemma 4, TranslateGemma, TL finetunes)
-
-Catalog entries with `requiresArtifacts = true` point at weight repos that must be produced once
-by a build pipeline (the MLC team's `mlc-ai/*-MLC` repos work as-is; everything else is ours):
-
-1. Convert the source checkpoint (e.g. `google/gemma-4-E4B-it`) to MLC format:
-
-   ```bash
-   mlc_llm convert_weight \
-     --source-format hf \
-     https://huggingface.co/google/gemma-4-E4B-it \
-     --output hf://houri-app/gemma-4-E4B-it-q4f16_1-MLC \
-     --quantization q4f16_1
-   ```
-
-2. Push the converted weights to the repo id named in `LocalLlmCatalog` (e.g.
-   `houri-app/gemma-4-E4B-it-q4f16_1-MLC`). The app downloads them from
-   `https://huggingface.co/<repo>/resolve/main/...` automatically.
-
-3. Compiled model libraries: either bundle them (step 3 above) or publish them to the repo named
-   in each entry's `mlcLibRepo` (file convention `<modelLib>-android-<abi>.so`); the app falls back
-   to `system://` bundled libs when the repo isn't reachable.
-
-### Catalog model families
-
-| Model | Size | Quality | Vision | Notes |
-|---|---|---|---|---|
-| Gemma 4 E4B IT | ~3 GB | best | yes | community-recommended for manga translation |
-| TranslateGemma 4B | ~2.9 GB | best | yes | SOTA open translation model, 55 languages |
-| Qwen3.5 4B VNTL | ~3 GB | best | no | manga-dialogue TL finetune (JA/KO/ZH→EN) |
-| Gemma 3 4B IT | ~2.8 GB | high | yes | pre-converted by `mlc-ai` (works today) |
-| Gemma 4 E2B IT | ~1.9 GB | good | yes | lighter Gemma 4 |
-| Qwen2.5 3B / Gemma 2 2B / Qwen2.5 1.5B / Llama 3.2 1B | 0.7–2 GB | good→basic | no | pre-converted by `mlc-ai` (works today) |
-| Llama 3.2 3B/1B (ExecuTorch) | 0.8–2.3 GB | good→basic | no | XNNPACK (any device) / QNN (Snapdragon NPU) |
+| Model | Repo / file | Size | Quality |
+|---|---|---|---|
+| Gemma 4 E4B IT | `unsloth/gemma-4-E4B-it-GGUF` → `gemma-4-E4B-it-Q5_K_M.gguf` | ~3.1 GB | best |
+| Gemma 4 E4B IT (QAT) | `google/gemma-4-E4B-it-qat-q4_0-gguf` → `gemma-4-E4B_q4_0-it.gguf` | ~2.8 GB | high |
+| TranslateGemma 4B (TL finetune) | `Qwe1325/translategemma-4b-it-GGUF` → `translategemma-4b-it-q5_k_m.gguf` | ~3.0 GB | best |
+| Gemma 4 E2B IT | `unsloth/gemma-4-E2B-it-GGUF` → `gemma-4-E2B-it-Q5_K_M.gguf` | ~1.8 GB | good |
+| Gemma 4 E2B IT (QAT) | `google/gemma-4-E2B-it-qat-q4_0-gguf` → `gemma-4-E2B_q4_0-it.gguf` | ~1.6 GB | good |
+| Llama 3.2 1B Instruct | `unsloth/Llama-3.2-1B-Instruct-GGUF` → `Llama-3.2-1B-Instruct-Q5_K_M.gguf` | ~0.9 GB | basic |
 
 Only the RAM gate is enforced (a model is hidden when it exceeds the device's total RAM); the
-best-fit model is presented as a default but never forced.
+best-fit model is presented as a default but never forced. Users can load their own GGUF via
+Settings → Translation → Local → *Load custom GGUF…* — the file is copied into app storage and
+used verbatim (no API key, no upload).
 
-## ExecuTorch `.pte` artifacts
+## Adding a new model
 
-ExecuTorch needs a serialized `.pte` program + tokenizer per model per backend. The catalog's
-`etHfRepo` entries are project-hosted HuggingFace repos (e.g. `houri-app/executorch-llama-3.2-1b`)
-holding `llama-3.2-1b-xnnpack.pte` / `llama-3.2-1b-qnn.pte` + `tokenizer.model`. Produce them with
-`executorch`'s export scripts (`llama/llama.py` with the XNNPACK or Qualcomm QNN backend — QNN
-`.pte` files are per-SoC family and must be compiled for the target device).
+1. Find (or produce) a GGUF: official QAT repos (`google/*-gguf`) or imatrix K-quants from
+   `unsloth/*-GGUF` work best; a translation finetune can be exported with `llama.cpp`'s
+   `convert_hf_to_gguf.py` (imatrix + `Q5_K_M` recommended).
+2. Add a `LocalLlmModel` entry in `LocalLlmCatalog` with `ggufRepo` + `ggufFile` (the downloader
+   fetches `https://huggingface.co/<repo>/resolve/main/<file>`).
+3. That's it — llama.cpp loads the file as-is.

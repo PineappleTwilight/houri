@@ -4,7 +4,6 @@ import android.content.Context
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
-import exh.log.xLogD
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -12,13 +11,11 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import tachiyomi.core.common.util.system.logcat
-import java.io.File
 
 /**
  * Owns the lifecycle of the on-device ("local") LLM provider: resolves the selected model from
- * [LocalLlmCatalog] (the best-fit model is presented as the default, but only the RAM gate is
- * enforced), lazily builds and caches the native backend for that model, and runs generations.
- * Only one backend is kept alive at a time — switching models closes the previous one.
+ * [LocalLlmCatalog] (best-fit presented, only RAM enforced) or a user-supplied custom GGUF,
+ * lazily builds and caches the llama.cpp backend for that model, and runs generations.
  */
 @SingleIn(AppScope::class)
 @Inject
@@ -35,14 +32,33 @@ class LocalLlmManager(
 
     fun isLocalProvider(): Boolean = prefs.provider().get().equals("local", ignoreCase = true)
 
-    /** Resolves the selected model; falls back to the best-fitting one when nothing is selected. */
+    /** Custom user-supplied GGUF (absolute path), or null. */
+    private fun customModel(): LocalLlmModel? {
+        val path = prefs.localModelFile().get()
+        if (path.isBlank()) return null
+        return LocalLlmModel(
+            id = "custom",
+            displayName = "Custom GGUF",
+            description = "User-supplied GGUF",
+            paramsB = "?",
+            qualityTier = 3,
+            isTranslationFinetune = false,
+            supportsVision = false,
+            sizeBytes = 0L,
+            minRamBytes = 3L * 1024 * 1024 * 1024,
+            ggufFile = path,
+            isCustom = true,
+        )
+    }
+
+    /** Resolves the selected model; custom GGUF wins, then the preference, then best-fit. */
     fun resolveModel(): LocalLlmModel? {
-        val selected = LocalLlmCatalog.byId(prefs.localModel().get())
-        if (selected != null) return selected
+        customModel()?.let { return it }
+        LocalLlmCatalog.byId(prefs.localModel().get())?.let { return it }
         return LocalLlmCatalog.bestForDevice(DeviceMemory.totalRamBytes(context))
     }
 
-    /** Whether the resolved model's weights have been downloaded. */
+    /** Whether the resolved model's weights are downloaded (custom files count as ready). */
     fun isModelReady(): Boolean {
         val model = resolveModel() ?: return false
         return downloadManager.isDownloaded(model)
@@ -65,36 +81,24 @@ class LocalLlmManager(
                 current = null
             }
         }
-        downloadManager.clearModel(model)
+        if (model.isCustom) {
+            prefs.localModelFile().set("")
+        } else {
+            downloadManager.clearModel(model)
+        }
     }
 
     /** Backend type actually in use for the resolved model (or null when unavailable). */
-    fun activeBackendType(): LocalLlmBackendType? {
-        val model = resolveModel() ?: return null
-        return when {
-            LocalLlmBackendType.MLC_GPU in model.backends -> LocalLlmBackendType.MLC_GPU
-            model.backends.any { it == LocalLlmBackendType.EXECUTORCH_NPU } &&
-                DeviceMemory.matchesSoc(DeviceMemory.socManufacturer(), model.etSoC ?: "") -> LocalLlmBackendType.EXECUTORCH_NPU
-            LocalLlmBackendType.EXECUTORCH_CPU in model.backends -> LocalLlmBackendType.EXECUTORCH_CPU
-            else -> null
-        }
-    }
+    fun activeBackendType(): LocalLlmBackendType? =
+        if (resolveModel() != null) LocalLlmBackendType.LLAMACPP else null
 
-    /** Whether the native runtime for the resolved model is bundled/available in this build. */
-    fun isRuntimeAvailable(): Boolean {
-        val type = activeBackendType() ?: return false
-        return when (type) {
-            LocalLlmBackendType.MLC_GPU -> MlcLlmBackend.isAvailable()
-            LocalLlmBackendType.EXECUTORCH_NPU,
-            LocalLlmBackendType.EXECUTORCH_CPU,
-            -> ExecutorchLlmBackend.isAvailable()
-        }
-    }
+    /** Whether the llama.cpp runtime is bundled in this build. */
+    fun isRuntimeAvailable(): Boolean = LlamaCppLlmBackend.isAvailable()
 
     /**
-     * Runs one on-device generation. [imageBytes] is passed to vision-capable models as page
-     * context (augments, never replaces, the OCR lines). Returns null when the runtime is
-     * unavailable, the model isn't downloaded, or generation failed.
+     * Runs one on-device generation. Vision input is not supported by llama.cpp yet, so the
+     * page image is ignored. Returns null when the runtime is unavailable, the model isn't
+     * downloaded, or generation failed.
      */
     suspend fun generate(prompt: String, imageBytes: ByteArray? = null): String? {
         val model = resolveModel() ?: return null
@@ -112,17 +116,7 @@ class LocalLlmManager(
         current?.second?.close()
         current = null
         val dir = downloadManager.modelDir(model)
-        val libFile: File? = dir.listFiles()?.firstOrNull { it.name.endsWith(".so") }
-        val backend = when {
-            LocalLlmBackendType.MLC_GPU in model.backends && MlcLlmBackend.isAvailable() ->
-                MlcLlmBackend.create(model, dir, libFile) { msg -> xLogD("MLC backend: $msg") }
-            model.backends.any { it == LocalLlmBackendType.EXECUTORCH_NPU } &&
-                DeviceMemory.matchesSoc(DeviceMemory.socManufacturer(), model.etSoC ?: "") ->
-                ExecutorchLlmBackend.create(context, model, dir) { msg -> xLogD("ExecuTorch NPU backend: $msg") }
-            LocalLlmBackendType.EXECUTORCH_CPU in model.backends ->
-                ExecutorchLlmBackend.create(context, model, dir) { msg -> xLogD("ExecuTorch CPU backend: $msg") }
-            else -> null
-        }
+        val backend = LlamaCppLlmBackend.create(model, dir) { msg -> logcat { "llama.cpp: $msg" } }
         if (backend != null) current = model to backend
         backend
     }

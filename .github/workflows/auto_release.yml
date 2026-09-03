@@ -211,10 +211,6 @@ jobs:
       - name: Check code format
         run: ./gradlew spotlessCheck
 
-      - name: Bundle MLC-LLM runtime
-        env:
-          MLCL4J_RELEASE_URL: ${{ secrets.MLCL4J_RELEASE_URL }}
-        run: bash .github/scripts/bundle_mlc4j.sh
 
       - name: Build app
         run: ./gradlew assembleMtlRelease assembleNomtlRelease -Pinclude-telemetry -Penable-updater

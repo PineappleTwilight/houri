@@ -29,6 +29,6 @@ dependencies {
     implementation("li.joye.yakuyomi:engine")
     // On-device Gemini Nano LLM via ML Kit GenAI Prompt API (priority provider when available).
     implementation(libs.mlkit.genai.prompt)
-    // On-device LLM NPU/CPU runtime (Qualcomm QNN / MediaTek NeuroPilot / XNNPACK).
-    implementation(libs.executorch.android)
+    // On-device GGUF LLM runtime (llama.cpp via Llamatik).
+    implementation(libs.llamatik)
 }

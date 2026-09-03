@@ -5,9 +5,7 @@ import okhttp3.OkHttpClient
 
 /** Stub of [LocalLlmBackendType] for the no-MTL APK variant. */
 enum class LocalLlmBackendType {
-    MLC_GPU,
-    EXECUTORCH_NPU,
-    EXECUTORCH_CPU,
+    LLAMACPP,
 }
 
 /** Stub of [LocalLlmModel] for the no-MTL APK variant. */
@@ -21,15 +19,10 @@ data class LocalLlmModel(
     val supportsVision: Boolean,
     val sizeBytes: Long,
     val minRamBytes: Long,
-    val backends: Set<LocalLlmBackendType>,
-    val mlcHfRepo: String? = null,
-    val mlcModelLib: String? = null,
-    val mlcLibRepo: String? = null,
-    val requiresArtifacts: Boolean = false,
-    val etHfRepo: String? = null,
-    val etPteFile: String? = null,
-    val etTokenizerFile: String? = null,
-    val etSoC: String? = null,
+    val backends: Set<LocalLlmBackendType> = setOf(LocalLlmBackendType.LLAMACPP),
+    val ggufRepo: String? = null,
+    val ggufFile: String? = null,
+    val isCustom: Boolean = false,
     val contextLength: Int = 4096,
 )
 
@@ -61,14 +54,8 @@ object LocalLlmCatalog {
 
     fun byId(id: String): LocalLlmModel? = null
     fun fitForRam(models: List<LocalLlmModel> = allModels, totalRamBytes: Long): List<LocalLlmModel> = emptyList()
-    fun isMlcRuntimeBundled(): Boolean = false
-    fun isExecutorchBundled(): Boolean = false
-    fun bestForDevice(
-        totalRamBytes: Long,
-        hasMlc: Boolean = isMlcRuntimeBundled(),
-        hasExecutorch: Boolean = isExecutorchBundled(),
-        soc: String = DeviceMemory.socManufacturer(),
-    ): LocalLlmModel? = null
+    fun isRuntimeBundled(): Boolean = false
+    fun bestForDevice(totalRamBytes: Long): LocalLlmModel? = null
 }
 
 /** Stub of [ModelCatalog] for the no-MTL APK variant. */

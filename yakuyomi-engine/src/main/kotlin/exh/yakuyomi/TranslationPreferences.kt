@@ -27,8 +27,11 @@ class TranslationPreferences(
      */
     fun localModel() = preferenceStore.getString("pref_yakuyomi_local_model", "")
 
-    /** Backend preference for the local provider: "auto" | "mlc" | "executorch". */
+    /** Backend preference for the local provider (reserved; llama.cpp is the only backend). */
     fun localBackendPref() = preferenceStore.getString("pref_yakuyomi_local_backend", "auto")
+
+    /** Absolute path of a user-supplied custom GGUF model (empty = use the catalog). */
+    fun localModelFile() = preferenceStore.getString("pref_yakuyomi_local_model_file", "")
 
     /**
      * Whether to attempt on-device Gemini Nano (ML Kit GenAI / AICore) as the priority LLM

@@ -36,6 +36,7 @@ class TranslationPreferences(
     fun translationTextColorHex() = preferenceStore.getString("pref_yakuyomi_text_color_hex", "")
     fun localModel() = preferenceStore.getString("pref_yakuyomi_local_model", "")
     fun localBackendPref() = preferenceStore.getString("pref_yakuyomi_local_backend", "auto")
+    fun localModelFile() = preferenceStore.getString("pref_yakuyomi_local_model_file", "")
 
     fun isConfigured(): Boolean = false
     fun hasApiKey(): Boolean = false
