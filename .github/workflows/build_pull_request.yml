@@ -75,11 +75,11 @@ jobs:
 
       - name: Build app
         if: github.repository == github.event.pull_request.head.repo.full_name
-        run: ./gradlew assemblePreview -Pinclude-telemetry -Penable-updater
+        run: ./gradlew assembleMtlPreview -Pinclude-telemetry -Penable-updater
 
       - name: Build app
         if: github.repository != github.event.pull_request.head.repo.full_name
-        run: ./gradlew assemblePreview
+        run: ./gradlew assembleMtlPreview
 
       - name: Run unit tests
         id: unit_tests
@@ -96,7 +96,7 @@ jobs:
         if: github.repository == github.event.pull_request.head.repo.full_name
         uses: r0adkll/sign-android-release@f30bdd30588842ac76044ecdbd4b6d0e3e813478
         with:
-          releaseDirectory: app/build/outputs/apk/preview
+          releaseDirectory: app/build/outputs/apk/mtl/preview
           signingKeyBase64: ${{ secrets.SIGNING_KEY }}
           alias: ${{ secrets.ALIAS }}
           keyStorePassword: ${{ secrets.KEY_STORE_PASSWORD }}
@@ -121,7 +121,7 @@ jobs:
           echo "VERSION_TAG=$version_tag" >> $GITHUB_OUTPUT
           echo "COMMIT_COUNT=$commit_count"
           echo "COMMIT_COUNT=$commit_count" >> $GITHUB_OUTPUT
-          mv app/build/outputs/apk/preview/app-universal-preview${{ steps.signed_filename.outputs.SIGNED_TRAIL }}.apk Houri-$version_tag-r$commit_count.apk
+          mv app/build/outputs/apk/mtl/preview/app-mtl-universal-preview${{ steps.signed_filename.outputs.SIGNED_TRAIL }}.apk Houri-$version_tag-r$commit_count.apk
 
       - name: Upload APK
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -133,4 +133,4 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: mapping-${{ github.sha }}
-          path: app/build/outputs/mapping/preview
+          path: app/build/outputs/mapping/mtl/preview

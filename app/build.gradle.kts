@@ -39,6 +39,21 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    // KMK --> MTL / no-MTL APK split. "mtl" is the default flavor (keeps existing variant
+    // names like assemblePreview working); "nomtl" drops the yakuyomi engine + native libs
+    // and compiles against the yakuyomi-stub module (translation disabled).
+    // KMK <--
+    flavorDimensions += "engine"
+    productFlavors {
+        create("mtl") {
+            dimension = "engine"
+        }
+        create("nomtl") {
+            dimension = "engine"
+            applicationIdSuffix = ".nomtl"
+        }
+    }
+
     buildTypes {
         val debug by getting {
             applicationIdSuffix = ".dev"
@@ -215,7 +230,8 @@ dependencies {
     implementation(projects.presentationCore)
     implementation(projects.presentationWidget)
     implementation(projects.telemetry)
-    implementation(projects.yakuyomi)
+    add("mtlImplementation", projects.yakuyomi)
+    add("nomtlImplementation", projects.yakuyomiStub)
 
     // Compose
     implementation(compose.activity)

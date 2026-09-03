@@ -22,7 +22,7 @@ jobs:
     timeout-minutes: 15
     outputs:
       VERSION_TAG: ${{ steps.get_tag.outputs.VERSION_TAG }}
-      ARTIFACTS_PREFIX: benchmark/app
+      ARTIFACTS_PREFIX: mtl/benchmark/app-mtl
       TAG_NAME: benchmark-${{ steps.tag_name.outputs.TAG_NAME }}
     steps:
       - name: Get tag name (${{ github.ref }})
@@ -83,7 +83,7 @@ jobs:
         run: ./gradlew spotlessCheck
 
       - name: Build app
-        run: ./gradlew assembleBenchmark
+        run: ./gradlew assembleMtlBenchmark
 
       - name: Run unit tests
         run: ./gradlew testDebugUnitTest
@@ -91,7 +91,7 @@ jobs:
       - name: Sign APK
         uses: r0adkll/sign-android-release@f30bdd30588842ac76044ecdbd4b6d0e3e813478
         with:
-          releaseDirectory: app/build/outputs/apk/benchmark
+          releaseDirectory: app/build/outputs/apk/mtl/benchmark
           signingKeyBase64: ${{ secrets.SIGNING_KEY }}
           alias: ${{ secrets.ALIAS }}
           keyStorePassword: ${{ secrets.KEY_STORE_PASSWORD }}

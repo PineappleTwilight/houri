@@ -151,8 +151,13 @@ jobs:
       - name: Check code format
         run: ./gradlew spotlessCheck
 
+      - name: Bundle MLC-LLM runtime
+        env:
+          MLCL4J_RELEASE_URL: ${{ secrets.MLCL4J_RELEASE_URL }}
+        run: bash .github/scripts/bundle_mlc4j.sh
+
       - name: Build app
-        run: ./gradlew assembleRelease -Pinclude-telemetry -Penable-updater
+        run: ./gradlew assembleMtlRelease assembleNomtlRelease -Pinclude-telemetry -Penable-updater
 
       - name: Run unit tests
         run: ./gradlew testDebugUnitTest
@@ -167,7 +172,7 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: mapping-${{ github.sha }}
-          path: app/build/outputs/mapping/release
+          path: app/build/outputs/mapping/mtl/release
 
   release-app:
     runs-on: 'ubuntu-24.04'
@@ -184,7 +189,18 @@ jobs:
       - name: Sign APK
         uses: r0adkll/sign-android-release@f30bdd30588842ac76044ecdbd4b6d0e3e813478
         with:
-          releaseDirectory: app/build/outputs/apk/release
+          releaseDirectory: app/build/outputs/apk/mtl/release
+          signingKeyBase64: ${{ secrets.SIGNING_KEY }}
+          alias: ${{ secrets.ALIAS }}
+          keyStorePassword: ${{ secrets.KEY_STORE_PASSWORD }}
+          keyPassword: ${{ secrets.KEY_PASSWORD }}
+        env:
+          BUILD_TOOLS_VERSION: '35.0.1'
+
+      - name: Sign nomtl APK
+        uses: r0adkll/sign-android-release@f30bdd30588842ac76044ecdbd4b6d0e3e813478
+        with:
+          releaseDirectory: app/build/outputs/apk/nomtl/release
           signingKeyBase64: ${{ secrets.SIGNING_KEY }}
           alias: ${{ secrets.ALIAS }}
           keyStorePassword: ${{ secrets.KEY_STORE_PASSWORD }}
@@ -197,11 +213,14 @@ jobs:
         run: |
           set -e
 
-          mv app/build/outputs/apk/release/app-universal-release-unsigned-signed.apk Houri-${{ needs.prepare-build.outputs.VERSION_TAG }}.apk
-          mv app/build/outputs/apk/release/app-arm64-v8a-release-unsigned-signed.apk Houri-arm64-v8a-${{ needs.prepare-build.outputs.VERSION_TAG }}.apk
-          mv app/build/outputs/apk/release/app-armeabi-v7a-release-unsigned-signed.apk Houri-armeabi-v7a-${{ needs.prepare-build.outputs.VERSION_TAG }}.apk
-          mv app/build/outputs/apk/release/app-x86-release-unsigned-signed.apk Houri-x86-${{ needs.prepare-build.outputs.VERSION_TAG }}.apk
-          mv app/build/outputs/apk/release/app-x86_64-release-unsigned-signed.apk Houri-x86_64-${{ needs.prepare-build.outputs.VERSION_TAG }}.apk
+          mv app/build/outputs/apk/mtl/release/app-mtl-universal-release-unsigned-signed.apk Houri-${{ needs.prepare-build.outputs.VERSION_TAG }}.apk
+          mv app/build/outputs/apk/mtl/release/app-mtl-arm64-v8a-release-unsigned-signed.apk Houri-arm64-v8a-${{ needs.prepare-build.outputs.VERSION_TAG }}.apk
+          mv app/build/outputs/apk/mtl/release/app-mtl-armeabi-v7a-release-unsigned-signed.apk Houri-armeabi-v7a-${{ needs.prepare-build.outputs.VERSION_TAG }}.apk
+          mv app/build/outputs/apk/mtl/release/app-mtl-x86-release-unsigned-signed.apk Houri-x86-${{ needs.prepare-build.outputs.VERSION_TAG }}.apk
+          mv app/build/outputs/apk/mtl/release/app-mtl-x86_64-release-unsigned-signed.apk Houri-x86_64-${{ needs.prepare-build.outputs.VERSION_TAG }}.apk
+          mv app/build/outputs/apk/nomtl/release/app-nomtl-universal-release-unsigned-signed.apk Houri-nomtl-${{ needs.prepare-build.outputs.VERSION_TAG }}.apk
+          mv app/build/outputs/apk/nomtl/release/app-nomtl-arm64-v8a-release-unsigned-signed.apk Houri-nomtl-arm64-v8a-${{ needs.prepare-build.outputs.VERSION_TAG }}.apk
+          mv app/build/outputs/apk/nomtl/release/app-nomtl-armeabi-v7a-release-unsigned-signed.apk Houri-nomtl-armeabi-v7a-${{ needs.prepare-build.outputs.VERSION_TAG }}.apk
 
       - name: Create release
         uses: softprops/action-gh-release@718ea10b132b3b2eba29c1007bb80653f286566b # v3.0.1
@@ -233,6 +252,9 @@ jobs:
             Houri-armeabi-v7a-${{ needs.prepare-build.outputs.VERSION_TAG }}.apk
             Houri-x86-${{ needs.prepare-build.outputs.VERSION_TAG }}.apk
             Houri-x86_64-${{ needs.prepare-build.outputs.VERSION_TAG }}.apk
+            Houri-nomtl-${{ needs.prepare-build.outputs.VERSION_TAG }}.apk
+            Houri-nomtl-arm64-v8a-${{ needs.prepare-build.outputs.VERSION_TAG }}.apk
+            Houri-nomtl-armeabi-v7a-${{ needs.prepare-build.outputs.VERSION_TAG }}.apk
           draft: false
           prerelease: false
           token: ${{ secrets.GITHUB_TOKEN }}
