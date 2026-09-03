@@ -4,6 +4,7 @@ import kotlinx.coroutines.flow.Flow
 import tachiyomi.domain.history.model.History
 import tachiyomi.domain.history.model.HistoryUpdate
 import tachiyomi.domain.history.model.HistoryWithRelations
+import tachiyomi.domain.history.model.ReadDurationByManga
 
 interface HistoryRepository {
 
@@ -19,6 +20,11 @@ interface HistoryRepository {
     suspend fun getLastHistory(): HistoryWithRelations?
 
     suspend fun getTotalReadDuration(): Long
+
+    // KMK -->
+    /** Total read duration per manga, ordered by duration descending. */
+    suspend fun getTotalReadDurationByManga(): List<ReadDurationByManga>
+    // KMK <--
 
     suspend fun getHistoryByMangaId(mangaId: Long): List<History>
 

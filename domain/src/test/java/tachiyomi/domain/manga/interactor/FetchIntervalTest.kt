@@ -132,6 +132,34 @@ class FetchIntervalTest {
         fetchInterval.calculateInterval(chapters, testZoneId) shouldBe 2
     }
 
+    // KMK -->
+    @Test
+    fun `ignores hiatus outliers when estimating cadence`() {
+        // Weekly chapters interrupted by a single 60-day pause; the median (12) would be
+        // distorted by the hiatus — the outlier must be rejected and the weekly cadence kept.
+        val chapters = listOf(0, 7, 14, 21, 74, 81, 88).map {
+            chapterWithTime(chapter, it.days)
+        }
+        fetchInterval.calculateInterval(chapters, testZoneId) shouldBe 7
+    }
+
+    @Test
+    fun `prefers the recurring cadence over one-off quick releases`() {
+        // Mostly weekly with a single 1-day quick release — the mode (7) should win.
+        val days = listOf(0, 7, 14, 21, 28, 29, 36, 43, 50)
+        val chapters = days.map { chapterWithTime(chapter, it.days) }
+        fetchInterval.calculateInterval(chapters, testZoneId) shouldBe 7
+    }
+
+    @Test
+    fun `trusts the most recent cadence when history is noisy`() {
+        // Old slow chapters then a sustained fast cadence: the recent gaps dominate.
+        val oldChapters = (1..3).map { chapterWithTime(chapter, (it * 7).days) }
+        val newChapters = (1..8).map { chapterWithTime(chapter, oldChapters.lastUploadDate() + (it * 2).days) }
+        fetchInterval.calculateInterval(oldChapters + newChapters, testZoneId) shouldBe 2
+    }
+    // KMK <--
+
     private fun chapterWithTime(chapter: Chapter, duration: Duration): Chapter {
         val newTime = testTime.plus(duration.toJavaDuration()).toEpochSecond() * 1000
         return chapter.copy(dateFetch = newTime, dateUpload = newTime)

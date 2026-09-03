@@ -457,10 +457,15 @@ data object LibraryTab : Tab {
         )
         // SY <--
 
-        BackHandler(enabled = state.selectionMode || state.searchQuery != null) {
+        // KMK --> Back exits the active subcategory first (instead of leaving the app) when one is open.
+        // KMK <--
+        BackHandler(enabled = state.selectionMode || state.searchQuery != null || state.activeSubCategoryId != null) {
             when {
                 state.selectionMode -> screenModel.clearSelection()
                 state.searchQuery != null -> screenModel.search(null)
+                // KMK -->
+                state.activeSubCategoryId != null -> screenModel.selectSubcategory(null)
+                // KMK <--
             }
         }
 

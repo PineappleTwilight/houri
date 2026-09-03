@@ -25,4 +25,16 @@ sealed interface StatsData {
         val meanScore: Double,
         val trackerCount: Int,
     ) : StatsData
+
+    // KMK -->
+    /** Manga ranked by total reading time (top 10). */
+    data class TopManga(
+        val items: List<Item>,
+    ) : StatsData {
+        data class Item(
+            val title: String,
+            val readDuration: Long,
+        )
+    }
+    // KMK <--
 }

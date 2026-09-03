@@ -1,5 +1,7 @@
 package eu.kanade.presentation.library.components
 
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -20,6 +22,10 @@ import androidx.compose.material3.PrimaryScrollableTabRow
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -67,6 +73,7 @@ internal fun LibraryTabs(
 }
 
 // KMK -->
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 internal fun LibrarySubcategoryTabs(
     subcategories: List<Category>,
@@ -76,6 +83,10 @@ internal fun LibrarySubcategoryTabs(
 ) {
     if (subcategories.isEmpty()) return
 
+    // Hold-tap the "All" chip to collapse the row into a single "+" chip; tap "+" to expand.
+    // Keyed on the subcategory list so the collapsed state resets when switching categories.
+    var collapsed by rememberSaveable(subcategories) { mutableStateOf(false) }
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -84,11 +95,20 @@ internal fun LibrarySubcategoryTabs(
             .padding(horizontal = MaterialTheme.padding.small, vertical = MaterialTheme.padding.extraSmall),
         horizontalArrangement = Arrangement.spacedBy(MaterialTheme.padding.extraSmall),
     ) {
+        if (collapsed) {
+            SubcategoryChip(
+                selected = false,
+                onClick = { collapsed = false },
+                label = "+",
+            )
+            return@Row
+        }
         if (showAllChip) {
             SubcategoryChip(
                 selected = selectedSubcategoryId == null,
                 onClick = { onSelectSubcategory(null) },
                 label = stringResource(MR.strings.all),
+                onLongClick = { collapsed = true },
             )
         }
         subcategories.forEach { subcategory ->
@@ -110,15 +130,21 @@ private fun SubcategoryChip(
     selected: Boolean,
     onClick: () -> Unit,
     label: String,
+    onLongClick: (() -> Unit)? = null,
 ) {
     FilterChip(
         selected = selected,
-        onClick = onClick,
+        onClick = {},
         label = {
             Text(
                 text = label,
                 fontWeight = if (selected) FontWeight.SemiBold else null,
             )
+        },
+        modifier = if (onLongClick != null) {
+            Modifier.combinedClickable(onClick = onClick, onLongClick = onLongClick)
+        } else {
+            Modifier
         },
         leadingIcon = if (selected) {
             {

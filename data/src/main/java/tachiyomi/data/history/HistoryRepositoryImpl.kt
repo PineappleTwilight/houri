@@ -12,6 +12,7 @@ import tachiyomi.data.DatabaseHandler
 import tachiyomi.domain.history.model.History
 import tachiyomi.domain.history.model.HistoryUpdate
 import tachiyomi.domain.history.model.HistoryWithRelations
+import tachiyomi.domain.history.model.ReadDurationByManga
 import tachiyomi.domain.history.repository.HistoryRepository
 import tachiyomi.domain.manga.model.Manga
 
@@ -58,6 +59,16 @@ class HistoryRepositoryImpl(
     override suspend fun getTotalReadDuration(): Long {
         return handler.awaitOne { historyQueries.getReadDuration() }
     }
+
+    // KMK -->
+    override suspend fun getTotalReadDurationByManga(): List<ReadDurationByManga> {
+        return handler.awaitList {
+            historyQueries.getReadDurationByManga { mangaId, readDuration ->
+                ReadDurationByManga(mangaId = mangaId, readDuration = readDuration)
+            }
+        }
+    }
+    // KMK <--
 
     override suspend fun getHistoryByMangaId(mangaId: Long): List<History> {
         return handler.awaitList { historyQueries.getHistoryByMangaId(mangaId, HistoryMapper::mapHistory) }

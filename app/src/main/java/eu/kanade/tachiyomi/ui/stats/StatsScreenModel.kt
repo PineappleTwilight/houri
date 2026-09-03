@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
 import mihon.app.di.globalAppGraph
 import tachiyomi.domain.history.interactor.GetTotalReadDuration
+import tachiyomi.domain.history.interactor.GetTotalReadDurationByManga
 import tachiyomi.domain.library.model.LibraryManga
 import tachiyomi.domain.library.service.LibraryPreferences
 import tachiyomi.domain.library.service.LibraryPreferences.Companion.MANGA_HAS_UNREAD
@@ -32,6 +33,7 @@ class StatsScreenModel(
     private val downloadManager: DownloadManager = globalAppGraph.downloadManager,
     private val getLibraryManga: GetLibraryManga = globalAppGraph.getLibraryManga,
     private val getTotalReadDuration: GetTotalReadDuration = globalAppGraph.getTotalReadDuration,
+    private val getTotalReadDurationByManga: GetTotalReadDurationByManga = globalAppGraph.getTotalReadDurationByManga,
     private val getTracks: GetTracks = globalAppGraph.getTracks,
     private val preferences: LibraryPreferences = globalAppGraph.libraryPreferences,
     private val trackerManager: TrackerManager = globalAppGraph.trackerManager,
@@ -91,12 +93,27 @@ class StatsScreenModel(
                 trackerCount = loggedInTrackers.size,
             )
 
+            // KMK -->
+            val titleByMangaId = distinctLibraryManga.associate { it.id to it.manga.title }
+            val topManga = StatsData.TopManga(
+                items = getTotalReadDurationByManga.await()
+                    .take(10)
+                    .mapNotNull { (mangaId, duration) ->
+                        val title = titleByMangaId[mangaId] ?: return@mapNotNull null
+                        StatsData.TopManga.Item(title = title, readDuration = duration)
+                    },
+            )
+            // KMK <--
+
             mutableState.update {
                 StatsScreenState.Success(
                     overview = overviewStatData,
                     titles = titlesStatData,
                     chapters = chaptersStatData,
                     trackers = trackersStatData,
+                    // KMK -->
+                    topManga = topManga,
+                    // KMK <--
                 )
             }
             // SY -->

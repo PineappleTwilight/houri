@@ -78,3 +78,16 @@ WHERE chapter_id = :chapterId;
 getReadDuration:
 SELECT coalesce(sum(time_read), 0)
 FROM history;
+
+-- KMK -->
+getReadDurationByManga:
+SELECT
+C.manga_id AS mangaId,
+coalesce(sum(H.time_read), 0) AS readDuration
+FROM history H
+JOIN chapters C
+ON H.chapter_id = C._id
+WHERE H.time_read > 0
+GROUP BY C.manga_id
+ORDER BY readDuration DESC;
+-- KMK <--

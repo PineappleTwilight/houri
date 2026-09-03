@@ -1,10 +1,13 @@
 package eu.kanade.presentation.more.stats
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyItemScope
 import androidx.compose.material.icons.Icons
@@ -12,15 +15,18 @@ import androidx.compose.material.icons.outlined.CollectionsBookmark
 import androidx.compose.material.icons.outlined.LocalLibrary
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextOverflow
 import eu.kanade.presentation.more.stats.components.StatsItem
 import eu.kanade.presentation.more.stats.components.StatsOverviewItem
 import eu.kanade.presentation.more.stats.data.StatsData
 import eu.kanade.presentation.util.toDurationString
 import tachiyomi.i18n.MR
+import tachiyomi.i18n.kmk.KMR
 import tachiyomi.presentation.core.components.SectionCard
 import tachiyomi.presentation.core.components.material.padding
 import tachiyomi.presentation.core.i18n.stringResource
@@ -49,6 +55,11 @@ fun StatsScreenContent(
         item {
             TrackerStats(state.trackers)
         }
+        // KMK -->
+        item {
+            TopMangaStats(state.topManga)
+        }
+        // KMK <--
     }
 }
 
@@ -160,3 +171,55 @@ private fun LazyItemScope.TrackerStats(
         }
     }
 }
+
+// KMK -->
+@Composable
+private fun LazyItemScope.TopMangaStats(
+    data: StatsData.TopManga,
+) {
+    val none = stringResource(MR.strings.none)
+    val context = LocalContext.current
+    SectionCard(KMR.strings.stats_top_manga) {
+        if (data.items.isEmpty()) {
+            Text(
+                text = none,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = MaterialTheme.padding.medium),
+            )
+        } else {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = MaterialTheme.padding.medium),
+                verticalArrangement = Arrangement.spacedBy(MaterialTheme.padding.small),
+            ) {
+                data.items.forEachIndexed { index, item ->
+                    val durationString = remember(item.readDuration) {
+                        item.readDuration
+                            .toDuration(DurationUnit.MILLISECONDS)
+                            .toDurationString(context, fallback = none)
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                    ) {
+                        Text(
+                            text = "${index + 1}. ${item.title}",
+                            style = MaterialTheme.typography.bodyMedium,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f),
+                        )
+                        Text(
+                            text = durationString,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+// KMK <--
