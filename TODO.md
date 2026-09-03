@@ -107,10 +107,10 @@
   - Keep QuickJS for legacy `eval`; add J2V8 only for `WebAssembly` — WebView reuse already pulls Chromium V8 for `CloudflareInterceptor` but per-chapter `WebView` `~400 ms` + `30s` timeout is janky vs `J2V8` `2-8 ms` per keygen
 - [x] **MTL Engine**: Translation manga font (default) + translation font preference
 - [x] **MTL Engine**: More meaningful user-facing failure messages (tell the user why the translation failed)
-- [ ] **Smart Release Predictor**: Improve algorithm
-- [ ] **Subcategories**: Make subcategory chips collapsable
+- [x] **Smart Release Predictor**: Improve algorithm
+- [x] **Subcategories**: Make subcategory chips collapsable
   - This should likely be done by hold tapping on the default "All" button which collapses the row and turns into a plus button
-- [ ] **MTL Engine**: Translate manga info (title, description, etc)
+- [x] **MTL Engine**: Translate manga info (title, description, etc)
 
 
 ## Bugfixes
@@ -206,14 +206,14 @@
 - [x] **MTL Engine**: Fix redownload models button not doing anything and overall needing improving
   - The entire model download and storage system should be improved/reworked/optimized
   - Another button should also be added to clear the downloaded models instead of re-downloading
-- [ ] **Manga Details Page**: Fix start button not appearing until exiting a manga and going back into it
+- [x] **Manga Details Page**: Fix start button not appearing until exiting a manga and going back into it
 - [x] **App**: Fix "what's coming" page labeling every todo category as "drawing board"
   - Verified: parseTodo correctly tracks `## ` section headers; reproduced a clean parse of the live GitHub raw file (Feature Ideas: 5, Bugfixes: 3, Drawing Board: 1) — likely a one-time fetch during a TODO.md edit
-- [ ] **App**: Improve manga db statistics
+- [x] **App**: Improve manga db statistics
   - Reading time per manga should also be included
-- [ ] **Subcategories**: Wire android backstack navigation to subcategories
+- [x] **Subcategories**: Wire android backstack navigation to subcategories
   - Should properly exit the subcategory instead of exiting the app
-- [ ] **MTL Engine**: Fix output LTR text being constrained vertically (like a top-to-bottom language) instead of allowing the full bubble width to fill
+- [x] **MTL Engine**: Fix output LTR text being constrained vertically (like a top-to-bottom language) instead of allowing the full bubble width to fill
 
 ## Chores
 - [x] Replace all Komikku icons/branding with houri icons/branding
@@ -233,7 +233,7 @@
 - [x] **App**: Make icon better, expect sleek modern minimalist material pineapple icon
 - [x] **App**: Add icon to webhooks connection and remove description on the selection screen (description is shown when tapped into anyway)
 - [x] **Webhook Connection**: Improve Discord event embeds
-- [ ] **App**: Split APKs into MTL and no-MTL varients
+- [x] **App**: Split APKs into MTL and no-MTL varients
   - This helps users save storage space if they know their device can't run MTL or if they just don't want it
 
 
