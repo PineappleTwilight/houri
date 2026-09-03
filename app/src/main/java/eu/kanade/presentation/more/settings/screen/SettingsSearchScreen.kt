@@ -291,7 +291,7 @@ private fun getLocalizedBreadcrumb(path: String, node: String?, isLtr: Boolean):
     }
 }
 
-private val settingScreens = listOf(
+private val settingScreens = listOfNotNull(
     SettingsAppearanceScreen,
     SettingsLibraryScreen,
     SettingsReaderScreen,
@@ -307,7 +307,9 @@ private val settingScreens = listOf(
     SettingsEhScreen,
     SettingsMangadexScreen,
     // SY <--
-    SettingsYakuyomiScreen,
+    // KMK --> The MTL settings screen does not exist on the no-MTL variant.
+    SettingsYakuyomiScreen.takeIf { !eu.kanade.tachiyomi.BuildConfig.IS_NOMTL },
+    // KMK <--
     SettingsAdvancedScreen,
 )
 

@@ -33,18 +33,31 @@ data class LocalGenerateRequest(
     val imageBytes: ByteArray? = null,
 )
 
-/** Stub of [DeviceMemory] for the no-MTL APK variant: no hardware feature is supported. */
+/**
+ * Stub of [DeviceMemory] for the no-MTL APK variant. RAM is a device property, not a variant
+ * property: the WebGPU (high-quality) renderer is available in both variants, so the checks
+ * behave exactly like the engine module's.
+ */
 object DeviceMemory {
     const val MTL_MIN_RAM_BYTES: Long = 3L * 1024 * 1024 * 1024
     const val WEBGPU_MIN_RAM_BYTES: Long = 3L * 1024 * 1024 * 1024
 
-    fun totalRamBytes(context: Context): Long = 0L
-    fun hasSufficientRam(context: Context, minBytes: Long): Boolean = false
-    fun isMtlSupported(context: Context): Boolean = false
-    fun isWebGpuSupported(context: Context): Boolean = false
-    fun is64Bit(): Boolean = false
+    fun totalRamBytes(context: Context): Long {
+        return runCatching {
+            val activityManager = context.getSystemService(Context.ACTIVITY_SERVICE) as? android.app.ActivityManager
+            val memoryInfo = android.app.ActivityManager.MemoryInfo()
+            activityManager?.getMemoryInfo(memoryInfo)
+            memoryInfo.totalMem
+        }.getOrDefault(0L)
+    }
+
+    fun hasSufficientRam(context: Context, minBytes: Long): Boolean = totalRamBytes(context) >= minBytes
+    fun isMtlSupported(context: Context): Boolean = hasSufficientRam(context, MTL_MIN_RAM_BYTES)
+    fun isWebGpuSupported(context: Context): Boolean = hasSufficientRam(context, WEBGPU_MIN_RAM_BYTES)
+    fun is64Bit(): Boolean = android.os.Build.SUPPORTED_ABIS.any { it.contains("64") }
     fun socManufacturer(): String = "unknown"
-    fun matchesSoc(soc: String, required: String): Boolean = false
+    fun matchesSoc(soc: String, required: String): Boolean =
+        soc.equals(required, ignoreCase = true)
 }
 
 /** Stub of [LocalLlmCatalog] for the no-MTL APK variant: no models available. */

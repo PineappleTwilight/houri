@@ -183,7 +183,7 @@ object SettingsMainScreen : Screen() {
         val screen: VoyagerScreen,
     )
 
-    private val items = listOf(
+    private val items = listOfNotNull(
         Item(
             titleRes = MR.strings.pref_category_appearance,
             subtitleRes = MR.strings.pref_appearance_summary,
@@ -254,12 +254,14 @@ object SettingsMainScreen : Screen() {
             screen = SettingsMangadexScreen,
         ),
         // SY <--
+        // KMK --> The MTL settings screen does not exist on the no-MTL variant.
         Item(
             titleRes = KMR.strings.pref_yakuyomi_enabled,
             subtitleRes = KMR.strings.pref_yakuyomi_enabled_summary,
             icon = Icons.Outlined.Language,
             screen = SettingsYakuyomiScreen,
-        ),
+        ).takeIf { !eu.kanade.tachiyomi.BuildConfig.IS_NOMTL },
+        // KMK <--
         Item(
             titleRes = MR.strings.pref_category_advanced,
             subtitleRes = MR.strings.pref_advanced_summary,

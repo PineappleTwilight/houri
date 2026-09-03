@@ -94,6 +94,7 @@ import eu.kanade.presentation.manga.components.PagePreviews
 import eu.kanade.presentation.manga.components.RelatedMangasRow
 import eu.kanade.presentation.manga.components.SearchMetadataChips
 import eu.kanade.presentation.util.formatChapterNumber
+import eu.kanade.tachiyomi.BuildConfig
 import eu.kanade.tachiyomi.data.download.model.Download
 import eu.kanade.tachiyomi.source.Source
 import eu.kanade.tachiyomi.source.getNameForMangaInfo
@@ -702,19 +703,21 @@ private fun MangaScreenSmallImpl(
                         )
                     }
 
-                    item(
-                        key = MangaScreenItem.TRANSLATE_TOGGLE,
-                        contentType = MangaScreenItem.TRANSLATE_TOGGLE,
-                    ) {
-                        TranslateMangaToggle(manga = state.manga)
-                    }
+                    // KMK --> MTL toggles are compiled out on the no-MTL variant.
+                    if (!BuildConfig.IS_NOMTL) {
+                        item(
+                            key = MangaScreenItem.TRANSLATE_TOGGLE,
+                            contentType = MangaScreenItem.TRANSLATE_TOGGLE,
+                        ) {
+                            TranslateMangaToggle(manga = state.manga)
+                        }
 
-                    // KMK -->
-                    item(
-                        key = MangaScreenItem.TRANSLATE_TOGGLE,
-                        contentType = MangaScreenItem.TRANSLATE_TOGGLE,
-                    ) {
-                        TranslateMangaInfoToggle(manga = state.manga)
+                        item(
+                            key = MangaScreenItem.TRANSLATE_MANGA_INFO_TOGGLE,
+                            contentType = MangaScreenItem.TRANSLATE_MANGA_INFO_TOGGLE,
+                        ) {
+                            TranslateMangaInfoToggle(manga = state.manga)
+                        }
                     }
                     // KMK <--
 
@@ -1223,8 +1226,10 @@ private fun MangaScreenLargeImpl(
                             // KMK <--
                         )
                         // KMK --> Tablet layout was missing the per-manga Translate toggle.
-                        TranslateMangaToggle(manga = state.manga)
-                        TranslateMangaInfoToggle(manga = state.manga)
+                        if (!BuildConfig.IS_NOMTL) {
+                            TranslateMangaToggle(manga = state.manga)
+                            TranslateMangaInfoToggle(manga = state.manga)
+                        }
                         // KMK <--
                         // SY -->
                         metadataDescription?.invoke(

@@ -80,6 +80,7 @@ import eu.kanade.presentation.reader.appbars.NavBarType
 import eu.kanade.presentation.reader.appbars.ReaderAppBars
 import eu.kanade.presentation.reader.settings.ReaderSettingsDialog
 import eu.kanade.presentation.theme.TachiyomiTheme
+import eu.kanade.tachiyomi.BuildConfig
 import eu.kanade.tachiyomi.R
 import eu.kanade.tachiyomi.data.coil.TachiyomiImageDecoder
 import eu.kanade.tachiyomi.data.connections.discord.DiscordRPCService
@@ -368,25 +369,27 @@ class ReaderActivity : BaseActivity() {
                     )
                 }
 
-                // KMK -->
-                MtlTranslationOverlay(
-                    mangaId = state.manga?.id,
-                    chapterId = state.currentChapter?.chapter?.id,
-                    totalPages = state.totalPages,
-                    onRetry = {
-                        val viewer = state.viewer
-                        when (viewer) {
-                            is WebGpuViewer -> viewer.retryCurrentPageTranslation()
-                            is PagerViewer -> retryLegacyTranslation(viewer.currentPage as? ReaderPage)
-                            is WebtoonViewer -> retryLegacyTranslation(viewer.currentPage as? ReaderPage)
-                            else -> {}
-                        }
-                    },
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .navigationBarsPadding()
-                        .padding(bottom = 44.dp),
-                )
+                // KMK --> The MTL overlay is compiled out on the no-MTL variant.
+                if (!BuildConfig.IS_NOMTL) {
+                    MtlTranslationOverlay(
+                        mangaId = state.manga?.id,
+                        chapterId = state.currentChapter?.chapter?.id,
+                        totalPages = state.totalPages,
+                        onRetry = {
+                            val viewer = state.viewer
+                            when (viewer) {
+                                is WebGpuViewer -> viewer.retryCurrentPageTranslation()
+                                is PagerViewer -> retryLegacyTranslation(viewer.currentPage as? ReaderPage)
+                                is WebtoonViewer -> retryLegacyTranslation(viewer.currentPage as? ReaderPage)
+                                else -> {}
+                            }
+                        },
+                        modifier = Modifier
+                            .align(Alignment.BottomCenter)
+                            .navigationBarsPadding()
+                            .padding(bottom = 44.dp),
+                    )
+                }
                 // KMK <--
 
                 ContentOverlay(state = state)
