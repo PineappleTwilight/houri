@@ -560,7 +560,11 @@ private fun MangaScreenSmallImpl(
         },
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         floatingActionButton = {
-            val isFABVisible by remember {
+            // KMK --> Key the derived state so it re-reads when chapters load (a keyless
+            // remember would capture the initial empty list and hide the button until the
+            // user leaves and re-enters the screen).
+            // KMK <--
+            val isFABVisible by remember(chapters, isAnySelected) {
                 derivedStateOf { chapters.fastAny { !it.chapter.read } && !isAnySelected }
             }
             AnimatedVisibility(
@@ -704,6 +708,15 @@ private fun MangaScreenSmallImpl(
                     ) {
                         TranslateMangaToggle(manga = state.manga)
                     }
+
+                    // KMK -->
+                    item(
+                        key = MangaScreenItem.TRANSLATE_TOGGLE,
+                        contentType = MangaScreenItem.TRANSLATE_TOGGLE,
+                    ) {
+                        TranslateMangaInfoToggle(manga = state.manga)
+                    }
+                    // KMK <--
 
                     // SY -->
                     if (metadataDescription != null) {
@@ -1079,7 +1092,11 @@ private fun MangaScreenLargeImpl(
         },
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         floatingActionButton = {
-            val isFABVisible by remember {
+            // KMK --> Key the derived state so it re-reads when chapters load (a keyless
+            // remember would capture the initial empty list and hide the button until the
+            // user leaves and re-enters the screen).
+            // KMK <--
+            val isFABVisible by remember(chapters, isAnySelected) {
                 derivedStateOf { chapters.fastAny { !it.chapter.read } && !isAnySelected }
             }
             AnimatedVisibility(
@@ -1207,6 +1224,7 @@ private fun MangaScreenLargeImpl(
                         )
                         // KMK --> Tablet layout was missing the per-manga Translate toggle.
                         TranslateMangaToggle(manga = state.manga)
+                        TranslateMangaInfoToggle(manga = state.manga)
                         // KMK <--
                         // SY -->
                         metadataDescription?.invoke(
@@ -1569,6 +1587,132 @@ fun TranslateMangaToggle(manga: tachiyomi.domain.manga.model.Manga) {
         )
     }
 }
+
+// KMK -->
+/**
+ * Per-manga "translate title & description" toggle. When enabled, the manga's metadata is
+ * translated with the active provider (local LLM or cloud), cached on disk, and shown in a
+ * collapsible card below the switch. Re-uses the same gating as page translation.
+ */
+@Composable
+fun TranslateMangaInfoToggle(manga: tachiyomi.domain.manga.model.Manga) {
+    val context = LocalContext.current
+    val prefs = androidx.compose.runtime.remember { mihon.app.di.globalAppGraph.translationPreferences }
+    val translationManager = androidx.compose.runtime.remember { mihon.app.di.globalAppGraph.translationManager }
+    val infoStore = androidx.compose.runtime.remember { mihon.app.di.globalAppGraph.mangaInfoTranslationStore }
+    val preferenceStore = androidx.compose.runtime.remember { mihon.app.di.globalAppGraph.preferenceStore }
+    val globalEnabled by prefs.enabled().collectAsState()
+    // Per-manga info-translation preference.
+    val infoPref = androidx.compose.runtime.remember(manga.id) {
+        preferenceStore.getBoolean("pref_translate_info_${manga.id}", false)
+    }
+    val infoEnabled by infoPref.collectAsState()
+    var cached by androidx.compose.runtime.remember(manga.id) { mutableStateOf(infoStore.get(manga.id)) }
+    var translating by androidx.compose.runtime.remember(manga.id) { mutableStateOf(false) }
+    var failed by androidx.compose.runtime.remember(manga.id) { mutableStateOf(false) }
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+
+    // When the user enables the toggle and no translation is cached yet, translate on demand.
+    androidx.compose.runtime.LaunchedEffect(infoEnabled) {
+        if (infoEnabled && cached == null && !translating) {
+            translating = true
+            failed = false
+            val result = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                translationManager.translateMangaInfo(manga.id, manga.title, manga.description)
+            }
+            translating = false
+            if (result != null) {
+                cached = result
+            } else {
+                failed = true
+            }
+        }
+    }
+
+    if (!globalEnabled) return
+    androidx.compose.foundation.layout.Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+    ) {
+        androidx.compose.foundation.layout.Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+            horizontalArrangement = androidx.compose.foundation.layout.Arrangement.SpaceBetween,
+        ) {
+            androidx.compose.foundation.layout.Column(modifier = Modifier.weight(1f)) {
+                androidx.compose.material3.Text(
+                    text = stringResource(tachiyomi.i18n.kmk.KMR.strings.pref_translate_manga_info),
+                    style = androidx.compose.material3.MaterialTheme.typography.titleMedium,
+                )
+                androidx.compose.material3.Text(
+                    text = stringResource(tachiyomi.i18n.kmk.KMR.strings.pref_translate_manga_info_summary),
+                    style = androidx.compose.material3.MaterialTheme.typography.bodySmall,
+                    color = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            androidx.compose.material3.Switch(
+                checked = infoEnabled,
+                onCheckedChange = {
+                    infoPref.set(it)
+                    if (!it) {
+                        failed = false
+                        cached = null
+                    }
+                },
+            )
+        }
+        if (infoEnabled) {
+            androidx.compose.foundation.layout.Spacer(modifier = Modifier.padding(vertical = 4.dp))
+            androidx.compose.material3.Card(modifier = Modifier.fillMaxWidth()) {
+                androidx.compose.foundation.layout.Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp),
+                ) {
+                    when {
+                        translating -> {
+                            androidx.compose.material3.Text(
+                                text = stringResource(tachiyomi.i18n.kmk.KMR.strings.mtl_info_translating),
+                                style = androidx.compose.material3.MaterialTheme.typography.bodyMedium,
+                            )
+                        }
+                        failed -> {
+                            androidx.compose.material3.Text(
+                                text = stringResource(tachiyomi.i18n.kmk.KMR.strings.mtl_info_failed),
+                                style = androidx.compose.material3.MaterialTheme.typography.bodyMedium,
+                                color = androidx.compose.material3.MaterialTheme.colorScheme.error,
+                            )
+                        }
+                        cached != null -> {
+                            androidx.compose.material3.Text(
+                                text = stringResource(tachiyomi.i18n.kmk.KMR.strings.mtl_info_translated_title) + ": ${cached!!.title}",
+                                style = androidx.compose.material3.MaterialTheme.typography.bodyMedium,
+                            )
+                            cached!!.description?.takeIf { it.isNotBlank() }?.let { desc ->
+                                androidx.compose.material3.Text(
+                                    text = stringResource(tachiyomi.i18n.kmk.KMR.strings.mtl_info_translated_description) + ": $desc",
+                                    style = androidx.compose.material3.MaterialTheme.typography.bodySmall,
+                                    color = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                            androidx.compose.material3.TextButton(
+                                onClick = {
+                                    infoStore.clear(manga.id)
+                                    cached = null
+                                    infoPref.set(false)
+                                },
+                            ) {
+                                androidx.compose.material3.Text(stringResource(tachiyomi.i18n.kmk.KMR.strings.mtl_info_reset))
+                            }
+                        }
+                        else -> Unit
+                    }
+                }
+            }
+        }
+    }
+}
+// KMK <--
 
 // SY -->
 typealias MetadataDescriptionComposable = @Composable (

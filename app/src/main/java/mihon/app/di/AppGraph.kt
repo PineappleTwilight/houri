@@ -93,6 +93,9 @@ import exh.search.SearchEngine
 import exh.source.ExhPreferences
 import exh.yakuyomi.BreadcrumbNotes
 import exh.yakuyomi.GeminiNanoTranslator
+import exh.yakuyomi.LocalLlmDownloadManager
+import exh.yakuyomi.LocalLlmManager
+import exh.yakuyomi.MangaInfoTranslationStore
 import exh.yakuyomi.ModelManager
 import exh.yakuyomi.TranslateMangaStore
 import exh.yakuyomi.TranslationCache
@@ -143,6 +146,7 @@ import tachiyomi.domain.download.service.DownloadPreferences
 import tachiyomi.domain.history.interactor.GetHistory
 import tachiyomi.domain.history.interactor.GetNextChapters
 import tachiyomi.domain.history.interactor.GetTotalReadDuration
+import tachiyomi.domain.history.interactor.GetTotalReadDurationByManga
 import tachiyomi.domain.history.interactor.RemoveHistory
 import tachiyomi.domain.history.interactor.RemoveResettedHistory
 import tachiyomi.domain.history.interactor.UpsertHistory
@@ -379,6 +383,7 @@ interface AppGraph : ViewModelGraph {
     val getSourcesWithFavoriteCount: GetSourcesWithFavoriteCount
     val getSourcesWithNonLibraryManga: GetSourcesWithNonLibraryManga
     val getTotalReadDuration: GetTotalReadDuration
+    val getTotalReadDurationByManga: GetTotalReadDurationByManga
     val getTracksPerManga: GetTracksPerManga
     val getUpcomingManga: GetUpcomingManga
     val getUpdates: GetUpdates
@@ -451,6 +456,9 @@ interface AppGraph : ViewModelGraph {
     val translationStatus: TranslationStatus
     val modelManager: ModelManager
     val geminiNanoTranslator: GeminiNanoTranslator
+    val localLlmManager: LocalLlmManager
+    val localLlmDownloadManager: LocalLlmDownloadManager
+    val mangaInfoTranslationStore: MangaInfoTranslationStore
     // KMK <--
 
     @DependencyGraph.Factory

@@ -7,6 +7,7 @@ import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
 import exh.log.xLogD
 import exh.log.xLogE
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import li.joye.yakuyomi.engine.PageResult
@@ -29,6 +30,8 @@ class TranslationManager(
     private val pageStore: TranslatedPageStore,
     // KMK -->
     private val geminiNano: GeminiNanoTranslator,
+    private val localLlm: LocalLlmManager,
+    private val infoStore: MangaInfoTranslationStore,
     // KMK <--
 ) {
     fun isEnabled(): Boolean = prefs.enabled().get()
@@ -57,6 +60,63 @@ class TranslationManager(
 
     fun setPerMangaEnabled(mangaId: Long, enabled: Boolean) = perMangaStore.setEnabled(mangaId, enabled)
 
+    /**
+     * Translates a manga's metadata (title + optional description) with the active provider
+     * (on-device local LLM, or the configured cloud model). Results are cached on disk via
+     * [MangaInfoTranslationStore]. Returns null when the feature is gated, the manga is not
+     * opted in, or the provider returned nothing usable.
+     */
+    suspend fun translateMangaInfo(
+        mangaId: Long,
+        title: String,
+        description: String?,
+        sourceLangHint: String = "JA",
+    ): MangaInfoTranslation? {
+        if (!shouldTranslateForManga(mangaId)) return null
+        val targetLang = prefs.targetLang().get().ifBlank { "en" }
+        val lines = listOfNotNull(title.ifBlank { null }, description?.ifBlank { null })
+        if (lines.isEmpty()) return null
+        val translated = try {
+            if (localLlm.isLocalProvider()) {
+                val isEnFix = sourceLangHint.equals("EN", true) && targetLang.equals("EN", true)
+                val prompt = if (isEnFix) {
+                    "Fix grammar, preserve names, output only EN. Manga title and description:\n" +
+                        lines.joinToString("\n") { "- $it" }
+                } else {
+                    "Translate the manga title and description to $targetLang. Preserve names, output only $targetLang:\n" +
+                        lines.joinToString("\n") { "- $it" }
+                }
+                val result = localLlm.generate(prompt) ?: return null
+                parseTranslationLines(result) ?: return null
+            } else {
+                if (prefs.apiKey().get().isBlank()) return null
+                YakuyomiTranslator(
+                    apiKey = prefs.apiKey().get(),
+                    sourceLang = sourceLangHint,
+                    targetLang = targetLang,
+                    breadcrumb = "",
+                    provider = prefs.provider().get().lowercase(),
+                    model = prefs.model().get(),
+                    offlineFallback = prefs.offlineFallback().get(),
+                    client = client,
+                    customBaseUrl = prefs.customBaseUrl().get(),
+                    customHeaders = prefs.customHeaders().get(),
+                ).translate(lines)
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            xLogE("translateMangaInfo failed", e)
+            null
+        } ?: return null
+        val aligned = alignTranslationLines(translated, lines)
+        val newTitle = aligned.getOrNull(0)?.trim()?.takeIf { it.isNotBlank() } ?: title
+        val newDescription = aligned.getOrNull(1)?.trim()?.takeIf { it.isNotBlank() }
+        val result = MangaInfoTranslation(title = newTitle, description = newDescription)
+        infoStore.put(mangaId, result)
+        return result
+    }
+
     /** Declares the page count up front so chapter-list progress is accurate while translating. */
     fun setChapterTotalPages(mangaId: Long, chapterId: Long, totalPages: Int) =
         status.setTotalPages(mangaId, chapterId, totalPages)
@@ -69,6 +129,12 @@ class TranslationManager(
         if (raw.isNullOrBlank()) return "Translation failed (unknown reason)"
         val lower = raw.lowercase()
         return when {
+            "not enough memory" in lower || ("requires at least 3gb" in lower) ->
+                "This device doesn't have enough RAM for AI translation (needs 3GB+). Translation is disabled on this device."
+            "not downloaded" in lower || "is the model downloaded" in lower ->
+                "On-device model not downloaded — download it in Settings → Translation (Local)"
+            "not bundled" in lower || ("runtime" in lower && "mlc" in lower) ->
+                "The on-device LLM runtime isn't bundled in this build — enable a cloud provider or install a build with the local runtime"
             "models not ready" in lower || ("model" in lower && "download" in lower) ->
                 "AI models not installed — download them in Settings → Translation"
             "gemini nano" in lower && "unavailable" in lower ->
@@ -99,6 +165,9 @@ class TranslationManager(
     private suspend fun effectiveModel(): String {
         if (prefs.geminiNanoEnabled().get() && geminiNano.isAvailable()) {
             return "gemini-nano"
+        }
+        if (localLlm.isLocalProvider()) {
+            return "local:${localLlm.resolveModel()?.id ?: "auto"}"
         }
         return prefs.model().get().ifBlank { "google/gemma-2-9b-it:free" }
     }
@@ -195,28 +264,41 @@ class TranslationManager(
             // The page bitmap is passed along for visual context (vision augments the OCR'd
             // text lines — it never replaces them).
             val useGeminiNano = prefs.geminiNanoEnabled().get() && geminiNano.isAvailable()
-            val translator: li.joye.yakuyomi.engine.Translator = if (useGeminiNano) {
-                object : li.joye.yakuyomi.engine.Translator {
-                    override suspend fun translate(queries: List<String>): List<String> {
-                        val result = geminiNano.translate(queries, bitmap, sourceLangHint)
-                        if (result != null) return result
-                        if (prefs.offlineFallback().get()) return queries.map { it.trim() }
-                        throw TranslationException("Gemini Nano unavailable on this device — enable a cloud provider in Settings → Translation")
+            val translator: li.joye.yakuyomi.engine.Translator = when {
+                useGeminiNano -> {
+                    object : li.joye.yakuyomi.engine.Translator {
+                        override suspend fun translate(queries: List<String>): List<String> {
+                            val result = geminiNano.translate(queries, bitmap, sourceLangHint)
+                            if (result != null) return result
+                            if (prefs.offlineFallback().get()) return queries.map { it.trim() }
+                            throw TranslationException("Gemini Nano unavailable on this device — enable a cloud provider in Settings → Translation")
+                        }
                     }
                 }
-            } else {
-                YakuyomiTranslator(
-                    apiKey = prefs.apiKey().get(),
-                    sourceLang = sourceLangHint,
-                    targetLang = targetLang,
-                    breadcrumb = breadcrumb,
-                    provider = prefs.provider().get().lowercase(),
-                    model = model,
-                    offlineFallback = prefs.offlineFallback().get(),
-                    client = client,
-                    customBaseUrl = prefs.customBaseUrl().get(),
-                    customHeaders = prefs.customHeaders().get(),
-                )
+                localLlm.isLocalProvider() -> {
+                    LocalLlmTranslator(
+                        manager = localLlm,
+                        sourceLang = sourceLangHint,
+                        targetLang = targetLang,
+                        breadcrumb = breadcrumb,
+                        pageBitmap = bitmap,
+                        offlineFallback = prefs.offlineFallback().get(),
+                    )
+                }
+                else -> {
+                    YakuyomiTranslator(
+                        apiKey = prefs.apiKey().get(),
+                        sourceLang = sourceLangHint,
+                        targetLang = targetLang,
+                        breadcrumb = breadcrumb,
+                        provider = prefs.provider().get().lowercase(),
+                        model = model,
+                        offlineFallback = prefs.offlineFallback().get(),
+                        client = client,
+                        customBaseUrl = prefs.customBaseUrl().get(),
+                        customHeaders = prefs.customHeaders().get(),
+                    )
+                }
             }
             // KMK <--
 

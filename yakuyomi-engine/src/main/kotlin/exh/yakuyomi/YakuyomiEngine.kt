@@ -62,6 +62,17 @@ class YakuyomiEngine(
             .launchIn(scope)
     }
 
+    /** Human-readable reason reported when the device has too little RAM for the native pipeline. */
+    val notEnoughMemoryReason: String
+        get() = "not enough memory on this device — AI translation requires at least 3GB of RAM"
+
+    /**
+     * Whether the on-device native pipeline can run on this device at all. Currently gates on total
+     * RAM: the detector + OCR + inpainter sessions together need more address space than low-RAM
+     * devices have, and a failed native allocation SIGSEGVs the process (uncatchable in Kotlin).
+     */
+    fun isHardwareSupported(): Boolean = DeviceMemory.isMtlSupported(context)
+
     private fun modelsDir(): File = File(context.filesDir, "yakuyomi_models")
 
     private fun libModelSet(): ModelSet? {
@@ -144,6 +155,10 @@ class YakuyomiEngine(
     }
 
     private fun buildComponents(): Components? {
+        if (!isHardwareSupported()) {
+            logcat { "Yakuyomi engine skipped: device has too little RAM" }
+            return null
+        }
         val set = libModelSet() ?: run {
             logcat { "Yakuyomi models not ready" }
             return null
@@ -192,6 +207,9 @@ class YakuyomiEngine(
      * Serialized via Mutex because NCNN native backends are not thread-safe.
      */
     suspend fun translatePage(bitmap: Bitmap, translator: Translator?, targetLang: String? = null): PageResult = withContext(Dispatchers.Default) {
+        if (!isHardwareSupported()) {
+            return@withContext PageResult.Failed(notEnoughMemoryReason)
+        }
         // Build and run under the same lock [invalidateComponents] uses to close stale
         // sessions, so this call can never race a close of the components it captured.
         pipelineMutex.withLock {

@@ -27,6 +27,10 @@ class TranslationWork(
             val manager = globalAppGraph.translationManager
             val prefs = globalAppGraph.translationPreferences
             if (!manager.isEnabled()) return Result.success()
+            if (!globalAppGraph.yakuyomiEngine.isHardwareSupported()) {
+                xLogD("TranslationWork skipped: device has too little RAM manga=$mangaId chapter=$chapterId")
+                return Result.success()
+            }
             if (manager.isGated()) {
                 xLogD("TranslationWork gated: incognito/censor, skip manga=$mangaId chapter=$chapterId")
                 return Result.success()

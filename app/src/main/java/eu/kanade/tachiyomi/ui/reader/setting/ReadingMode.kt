@@ -80,7 +80,13 @@ enum class ReadingMode(
         ): Viewer {
             // Mihon -->
             val basePreferences = globalAppGraph.basePreferences
-            if (basePreferences.highQualityRenderer().get()) {
+            // KMK --> Gate the WebGPU renderer behind a total-RAM check: on low-memory devices the
+            // native renderer crashes with an uncatchable SIGSEGV (null GPUTexture in createView)
+            // when it cannot allocate GPU-visible memory. Fall back to the legacy pager viewers.
+            // KMK <--
+            val useHighQualityRenderer = basePreferences.highQualityRenderer().get() &&
+                exh.yakuyomi.DeviceMemory.isWebGpuSupported(activity)
+            if (useHighQualityRenderer) {
                 return when (fromPreference(preference)) {
                     LEFT_TO_RIGHT -> WebGpuViewer(activity, isReversed = false, isVertical = false)
                     RIGHT_TO_LEFT -> WebGpuViewer(activity, isReversed = true, isVertical = false)

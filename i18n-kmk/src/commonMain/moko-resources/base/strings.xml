@@ -363,6 +363,13 @@
     <string name="pref_yakuyomi_cache_enabled">Cache translated pages</string>
     <string name="pref_translate_manga">Translate Manga</string>
     <string name="pref_translate_manga_summary">Use AI translation for this manga (pages cached per model). Disabled by default.</string>
+    <string name="pref_translate_manga_info">Translate title &amp; description</string>
+    <string name="pref_translate_manga_info_summary">Translate this manga\'s title and description with the active provider, cached on device.</string>
+    <string name="mtl_info_translating">Translating info…</string>
+    <string name="mtl_info_translated_title">Translated title</string>
+    <string name="mtl_info_translated_description">Translated description</string>
+    <string name="mtl_info_reset">Reset translation</string>
+    <string name="mtl_info_failed">Info translation failed — check your provider/API key</string>
     <string name="mtl_translating">Translating…</string>
     <string name="mtl_translating_progress">Translating… %1$d/%2$d pages</string>
     <string name="mtl_translated">Translated</string>
@@ -381,4 +388,5 @@
     <string name="mtl_models_clear">Clear downloaded models</string>
     <string name="mtl_models_clear_summary">Remove model files from disk — they must be re-downloaded to translate</string>
     <string name="mtl_models_cleared">Models cleared</string>
+    <string name="stats_top_manga">Top manga by reading time</string>
 </resources>

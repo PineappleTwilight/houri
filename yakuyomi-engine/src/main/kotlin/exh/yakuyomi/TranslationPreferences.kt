@@ -22,6 +22,15 @@ class TranslationPreferences(
     fun model() = preferenceStore.getString("pref_yakuyomi_model", "google/gemma-2-9b-it:free")
 
     /**
+     * Selected on-device LLM id from [LocalLlmCatalog]. Empty means "auto" — the best-fitting
+     * model for this device is presented (and used) as the default. Only the RAM gate is enforced.
+     */
+    fun localModel() = preferenceStore.getString("pref_yakuyomi_local_model", "")
+
+    /** Backend preference for the local provider: "auto" | "mlc" | "executorch". */
+    fun localBackendPref() = preferenceStore.getString("pref_yakuyomi_local_backend", "auto")
+
+    /**
      * Whether to attempt on-device Gemini Nano (ML Kit GenAI / AICore) as the priority LLM
      * provider when the device supports it. Defaults to enabled; unsupported devices fall
      * back to the configured cloud provider automatically.

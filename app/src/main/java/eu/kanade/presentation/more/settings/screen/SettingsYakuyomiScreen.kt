@@ -23,6 +23,7 @@ import eu.kanade.tachiyomi.util.system.toast
 import exh.yakuyomi.ModelCatalog
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.persistentMapOf
+import kotlinx.collections.immutable.toPersistentList
 import mihon.app.di.globalAppGraph
 import tachiyomi.core.common.util.lang.withIOContext
 import tachiyomi.i18n.kmk.KMR
@@ -44,6 +45,7 @@ object SettingsYakuyomiScreen : SearchableSettings {
         return listOf(
             getGeneralGroup(prefs),
             getProviderGroup(prefs),
+            getLocalLlmGroup(),
             getModelGroup(modelManager),
             getBehaviorGroup(prefs, cache),
         )
@@ -52,81 +54,104 @@ object SettingsYakuyomiScreen : SearchableSettings {
     @Composable
     private fun getGeneralGroup(prefs: exh.yakuyomi.TranslationPreferences): Preference.PreferenceGroup {
         val enabled by prefs.enabled().collectAsState()
+        val context = LocalContext.current
+        val lowRam = !exh.yakuyomi.DeviceMemory.isMtlSupported(context)
         return Preference.PreferenceGroup(
             title = stringResource(KMR.strings.pref_yakuyomi_enabled),
-            preferenceItems = persistentListOf(
-                Preference.PreferenceItem.SwitchPreference(
-                    preference = prefs.enabled(),
-                    title = stringResource(KMR.strings.pref_yakuyomi_enabled),
-                    subtitle = stringResource(KMR.strings.pref_yakuyomi_enabled_summary),
-                ),
-                Preference.PreferenceItem.ListPreference(
-                    preference = prefs.targetLang(),
-                    entries = persistentMapOf(
-                        "en" to "English (EN)",
-                        "es" to "Español (ES)",
-                        "fr" to "Français (FR)",
-                        "de" to "Deutsch (DE)",
-                        "pt" to "Português (PT)",
-                        "ru" to "Русский (RU)",
-                        "it" to "Italiano (IT)",
-                        "pl" to "Polski (PL)",
-                        "tr" to "Türkçe (TR)",
-                        "id" to "Indonesia (ID)",
-                        "ar" to "العربية (AR)",
-                        "zh" to "中文 (ZH)",
-                        "ja" to "日本語 (JA)",
-                        "ko" to "한국어 (KO)",
-                        "th" to "ไทย (TH)",
-                        "vi" to "Tiếng Việt (VI)",
+            preferenceItems = buildList {
+                add(
+                    Preference.PreferenceItem.SwitchPreference(
+                        preference = prefs.enabled(),
+                        title = stringResource(KMR.strings.pref_yakuyomi_enabled),
+                        subtitle = stringResource(KMR.strings.pref_yakuyomi_enabled_summary),
+                        enabled = !lowRam,
                     ),
-                    title = stringResource(KMR.strings.pref_yakuyomi_target_lang),
-                    subtitle = stringResource(KMR.strings.pref_yakuyomi_target_lang) + ": %s",
-                    enabled = enabled,
-                ),
-                Preference.PreferenceItem.ListPreference(
-                    preference = prefs.fontFamily(),
-                    entries = persistentMapOf(
-                        "casual" to "Manga (Casual)",
-                        "sans-serif" to "Sans-serif",
-                        "sans-serif-condensed" to "Sans-serif Condensed",
-                        "serif" to "Serif",
-                        "serif-monospace" to "Serif Monospace",
-                        "monospace" to "Monospace",
-                        "cursive" to "Cursive",
-                        "default" to "System default",
+                )
+                if (lowRam) {
+                    add(
+                        Preference.PreferenceItem.InfoPreference(
+                            title = "This device has too little RAM for AI translation (needs 3GB+). " +
+                                "Translation is disabled to avoid crashes. Reading, downloads and all other features are unaffected.",
+                        ),
+                    )
+                }
+                add(
+                    Preference.PreferenceItem.ListPreference(
+                        preference = prefs.targetLang(),
+                        entries = persistentMapOf(
+                            "en" to "English (EN)",
+                            "es" to "Español (ES)",
+                            "fr" to "Français (FR)",
+                            "de" to "Deutsch (DE)",
+                            "pt" to "Português (PT)",
+                            "ru" to "Русский (RU)",
+                            "it" to "Italiano (IT)",
+                            "pl" to "Polski (PL)",
+                            "tr" to "Türkçe (TR)",
+                            "id" to "Indonesia (ID)",
+                            "ar" to "العربية (AR)",
+                            "zh" to "中文 (ZH)",
+                            "ja" to "日本語 (JA)",
+                            "ko" to "한국어 (KO)",
+                            "th" to "ไทย (TH)",
+                            "vi" to "Tiếng Việt (VI)",
+                        ),
+                        title = stringResource(KMR.strings.pref_yakuyomi_target_lang),
+                        subtitle = stringResource(KMR.strings.pref_yakuyomi_target_lang) + ": %s",
+                        enabled = enabled,
                     ),
-                    title = stringResource(KMR.strings.pref_yakuyomi_font_family),
-                    subtitle = stringResource(KMR.strings.pref_yakuyomi_font_family_summary) + ": %s",
-                    enabled = enabled,
-                ),
-                Preference.PreferenceItem.ListPreference(
-                    preference = prefs.translationTextColor(),
-                    entries = persistentMapOf(
-                        0xFF000000.toInt() to "Black (default)",
-                        0xFFFFFFFF.toInt() to "White",
-                        0xFF0000FF.toInt() to "Blue",
-                        0xFFFF0000.toInt() to "Red",
-                        0xFF008000.toInt() to "Green",
-                        0xFFFF8C00.toInt() to "Orange",
-                        0xFF800080.toInt() to "Purple",
+                )
+                add(
+                    Preference.PreferenceItem.ListPreference(
+                        preference = prefs.fontFamily(),
+                        entries = persistentMapOf(
+                            "casual" to "Manga (Casual)",
+                            "sans-serif" to "Sans-serif",
+                            "sans-serif-condensed" to "Sans-serif Condensed",
+                            "serif" to "Serif",
+                            "serif-monospace" to "Serif Monospace",
+                            "monospace" to "Monospace",
+                            "cursive" to "Cursive",
+                            "default" to "System default",
+                        ),
+                        title = stringResource(KMR.strings.pref_yakuyomi_font_family),
+                        subtitle = stringResource(KMR.strings.pref_yakuyomi_font_family_summary) + ": %s",
+                        enabled = enabled,
                     ),
-                    title = stringResource(KMR.strings.pref_yakuyomi_text_color),
-                    subtitle = stringResource(KMR.strings.pref_yakuyomi_text_color_summary) + ": %s",
-                    enabled = enabled,
-                ),
-                Preference.PreferenceItem.EditTextPreference(
-                    preference = prefs.translationTextColorHex(),
-                    title = stringResource(KMR.strings.pref_yakuyomi_text_color_custom),
-                    subtitle = "Custom hex color (e.g. #FFFFFF). Overrides the preset when valid: %s",
-                    validator = { it.isBlank() || HEX_COLOR_REGEX.matches(it.trim().removePrefix("#")) },
-                    enabled = enabled,
-                ),
-                Preference.PreferenceItem.InfoPreference(
-                    title = "EN → EN uses grammar/vocab fix (same LLM). " +
-                        "Disabled by default; uploads are gated by Incognito/Censor.",
-                ),
-            ),
+                )
+                add(
+                    Preference.PreferenceItem.ListPreference(
+                        preference = prefs.translationTextColor(),
+                        entries = persistentMapOf(
+                            0xFF000000.toInt() to "Black (default)",
+                            0xFFFFFFFF.toInt() to "White",
+                            0xFF0000FF.toInt() to "Blue",
+                            0xFFFF0000.toInt() to "Red",
+                            0xFF008000.toInt() to "Green",
+                            0xFFFF8C00.toInt() to "Orange",
+                            0xFF800080.toInt() to "Purple",
+                        ),
+                        title = stringResource(KMR.strings.pref_yakuyomi_text_color),
+                        subtitle = stringResource(KMR.strings.pref_yakuyomi_text_color_summary) + ": %s",
+                        enabled = enabled,
+                    ),
+                )
+                add(
+                    Preference.PreferenceItem.EditTextPreference(
+                        preference = prefs.translationTextColorHex(),
+                        title = stringResource(KMR.strings.pref_yakuyomi_text_color_custom),
+                        subtitle = "Custom hex color (e.g. #FFFFFF). Overrides the preset when valid: %s",
+                        validator = { it.isBlank() || HEX_COLOR_REGEX.matches(it.trim().removePrefix("#")) },
+                        enabled = enabled,
+                    ),
+                )
+                add(
+                    Preference.PreferenceItem.InfoPreference(
+                        title = "EN → EN uses grammar/vocab fix (same LLM). " +
+                            "Disabled by default; uploads are gated by Incognito/Censor.",
+                    ),
+                )
+            }.toPersistentList(),
         )
     }
 
@@ -225,6 +250,7 @@ object SettingsYakuyomiScreen : SearchableSettings {
                         "opencode_zen" to "OpenCode Zen",
                         "nvidia_nim" to "NVIDIA NIM",
                         "custom_openai" to "Custom OpenAI",
+                        "local" to "Local (On-device LLM)",
                     ),
                     title = stringResource(KMR.strings.pref_yakuyomi_provider),
                     enabled = enabled,
@@ -278,9 +304,146 @@ object SettingsYakuyomiScreen : SearchableSettings {
     }
 
     @Composable
+    private fun getLocalLlmGroup(): Preference.PreferenceGroup {
+        val prefs = remember { globalAppGraph.translationPreferences }
+        val manager = remember { globalAppGraph.localLlmManager }
+        val downloadManager = remember { globalAppGraph.localLlmDownloadManager }
+        val context = LocalContext.current
+        val enabled by prefs.enabled().collectAsState()
+        val provider by prefs.provider().collectAsState()
+        val localEnabled = enabled && provider == "local"
+        val status by downloadManager.status.collectAsState()
+        val model = remember(provider, enabled) { manager.resolveModel() }
+        val best = remember { exh.yakuyomi.LocalLlmCatalog.bestForDevice(exh.yakuyomi.DeviceMemory.totalRamBytes(context)) }
+        val runtimeBundled = remember { manager.isRuntimeAvailable() }
+
+        val entries = remember {
+            val base = persistentMapOf<String, String>("" to "Auto — best for this device")
+            val models = exh.yakuyomi.LocalLlmCatalog.allModels.associate { it.id to it.displayName }
+            persistentMapOf(*((base + models).toList()).toTypedArray())
+        }
+
+        val actionTitle = when (status.state) {
+            exh.yakuyomi.LocalLlmDownloadManager.State.DOWNLOADING -> "Cancel download"
+            exh.yakuyomi.LocalLlmDownloadManager.State.READY -> "Redownload"
+            else -> "Download model"
+        }
+
+        val modelSubtitle = when (val m = model) {
+            null -> "No model fits this device"
+            else -> {
+                val tier = when (m.qualityTier) {
+                    5 -> "Best"
+                    4 -> "High"
+                    3 -> "Good"
+                    else -> "Basic"
+                }
+                val vision = if (m.supportsVision) " · vision" else ""
+                val finetune = if (m.isTranslationFinetune) " · TL finetune" else ""
+                "$tier · ${m.paramsB}$vision$finetune · ${m.sizeBytes / (1024 * 1024)} MB"
+            }
+        }
+
+        return Preference.PreferenceGroup(
+            title = "Local (On-device LLM)",
+            preferenceItems = persistentListOf(
+                Preference.PreferenceItem.InfoPreference(
+                    title = "Runs a small LLM fully offline on this device — no API key needed. Uses MLC-LLM on the GPU, or ExecuTorch when an NPU is detected.",
+                ),
+                Preference.PreferenceItem.ListPreference(
+                    preference = prefs.localModel(),
+                    entries = entries,
+                    title = "Local model",
+                    subtitleProvider = { v, _ -> if (v.isNullOrBlank()) "Auto — ${best?.displayName ?: "none"}" else modelSubtitle },
+                    enabled = localEnabled,
+                ),
+                Preference.PreferenceItem.InfoPreference(
+                    title = buildString {
+                        append("Recommended for this device: ${best?.displayName ?: "none"}")
+                        if (!runtimeBundled) {
+                            append("\nThe on-device LLM runtime isn't bundled in this build — the local provider needs a build with the MLC-LLM/ExecuTorch runtimes.")
+                        } else {
+                            append("\nRuntime available. Only the RAM gate (3GB+) is enforced — any model you pick will run if it fits.")
+                        }
+                    },
+                ),
+                Preference.PreferenceItem.CustomPreference(
+                    title = "Download",
+                    content = {
+                        Column(modifier = Modifier.padding(vertical = 8.dp)) {
+                            when (status.state) {
+                                exh.yakuyomi.LocalLlmDownloadManager.State.READY -> {
+                                    Text(
+                                        text = "Installed: ${status.downloadedBytes / (1024 * 1024)} MB",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                    )
+                                }
+                                exh.yakuyomi.LocalLlmDownloadManager.State.DOWNLOADING -> {
+                                    val percent = (status.progress * 100).toInt()
+                                    Text(
+                                        text = "Downloading $percent%",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                    )
+                                    Spacer(modifier = Modifier.padding(vertical = 4.dp))
+                                    LinearProgressIndicator(
+                                        progress = { status.progress },
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(horizontal = 16.dp),
+                                    )
+                                    if (!status.currentFile.isNullOrBlank()) {
+                                        Spacer(modifier = Modifier.padding(vertical = 4.dp))
+                                        Text(
+                                            text = "File: ${status.currentFile}",
+                                            style = MaterialTheme.typography.bodySmall,
+                                        )
+                                    }
+                                }
+                                exh.yakuyomi.LocalLlmDownloadManager.State.ERROR -> {
+                                    Text(
+                                        text = status.error ?: "Download failed",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.error,
+                                    )
+                                }
+                                else -> {
+                                    Text(
+                                        text = "Not installed",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                    )
+                                }
+                            }
+                        }
+                    },
+                ),
+                Preference.PreferenceItem.TextPreference(
+                    title = actionTitle,
+                    onClick = {
+                        when (status.state) {
+                            exh.yakuyomi.LocalLlmDownloadManager.State.DOWNLOADING -> manager.cancelDownload()
+                            else -> manager.startDownload()
+                        }
+                    },
+                    enabled = localEnabled && manager.isRuntimeAvailable(),
+                ),
+                Preference.PreferenceItem.TextPreference(
+                    title = "Clear local model",
+                    subtitle = "Remove the downloaded model files",
+                    onClick = {
+                        manager.clearModel()
+                        context.toast("Local model cleared")
+                    },
+                    enabled = localEnabled && status.state != exh.yakuyomi.LocalLlmDownloadManager.State.DOWNLOADING,
+                ),
+            ),
+        )
+    }
+
+    @Composable
     private fun getModelGroup(modelManager: exh.yakuyomi.ModelManager): Preference.PreferenceGroup {
         val status by modelManager.status.collectAsState()
         val context = LocalContext.current
+        val lowRam = !exh.yakuyomi.DeviceMemory.isMtlSupported(context)
         val modelsClearedText = stringResource(KMR.strings.mtl_models_cleared)
         val actionTitle = when (status.state) {
             exh.yakuyomi.ModelManager.State.DOWNLOADING -> stringResource(KMR.strings.mtl_models_cancel)
@@ -349,6 +512,7 @@ object SettingsYakuyomiScreen : SearchableSettings {
                             else -> modelManager.startDownload()
                         }
                     },
+                    enabled = !lowRam,
                 ),
                 Preference.PreferenceItem.TextPreference(
                     title = stringResource(KMR.strings.mtl_models_clear),
@@ -357,7 +521,7 @@ object SettingsYakuyomiScreen : SearchableSettings {
                         modelManager.clearModels()
                         context.toast(modelsClearedText)
                     },
-                    enabled = status.state != exh.yakuyomi.ModelManager.State.DOWNLOADING,
+                    enabled = !lowRam && status.state != exh.yakuyomi.ModelManager.State.DOWNLOADING,
                 ),
             ),
         )
