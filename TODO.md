@@ -215,6 +215,12 @@
 - [x] **Subcategories**: Wire android backstack navigation to subcategories
   - Should properly exit the subcategory instead of exiting the app
 - [x] **MTL Engine**: Fix output LTR text being constrained vertically (like a top-to-bottom language) instead of allowing the full bubble width to fill
+- [ ] **Local MTL Provider**: Hide irrelevant provider options when selected
+- [ ] **Local MTL Provider**: Improve the UI and improve/harden/bugfix the backend engine.
+  - We should have buttons to start/stop the llamacpp engine that only work if we have a model able to load (duh)
+  - Toggle to start the llamacpp daemon on app startup
+  - Model downloading needs improvement
+  - Various UI jank needs improvement
 
 ## Chores
 - [x] Replace all Komikku icons/branding with houri icons/branding
