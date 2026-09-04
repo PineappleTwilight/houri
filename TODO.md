@@ -113,6 +113,10 @@
 - [x] **MTL Engine**: Translate manga info (title, description, etc)
 - [x] **DB Per-Manga Reading Time**: Expand feature with details from upstream [PR](https://github.com/mihonapp/mihon/pull/2728)
 - [x] **WebGPU Reader**: Port latest upstream [PR](https://github.com/mihonapp/mihon/pull/3886) changes if not already implemented
+- [ ] **Manga Details**: Improve "fill metadata from tracker" functionality
+  - Needs mangabaka support
+  - Expand metadata scope to include tags and publication status
+  - Allow per-category default tracker to use as an info source
 
 ## Bugfixes
 - [x] Fix UI transition choppiness.
