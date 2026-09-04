@@ -239,6 +239,9 @@
 - [ ] **MyAnimeList**: Update oauth client to use houri's oauth credentials and not komikkus
 - [ ] **Manga Details**: Fix blacklisted chapters still appearing in the chapter list
   - Also needs visual feedback when you blacklist a chapter
+- [ ] **Smart Scanlator Filter**: Fix users "getting stuck in the deduplication menu"
+- [ ] **Smart Scanlator Filter**: Fix non-rounded decimals inside the blacklisted chapters panel
+  - Decimals should be rounded to the 10th place
 
 ## Chores
 - [x] Replace all Komikku icons/branding with houri icons/branding
