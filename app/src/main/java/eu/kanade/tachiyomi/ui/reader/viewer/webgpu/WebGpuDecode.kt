@@ -356,7 +356,7 @@ internal suspend fun WebGpuViewer.decodeReaderPage(page: ViewerReaderPage) {
         // Translation gate: only small-enough pages are sent to LLM/cache
         val translationBytes: ByteArray? = if (decodeBytes.size in 1..32 * 1024 * 1024) decodeBytes else null
 
-        page.spreadPosition = run {
+        page.taggedSpreadPosition = run {
             val tag = try {
                 Kim.readMetadata(decodeBytes.inputStream(), decodeBytes.size.toLong())
                     ?.findStringValue(TiffTag.TIFF_TAG_PAGE_NAME)
@@ -368,11 +368,8 @@ internal suspend fun WebGpuViewer.decodeReaderPage(page: ViewerReaderPage) {
             when (tag) {
                 "Left" -> SpreadPosition.LEFT
                 "Right" -> SpreadPosition.RIGHT
-                null -> if (isReversed) {
-                    if (page.page.index % 2 == 0) SpreadPosition.LEFT else SpreadPosition.RIGHT
-                } else {
-                    if (page.page.index % 2 == 0) SpreadPosition.RIGHT else SpreadPosition.LEFT
-                }
+                // Left untouched for a file that names no side - [spreadPosition] then derives one.
+                null -> null
                 else -> SpreadPosition.SINGLE
             }
         }
@@ -458,12 +455,13 @@ internal suspend fun WebGpuViewer.decodeReaderPage(page: ViewerReaderPage) {
             if (pageInCache(page) && !page.isDecoded && !page.imagePage.destroyed) {
                 val oldImagePage = page.imagePage
                 page.imagePage = imagePage
+                noteIfLone(page)
                 page.state = PageState.IDLE
                 oldImagePage.cleanup()
                 val decodedSingle = page.imagePage as? ImagePage.ImageSingle
                 if (decodedSingle != null) {
                     // KMK -->
-                    if (page.spreadPosition == SpreadPosition.SINGLE) {
+                    if (!isDualPageMode()) {
                         if (!applyWideZoomIfNeeded(decodedSingle)) {
                             applyFitModeAnchor(decodedSingle)
                         }
@@ -540,6 +538,10 @@ internal fun WebGpuViewer.applyWideZoomIfNeeded(page: ImagePage.ImageSingle): Bo
         page.trimWidth.toFloat() / page.trimHeight.toFloat(),
         image.width.toFloat() / image.height.toFloat(),
     )
+
+    // not wide enough
+    if (aspectRatio < 1.1) return false
+
     if (aspectRatio <= 2f * screenW.toFloat() / screenH) return false
 
     // Scale to fit half the image width to the full screen width

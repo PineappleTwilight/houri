@@ -13,6 +13,7 @@ import ca.mpreg.webgpuviewer.transition.TransitionCube
 import ca.mpreg.webgpuviewer.transition.TransitionCubeOuter
 import ca.mpreg.webgpuviewer.transition.TransitionFade
 import ca.mpreg.webgpuviewer.transition.TransitionFadeWhite
+import ca.mpreg.webgpuviewer.transition.TransitionFlip
 import ca.mpreg.webgpuviewer.transition.TransitionFlipLeft
 import ca.mpreg.webgpuviewer.transition.TransitionFlipRight
 import ca.mpreg.webgpuviewer.transition.TransitionSphere
@@ -28,6 +29,7 @@ import eu.kanade.tachiyomi.ui.reader.model.ReaderPage
 import eu.kanade.tachiyomi.ui.reader.model.ViewerChapters
 import eu.kanade.tachiyomi.ui.reader.setting.ReaderPreferences
 import eu.kanade.tachiyomi.ui.reader.setting.ReaderPreferences.TransitionAnimation
+import eu.kanade.tachiyomi.ui.reader.viewer.ReaderPageImageView
 import eu.kanade.tachiyomi.ui.reader.viewer.Viewer
 import eu.kanade.tachiyomi.ui.reader.viewer.ViewerNavigation.NavigationRegion
 import eu.kanade.tachiyomi.util.system.createReaderThemeContext
@@ -42,6 +44,7 @@ import kotlinx.coroutines.launch
 import logcat.LogPriority
 import mihon.app.di.globalAppGraph
 import tachiyomi.core.common.util.system.logcat
+import java.util.TreeSet
 import java.util.concurrent.Executors
 import kotlin.math.abs
 import kotlin.math.min
@@ -97,6 +100,65 @@ open class WebGpuViewer(
     // KMK -->
     private val chapterPreloadGuard = ChapterPreloadGuard()
     // KMK <--
+
+    /**
+     * Indices of the pages that take a spread to themselves, by chapter - see [spreadStartIndex].
+     * Outlives [pageCache]: every page after one of these depends on it, long since evicted.
+     */
+    private val loneIndices = HashMap<Long?, TreeSet<Int>>()
+
+    /** Above this, an untagged page is a spread already, not half of one. */
+    internal val wideAspect = 1.2f
+
+    /** How far two untagged pages' aspect ratios may differ and still pair. */
+    private val pairAspectTolerance = 0.1f
+
+    /** Read live: these pages are built before the surface has a size, and outlive a rotation. */
+    internal fun viewportPageWidth(half: Boolean): Int = if (half) pager.state.width / 2 else pager.state.width
+
+    /** The half a spread opens on: right reading right-to-left, left otherwise. */
+    private val anchorPosition get() = if (isReversed) SpreadPosition.RIGHT else SpreadPosition.LEFT
+
+    private val partnerPosition get() = if (isReversed) SpreadPosition.LEFT else SpreadPosition.RIGHT
+
+    /**
+     * Which half a page falls on when nothing tags the file: alternating from its spread's start,
+     * anchor then partner. SINGLE outside dual page mode, so nothing pairs while one page fills
+     * the viewer.
+     */
+    internal fun derivedSpreadPosition(page: ReaderPage): SpreadPosition {
+        if (!isDualPageMode()) return SpreadPosition.SINGLE
+        val offset = page.index - spreadStartIndex(page.chapter.chapter.id, page.index)
+        return if (offset >= 0 && offset % 2 == 0) anchorPosition else partnerPosition
+    }
+
+    /**
+     * Where the spread holding [index] starts: just past the last page before it that took one to
+     * itself, so the page after a detected spread opens the next one instead of inheriting a parity
+     * that page broke. Defaults to 1 - page 0 is the cover, and pairs with nothing.
+     */
+    private fun spreadStartIndex(chapterId: Long?, index: Int): Int {
+        val lone = synchronized(lock) { loneIndices[chapterId]?.lower(index) } ?: return 1
+        return lone + 1
+    }
+
+    /** Registers whether [page] stands alone, for [spreadStartIndex]. Must hold [lock]. */
+    internal fun noteIfLone(page: ViewerReaderPage) {
+        val indices = loneIndices.getOrPut(page.page.chapter.chapter.id) { TreeSet() }
+        if (page.standsAlone) indices.add(page.page.index) else indices.remove(page.page.index)
+    }
+
+    /**
+     * Whether these two may share a spread, beyond their positions agreeing. Both tagged is taken
+     * as read; a pair resting on page order needs the same shape - halves of one sheet scan alike.
+     * Undecoded pairs anyway, or a loading page draws its ring mid-screen.
+     */
+    internal fun canPairShapes(anchor: ViewerReaderPage, partner: ViewerReaderPage): Boolean {
+        if (anchor.taggedSpreadPosition != null && partner.taggedSpreadPosition != null) return true
+        val a = anchor.aspectRatio ?: return true
+        val b = partner.aspectRatio ?: return true
+        return abs(a - b) <= pairAspectTolerance
+    }
 
     internal fun findInCache(key: PageKey): ViewerPage? = pageCache[key]
 
@@ -211,7 +273,11 @@ open class WebGpuViewer(
     open val preloadAhead = 3
     open val preloadBehind = 2
 
-    open val cacheSize get() = 1 + preloadAhead + preloadBehind
+    /**
+     * Everything [preloadPages] reaches, plus slack. Sized exactly, a chapter transition page - or
+     * in dual mode a spread partner - evicts a page the next fetch asks for, and it decodes again.
+     */
+    open val cacheSize get() = 1 + preloadAhead + preloadBehind + if (isDualPageMode()) 3 else 1
 
     /**
      * Kicks off loading [chapter] and, once its pages actually show up, re-runs
@@ -341,8 +407,10 @@ open class WebGpuViewer(
         config.imagePropertyChangedListener = listener@{
             if (isDestroyed) return@listener
             pager.state.apply {
-                transition = when (config.transitionAnimation) {
-                    TransitionAnimation.DEFAULT -> if (isVertical) TransitionBasic.Vertical else TransitionBasic
+                val isDual = isDualPageMode()
+                transition = when (if (isDual) config.transitionAnimationDual else config.transitionAnimation) {
+                    TransitionAnimation.BASIC -> if (isVertical) TransitionBasic.Vertical else TransitionBasic
+                    TransitionAnimation.FLIP -> TransitionFlip
                     TransitionAnimation.FLIP_LEFT -> TransitionFlipLeft
                     TransitionAnimation.FLIP_RIGHT -> TransitionFlipRight
                     TransitionAnimation.STACK_LEFT -> TransitionStackLeft
@@ -356,7 +424,7 @@ open class WebGpuViewer(
                     TransitionAnimation.FADE_WHITE -> TransitionFadeWhite
                 }
 
-                when (config.cutoutMode) {
+                when (if (isDual) config.cutoutModeDual else config.cutoutMode) {
                     ReaderPreferences.CutoutMode.IGNORE -> avoidCutout = false
 
                     ReaderPreferences.CutoutMode.AVOID -> {
@@ -368,6 +436,11 @@ open class WebGpuViewer(
                         avoidCutout = true
                         alwaysAvoidCutout = true
                     }
+                }
+
+                (this as? ca.mpreg.webgpuviewer.viewer.ImageViewerContinuousState)?.let {
+                    minZoomWidthFraction = config.continuousMinWidth / 100f
+                    scale = minScale
                 }
             }
 
@@ -394,6 +467,7 @@ open class WebGpuViewer(
                     }
                 }
                 pageCache.clear()
+                loneIndices.clear()
 
                 currentPage = (currentPage as? ViewerReaderPage)?.page?.let { getPage(it) }
                     ?: (currentPage as? ViewerTransitionPage)?.let {
@@ -478,6 +552,7 @@ open class WebGpuViewer(
                 }
             }
             pageCache.clear()
+            loneIndices.clear()
             try {
                 lock.notifyAll()
             } catch (_: Exception) {
@@ -648,7 +723,7 @@ open class WebGpuViewer(
             if (config.navigateToPan) {
                 val minX = page.minX(page.scale)
                 val maxX = page.maxX(page.scale)
-                val c = if (isReversed) -1 else 1
+                val c = if (isVertical && config.imageZoomType == ReaderPageImageView.ZoomStartPosition.RIGHT) -1 else 1
                 val x = (page.x - c / page.scale).coerceIn(minX, maxX)
                 if (x != page.x) {
                     if (page.animationJob?.isActive == true && page.animationTargetX == x) {
@@ -672,7 +747,7 @@ open class WebGpuViewer(
             if (config.navigateToPan) {
                 val minX = page.minX(page.scale)
                 val maxX = page.maxX(page.scale)
-                val c = if (isReversed) -1 else 1
+                val c = if (isVertical && config.imageZoomType == ReaderPageImageView.ZoomStartPosition.RIGHT) -1 else 1
                 val x = (page.x + c / page.scale).coerceIn(minX, maxX)
                 if (x != page.x) {
                     if (page.animationJob?.isActive == true && page.animationTargetX == x) {

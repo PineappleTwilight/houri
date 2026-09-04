@@ -14,6 +14,7 @@ import eu.kanade.tachiyomi.ui.reader.setting.ReaderPreferences
 import eu.kanade.tachiyomi.ui.reader.setting.ReaderSettingsScreenModel
 import eu.kanade.tachiyomi.ui.reader.setting.ReadingMode
 import eu.kanade.tachiyomi.ui.reader.viewer.webgpu.WebGpuViewer
+import eu.kanade.tachiyomi.ui.reader.viewer.webgpu.isDualPageMode
 import eu.kanade.tachiyomi.ui.reader.viewer.webtoon.WebtoonViewer
 import tachiyomi.i18n.MR
 import tachiyomi.i18n.kmk.KMR
@@ -63,6 +64,21 @@ internal fun ReadingModePage(screenModel: ReaderSettingsScreenModel) {
         }
     }
     // Mihon <--
+
+    if (resolved == ReadingMode.WEBTOON) {
+        val numberFormat = remember { NumberFormat.getPercentInstance() }
+        val continuousMinWidth by screenModel.preferences.continuousMinWidth().collectAsState()
+        SliderItem(
+            value = continuousMinWidth,
+            valueRange = ReaderPreferences.let { 1..100 },
+            label = stringResource(MR.strings.pref_continuous_minwidth),
+            valueString = numberFormat.format(continuousMinWidth / 100f),
+            onChange = {
+                screenModel.preferences.continuousMinWidth().set(it)
+            },
+            pillColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+        )
+    }
 
     val orientation = remember(manga) { ReaderOrientation.fromPreference(manga?.readerOrientation?.toInt()) }
     SettingsChipRow(MR.strings.rotation_type) {
@@ -365,6 +381,37 @@ private fun WebtoonWithGapsViewerSettings(screenModel: ReaderSettingsScreenModel
 @Composable
 private fun WebGpuViewerSettings(screenModel: ReaderSettingsScreenModel) {
     HeadingItem(MR.strings.webgpu_viewer)
+
+    val viewer by screenModel.viewerFlow.collectAsState()
+
+    val isDual = (viewer as? WebGpuViewer)?.isDualPageMode() == true
+
+    if (isDual) {
+        val transitionAnimationDual by screenModel.preferences.transitionAnimationDual().collectAsState()
+        SettingsChipRow(MR.strings.pref_transition_animation_dual) {
+            (
+                ReaderPreferences.TransitionAnimation.entries - ReaderPreferences.TransitionAnimation.FLIP_LEFT -
+                    ReaderPreferences.TransitionAnimation.FLIP_RIGHT
+                ).forEach {
+                FilterChip(
+                    selected = it == transitionAnimationDual,
+                    onClick = { screenModel.preferences.transitionAnimationDual().set(it) },
+                    label = { Text(stringResource(it.titleRes)) },
+                )
+            }
+        }
+        val cutoutModeDual by screenModel.preferences.cutoutModeDual().collectAsState()
+        SettingsChipRow(MR.strings.pref_cutout_mode_dual) {
+            ReaderPreferences.CutoutMode.entries.forEach {
+                FilterChip(
+                    selected = it == cutoutModeDual,
+                    onClick = { screenModel.preferences.cutoutModeDual().set(it) },
+                    label = { Text(stringResource(it.titleRes)) },
+                )
+            }
+        }
+        return
+    }
 
     val transitionAnimation by screenModel.preferences.transitionAnimation().collectAsState()
     SettingsChipRow(MR.strings.pref_transition_animation) {

@@ -19,7 +19,7 @@ import kotlin.math.roundToInt
  * Check if dual page mode is currently active based on config and view dimensions.
  * Dual page is never active for continuous (scrolling) viewers.
  */
-internal fun WebGpuViewer.isDualPageMode(): Boolean {
+fun WebGpuViewer.isDualPageMode(): Boolean {
     if (isContinuous) return false
     return when (config.dualPageView) {
         ReaderPreferences.DualPageView.NEVER -> false
@@ -45,7 +45,7 @@ internal fun WebGpuViewer.canFormSpread(page: ViewerReaderPage): Boolean {
     if (page.spreadPosition != anchorPosition) return false
     val next = page.next as? ViewerReaderPage ?: return false
     if (next.page.chapter != page.page.chapter) return false
-    return next.spreadPosition == partnerPosition
+    return next.spreadPosition == partnerPosition && canPairShapes(page, next)
 }
 
 /**
@@ -63,7 +63,9 @@ internal fun WebGpuViewer.getSpreadAnchor(page: ViewerPage): ViewerPage {
     // If this is a partner page, check if previous is anchor
     if (page.spreadPosition == partnerPosition) {
         val prev = page.prev as? ViewerReaderPage ?: return page
-        if (prev.page.chapter == page.page.chapter && prev.spreadPosition == anchorPosition) {
+        if (prev.page.chapter == page.page.chapter && prev.spreadPosition == anchorPosition &&
+            canPairShapes(prev, page)
+        ) {
             return prev
         }
     }
@@ -107,7 +109,8 @@ internal fun WebGpuViewer.buildSpreadPage(page: ViewerPage): ImagePage {
         null
     }
     val partnerImagePage = nextReaderPage?.imagePage?.takeIf {
-        nextReaderPage.spreadPosition == partnerPosition
+        nextReaderPage.spreadPosition == partnerPosition &&
+            canPairShapes(page, nextReaderPage)
     }
 
     // LEFT/RIGHT map directly to the spread's left/right slot - independent of reading

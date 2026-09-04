@@ -193,10 +193,19 @@ class ReaderPreferences(
 
     fun transitionAnimation() = preferenceStore.getEnum(
         "webgpu_transition_animation",
-        TransitionAnimation.DEFAULT,
+        TransitionAnimation.BASIC,
+    )
+
+    fun transitionAnimationDual() = preferenceStore.getEnum(
+        "webgpu_dual_transition_animation",
+        TransitionAnimation.BASIC,
     )
 
     fun cutoutMode() = preferenceStore.getEnum("webgpu_cutout_mode", CutoutMode.AVOID)
+
+    fun cutoutModeDual() = preferenceStore.getEnum("webgpu_dual_cutout_mode", CutoutMode.IGNORE)
+
+    fun continuousMinWidth() = preferenceStore.getInt("webgpu_continuous_minwidth", 100)
 
     // endregion
     // Mihon <--
@@ -300,7 +309,8 @@ class ReaderPreferences(
 
     // Mihon -->
     enum class TransitionAnimation(val titleRes: StringResource) {
-        DEFAULT(MR.strings.transition_animation_default),
+        BASIC(MR.strings.transition_animation_basic),
+        FLIP(MR.strings.transition_animation_flip),
         FLIP_LEFT(MR.strings.transition_animation_flip_left),
         FLIP_RIGHT(MR.strings.transition_animation_flip_right),
         STACK_LEFT(MR.strings.transition_animation_stack_left),

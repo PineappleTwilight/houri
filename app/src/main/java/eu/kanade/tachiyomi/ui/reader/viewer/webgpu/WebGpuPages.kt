@@ -81,8 +81,35 @@ class ViewerReaderPage(
     /** Cached spread ImagePage when this page is the anchor of a dual-page spread */
     var spreadPage: ImagePage.ImageSpread? = null
 
-    /** Which side of a dual-page spread this page belongs on - set once decoding tags it. */
-    internal var spreadPosition: SpreadPosition = SpreadPosition.SINGLE
+    /** The side the file names, or null for none. Never a value merely derived from the index. */
+    @Volatile
+    internal var taggedSpreadPosition: SpreadPosition? = null
+
+    /** The decoded image's shape, or null while this page is still a placeholder. */
+    internal val aspectRatio: Float?
+        get() = (imagePage as? ImagePage.ImageSingle)?.let {
+            val height = it.trimHeight
+            if (it.isDecoded && height > 0) it.trimWidth.toFloat() / height else null
+        }
+
+    /**
+     * Which half of a spread this page is on - derived until the file tags it. Without that a
+     * still-loading page stays SINGLE, never pairs, and its ring draws mid-screen; deriving it
+     * live also re-decides it on a rotation in or out of dual mode.
+     *
+     * Untagged goes by [wideAspect] first, then [derivedSpreadPosition].
+     */
+    internal val spreadPosition: SpreadPosition
+        get() {
+            taggedSpreadPosition?.let { return it }
+            if (standsAlone) return SpreadPosition.SINGLE
+            return viewer.derivedSpreadPosition(page)
+        }
+
+    /** True when nothing may share this page's spread - it is one already. */
+    internal val standsAlone: Boolean
+        get() = taggedSpreadPosition == SpreadPosition.SINGLE ||
+            (aspectRatio ?: 0f) > viewer.wideAspect
 
     // KMK -->
     /**
@@ -154,11 +181,13 @@ class ViewerReaderPage(
 class ErrorPage(
     private val viewer: WebGpuViewer,
     var message: String,
-    spreadPosition: SpreadPosition = SpreadPosition.SINGLE,
-) : ImagePage.Render(
-    (if (spreadPosition == SpreadPosition.SINGLE) viewer.pager.state.width else viewer.pager.state.width / 2).coerceAtLeast(1),
-    viewer.pager.state.height.coerceAtLeast(1),
-) {
+    private val spreadPosition: SpreadPosition = SpreadPosition.SINGLE,
+) : ImagePage.Render(0, 0) {
+    override val width: Int
+        get() = viewer.viewportPageWidth(spreadPosition != SpreadPosition.SINGLE)
+    override val height: Int
+        get() = viewer.pager.state.height
+
     init {
         minScale = 1f
         maxScale = 1f
@@ -217,10 +246,12 @@ class ProgressPage(
     } catch (_: Exception) {
         Color.WHITE
     },
-) : ImagePage.Render(
-    (if (!viewer.isDualPageMode()) viewer.pager.state.width else viewer.pager.state.width / 2).coerceAtLeast(1),
-    viewer.pager.state.height.coerceAtLeast(1),
-) {
+) : ImagePage.Render(0, 0) {
+    override val width: Int
+        get() = viewer.viewportPageWidth(viewer.isDualPageMode())
+    override val height: Int
+        get() = viewer.pager.state.height
+
     var progress: Float = 0f
 
     init {
@@ -238,6 +269,8 @@ class ProgressPage(
 
     override fun render(dst: GPUTexture, x: Float, y: Float, scale: Float) {
         if (viewer.isDestroyed || dst.width <= 0 || dst.height <= 0) return
+        // Its own footprint, so the page carries its background wherever a transition puts it.
+        fillPage(dst, x, y, scale, backgroundColor)
         val cx = dst.width * (0.5f + scale * x)
         val cy = dst.height * (0.5f + scale * y)
         val full = try {
@@ -304,10 +337,13 @@ class TransitionPage(
     private val viewer: WebGpuViewer,
     val prevChapter: ReaderChapter?,
     val nextChapter: ReaderChapter?,
-) : ImagePage.Render(
-    min(viewer.pager.state.width.coerceAtLeast(1), viewer.pager.state.height.coerceAtLeast(1)).coerceAtLeast(1),
-    min(viewer.pager.state.width.coerceAtLeast(1), viewer.pager.state.height.coerceAtLeast(1)).coerceAtLeast(1),
-) {
+) : ImagePage.Render(0, 0) {
+    /** Square, and never a spread side - [WebGpuViewer.buildSpreadPage] hands it back whole. */
+    override val width: Int
+        get() = min(viewer.pager.state.width, viewer.pager.state.height)
+    override val height: Int
+        get() = width
+
     init {
         minScale = 1f
         maxScale = 1f
@@ -323,6 +359,8 @@ class TransitionPage(
 
     override fun render(dst: GPUTexture, x: Float, y: Float, scale: Float) {
         if (viewer.isDestroyed || dst.width <= 0 || dst.height <= 0) return
+        // Its own footprint, so the page carries its background wherever a transition puts it.
+        fillPage(dst, x, y, scale, backgroundColor)
         val lines: MutableList<String> = mutableListOf()
         try {
             prevChapter?.chapter?.let { chapter ->
