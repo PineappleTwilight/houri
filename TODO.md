@@ -226,6 +226,10 @@
   - Toggle to start the llamacpp daemon on app startup
   - Model downloading needs improvement
   - Various UI jank needs improvement
+- [x] **Local MTL Provider**: Vision variants for local gemma models (mmproj via MultimodalBridge)
+- [x] **Local MTL Provider**: Per-model llama.cpp sampling settings (temp/top_p/top_k/repeat_penalty/max_tokens/context/threads) via an "Advanced (llama.cpp)" submenu, hidden without a selected model
+- [x] **Local MTL Provider**: GGUF import overhaul — background copy (no UI freeze), original filename preserved, duplicate detection (re-import just switches to the model), imported models listed in the picker
+- [x] **Local MTL Provider**: Fix model download stalling ~150 MB — throttled progress emissions, dedicated read-timeout client, HTTP Range resume, free-space pre-check, size verification
 
 ## Chores
 - [x] Replace all Komikku icons/branding with houri icons/branding
