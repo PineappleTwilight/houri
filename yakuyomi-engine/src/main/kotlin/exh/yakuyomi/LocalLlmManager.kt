@@ -7,6 +7,9 @@ import dev.zacsweers.metro.SingleIn
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -27,10 +30,19 @@ class LocalLlmManager(
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val backendMutex = Mutex()
 
+    private val _running = MutableStateFlow(false)
+    val running: StateFlow<Boolean> = _running.asStateFlow()
+
+    private val _loading = MutableStateFlow(false)
+    val loading: StateFlow<Boolean> = _loading.asStateFlow()
+
     @Volatile
     private var current: Pair<LocalLlmModel, LocalLlmBackend>? = null
 
     fun isLocalProvider(): Boolean = prefs.provider().get().equals("local", ignoreCase = true)
+
+    /** Whether a model is loaded in memory (the engine is warm). */
+    fun isRunning(): Boolean = _running.value
 
     /** Custom user-supplied GGUF (absolute path), or null. */
     private fun customModel(): LocalLlmModel? {
@@ -73,12 +85,36 @@ class LocalLlmManager(
 
     fun cancelDownload() = downloadManager.cancelDownload()
 
+    /** Warms the engine: eagerly loads the resolved model. No-op when it is already loaded. */
+    fun start() {
+        val model = resolveModel() ?: return
+        if (!downloadManager.isDownloaded(model)) return
+        _loading.value = true
+        scope.launch {
+            backendFor(model)
+            _loading.value = false
+        }
+    }
+
+    /** Unloads the model and frees the native memory. */
+    fun stop() {
+        _loading.value = false
+        scope.launch {
+            backendMutex.withLock {
+                current?.second?.close()
+                current = null
+                _running.value = false
+            }
+        }
+    }
+
     fun clearModel() {
         val model = resolveModel() ?: return
         scope.launch {
             backendMutex.withLock {
                 current?.second?.close()
                 current = null
+                _running.value = false
             }
         }
         if (model.isCustom) {
@@ -115,9 +151,13 @@ class LocalLlmManager(
         current?.let { (m, b) -> if (m.id == model.id) return b }
         current?.second?.close()
         current = null
+        _running.value = false
         val dir = downloadManager.modelDir(model)
         val backend = LlamaCppLlmBackend.create(model, dir) { msg -> logcat { "llama.cpp: $msg" } }
-        if (backend != null) current = model to backend
+        if (backend != null) {
+            current = model to backend
+            _running.value = true
+        }
         backend
     }
 
@@ -126,6 +166,7 @@ class LocalLlmManager(
             backendMutex.withLock {
                 current?.second?.close()
                 current = null
+                _running.value = false
             }
         }
     }

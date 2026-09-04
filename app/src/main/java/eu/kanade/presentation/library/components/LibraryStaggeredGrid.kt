@@ -18,10 +18,8 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -60,6 +58,10 @@ internal fun LibraryStaggeredGrid(
     searchQuery: String?,
     onGlobalSearchClicked: () -> Unit,
 ) {
+    // Hoisted from the item: a remembered-per-composition ratio resets whenever an item is
+    // evicted, then jumps to the real value when the cover reloads - reflowing the whole
+    // masonry below it, which reads as entries swapping places when scrolling back up.
+    val coverRatios = remember { mutableStateMapOf<Long, Float>() }
     LazyVerticalStaggeredGrid(
         columns = if (columns == 0) StaggeredGridCells.Adaptive(128.dp) else StaggeredGridCells.Fixed(columns),
         modifier = Modifier.fillMaxSize(),
@@ -97,6 +99,8 @@ internal fun LibraryStaggeredGrid(
             LibraryStaggeredGridItem(
                 item = libraryItem,
                 coverData = coverData,
+                coverRatio = coverRatios[libraryItem.id] ?: LibraryStaggeredGridDefaults.DEFAULT_COVER_RATIO,
+                onCoverLoaded = { ratio -> coverRatios[libraryItem.id] = ratio },
                 isSelected = manga.id in selection,
                 onClick = { onClick(libraryItem.libraryManga) },
                 onLongClick = { onLongClick(libraryItem.libraryManga) },
@@ -109,12 +113,13 @@ internal fun LibraryStaggeredGrid(
 private fun LibraryStaggeredGridItem(
     item: LibraryItem,
     coverData: MangaCoverModel,
+    coverRatio: Float,
+    onCoverLoaded: (Float) -> Unit,
     isSelected: Boolean,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
 ) {
     val manga = item.libraryManga.manga
-    var coverRatio by remember(manga.id) { mutableFloatStateOf(LibraryStaggeredGridDefaults.DEFAULT_COVER_RATIO) }
 
     Column(
         modifier = Modifier
@@ -142,8 +147,10 @@ private fun LibraryStaggeredGridItem(
             onSuccess = { state ->
                 val size = state.painter.intrinsicSize
                 if (size.width > 0f && size.height > 0f) {
-                    coverRatio = (size.width / size.height)
-                        .coerceIn(LibraryStaggeredGridDefaults.MIN_COVER_RATIO, LibraryStaggeredGridDefaults.MAX_COVER_RATIO)
+                    onCoverLoaded(
+                        (size.width / size.height)
+                            .coerceIn(LibraryStaggeredGridDefaults.MIN_COVER_RATIO, LibraryStaggeredGridDefaults.MAX_COVER_RATIO),
+                    )
                 }
             },
         )

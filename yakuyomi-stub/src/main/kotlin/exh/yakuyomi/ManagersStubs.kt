@@ -75,13 +75,25 @@ class LocalLlmDownloadManager(
 @Inject
 class LocalLlmManager {
 
+    private val _running = MutableStateFlow(false)
+    val running: StateFlow<Boolean> = _running.asStateFlow()
+
+    private val _loading = MutableStateFlow(false)
+    val loading: StateFlow<Boolean> = _loading.asStateFlow()
+
     fun isLocalProvider(): Boolean = false
+
+    fun isRunning(): Boolean = false
 
     fun resolveModel(): LocalLlmModel? = null
 
     fun isModelReady(): Boolean = false
 
     fun status(): LocalLlmDownloadManager.Status = LocalLlmDownloadManager.Status(LocalLlmDownloadManager.State.NOT_INSTALLED)
+
+    fun start() = Unit
+
+    fun stop() = Unit
 
     fun startDownload() = Unit
 

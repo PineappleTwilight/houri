@@ -103,6 +103,11 @@ class TranslationWork(
                 var cached = 0
                 var errored = 0
                 val orderedPages = pages.sortedBy { it.first }
+                // On a retry, drop the previous run's stale ERROR/DONE states so the chapter list
+                // doesn't keep showing an error badge while this attempt re-translates.
+                if (runAttemptCount > 0) {
+                    globalAppGraph.translationStatus.resetChapter(mangaId, chapterId)
+                }
                 // Declare the page count up front so the chapter list shows live progress instead of 0%.
                 globalAppGraph.translationStatus.setTotalPages(mangaId, chapterId, orderedPages.size)
                 for ((index, bytes) in orderedPages) {
@@ -130,9 +135,9 @@ class TranslationWork(
                     }
                 }
                 xLogD("TranslationWork processed ${pages.size} pages manga=$mangaId chapter=$chapterId translated=$translated cached/skipped=$cached errored=$errored")
-                // If every page failed (e.g. transient LLM/network error), retry with backoff a
-                // bounded number of times instead of silently marking the chapter "done".
-                if (errored > 0 && translated == 0 && runAttemptCount < MAX_ATTEMPTS) {
+                // If any page failed (e.g. transient LLM/network error), retry with backoff a
+                // bounded number of times; the cache/saved-page fast paths make re-runs cheap.
+                if (errored > 0 && runAttemptCount < MAX_ATTEMPTS) {
                     xLogD("TranslationWork retrying manga=$mangaId chapter=$chapterId attempt=${runAttemptCount + 1} errored=$errored")
                     return Result.retry()
                 }

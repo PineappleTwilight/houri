@@ -1,9 +1,15 @@
 package eu.kanade.presentation.more.settings.screen
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -15,7 +21,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import eu.kanade.presentation.more.settings.Preference
@@ -42,7 +51,7 @@ object SettingsYakuyomiScreen : SearchableSettings {
         val cache = remember { globalAppGraph.translationCache }
         val modelManager = remember { globalAppGraph.modelManager }
 
-        return listOf(
+        return listOfNotNull(
             getGeneralGroup(prefs),
             getProviderGroup(prefs),
             getLocalLlmGroup(),
@@ -198,113 +207,135 @@ object SettingsYakuyomiScreen : SearchableSettings {
             else -> apiKey.take(4) + "••••••••"
         }
 
+        val isLocalProvider = provider == "local"
+
         return Preference.PreferenceGroup(
             title = stringResource(KMR.strings.pref_yakuyomi_provider),
-            preferenceItems = persistentListOf(
-                Preference.PreferenceItem.SwitchPreference(
-                    preference = prefs.geminiNanoEnabled(),
-                    title = stringResource(KMR.strings.pref_yakuyomi_gemini_nano),
-                    subtitle = stringResource(KMR.strings.pref_yakuyomi_gemini_nano_summary),
-                    enabled = enabled,
-                ),
-                Preference.PreferenceItem.CustomPreference(
-                    title = "Gemini Nano device status",
-                    content = {
-                        var statusText by remember { mutableStateOf("Checking…") }
-                        LaunchedEffect(Unit) {
-                            statusText = withIOContext {
-                                val nano = globalAppGraph.geminiNanoTranslator
-                                when {
-                                    !prefs.geminiNanoEnabled().get() -> "Disabled by toggle — cloud provider will be used"
-                                    nano.isAvailable() -> "Available — on-device translation active"
-                                    else -> {
-                                        val err = nano.statusError()
-                                        if (!err.isNullOrBlank() && (
-                                                err.contains("601") || err.contains("BINDING") ||
-                                                    err.contains("606") || err.contains("FEATURE_NOT_FOUND")
-                                                )
-                                        ) {
-                                            "AICore is still setting up (${err.substringAfter("error code ").substringBefore(":").trim()}) — " +
-                                                "update Google AI Core / restart the device, then check again. Cloud provider will be used meanwhile."
-                                        } else {
-                                            "Not available on this device right now — cloud provider will be used. " +
-                                                "If this device supports Gemini Nano (e.g. Pixel 8+/Samsung S24+), AICore may still be provisioning — " +
-                                                "update Google AI Core and restart, then re-open this screen."
+            preferenceItems = buildList {
+                add(
+                    Preference.PreferenceItem.SwitchPreference(
+                        preference = prefs.geminiNanoEnabled(),
+                        title = stringResource(KMR.strings.pref_yakuyomi_gemini_nano),
+                        subtitle = stringResource(KMR.strings.pref_yakuyomi_gemini_nano_summary),
+                        enabled = enabled,
+                    ),
+                )
+                add(
+                    Preference.PreferenceItem.CustomPreference(
+                        title = "Gemini Nano device status",
+                        content = {
+                            var statusText by remember { mutableStateOf("Checking…") }
+                            LaunchedEffect(Unit) {
+                                statusText = withIOContext {
+                                    val nano = globalAppGraph.geminiNanoTranslator
+                                    when {
+                                        !prefs.geminiNanoEnabled().get() -> "Disabled by toggle — cloud provider will be used"
+                                        nano.isAvailable() -> "Available — on-device translation active"
+                                        else -> {
+                                            val err = nano.statusError()
+                                            if (!err.isNullOrBlank() && (
+                                                    err.contains("601") || err.contains("BINDING") ||
+                                                        err.contains("606") || err.contains("FEATURE_NOT_FOUND")
+                                                    )
+                                            ) {
+                                                "AICore is still setting up (${err.substringAfter("error code ").substringBefore(":").trim()}) — " +
+                                                    "update Google AI Core / restart the device, then check again. Cloud provider will be used meanwhile."
+                                            } else {
+                                                "Not available on this device right now — cloud provider will be used. " +
+                                                    "If this device supports Gemini Nano (e.g. Pixel 8+/Samsung S24+), AICore may still be provisioning — " +
+                                                    "update Google AI Core and restart, then re-open this screen."
+                                            }
                                         }
                                     }
                                 }
                             }
-                        }
-                        Text(
-                            text = statusText,
-                            style = MaterialTheme.typography.bodyMedium,
-                            modifier = Modifier.padding(horizontal = MaterialTheme.padding.medium, vertical = 8.dp),
-                        )
-                    },
-                ),
-                Preference.PreferenceItem.ListPreference(
-                    preference = prefs.provider(),
-                    entries = persistentMapOf(
-                        "openrouter" to "OpenRouter",
-                        "gemini" to "Gemini",
-                        "opencode_zen" to "OpenCode Zen",
-                        "nvidia_nim" to "NVIDIA NIM",
-                        "custom_openai" to "Custom OpenAI",
-                        "local" to "Local (On-device LLM)",
+                            Text(
+                                text = statusText,
+                                style = MaterialTheme.typography.bodyMedium,
+                                modifier = Modifier.padding(horizontal = MaterialTheme.padding.medium, vertical = 8.dp),
+                            )
+                        },
                     ),
-                    title = stringResource(KMR.strings.pref_yakuyomi_provider),
-                    enabled = enabled,
-                ),
-                Preference.PreferenceItem.EditTextPreference(
-                    preference = prefs.apiKey(),
-                    title = stringResource(KMR.strings.pref_yakuyomi_api_key),
-                    subtitle = apiKeySubtitle,
-                    enabled = enabled,
-                ),
-                Preference.PreferenceItem.ListPreference(
-                    preference = prefs.model(),
-                    entries = entries,
-                    title = stringResource(KMR.strings.pref_yakuyomi_model),
-                    subtitle = "%s",
-                    subtitleProvider = { v, _ -> v },
-                    enabled = enabled,
-                ),
-                Preference.PreferenceItem.TextPreference(
-                    title = stringResource(KMR.strings.pref_yakuyomi_model_refresh),
-                    subtitle = when {
-                        fetchingModels -> stringResource(KMR.strings.pref_yakuyomi_model_fetching)
-                        modelFetchFailed -> stringResource(KMR.strings.pref_yakuyomi_model_fetch_failed)
-                        fetchedModels.isNotEmpty() ->
-                            stringResource(KMR.strings.pref_yakuyomi_model_fetch_done, fetchedModels.size)
-                        else -> null
-                    },
-                    onClick = {
-                        refreshTick++
-                    },
-                    enabled = enabled,
-                ),
-                Preference.PreferenceItem.EditTextPreference(
-                    preference = prefs.customBaseUrl(),
-                    title = "Custom API Base URL",
-                    subtitle = if (provider == "custom_openai" && baseUrl.isBlank()) {
-                        stringResource(KMR.strings.pref_yakuyomi_base_url_required)
-                    } else {
-                        "Base URL for OpenAI-compatible endpoint, e.g. https://api.example.com/v1"
-                    },
-                    enabled = enabled && provider == "custom_openai",
-                ),
-                Preference.PreferenceItem.EditTextPreference(
-                    preference = prefs.customHeaders(),
-                    title = "Custom Headers",
-                    subtitle = "Key: Value per line, e.g. X-API-Key: abc",
-                    enabled = enabled && provider in setOf("custom_openai", "opencode_zen", "nvidia_nim"),
-                ),
-            ),
+                )
+                add(
+                    Preference.PreferenceItem.ListPreference(
+                        preference = prefs.provider(),
+                        entries = persistentMapOf(
+                            "openrouter" to "OpenRouter",
+                            "gemini" to "Gemini",
+                            "opencode_zen" to "OpenCode Zen",
+                            "nvidia_nim" to "NVIDIA NIM",
+                            "custom_openai" to "Custom OpenAI",
+                            "local" to "Local (On-device LLM)",
+                        ),
+                        title = stringResource(KMR.strings.pref_yakuyomi_provider),
+                        enabled = enabled,
+                    ),
+                )
+                // KMK --> Cloud-only options are irrelevant while the local provider is selected.
+                if (!isLocalProvider) {
+                    add(
+                        Preference.PreferenceItem.EditTextPreference(
+                            preference = prefs.apiKey(),
+                            title = stringResource(KMR.strings.pref_yakuyomi_api_key),
+                            subtitle = apiKeySubtitle,
+                            enabled = enabled,
+                        ),
+                    )
+                    add(
+                        Preference.PreferenceItem.ListPreference(
+                            preference = prefs.model(),
+                            entries = entries,
+                            title = stringResource(KMR.strings.pref_yakuyomi_model),
+                            subtitle = "%s",
+                            subtitleProvider = { v, _ -> v },
+                            enabled = enabled,
+                        ),
+                    )
+                    add(
+                        Preference.PreferenceItem.TextPreference(
+                            title = stringResource(KMR.strings.pref_yakuyomi_model_refresh),
+                            subtitle = when {
+                                fetchingModels -> stringResource(KMR.strings.pref_yakuyomi_model_fetching)
+                                modelFetchFailed -> stringResource(KMR.strings.pref_yakuyomi_model_fetch_failed)
+                                fetchedModels.isNotEmpty() ->
+                                    stringResource(KMR.strings.pref_yakuyomi_model_fetch_done, fetchedModels.size)
+                                else -> null
+                            },
+                            onClick = {
+                                refreshTick++
+                            },
+                            enabled = enabled,
+                        ),
+                    )
+                }
+                // KMK <--
+                add(
+                    Preference.PreferenceItem.EditTextPreference(
+                        preference = prefs.customBaseUrl(),
+                        title = "Custom API Base URL",
+                        subtitle = if (provider == "custom_openai" && baseUrl.isBlank()) {
+                            stringResource(KMR.strings.pref_yakuyomi_base_url_required)
+                        } else {
+                            "Base URL for OpenAI-compatible endpoint, e.g. https://api.example.com/v1"
+                        },
+                        enabled = enabled && provider == "custom_openai",
+                    ),
+                )
+                add(
+                    Preference.PreferenceItem.EditTextPreference(
+                        preference = prefs.customHeaders(),
+                        title = "Custom Headers",
+                        subtitle = "Key: Value per line, e.g. X-API-Key: abc",
+                        enabled = enabled && provider in setOf("custom_openai", "opencode_zen", "nvidia_nim"),
+                    ),
+                )
+            }.toPersistentList(),
         )
     }
 
     @Composable
-    private fun getLocalLlmGroup(): Preference.PreferenceGroup {
+    private fun getLocalLlmGroup(): Preference.PreferenceGroup? {
         val prefs = remember { globalAppGraph.translationPreferences }
         val manager = remember { globalAppGraph.localLlmManager }
         val downloadManager = remember { globalAppGraph.localLlmDownloadManager }
@@ -312,10 +343,17 @@ object SettingsYakuyomiScreen : SearchableSettings {
         val enabled by prefs.enabled().collectAsState()
         val provider by prefs.provider().collectAsState()
         val localEnabled = enabled && provider == "local"
+        // KMK --> The local group is irrelevant unless the local provider is selected.
+        if (!localEnabled) return null
+        // KMK <--
         val status by downloadManager.status.collectAsState()
+        val running by manager.running.collectAsState()
+        val loading by manager.loading.collectAsState()
+        val autoStart by prefs.localLlmAutoStart().collectAsState()
         val model = remember(provider, enabled) { manager.resolveModel() }
         val best = remember { exh.yakuyomi.LocalLlmCatalog.bestForDevice(exh.yakuyomi.DeviceMemory.totalRamBytes(context)) }
         val runtimeBundled = remember { manager.isRuntimeAvailable() }
+        val modelReady = remember { manager.isModelReady() }
 
         val entries = remember {
             val base = persistentMapOf<String, String>("" to "Auto — best for this device")
@@ -368,106 +406,180 @@ object SettingsYakuyomiScreen : SearchableSettings {
             }
         }
 
+        val engineState = when {
+            running -> "Running — ${model?.displayName ?: "unknown model"}"
+            loading -> "Starting… — ${model?.displayName ?: "selected model"}"
+            modelReady -> "Stopped — ${model?.displayName ?: "auto"} ready"
+            else -> "Stopped — no model downloaded yet"
+        }
+
         return Preference.PreferenceGroup(
             title = "Local (On-device LLM)",
-            preferenceItems = persistentListOf(
-                Preference.PreferenceItem.InfoPreference(
-                    title = "Runs a small LLM fully offline on this device — no API key needed. Uses llama.cpp (GGUF models); you can also load your own GGUF file.",
-                ),
-                Preference.PreferenceItem.ListPreference(
-                    preference = prefs.localModel(),
-                    entries = entries,
-                    title = "Local model",
-                    subtitleProvider = { v, _ -> if (v.isNullOrBlank()) "Auto — ${best?.displayName ?: "none"}" else modelSubtitle },
-                    enabled = localEnabled,
-                ),
-                Preference.PreferenceItem.InfoPreference(
-                    title = buildString {
-                        append("Recommended for this device: ${best?.displayName ?: "none"}")
-                        if (!runtimeBundled) {
-                            append("\nThe on-device LLM runtime isn't bundled in this build — the local provider needs a build with the llama.cpp runtime.")
+            preferenceItems = buildList {
+                add(
+                    Preference.PreferenceItem.InfoPreference(
+                        title = "Runs a small LLM fully offline on this device — no API key needed. Uses llama.cpp (GGUF models); you can also load your own GGUF file.",
+                    ),
+                )
+                add(
+                    Preference.PreferenceItem.ListPreference(
+                        preference = prefs.localModel(),
+                        entries = entries,
+                        title = "Local model",
+                        subtitleProvider = { v, _ -> if (v.isNullOrBlank()) "Auto — ${best?.displayName ?: "none"}" else modelSubtitle },
+                        enabled = localEnabled,
+                    ),
+                )
+                add(
+                    Preference.PreferenceItem.InfoPreference(
+                        title = buildString {
+                            append("Recommended for this device: ${best?.displayName ?: "none"}")
+                            if (!runtimeBundled) {
+                                append("\nThe on-device LLM runtime isn't bundled in this build — the local provider needs a build with the llama.cpp runtime.")
+                            } else {
+                                append("\nRuntime available. Only the RAM gate (3GB+) is enforced — any model you pick will run if it fits.")
+                            }
+                        },
+                    ),
+                )
+                add(
+                    Preference.PreferenceItem.TextPreference(
+                        title = if (customPath.isBlank()) "Load custom GGUF…" else "Custom GGUF: ${customPath.substringAfterLast('/')}",
+                        subtitle = "Pick any .gguf file from your device (it is copied into app storage)",
+                        onClick = {
+                            customLauncher.launch(arrayOf("application/octet-stream", "*/*"))
+                        },
+                        enabled = localEnabled,
+                    ),
+                )
+                // KMK --> Engine lifecycle controls; only actionable once a loadable model exists.
+                add(
+                    Preference.PreferenceItem.CustomPreference(
+                        title = "Engine status",
+                        content = {
+                            val dotColor = when {
+                                running -> Color(0xFF4CAF50)
+                                loading -> Color(0xFFFFA726)
+                                modelReady -> Color(0xFF9E9E9E)
+                                else -> Color(0xFFE53935)
+                            }
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                modifier = Modifier.padding(horizontal = MaterialTheme.padding.medium, vertical = 8.dp),
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(10.dp)
+                                        .clip(CircleShape)
+                                        .background(dotColor),
+                                )
+                                Text(
+                                    text = engineState,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                )
+                            }
+                        },
+                    ),
+                )
+                add(
+                    Preference.PreferenceItem.TextPreference(
+                        title = if (running) "Stop engine" else "Start engine",
+                        subtitle = if (modelReady) {
+                            "Loads ${model?.displayName ?: "the selected model"} into memory (first translation can take a few seconds otherwise)"
                         } else {
-                            append("\nRuntime available. Only the RAM gate (3GB+) is enforced — any model you pick will run if it fits.")
-                        }
-                    },
-                ),
-                Preference.PreferenceItem.TextPreference(
-                    title = if (customPath.isBlank()) "Load custom GGUF…" else "Custom GGUF: ${customPath.substringAfterLast('/')}",
-                    subtitle = "Pick any .gguf file from your device (it is copied into app storage)",
-                    onClick = {
-                        customLauncher.launch(arrayOf("application/octet-stream", "*/*"))
-                    },
-                    enabled = localEnabled,
-                ),
-                Preference.PreferenceItem.CustomPreference(
-                    title = "Download",
-                    content = {
-                        Column(modifier = Modifier.padding(vertical = 8.dp)) {
-                            when (status.state) {
-                                exh.yakuyomi.LocalLlmDownloadManager.State.READY -> {
-                                    Text(
-                                        text = "Installed: ${status.downloadedBytes / (1024 * 1024)} MB",
-                                        style = MaterialTheme.typography.bodyMedium,
-                                    )
-                                }
-                                exh.yakuyomi.LocalLlmDownloadManager.State.DOWNLOADING -> {
-                                    val percent = (status.progress * 100).toInt()
-                                    Text(
-                                        text = "Downloading $percent%",
-                                        style = MaterialTheme.typography.bodyMedium,
-                                    )
-                                    Spacer(modifier = Modifier.padding(vertical = 4.dp))
-                                    LinearProgressIndicator(
-                                        progress = { status.progress },
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(horizontal = 16.dp),
-                                    )
-                                    if (!status.currentFile.isNullOrBlank()) {
-                                        Spacer(modifier = Modifier.padding(vertical = 4.dp))
+                            "Download a model first — this is enabled once a model is ready"
+                        },
+                        onClick = {
+                            if (running) manager.stop() else manager.start()
+                        },
+                        enabled = localEnabled && modelReady,
+                    ),
+                )
+                add(
+                    Preference.PreferenceItem.SwitchPreference(
+                        preference = prefs.localLlmAutoStart(),
+                        title = "Start engine on app launch",
+                        subtitle = "Preload the model on startup so first translation is instant",
+                        enabled = localEnabled && modelReady,
+                    ),
+                )
+                // KMK <--
+                add(
+                    Preference.PreferenceItem.CustomPreference(
+                        title = "Download",
+                        content = {
+                            Column(modifier = Modifier.padding(horizontal = MaterialTheme.padding.medium, vertical = 8.dp)) {
+                                when (status.state) {
+                                    exh.yakuyomi.LocalLlmDownloadManager.State.READY -> {
                                         Text(
-                                            text = "File: ${status.currentFile}",
-                                            style = MaterialTheme.typography.bodySmall,
+                                            text = "Installed: ${status.downloadedBytes / (1024 * 1024)} MB",
+                                            style = MaterialTheme.typography.bodyMedium,
+                                        )
+                                    }
+                                    exh.yakuyomi.LocalLlmDownloadManager.State.DOWNLOADING -> {
+                                        val percent = (status.progress * 100).toInt()
+                                        Text(
+                                            text = "Downloading $percent%",
+                                            style = MaterialTheme.typography.bodyMedium,
+                                        )
+                                        Spacer(modifier = Modifier.padding(vertical = 4.dp))
+                                        LinearProgressIndicator(
+                                            progress = { status.progress },
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(horizontal = 16.dp),
+                                        )
+                                        if (!status.currentFile.isNullOrBlank()) {
+                                            Spacer(modifier = Modifier.padding(vertical = 4.dp))
+                                            Text(
+                                                text = "File: ${status.currentFile}",
+                                                style = MaterialTheme.typography.bodySmall,
+                                            )
+                                        }
+                                    }
+                                    exh.yakuyomi.LocalLlmDownloadManager.State.ERROR -> {
+                                        Text(
+                                            text = status.error ?: "Download failed",
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = MaterialTheme.colorScheme.error,
+                                        )
+                                    }
+                                    else -> {
+                                        Text(
+                                            text = "Not installed",
+                                            style = MaterialTheme.typography.bodyMedium,
                                         )
                                     }
                                 }
-                                exh.yakuyomi.LocalLlmDownloadManager.State.ERROR -> {
-                                    Text(
-                                        text = status.error ?: "Download failed",
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.error,
-                                    )
-                                }
-                                else -> {
-                                    Text(
-                                        text = "Not installed",
-                                        style = MaterialTheme.typography.bodyMedium,
-                                    )
-                                }
                             }
-                        }
-                    },
-                ),
-                Preference.PreferenceItem.TextPreference(
-                    title = actionTitle,
-                    onClick = {
-                        when (status.state) {
-                            exh.yakuyomi.LocalLlmDownloadManager.State.DOWNLOADING -> manager.cancelDownload()
-                            else -> manager.startDownload()
-                        }
-                    },
-                    enabled = localEnabled && manager.isRuntimeAvailable(),
-                ),
-                Preference.PreferenceItem.TextPreference(
-                    title = "Clear local model",
-                    subtitle = "Remove the downloaded model files",
-                    onClick = {
-                        manager.clearModel()
-                        context.toast("Local model cleared")
-                    },
-                    enabled = localEnabled && status.state != exh.yakuyomi.LocalLlmDownloadManager.State.DOWNLOADING,
-                ),
-            ),
+                        },
+                    ),
+                )
+                add(
+                    Preference.PreferenceItem.TextPreference(
+                        title = actionTitle,
+                        onClick = {
+                            when (status.state) {
+                                exh.yakuyomi.LocalLlmDownloadManager.State.DOWNLOADING -> manager.cancelDownload()
+                                else -> manager.startDownload()
+                            }
+                        },
+                        enabled = localEnabled && manager.isRuntimeAvailable(),
+                    ),
+                )
+                add(
+                    Preference.PreferenceItem.TextPreference(
+                        title = "Clear local model",
+                        subtitle = "Remove the downloaded model files",
+                        onClick = {
+                            manager.clearModel()
+                            context.toast("Local model cleared")
+                        },
+                        enabled = localEnabled && status.state != exh.yakuyomi.LocalLlmDownloadManager.State.DOWNLOADING,
+                    ),
+                )
+            }.toPersistentList(),
         )
     }
 

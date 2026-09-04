@@ -8,13 +8,19 @@ import dev.zacsweers.metro.SingleIn
 import exh.log.xLogD
 import exh.log.xLogE
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import li.joye.yakuyomi.engine.PageResult
 import okhttp3.OkHttpClient
 import tachiyomi.core.common.preference.Preference
 import tachiyomi.core.common.preference.PreferenceStore
 import java.io.ByteArrayOutputStream
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.ConcurrentSkipListMap
 
 @SingleIn(AppScope::class)
 @Inject
@@ -34,6 +40,52 @@ class TranslationManager(
     private val infoStore: MangaInfoTranslationStore,
     // KMK <--
 ) {
+    // KMK -->
+    // On-the-fly translation is submitted per page from multiple coroutines (decode workers,
+    // retries, download worker). Without ordering, page 5 can be sent to the LLM and swap in
+    // before page 2, scrambling the breadcrumb context and the reading experience. Each chapter
+    // gets a skip-list keyed by page index; a single worker drains it strictly in page order.
+    private data class PendingTranslation(
+        val imageBytes: ByteArray,
+        val sourceLangHint: String,
+        val deferred: CompletableDeferred<ByteArray?>,
+    )
+
+    private val workerScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val pending = ConcurrentHashMap<Pair<Long, Long>, ConcurrentSkipListMap<Int, PendingTranslation>>()
+    private val workers = ConcurrentHashMap<Pair<Long, Long>, kotlinx.coroutines.Job>()
+
+    private fun ensureTranslationWorker(key: Pair<Long, Long>) {
+        workers.computeIfAbsent(key) {
+            workerScope.launch {
+                try {
+                    while (true) {
+                        val queue = pending[key] ?: break
+                        val first = queue.firstEntry() ?: break
+                        val pageIndex = first.key
+                        val job = first.value
+                        val result = runCatching {
+                            translatePageInternal(
+                                mangaId = key.first,
+                                chapterId = key.second,
+                                pageIndex = pageIndex,
+                                imageBytes = job.imageBytes,
+                                sourceLangHint = job.sourceLangHint,
+                            )
+                        }.getOrNull()
+                        job.deferred.complete(result)
+                        queue.remove(pageIndex)
+                    }
+                } finally {
+                    workers.remove(key)
+                    // Anything enqueued between the last drain and this removal still needs a worker.
+                    if (pending[key]?.isNotEmpty() == true) ensureTranslationWorker(key)
+                }
+            }
+        }
+    }
+    // KMK <--
+
     fun isEnabled(): Boolean = prefs.enabled().get()
 
     fun isGated(): Boolean {
@@ -241,20 +293,48 @@ class TranslationManager(
                 } catch (_: Exception) {}
             }
         }
+
+        // KMK --> Queue the real work per chapter; the worker drains strictly in page order so
+        // translations complete start-to-finish and the LLM context follows reading order.
+        // KMK <--
+        val key = mangaId to chapterId
+        val deferred = CompletableDeferred<ByteArray?>()
+        pending.computeIfAbsent(key) { ConcurrentSkipListMap() }
+            .put(
+                pageIndex,
+                PendingTranslation(imageBytes = imageBytes, sourceLangHint = sourceLangHint, deferred = deferred),
+            )?.deferred?.complete(null)
+        ensureTranslationWorker(key)
+        deferred.await()
+    }
+
+    /** The actual pipeline for one page - only ever called in page order by [ensureTranslationWorker]. */
+    private suspend fun translatePageInternal(
+        mangaId: Long,
+        chapterId: Long,
+        pageIndex: Int,
+        imageBytes: ByteArray,
+        sourceLangHint: String,
+    ): ByteArray? {
+        val targetLang = prefs.targetLang().get().ifBlank { "en" }
+        val model = effectiveModel()
+        val cacheEnabled = prefs.cacheEnabled().get()
+        val pageHash = cache.pageHash(imageBytes)
+
         status.pageTranslating(mangaId, chapterId, pageIndex)
-        try {
+        return try {
             val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
             BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size, bounds)
             if (bounds.outWidth <= 0 || bounds.outHeight <= 0) {
                 status.pageError(mangaId, chapterId, pageIndex, "Unable to decode image bounds")
-                return@withContext null
+                return null
             }
             val needsSample = bounds.outWidth > 4096 || bounds.outHeight > 4096
             val sampleOpts = if (needsSample) BitmapFactory.Options().apply { inSampleSize = 2 } else null
             val bitmap = BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size, sampleOpts)
             if (bitmap == null) {
                 status.pageError(mangaId, chapterId, pageIndex, "Unable to decode image")
-                return@withContext null
+                return null
             }
 
             val breadcrumb = notes.buildContextPrompt(mangaId)

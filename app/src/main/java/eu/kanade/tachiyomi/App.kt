@@ -177,6 +177,16 @@ class App : Application(), DefaultLifecycleObserver, SingletonImageLoader.Factor
             runCatching { globalAppGraph.deleteOrphanedSubcategories.await() }
                 .onFailure { xLogE("Failed to delete orphaned subcategories", it) }
         }
+
+        // Preload the local LLM engine when the user opted in and a model is ready
+        val yakuyomiPrefs = globalAppGraph.translationPreferences
+        val localLlm = globalAppGraph.localLlmManager
+        if (!BuildConfig.IS_NOMTL && yakuyomiPrefs.localLlmAutoStart().get() && localLlm.isLocalProvider()) {
+            ProcessLifecycleOwner.get().lifecycleScope.launchIO {
+                runCatching { localLlm.start() }
+                    .onFailure { xLogE("Failed to auto-start local LLM engine", it) }
+            }
+        }
         // KMK <--
         // MetroInteropModule bridges Metro singletons to Injekt for extension backwards compat;
         // must be imported AFTER graph.inject() so Metro graph is built

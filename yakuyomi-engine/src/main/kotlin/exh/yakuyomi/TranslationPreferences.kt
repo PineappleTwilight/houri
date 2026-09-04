@@ -33,6 +33,9 @@ class TranslationPreferences(
     /** Absolute path of a user-supplied custom GGUF model (empty = use the catalog). */
     fun localModelFile() = preferenceStore.getString("pref_yakuyomi_local_model_file", "")
 
+    /** Whether to preload the local LLM engine on app startup (provider must be local). */
+    fun localLlmAutoStart() = preferenceStore.getBoolean("pref_yakuyomi_local_llm_auto_start", false)
+
     /**
      * Whether to attempt on-device Gemini Nano (ML Kit GenAI / AICore) as the priority LLM
      * provider when the device supports it. Defaults to enabled; unsupported devices fall

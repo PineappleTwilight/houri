@@ -37,6 +37,7 @@ class TranslationPreferences(
     fun localModel() = preferenceStore.getString("pref_yakuyomi_local_model", "")
     fun localBackendPref() = preferenceStore.getString("pref_yakuyomi_local_backend", "auto")
     fun localModelFile() = preferenceStore.getString("pref_yakuyomi_local_model_file", "")
+    fun localLlmAutoStart() = preferenceStore.getBoolean("pref_yakuyomi_local_llm_auto_start", false)
 
     fun isConfigured(): Boolean = false
     fun hasApiKey(): Boolean = false
