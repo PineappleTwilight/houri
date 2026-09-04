@@ -230,6 +230,9 @@
 - [x] **Local MTL Provider**: Per-model llama.cpp sampling settings (temp/top_p/top_k/repeat_penalty/max_tokens/context/threads) via an "Advanced (llama.cpp)" submenu, hidden without a selected model
 - [x] **Local MTL Provider**: GGUF import overhaul — background copy (no UI freeze), original filename preserved, duplicate detection (re-import just switches to the model), imported models listed in the picker
 - [x] **Local MTL Provider**: Fix model download stalling ~150 MB — throttled progress emissions, dedicated read-timeout client, HTTP Range resume, free-space pre-check, size verification
+- [ ] **Library**: Fix tracking filters
+- [ ] **App**: Update komikku deeplinks to houri deeplinks
+- [ ] **MyAnimeList**: Update oauth client to use houri's oauth credentials and not komikkus
 
 ## Chores
 - [x] Replace all Komikku icons/branding with houri icons/branding
