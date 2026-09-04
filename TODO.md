@@ -237,6 +237,8 @@
 - [ ] **Library**: Fix tracking filters
 - [ ] **App**: Update komikku deeplinks to houri deeplinks
 - [ ] **MyAnimeList**: Update oauth client to use houri's oauth credentials and not komikkus
+- [ ] **Manga Details**: Fix blacklisted chapters still appearing in the chapter list
+  - Also needs visual feedback when you blacklist a chapter
 
 ## Chores
 - [x] Replace all Komikku icons/branding with houri icons/branding
