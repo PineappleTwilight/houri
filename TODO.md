@@ -111,8 +111,8 @@
 - [x] **Subcategories**: Make subcategory chips collapsable
   - This should likely be done by hold tapping on the default "All" button which collapses the row and turns into a plus button
 - [x] **MTL Engine**: Translate manga info (title, description, etc)
-- [ ] **DB Per-Manga Reading Time**: Expand feature with details from upstream [PR](https://github.com/mihonapp/mihon/pull/2728)
-- [ ] **WebGPU Reader**: Port latest upstream [PR](https://github.com/mihonapp/mihon/pull/3886) changes if not already implemented
+- [x] **DB Per-Manga Reading Time**: Expand feature with details from upstream [PR](https://github.com/mihonapp/mihon/pull/2728)
+- [x] **WebGPU Reader**: Port latest upstream [PR](https://github.com/mihonapp/mihon/pull/3886) changes if not already implemented
 
 ## Bugfixes
 - [x] Fix UI transition choppiness.
@@ -215,8 +215,13 @@
 - [x] **Subcategories**: Wire android backstack navigation to subcategories
   - Should properly exit the subcategory instead of exiting the app
 - [x] **MTL Engine**: Fix output LTR text being constrained vertically (like a top-to-bottom language) instead of allowing the full bubble width to fill
-- [ ] **Local MTL Provider**: Hide irrelevant provider options when selected
-- [ ] **Local MTL Provider**: Improve the UI and improve/harden/bugfix the backend engine.
+- [x] **Library**: Fix staggered grid entries swapping places when scrolling up (cover ratios now survive item eviction)
+- [x] **Manga Details**: Scanlator priority entry missing on tablet UI
+- [x] **MTL Engine**: On-the-fly chapter translation now runs strictly in page order (start → finish), keeping LLM breadcrumb context in reading order
+- [x] **MTL Engine**: Fix free-floating (on-art) Latin text typeset sideways instead of lengthways
+- [x] **MTL Engine**: Fix chapter download TL icon always showing an error (error badge only when a chapter fully fails) and background TL stalling (retry on any page error, reset stale states)
+- [x] **Local MTL Provider**: Hide irrelevant provider options when selected
+- [x] **Local MTL Provider**: Improve the UI and improve/harden/bugfix the backend engine.
   - We should have buttons to start/stop the llamacpp engine that only work if we have a model able to load (duh)
   - Toggle to start the llamacpp daemon on app startup
   - Model downloading needs improvement
