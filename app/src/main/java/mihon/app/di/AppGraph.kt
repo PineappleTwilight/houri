@@ -145,6 +145,7 @@ import tachiyomi.domain.chapter.repository.ChapterRepository
 import tachiyomi.domain.download.service.DownloadPreferences
 import tachiyomi.domain.history.interactor.GetHistory
 import tachiyomi.domain.history.interactor.GetNextChapters
+import tachiyomi.domain.history.interactor.GetReadDurationForManga
 import tachiyomi.domain.history.interactor.GetTotalReadDuration
 import tachiyomi.domain.history.interactor.GetTotalReadDurationByManga
 import tachiyomi.domain.history.interactor.RemoveHistory
@@ -384,6 +385,7 @@ interface AppGraph : ViewModelGraph {
     val getSourcesWithNonLibraryManga: GetSourcesWithNonLibraryManga
     val getTotalReadDuration: GetTotalReadDuration
     val getTotalReadDurationByManga: GetTotalReadDurationByManga
+    val getReadDurationForManga: GetReadDurationForManga
     val getTracksPerManga: GetTracksPerManga
     val getUpcomingManga: GetUpcomingManga
     val getUpdates: GetUpdates

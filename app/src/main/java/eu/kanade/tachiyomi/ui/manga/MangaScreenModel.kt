@@ -130,6 +130,7 @@ import tachiyomi.domain.chapter.model.ChapterUpdate
 import tachiyomi.domain.chapter.model.NoChaptersException
 import tachiyomi.domain.chapter.service.calculateChapterGap
 import tachiyomi.domain.chapter.service.getChapterSort
+import tachiyomi.domain.history.interactor.GetReadDurationForManga
 import tachiyomi.domain.library.service.LibraryPreferences
 import tachiyomi.domain.libraryUpdateError.interactor.DeleteLibraryUpdateErrors
 import tachiyomi.domain.libraryUpdateError.interactor.InsertLibraryUpdateErrors
@@ -207,6 +208,9 @@ class MangaScreenModel(
     private val getPagePreviews: GetPagePreviews = globalAppGraph.getPagePreviews,
     private val insertTrack: InsertTrack = globalAppGraph.insertTrack,
     private val setCustomMangaInfo: SetCustomMangaInfo = globalAppGraph.setCustomMangaInfo,
+    // KMK -->
+    private val getReadDurationForManga: GetReadDurationForManga = globalAppGraph.getReadDurationForManga,
+    // KMK <--
     // SY <--
     private val getDuplicateLibraryManga: GetDuplicateLibraryManga = globalAppGraph.getDuplicateLibraryManga,
     private val getAvailableScanlators: GetAvailableScanlators = globalAppGraph.getAvailableScanlators,
@@ -892,6 +896,22 @@ class MangaScreenModel(
         }
     }
 
+    // KMK -->
+    fun showReadingStatsDialog() {
+        screenModelScope.launchIO {
+            val manga = successState?.manga
+            val totalReadDuration = if (manga != null) {
+                getReadDurationForManga.await(manga.id, manga.title)
+            } else {
+                successState?.manga?.id?.let { getReadDurationForManga.await(it) } ?: 0L
+            }
+            updateSuccessState {
+                it.copy(dialog = Dialog.ReadingStats(totalReadDuration = totalReadDuration))
+            }
+        }
+    }
+    // KMK <--
+
     fun setFetchInterval(manga: Manga, interval: Int) {
         screenModelScope.launchIO {
             if (
@@ -1042,7 +1062,9 @@ class MangaScreenModel(
                 0
             }
             val isTranslating = transStatus?.isTranslating ?: false
-            val isTranslationError = transStatus?.errorCount?.let { it > 0 } ?: false
+            // A partially-translated chapter still tracks progress; only a chapter with errors AND
+            // zero translated pages (e.g. a failed background run) is shown as errored.
+            val isTranslationError = transStatus?.let { it.errorCount > 0 && it.translatedCount == 0 } ?: false
 
             ChapterList.Item(
                 chapter = chapter,
@@ -1599,6 +1621,10 @@ class MangaScreenModel(
         data class DuplicateManga(val manga: Manga, val duplicates: List<MangaWithChapterCount>) : Dialog
         data class Migrate(val target: Manga, val current: Manga) : Dialog
         data class SetFetchInterval(val manga: Manga) : Dialog
+
+        // KMK -->
+        data class ReadingStats(val totalReadDuration: Long) : Dialog
+        // KMK <--
 
         // SY -->
         data class EditMangaInfo(val manga: Manga) : Dialog

@@ -17,6 +17,7 @@ import eu.kanade.core.preference.asState
 import eu.kanade.domain.ui.UiPreferences
 import eu.kanade.domain.ui.model.AppTheme
 import eu.kanade.domain.ui.model.NavigationRailAlignment
+import eu.kanade.domain.ui.model.StatsCoverStyle
 import eu.kanade.domain.ui.model.TabletUiMode
 import eu.kanade.domain.ui.model.ThemeMode
 import eu.kanade.domain.ui.model.setAppCompatDelegateThemeMode
@@ -269,6 +270,18 @@ object SettingsAppearanceScreen : SearchableSettings {
                         }
                         .toImmutableMap(),
                     title = stringResource(MR.strings.pref_date_format),
+                ),
+                Preference.PreferenceItem.ListPreference(
+                    preference = uiPreferences.statsScreenCoverStyle(),
+                    entries = StatsCoverStyle.entries
+                        .associateWith {
+                            when (it) {
+                                StatsCoverStyle.SQUARE -> stringResource(MR.strings.pref_stats_cover_square)
+                                StatsCoverStyle.BOOK -> stringResource(MR.strings.pref_stats_cover_book)
+                            }
+                        }
+                        .toImmutableMap(),
+                    title = stringResource(MR.strings.pref_stats_cover_style),
                 ),
                 Preference.PreferenceItem.SwitchPreference(
                     preference = uiPreferences.relativeTime(),

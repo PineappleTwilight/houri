@@ -49,6 +49,9 @@ fun MangaToolbar(
     onClickRefresh: () -> Unit,
     onClickMigrate: (() -> Unit)?,
     onClickEditNotes: () -> Unit,
+    // KMK -->
+    onClickReadingStats: () -> Unit,
+    // KMK <--
     // SY -->
     onClickEditInfo: (() -> Unit)?,
     // KMK -->
@@ -195,6 +198,14 @@ fun MangaToolbar(
                             onClick = onClickEditNotes,
                         ),
                     )
+                    // KMK -->
+                    add(
+                        AppBar.OverflowAction(
+                            title = stringResource(MR.strings.action_reading_stats),
+                            onClick = onClickReadingStats,
+                        ),
+                    )
+                    // KMK <--
                     // KMK -->
                     add(
                         AppBar.OverflowAction(

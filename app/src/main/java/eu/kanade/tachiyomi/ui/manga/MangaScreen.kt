@@ -56,6 +56,7 @@ import eu.kanade.presentation.manga.components.ClearMangaDialog
 import eu.kanade.presentation.manga.components.CoverCropDialog
 import eu.kanade.presentation.manga.components.DeleteChaptersDialog
 import eu.kanade.presentation.manga.components.MangaCoverDialog
+import eu.kanade.presentation.manga.components.MangaReadingStatsDialog
 import eu.kanade.presentation.manga.components.ScanlatorFilterDialog
 import eu.kanade.presentation.manga.components.SetIntervalDialog
 import eu.kanade.presentation.manga.components.StartRereadDialog
@@ -398,6 +399,9 @@ class MangaScreen(
             onMorePreviewsClicked = { openMorePagePreviews(navigator, successState.manga) },
             // SY <--
             onEditNotesClicked = { navigator.push(MangaNotesScreen(manga = successState.manga)) },
+            // KMK -->
+            onReadingStatsClicked = screenModel::showReadingStatsDialog,
+            // KMK <--
             onMultiBookmarkClicked = screenModel::bookmarkChapters,
             onMultiMarkAsReadClicked = screenModel::markChaptersRead,
             onMarkPreviousAsReadClicked = screenModel::markPreviousChapterRead,
@@ -640,6 +644,14 @@ class MangaScreen(
                         .takeIf { screenModel.isUpdateIntervalEnabled },
                 )
             }
+            // KMK -->
+            is MangaScreenModel.Dialog.ReadingStats -> {
+                MangaReadingStatsDialog(
+                    totalReadDuration = dialog.totalReadDuration,
+                    onDismissRequest = onDismissRequest,
+                )
+            }
+            // KMK <--
             // SY -->
             is MangaScreenModel.Dialog.EditMangaInfo -> {
                 EditMangaDialog(

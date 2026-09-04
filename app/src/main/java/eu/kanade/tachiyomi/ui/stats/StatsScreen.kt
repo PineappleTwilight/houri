@@ -11,6 +11,7 @@ import eu.kanade.presentation.components.AppBarActions
 import eu.kanade.presentation.more.stats.StatsScreenContent
 import eu.kanade.presentation.more.stats.StatsScreenState
 import eu.kanade.presentation.util.Screen
+import eu.kanade.tachiyomi.ui.manga.MangaScreen
 import kotlinx.collections.immutable.persistentListOf
 import tachiyomi.i18n.MR
 import tachiyomi.i18n.sy.SYMR
@@ -61,6 +62,11 @@ class StatsScreen : Screen() {
             StatsScreenContent(
                 state = state as? StatsScreenState.Success ?: return@Scaffold,
                 paddingValues = paddingValues,
+                // KMK -->
+                onMangaClick = { mangaId ->
+                    navigator.push(MangaScreen(mangaId))
+                },
+                // KMK <--
             )
         }
     }

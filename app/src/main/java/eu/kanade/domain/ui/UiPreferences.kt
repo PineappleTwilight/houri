@@ -7,6 +7,7 @@ import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
 import eu.kanade.domain.ui.model.AppTheme
 import eu.kanade.domain.ui.model.NavigationRailAlignment
+import eu.kanade.domain.ui.model.StatsCoverStyle
 import eu.kanade.domain.ui.model.TabletUiMode
 import eu.kanade.domain.ui.model.ThemeMode
 import tachiyomi.core.common.preference.PreferenceStore
@@ -53,6 +54,8 @@ class UiPreferences(
     // KMK <--
 
     fun imagesInDescription() = preferenceStore.getBoolean("pref_render_images_description", true)
+
+    fun statsScreenCoverStyle() = preferenceStore.getEnum("stats_screen_cover_style", StatsCoverStyle.SQUARE)
 
     // SY -->
 

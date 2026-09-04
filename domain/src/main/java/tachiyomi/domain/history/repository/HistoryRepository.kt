@@ -22,8 +22,14 @@ interface HistoryRepository {
     suspend fun getTotalReadDuration(): Long
 
     // KMK -->
-    /** Total read duration per manga, ordered by duration descending. */
+    /** Total read duration per manga (title + cover), ordered by duration descending. */
     suspend fun getTotalReadDurationByManga(): List<ReadDurationByManga>
+
+    /** Total read duration for a single manga by its id. */
+    suspend fun getReadDurationForManga(mangaId: Long): Long
+
+    /** Total read duration for a single manga by its (trimmed, case-insensitive) title. */
+    suspend fun getReadDurationForMangaByTitle(title: String): Long
     // KMK <--
 
     suspend fun getHistoryByMangaId(mangaId: Long): List<History>

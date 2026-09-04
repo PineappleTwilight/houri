@@ -94,15 +94,7 @@ class StatsScreenModel(
             )
 
             // KMK -->
-            val titleByMangaId = distinctLibraryManga.associate { it.id to it.manga.title }
-            val topManga = StatsData.TopManga(
-                items = getTotalReadDurationByManga.await()
-                    .take(10)
-                    .mapNotNull { (mangaId, duration) ->
-                        val title = titleByMangaId[mangaId] ?: return@mapNotNull null
-                        StatsData.TopManga.Item(title = title, readDuration = duration)
-                    },
-            )
+            val readDurationByManga = getTotalReadDurationByManga.await()
             // KMK <--
 
             mutableState.update {
@@ -112,7 +104,7 @@ class StatsScreenModel(
                     chapters = chaptersStatData,
                     trackers = trackersStatData,
                     // KMK -->
-                    topManga = topManga,
+                    readDurationByManga = readDurationByManga,
                     // KMK <--
                 )
             }

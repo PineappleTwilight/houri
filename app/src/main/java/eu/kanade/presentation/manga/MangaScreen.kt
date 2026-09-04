@@ -180,6 +180,9 @@ fun MangaScreen(
     onEditFetchIntervalClicked: (() -> Unit)?,
     onMigrateClicked: (() -> Unit)?,
     onEditNotesClicked: () -> Unit,
+    // KMK -->
+    onReadingStatsClicked: () -> Unit,
+    // KMK <--
     // SY -->
     onMetadataViewerClicked: () -> Unit,
     onEditInfoClicked: () -> Unit,
@@ -261,6 +264,9 @@ fun MangaScreen(
             onEditIntervalClicked = onEditFetchIntervalClicked,
             onMigrateClicked = onMigrateClicked,
             onEditNotesClicked = onEditNotesClicked,
+            // KMK -->
+            onReadingStatsClicked = onReadingStatsClicked,
+            // KMK <--
             // SY -->
             onMetadataViewerClicked = onMetadataViewerClicked,
             onEditInfoClicked = onEditInfoClicked,
@@ -326,6 +332,9 @@ fun MangaScreen(
             onEditIntervalClicked = onEditFetchIntervalClicked,
             onMigrateClicked = onMigrateClicked,
             onEditNotesClicked = onEditNotesClicked,
+            // KMK -->
+            onReadingStatsClicked = onReadingStatsClicked,
+            // KMK <--
             // SY -->
             onMetadataViewerClicked = onMetadataViewerClicked,
             onEditInfoClicked = onEditInfoClicked,
@@ -401,6 +410,9 @@ private fun MangaScreenSmallImpl(
     onEditIntervalClicked: (() -> Unit)?,
     onMigrateClicked: (() -> Unit)?,
     onEditNotesClicked: () -> Unit,
+    // KMK -->
+    onReadingStatsClicked: () -> Unit,
+    // KMK <--
     // SY -->
     onMetadataViewerClicked: () -> Unit,
     onEditInfoClicked: () -> Unit,
@@ -515,6 +527,9 @@ private fun MangaScreenSmallImpl(
                 onClickRefresh = onRefresh,
                 onClickMigrate = onMigrateClicked,
                 onClickEditNotes = onEditNotesClicked,
+                // KMK -->
+                onClickReadingStats = onReadingStatsClicked,
+                // KMK <--
                 // SY -->
                 onClickEditInfo = onEditInfoClicked.takeIf { state.manga.favorite },
                 // KMK -->
@@ -939,6 +954,9 @@ private fun MangaScreenLargeImpl(
     onEditIntervalClicked: (() -> Unit)?,
     onMigrateClicked: (() -> Unit)?,
     onEditNotesClicked: () -> Unit,
+    // KMK -->
+    onReadingStatsClicked: () -> Unit,
+    // KMK <--
     // SY -->
     onMetadataViewerClicked: () -> Unit,
     onEditInfoClicked: () -> Unit,
@@ -1044,6 +1062,9 @@ private fun MangaScreenLargeImpl(
                 onClickRefresh = onRefresh,
                 onClickMigrate = onMigrateClicked,
                 onClickEditNotes = onEditNotesClicked,
+                // KMK -->
+                onClickReadingStats = onReadingStatsClicked,
+                // KMK <--
                 onCancelActionMode = { onAllChapterSelected(false) },
                 // SY -->
                 onClickEditInfo = onEditInfoClicked.takeIf { state.manga.favorite },
@@ -1331,6 +1352,41 @@ private fun MangaScreenLargeImpl(
                                             onClick = onRelatedMangasScreenClick,
                                         )
                                     }
+                                }
+                            }
+                            // KMK <--
+
+                            // KMK -->
+                            item(key = "scanlator-preference") {
+                                val entryNavigator = LocalNavigator.currentOrThrow
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable {
+                                            entryNavigator.push(ScanlatorPreferenceScreen(state.manga.id))
+                                        }
+                                        .padding(horizontal = MaterialTheme.padding.medium)
+                                        .padding(vertical = MaterialTheme.padding.small),
+                                ) {
+                                    Text(
+                                        text = stringResource(KMR.strings.scanlator_priority),
+                                        style = MaterialTheme.typography.titleMedium,
+                                    )
+                                    val priorityNames = state.manga.scanlatorPriority
+                                    val subtitle = if (priorityNames.isEmpty()) {
+                                        stringResource(KMR.strings.scanlator_priority_description)
+                                    } else {
+                                        buildString {
+                                            append(priorityNames.take(2).joinToString(separator = ", "))
+                                            val remaining = priorityNames.size - 2
+                                            if (remaining > 0) append(" +$remaining")
+                                        }
+                                    }
+                                    Text(
+                                        text = subtitle,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
                                 }
                             }
                             // KMK <--
