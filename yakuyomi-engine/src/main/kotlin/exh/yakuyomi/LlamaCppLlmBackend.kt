@@ -1,6 +1,8 @@
 package exh.yakuyomi
 
+import com.llamatik.library.platform.GenStream
 import com.llamatik.library.platform.LlamaBridge
+import com.llamatik.library.platform.MultimodalBridge
 import exh.log.xLogE
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -13,17 +15,25 @@ import kotlin.coroutines.resume
 /**
  * llama.cpp backend (Llamatik runtime). Loads any GGUF file from a local path and generates
  * text synchronously on the native side, so calls are serialized on a background thread.
- * Vision input is not supported by the text-only llama.cpp path; the page image is ignored
- * (vision-capable catalog entries degrade to text-only prompting).
+ *
+ * Hardened for real models: sampling/context params are set explicitly (the native defaults
+ * can produce empty output — "the model does nothing"), the model's chat template is applied
+ * when it has one, and vision-capable models (with a downloaded mmproj) route image requests
+ * through [MultimodalBridge]. Bridges are loaded lazily per use so a vision model doesn't hold
+ * two copies of its weights in RAM.
  */
 class LlamaCppLlmBackend private constructor(
     private val model: LocalLlmModel,
     private val modelFile: File,
+    private val mmprojFile: File?,
+    private val sampling: LocalLlmSamplingConfig,
 ) : LocalLlmBackend {
 
     override val backendType: LocalLlmBackendType = LocalLlmBackendType.LLAMACPP
 
     private val lock = Object()
+    private val textReady = AtomicBoolean(false)
+    private val visionReady = AtomicBoolean(false)
 
     companion object {
         /** Whether the Llamatik runtime is on the classpath (true with the Maven dependency). */
@@ -35,6 +45,7 @@ class LlamaCppLlmBackend private constructor(
         fun create(
             model: LocalLlmModel,
             modelDir: File,
+            sampling: LocalLlmSamplingConfig = LocalLlmSamplingConfig(),
             onError: (String) -> Unit = {},
         ): LlamaCppLlmBackend? {
             if (!isAvailable()) return null
@@ -46,35 +57,95 @@ class LlamaCppLlmBackend private constructor(
                 onError("Model file not found: ${file.path}")
                 return null
             }
-            return try {
-                val loaded = LlamaBridge.initGenerateModel(file.absolutePath)
-                if (!loaded) {
-                    onError("llama.cpp failed to load ${model.displayName}")
-                    return null
+            val mmproj = model.mmprojFile
+                ?.takeIf { !model.mmprojRepo.isNullOrBlank() }
+                ?.let { File(modelDir, it) }
+                ?.takeIf { it.exists() && it.length() > 1_000_000L }
+            return LlamaCppLlmBackend(model, file, mmproj, sampling)
+        }
+    }
+
+    /** Explicit llama.cpp sampling/context config — the native defaults can be unusable. */
+    private fun configureParams() {
+        runCatching {
+            LlamaBridge.updateGenerateParams(
+                temperature = sampling.temperature,
+                maxTokens = sampling.maxTokens.coerceIn(64, 8192),
+                topP = sampling.topP.coerceIn(0f, 1f),
+                topK = sampling.topK.coerceIn(1, 100),
+                repeatPenalty = sampling.repeatPenalty.coerceIn(0.8f, 2f),
+                contextLength = sampling.contextLength.coerceAtLeast(512),
+                numThreads = sampling.resolvedThreads,
+                useMmap = true,
+                flashAttention = true,
+                batchSize = 512,
+                gpuLayers = 0,
+            )
+        }.onFailure { logcat { "llama.cpp updateGenerateParams failed: ${it.message}" } }
+    }
+
+    private fun ensureTextBridge(): Boolean {
+        if (textReady.get()) return true
+        return synchronized(lock) {
+            if (textReady.get()) {
+                true
+            } else {
+                val ok = runCatching {
+                    LlamaBridge.initGenerateModel(modelFile.absolutePath)
+                }.getOrDefault(false)
+                if (ok) {
+                    configureParams()
+                    textReady.set(true)
                 }
-                LlamaCppLlmBackend(model, file)
-            } catch (e: Throwable) {
-                xLogE("llama.cpp init failed: ${e.message}", e)
-                onError("llama.cpp init failed: ${e.message}")
-                null
+                ok
+            }
+        }
+    }
+
+    private fun ensureVisionBridge(): Boolean {
+        if (visionReady.get()) return true
+        val mmproj = mmprojFile ?: return false
+        return synchronized(lock) {
+            if (visionReady.get()) {
+                true
+            } else {
+                val ok = runCatching {
+                    MultimodalBridge.initModel(modelFile.absolutePath, mmproj.absolutePath)
+                }.getOrDefault(false)
+                if (ok) visionReady.set(true)
+                ok
             }
         }
     }
 
     override suspend fun generate(request: LocalGenerateRequest): String? = withContext(Dispatchers.Default) {
-        if (request.imageBytes != null) {
-            logcat { "llama.cpp vision input not supported; ignoring page image" }
-        }
         val resumed = AtomicBoolean(false)
         suspendCancellableCoroutine<String?> { cont ->
             cont.invokeOnCancellation { resumed.set(true) }
             Thread {
                 try {
                     val text = synchronized(lock) {
-                        LlamaBridge.generate(request.prompt)
+                        if (request.imageBytes != null && mmprojFile != null && ensureVisionBridge()) {
+                            // Vision: the multimodal bridge reads the page directly.
+                            analyzeVision(request.imageBytes, request.prompt)
+                        } else {
+                            if (request.imageBytes != null) {
+                                logcat { "llama.cpp vision requested but mmproj missing; using text-only" }
+                            }
+                            if (!ensureTextBridge()) {
+                                logcat { "llama.cpp text bridge init failed" }
+                                return@Thread
+                            }
+                            // Apply the model's chat template — instruct models can output
+                            // nothing when the special tokens are missing.
+                            val prompt: String = runCatching {
+                                LlamaBridge.applyChatTemplate(listOf("user" to request.prompt), true)
+                            }.getOrNull() ?: request.prompt
+                            LlamaBridge.generate(prompt)
+                        }
                     }
                     if (resumed.compareAndSet(false, true) && !cont.isCancelled) {
-                        cont.resume(text.takeIf { it.isNotBlank() })
+                        cont.resume(text?.takeIf { it.isNotBlank() })
                     }
                 } catch (e: Throwable) {
                     logcat { "llama.cpp generate threw: ${e.message}" }
@@ -90,7 +161,38 @@ class LlamaCppLlmBackend private constructor(
         }
     }
 
+    /** Runs a multimodal generation, collecting the streamed answer. Must hold [lock]. */
+    private fun analyzeVision(imageBytes: ByteArray, prompt: String): String? {
+        val sb = StringBuilder()
+        var failed: String? = null
+        MultimodalBridge.analyzeImageBytesStream(
+            imageBytes,
+            prompt,
+            object : GenStream {
+                override fun onDelta(token: String) {
+                    sb.append(token)
+                }
+
+                override fun onComplete() = Unit
+
+                override fun onError(error: String) {
+                    failed = error
+                }
+            },
+        )
+        if (failed != null) {
+            logcat { "llama.cpp vision failed: $failed" }
+            return null
+        }
+        return sb.toString().takeIf { it.isNotBlank() }
+    }
+
     override suspend fun close() {
-        // Llamatik keeps a single loaded model; the next create() replaces it.
+        runCatching {
+            if (visionReady.get()) MultimodalBridge.release()
+        }
+        runCatching {
+            if (textReady.get()) LlamaBridge.shutdown()
+        }
     }
 }

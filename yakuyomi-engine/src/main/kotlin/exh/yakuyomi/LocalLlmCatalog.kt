@@ -22,6 +22,8 @@ object LocalLlmCatalog {
             minRamBytes = 4L * 1024 * 1024 * 1024,
             ggufRepo = "unsloth/gemma-4-E4B-it-GGUF",
             ggufFile = "gemma-4-E4B-it-Q5_K_M.gguf",
+            mmprojRepo = "unsloth/gemma-4-E4B-it-GGUF",
+            mmprojFile = "mmproj-F16.gguf",
         ),
         LocalLlmModel(
             id = "gemma-4-e4b-it-qat",
@@ -35,6 +37,8 @@ object LocalLlmCatalog {
             minRamBytes = 4L * 1024 * 1024 * 1024,
             ggufRepo = "google/gemma-4-E4B-it-qat-q4_0-gguf",
             ggufFile = "gemma-4-E4B_q4_0-it.gguf",
+            mmprojRepo = "google/gemma-4-E4B-it-qat-q4_0-gguf",
+            mmprojFile = "gemma-4-E4B-it-mmproj.gguf",
         ),
         LocalLlmModel(
             id = "gemma-4-e2b-it",
@@ -48,6 +52,8 @@ object LocalLlmCatalog {
             minRamBytes = 3L * 1024 * 1024 * 1024,
             ggufRepo = "unsloth/gemma-4-E2B-it-GGUF",
             ggufFile = "gemma-4-E2B-it-Q5_K_M.gguf",
+            mmprojRepo = "unsloth/gemma-4-E2B-it-GGUF",
+            mmprojFile = "mmproj-F16.gguf",
         ),
         LocalLlmModel(
             id = "gemma-4-e2b-it-qat",
@@ -61,6 +67,8 @@ object LocalLlmCatalog {
             minRamBytes = 3L * 1024 * 1024 * 1024,
             ggufRepo = "google/gemma-4-E2B-it-qat-q4_0-gguf",
             ggufFile = "gemma-4-E2B_q4_0-it.gguf",
+            mmprojRepo = "google/gemma-4-E2B-it-qat-q4_0-gguf",
+            mmprojFile = "gemma-4-E2B-it-mmproj.gguf",
         ),
         // -- Translation finetunes ----------------------------------------------------------
         LocalLlmModel(
@@ -75,6 +83,8 @@ object LocalLlmCatalog {
             minRamBytes = 4L * 1024 * 1024 * 1024,
             ggufRepo = "Qwe1325/translategemma-4b-it-GGUF",
             ggufFile = "translategemma-4b-it-q5_k_m.gguf",
+            mmprojRepo = "Qwe1325/translategemma-4b-it-GGUF",
+            mmprojFile = "mmproj-translategemma-4b-it-F16.gguf",
         ),
         // -- Small generics (published GGUF, usable today) -----------------------------------
         LocalLlmModel(

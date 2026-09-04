@@ -1,6 +1,8 @@
 package exh.yakuyomi
 
 import android.content.Context
+import android.net.Uri
+import android.provider.OpenableColumns
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
@@ -13,7 +15,17 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.serialization.builtins.MapSerializer
+import kotlinx.serialization.builtins.serializer
+import kotlinx.serialization.json.Json
 import tachiyomi.core.common.util.system.logcat
+import java.io.File
+
+/** Result of importing a custom GGUF: the model to select and whether it already existed. */
+data class GgufImportResult(
+    val model: LocalLlmModel,
+    val duplicate: Boolean,
+)
 
 /**
  * Owns the lifecycle of the on-device ("local") LLM provider: resolves the selected model from
@@ -44,29 +56,166 @@ class LocalLlmManager(
     /** Whether a model is loaded in memory (the engine is warm). */
     fun isRunning(): Boolean = _running.value
 
-    /** Custom user-supplied GGUF (absolute path), or null. */
-    private fun customModel(): LocalLlmModel? {
-        val path = prefs.localModelFile().get()
-        if (path.isBlank()) return null
-        return LocalLlmModel(
-            id = "custom",
-            displayName = "Custom GGUF",
-            description = "User-supplied GGUF",
-            paramsB = "?",
-            qualityTier = 3,
-            isTranslationFinetune = false,
-            supportsVision = false,
-            sizeBytes = 0L,
-            minRamBytes = 3L * 1024 * 1024 * 1024,
-            ggufFile = path,
-            isCustom = true,
+    // ------------------------------------------------------------------ custom GGUF imports
+    private val customDir = File(context.filesDir, "local_llm_models/custom")
+
+    private val _importing = MutableStateFlow(false)
+    val importing: StateFlow<Boolean> = _importing.asStateFlow()
+
+    /** Imported custom GGUFs (one [LocalLlmModel] per file in the custom dir). */
+    fun importedModels(): List<LocalLlmModel> {
+        val dir = customDir
+        if (!dir.exists()) return emptyList()
+        return dir.listFiles().orEmpty()
+            .filter { it.isFile && it.length() > 1_000_000L && it.extension.equals("gguf", ignoreCase = true) }
+            .sortedBy { it.name.lowercase() }
+            .map { customModelFor(it) }
+    }
+
+    private fun customModelFor(file: File): LocalLlmModel = LocalLlmModel(
+        id = "custom:${file.name}",
+        displayName = file.nameWithoutExtension,
+        description = "User-imported GGUF",
+        paramsB = "?",
+        qualityTier = 3,
+        isTranslationFinetune = false,
+        supportsVision = false,
+        sizeBytes = file.length(),
+        minRamBytes = 3L * 1024 * 1024 * 1024,
+        ggufFile = file.absolutePath,
+        isCustom = true,
+    )
+
+    private fun sanitizeGgufName(name: String): String {
+        val base = name.substringAfterLast('/').substringAfterLast('\\').trim().ifBlank { "model.gguf" }
+        val cleaned = base.replace(Regex("[^A-Za-z0-9._-]"), "_")
+        return cleaned.ifBlank { "model.gguf" }
+    }
+
+    private fun uniquifyGgufName(dir: File, name: String): File {
+        val stem = name.replace(Regex("\\.gguf$"), "")
+        var i = 2
+        while (true) {
+            val candidate = File(dir, "$stem-$i.gguf")
+            if (!candidate.exists()) return candidate
+            i++
+        }
+    }
+
+    private fun displayName(uri: Uri): String = runCatching {
+        context.contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { c ->
+            if (c.moveToFirst()) c.getString(0) else null
+        }
+    }.getOrNull() ?: "model.gguf"
+
+    /**
+     * Imports a GGUF picked from device storage: copies it into the custom dir on a background
+     * thread (so a multi-GB file never freezes the UI), preserves the original filename, and
+     * detects re-imports of an already-imported file (same name + size) — in that case it just
+     * switches the selection instead of copying again. Selects the model either way.
+     */
+    fun importGguf(uri: Uri, onResult: (GgufImportResult?, error: String?) -> Unit) {
+        if (_importing.value) return
+        _importing.value = true
+        scope.launch {
+            val result = runCatching {
+                val name = sanitizeGgufName(displayName(uri))
+                val dir = customDir.apply { mkdirs() }
+                val target = File(dir, name)
+                if (target.exists() && target.length() > 1_000_000L) {
+                    // Same file already imported (name + size match): reuse, just switch to it.
+                    GgufImportResult(customModelFor(target), duplicate = true)
+                } else {
+                    val tmp = File(dir, "$name.tmp")
+                    context.contentResolver.openInputStream(uri)?.use { input ->
+                        tmp.outputStream().use { out -> input.copyTo(out, 64 * 1024) }
+                    } ?: throw IllegalStateException("Cannot open the selected file")
+                    if (tmp.length() < 1_000_000L) {
+                        tmp.delete()
+                        throw IllegalStateException("Not a valid GGUF (file too small)")
+                    }
+                    // A different file colliding with an existing name: keep both.
+                    val final = if (target.exists()) uniquifyGgufName(dir, name) else target
+                    if (!tmp.renameTo(final)) {
+                        tmp.copyTo(final, overwrite = true)
+                        tmp.delete()
+                    }
+                    GgufImportResult(customModelFor(final), duplicate = false)
+                }
+            }.onFailure { e ->
+                logcat { "GGUF import failed: ${e.message}" }
+            }
+            _importing.value = false
+            val ok = result.getOrNull()
+            ok?.let { prefs.localModel().set(it.model.id) }
+            onResult(ok, result.exceptionOrNull()?.message)
+        }
+    }
+    // ------------------------------------------------------------------
+    private val samplingJson = Json { ignoreUnknownKeys = true }
+    private val samplingMapSerializer = MapSerializer(String.serializer(), LocalLlmSamplingConfig.serializer())
+
+    private fun samplingOverrides(): Map<String, LocalLlmSamplingConfig> {
+        val raw = prefs.localLlmSamplingOverrides().get()
+        if (raw.isBlank()) return emptyMap()
+        return runCatching { samplingJson.decodeFromString(samplingMapSerializer, raw) }.getOrDefault(emptyMap())
+    }
+
+    private fun persistSampling(overrides: Map<String, LocalLlmSamplingConfig>) {
+        prefs.localLlmSamplingOverrides().set(
+            if (overrides.isEmpty()) "" else samplingJson.encodeToString(samplingMapSerializer, overrides),
         )
     }
 
-    /** Resolves the selected model; custom GGUF wins, then the preference, then best-fit. */
+    /** Effective llama.cpp sampling config for [model]: stored override or sensible defaults. */
+    fun samplingFor(model: LocalLlmModel): LocalLlmSamplingConfig {
+        val stored = samplingOverrides()[model.id] ?: return LocalLlmSamplingConfig(
+            temperature = if (model.isTranslationFinetune) 0.0f else 0.3f,
+            contextLength = model.contextLength,
+        )
+        return stored
+    }
+
+    /** Persist a per-model sampling override (all fields; [LocalLlmSamplingConfig] is a value object). */
+    fun setSampling(modelId: String, config: LocalLlmSamplingConfig) {
+        persistSampling(samplingOverrides() + (modelId to config))
+    }
+
+    /** Drop the per-model override so the model falls back to defaults. */
+    fun resetSampling(modelId: String) {
+        persistSampling(samplingOverrides() - modelId)
+    }
+
+    /** Look up any selectable model: catalog first, then imported custom GGUFs. */
+    fun modelById(id: String): LocalLlmModel? {
+        LocalLlmCatalog.byId(id)?.let { return it }
+        return importedModels().find { it.id == id }
+    }
+    // ------------------------------------------------------------------
+
+    /** Resolves the selected model; custom imports win, then the catalog preference, then best-fit. */
     fun resolveModel(): LocalLlmModel? {
-        customModel()?.let { return it }
-        LocalLlmCatalog.byId(prefs.localModel().get())?.let { return it }
+        val selected = prefs.localModel().get()
+        if (selected.startsWith("custom:")) {
+            val file = File(customDir, selected.removePrefix("custom:"))
+            if (file.exists() && file.length() > 1_000_000L) return customModelFor(file)
+            // The imported file is gone; clear the selection and fall through.
+            prefs.localModel().set("")
+        }
+        LocalLlmCatalog.byId(selected)?.let { return it }
+        // One-time migration from the old single-custom importer (path stored in localModelFile).
+        if (selected.isBlank()) {
+            val legacy = prefs.localModelFile().get()
+            if (legacy.isNotBlank()) {
+                val file = File(legacy)
+                if (file.exists() && file.length() > 1_000_000L) {
+                    val model = customModelFor(file)
+                    prefs.localModelFile().set("")
+                    prefs.localModel().set(model.id)
+                    return model
+                }
+            }
+        }
         return LocalLlmCatalog.bestForDevice(DeviceMemory.totalRamBytes(context))
     }
 
@@ -118,7 +267,8 @@ class LocalLlmManager(
             }
         }
         if (model.isCustom) {
-            prefs.localModelFile().set("")
+            model.ggufFile?.let { File(it).delete() }
+            prefs.localModel().set("")
         } else {
             downloadManager.clearModel(model)
         }
@@ -143,7 +293,7 @@ class LocalLlmManager(
             return null
         }
         val backend = backendFor(model) ?: return null
-        val temperature = if (model.isTranslationFinetune) 0.0f else 0.3f
+        val temperature = samplingFor(model).temperature
         return backend.generate(LocalGenerateRequest(prompt = prompt, maxTokens = 1024, temperature = temperature, imageBytes = imageBytes))
     }
 
@@ -153,7 +303,7 @@ class LocalLlmManager(
         current = null
         _running.value = false
         val dir = downloadManager.modelDir(model)
-        val backend = LlamaCppLlmBackend.create(model, dir) { msg -> logcat { "llama.cpp: $msg" } }
+        val backend = LlamaCppLlmBackend.create(model, dir, samplingFor(model)) { msg -> logcat { "llama.cpp: $msg" } }
         if (backend != null) {
             current = model to backend
             _running.value = true

@@ -54,6 +54,8 @@ class LocalLlmDownloadManager(
         val totalBytes: Long = 0L,
         val currentFile: String? = null,
         val error: String? = null,
+        val speedBytesPerSecond: Long = 0L,
+        val etaSeconds: Long = -1L,
     ) {
         val progress: Float
             get() = if (totalBytes > 0L) (downloadedBytes.toFloat() / totalBytes).coerceIn(0f, 1f) else 0f
@@ -69,6 +71,12 @@ class LocalLlmDownloadManager(
     fun cancelDownload() = Unit
     fun clearModel(model: LocalLlmModel) = Unit
 }
+
+/** Stub of [GgufImportResult] for the no-MTL APK variant. */
+data class GgufImportResult(
+    val model: LocalLlmModel,
+    val duplicate: Boolean,
+)
 
 /** No-op stub of [LocalLlmManager] for the no-MTL APK variant. */
 @SingleIn(AppScope::class)
@@ -90,6 +98,23 @@ class LocalLlmManager {
     fun isModelReady(): Boolean = false
 
     fun status(): LocalLlmDownloadManager.Status = LocalLlmDownloadManager.Status(LocalLlmDownloadManager.State.NOT_INSTALLED)
+
+    fun samplingFor(model: LocalLlmModel): LocalLlmSamplingConfig = LocalLlmSamplingConfig()
+
+    fun setSampling(modelId: String, config: LocalLlmSamplingConfig) = Unit
+
+    fun resetSampling(modelId: String) = Unit
+
+    fun modelById(id: String): LocalLlmModel? = null
+
+    fun importedModels(): List<LocalLlmModel> = emptyList()
+
+    private val _importing = MutableStateFlow(false)
+    val importing: StateFlow<Boolean> = _importing.asStateFlow()
+
+    fun importGguf(uri: android.net.Uri, onResult: (GgufImportResult?, error: String?) -> Unit) {
+        onResult(null, "No-MTL build")
+    }
 
     fun start() = Unit
 

@@ -21,9 +21,30 @@ data class LocalLlmModel(
     val backends: Set<LocalLlmBackendType> = setOf(LocalLlmBackendType.LLAMACPP),
     val ggufRepo: String? = null,
     val ggufFile: String? = null,
+    val mmprojRepo: String? = null,
+    val mmprojFile: String? = null,
     val isCustom: Boolean = false,
     val contextLength: Int = 4096,
 )
+
+/** Stub of [LocalLlmSamplingConfig] for the no-MTL APK variant. */
+@kotlinx.serialization.Serializable
+data class LocalLlmSamplingConfig(
+    val temperature: Float = 0.3f,
+    val topP: Float = 0.9f,
+    val topK: Int = 40,
+    val repeatPenalty: Float = 1.1f,
+    val maxTokens: Int = 1024,
+    val contextLength: Int = 4096,
+    val numThreads: Int = 0,
+) {
+    val resolvedThreads: Int
+        get() = if (numThreads <= 0) {
+            (Runtime.getRuntime().availableProcessors() - 2).coerceAtLeast(2)
+        } else {
+            numThreads
+        }
+}
 
 /** Stub of [LocalGenerateRequest] for the no-MTL APK variant. */
 data class LocalGenerateRequest(

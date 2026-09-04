@@ -37,6 +37,12 @@ class TranslationPreferences(
     fun localLlmAutoStart() = preferenceStore.getBoolean("pref_yakuyomi_local_llm_auto_start", false)
 
     /**
+     * Per-model llama.cpp sampling overrides, serialized as a JSON map of
+     * `modelId -> [LocalLlmSamplingConfig]`. Empty string = all defaults.
+     */
+    fun localLlmSamplingOverrides() = preferenceStore.getString("pref_yakuyomi_local_llm_sampling", "")
+
+    /**
      * Whether to attempt on-device Gemini Nano (ML Kit GenAI / AICore) as the priority LLM
      * provider when the device supports it. Defaults to enabled; unsupported devices fall
      * back to the configured cloud provider automatically.

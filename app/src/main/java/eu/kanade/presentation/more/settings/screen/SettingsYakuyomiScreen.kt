@@ -27,6 +27,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import cafe.adriel.voyager.navigator.LocalNavigator
+import cafe.adriel.voyager.navigator.currentOrThrow
 import eu.kanade.presentation.more.settings.Preference
 import eu.kanade.tachiyomi.util.system.toast
 import exh.yakuyomi.ModelCatalog
@@ -52,11 +54,71 @@ object SettingsYakuyomiScreen : SearchableSettings {
         val modelManager = remember { globalAppGraph.modelManager }
 
         return listOfNotNull(
+            getStatusOverview(),
             getGeneralGroup(prefs),
             getProviderGroup(prefs),
             getLocalLlmGroup(),
             getModelGroup(modelManager),
             getBehaviorGroup(prefs, cache),
+        )
+    }
+
+    /** At-a-glance MTL state: enabled/provider/engine/model — the first thing a user sees. */
+    @Composable
+    private fun getStatusOverview(): Preference.PreferenceGroup {
+        val prefs = remember { globalAppGraph.translationPreferences }
+        val manager = remember { globalAppGraph.localLlmManager }
+        val enabled by prefs.enabled().collectAsState()
+        val provider by prefs.provider().collectAsState()
+        val running by manager.running.collectAsState()
+        val loading by manager.loading.collectAsState()
+        val context = LocalContext.current
+
+        val (dotColor, lines) = when {
+            !enabled -> Color(0xFF9E9E9E) to listOf("MTL is off — enable it below to translate pages")
+            provider == "local" -> {
+                val model = manager.resolveModel()
+                when {
+                    loading -> Color(0xFFFFA726) to listOf("Local engine: starting…")
+                    running -> Color(0xFF4CAF50) to listOf("Local engine running — ${model?.displayName ?: "unknown model"}")
+                    manager.isModelReady() -> Color(0xFF9E9E9E) to listOf("Local engine stopped — ${model?.displayName ?: "auto"} ready")
+                    else -> Color(0xFFE53935) to listOf("Local provider: no model downloaded yet")
+                }
+            }
+            else -> Color(0xFF4CAF50) to listOf("Cloud provider: ${provider.ifBlank { "openrouter" }}")
+        }
+
+        val subtitle = buildString {
+            append("MTL: ${if (enabled) "on" else "off"}")
+            if (enabled && provider != "local") append(" · target ${prefs.targetLang().get().ifBlank { "en" }}")
+            if (!exh.yakuyomi.DeviceMemory.isMtlSupported(context)) append(" · low-RAM device (translation blocked)")
+        }
+
+        return Preference.PreferenceGroup(
+            title = "Status",
+            preferenceItems = listOf(
+                Preference.PreferenceItem.CustomPreference(
+                    title = subtitle,
+                    content = {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier.padding(horizontal = MaterialTheme.padding.medium, vertical = 8.dp),
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(10.dp)
+                                    .clip(CircleShape)
+                                    .background(dotColor),
+                            )
+                            Text(
+                                text = lines.joinToString("\n"),
+                                style = MaterialTheme.typography.bodyMedium,
+                            )
+                        }
+                    },
+                ),
+            ).toPersistentList(),
         )
     }
 
@@ -350,37 +412,41 @@ object SettingsYakuyomiScreen : SearchableSettings {
         val running by manager.running.collectAsState()
         val loading by manager.loading.collectAsState()
         val autoStart by prefs.localLlmAutoStart().collectAsState()
+        val entryNavigator = LocalNavigator.currentOrThrow
         val model = remember(provider, enabled) { manager.resolveModel() }
         val best = remember { exh.yakuyomi.LocalLlmCatalog.bestForDevice(exh.yakuyomi.DeviceMemory.totalRamBytes(context)) }
         val runtimeBundled = remember { manager.isRuntimeAvailable() }
         val modelReady = remember { manager.isModelReady() }
 
-        val entries = remember {
+        var importTick by remember { mutableStateOf(0) }
+        val importing by manager.importing.collectAsState()
+        val importedModels = remember(importTick) { manager.importedModels() }
+
+        val entries = remember(importTick) {
             val base = persistentMapOf<String, String>("" to "Auto — best for this device")
-            val models = exh.yakuyomi.LocalLlmCatalog.allModels.associate { it.id to it.displayName }
-            persistentMapOf(*((base + models).toList()).toTypedArray())
+            val catalog = exh.yakuyomi.LocalLlmCatalog.allModels.associate { it.id to it.displayName }
+            val imported = manager.importedModels().associate { it.id to it.displayName }
+            persistentMapOf(*((base + catalog + imported).toList()).toTypedArray())
         }
 
-        // KMK --> Custom GGUF loader: pick a file, copy it into app storage, and point the
-        // manager at it (llama.cpp needs a real filesystem path, not a content URI).
+        // KMK --> Custom GGUF import: background copy (never freezes the UI for multi-GB files),
+        // original filename preserved, re-imports detected and just re-selected.
         // KMK <--
-        val customFilePref = prefs.localModelFile()
-        val customPath by customFilePref.collectAsState()
-        val customLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+        val importLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
             androidx.activity.result.contract.ActivityResultContracts.OpenDocument(),
         ) { uri ->
             if (uri != null) {
-                val out = java.io.File(context.filesDir, "local_llm_models/custom/model.gguf")
-                runCatching {
-                    out.parentFile?.mkdirs()
-                    context.contentResolver.openInputStream(uri)?.use { input ->
-                        out.outputStream().use { output -> input.copyTo(output) }
+                manager.importGguf(uri) { result, error ->
+                    if (result != null) {
+                        importTick++
+                        if (result.duplicate) {
+                            context.toast("Already imported — switched to ${result.model.displayName}")
+                        } else {
+                            context.toast("Imported ${result.model.displayName}")
+                        }
+                    } else {
+                        context.toast("Failed to import GGUF: ${error ?: "unknown error"}")
                     }
-                }.onSuccess {
-                    customFilePref.set(out.absolutePath)
-                    context.toast("Custom GGUF loaded")
-                }.onFailure { e ->
-                    context.toast("Failed to load GGUF: ${e.message}")
                 }
             }
         }
@@ -442,14 +508,32 @@ object SettingsYakuyomiScreen : SearchableSettings {
                         },
                     ),
                 )
+                // KMK --> Per-model llama.cpp sampling/context editor; only reachable with a model.
+                if (model != null) {
+                    add(
+                        Preference.PreferenceItem.TextPreference(
+                            title = stringResource(KMR.strings.pref_yakuyomi_llm_advanced),
+                            subtitle = "Sampling, context and threads for ${model.displayName}",
+                            onClick = {
+                                entryNavigator.push(SettingsYakuyomiLlmAdvancedScreen(model))
+                            },
+                            enabled = localEnabled,
+                        ),
+                    )
+                }
+                // KMK <--
                 add(
                     Preference.PreferenceItem.TextPreference(
-                        title = if (customPath.isBlank()) "Load custom GGUF…" else "Custom GGUF: ${customPath.substringAfterLast('/')}",
-                        subtitle = "Pick any .gguf file from your device (it is copied into app storage)",
-                        onClick = {
-                            customLauncher.launch(arrayOf("application/octet-stream", "*/*"))
+                        title = if (importing) "Importing GGUF…" else "Import GGUF from device…",
+                        subtitle = when {
+                            importing -> "Copying to app storage — this can take a while for large files…"
+                            importedModels.isEmpty() -> "Pick a .gguf file (its filename is kept; re-importing just switches to it)"
+                            else -> "Imported: ${importedModels.joinToString(", ") { it.displayName }}"
                         },
-                        enabled = localEnabled,
+                        onClick = {
+                            importLauncher.launch(arrayOf("application/octet-stream", "*/*"))
+                        },
+                        enabled = localEnabled && !importing,
                     ),
                 )
                 // KMK --> Engine lifecycle controls; only actionable once a loadable model exists.
@@ -519,10 +603,21 @@ object SettingsYakuyomiScreen : SearchableSettings {
                                     }
                                     exh.yakuyomi.LocalLlmDownloadManager.State.DOWNLOADING -> {
                                         val percent = (status.progress * 100).toInt()
+                                        val mb = status.downloadedBytes / (1024 * 1024)
+                                        val totalMb = (status.totalBytes / (1024 * 1024)).coerceAtLeast(mb)
+                                        val speedMb = status.speedBytesPerSecond / (1024 * 1024)
                                         Text(
-                                            text = "Downloading $percent%",
+                                            text = "Downloading $percent% — $mb MB / $totalMb MB" +
+                                                if (speedMb > 0) " · $speedMb MB/s" else "",
                                             style = MaterialTheme.typography.bodyMedium,
                                         )
+                                        if (status.etaSeconds > 0) {
+                                            Spacer(modifier = Modifier.padding(vertical = 2.dp))
+                                            Text(
+                                                text = "About ${formatEta(status.etaSeconds)} left",
+                                                style = MaterialTheme.typography.bodySmall,
+                                            )
+                                        }
                                         Spacer(modifier = Modifier.padding(vertical = 4.dp))
                                         LinearProgressIndicator(
                                             progress = { status.progress },
@@ -571,7 +666,11 @@ object SettingsYakuyomiScreen : SearchableSettings {
                 add(
                     Preference.PreferenceItem.TextPreference(
                         title = "Clear local model",
-                        subtitle = "Remove the downloaded model files",
+                        subtitle = if (model?.isCustom == true) {
+                            "Delete the selected imported GGUF"
+                        } else {
+                            "Remove the downloaded model files (must re-download to use again)"
+                        },
                         onClick = {
                             manager.clearModel()
                             context.toast("Local model cleared")
@@ -741,3 +840,9 @@ object SettingsYakuyomiScreen : SearchableSettings {
 
 // 6-digit (RRGGBB) or 8-digit (AARRGGBB) hex color, no '#'.
 private val HEX_COLOR_REGEX = Regex("^[0-9a-fA-F]{6}([0-9a-fA-F]{2})?$")
+
+private fun formatEta(seconds: Long): String = when {
+    seconds < 60 -> "${seconds}s"
+    seconds < 3600 -> "${seconds / 60}m ${seconds % 60}s"
+    else -> "${seconds / 3600}h ${(seconds % 3600) / 60}m"
+}

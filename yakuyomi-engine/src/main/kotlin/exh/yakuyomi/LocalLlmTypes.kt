@@ -37,6 +37,10 @@ data class LocalLlmModel(
     val ggufRepo: String? = null,
     /** File name of the GGUF inside [ggufRepo] (or an absolute local path when [isCustom]). */
     val ggufFile: String? = null,
+    /** HuggingFace repo id holding the multimodal projector (vision models only). */
+    val mmprojRepo: String? = null,
+    /** File name of the mmproj inside [mmprojRepo] (downloaded next to the GGUF). */
+    val mmprojFile: String? = null,
     /** True for a user-supplied GGUF loaded from device storage (no download). */
     val isCustom: Boolean = false,
     val contextLength: Int = 4096,
