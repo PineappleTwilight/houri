@@ -248,6 +248,11 @@
 - [x] **Smart Scanlator Filter**: Fix non-rounded decimals inside the blacklisted chapters panel
   - Blacklist keys round to 2 decimals; the panel formats legacy entries via asChapterLabel
   - Decimals should be rounded to the 10th place
+  - [ ] **Local MTL Engine**: Make various options update the other UI elements immediaely (clearing a model removes it from the list, sets loaded model to nothing, etc)
+  - [ ] **Local MTL Engine**: Harden flaky model downloader - add retries for timeouts and improve time estimation
+  - [ ] **Local MTL Engine**: Rework preferences to be more visually appealing to the user
+    - This includes reducing the information label spam
+  - [ ] **Local MTL Engine**: Add ability to load mmprojs for custom models + chat template adapters for custom models
 
 ## Chores
 - [x] Replace all Komikku icons/branding with houri icons/branding
