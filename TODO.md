@@ -248,12 +248,16 @@
 - [x] **Smart Scanlator Filter**: Fix non-rounded decimals inside the blacklisted chapters panel
   - Blacklist keys round to 2 decimals; the panel formats legacy entries via asChapterLabel
   - Decimals should be rounded to the 10th place
-  - [ ] **Local MTL Engine**: Make various options update the other UI elements immediaely (clearing a model removes it from the list, sets loaded model to nothing, etc)
-    - Most preference UI states relating to the local MTL provider are very broken
-  - [ ] **Local MTL Engine**: Harden flaky model downloader - add retries for timeouts and improve time estimation
-  - [ ] **Local MTL Engine**: Rework preferences to be more visually appealing to the user
-    - This includes reducing the information label spam
-  - [ ] **Local MTL Engine**: Add ability to load mmprojs for custom models + chat template adapters for custom models
+- [ ] **Local MTL Engine**: Make various options update the other UI elements immediaely (clearing a model removes it from the list, sets loaded model to nothing, etc)
+  - Most preference UI states relating to the local MTL provider are very broken
+- [ ] **Local MTL Engine**: Harden flaky model downloader - add retries for timeouts and improve time estimation
+- [ ] **Local MTL Engine**: Rework preferences to be more visually appealing to the user
+  - This includes reducing the information label spam
+- [ ] **Local MTL Engine**: Add ability to load mmprojs for custom models + chat template adapters for custom models
+- [ ] **Local MTL Engine**: Fix stopping the engine hard crashing the app
+- [ ] **Local MTL Engine**: Drastically improve inference speed
+- [ ] **Local MTL Engine**: Add visual feedback per-stage of the MTL process for the user
+
 
 ## Chores
 - [x] Replace all Komikku icons/branding with houri icons/branding
