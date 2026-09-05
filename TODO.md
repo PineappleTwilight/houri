@@ -304,6 +304,7 @@
 - [x] **Webhook Connection**: Improve Discord event embeds
 - [x] **App**: Split APKs into MTL and no-MTL varients
   - This helps users save storage space if they know their device can't run MTL or if they just don't want it
+- [ ] **Trackers**: Migrate komikku oauth clients to houri oauth clients
 
 
 ## Drawing Board
