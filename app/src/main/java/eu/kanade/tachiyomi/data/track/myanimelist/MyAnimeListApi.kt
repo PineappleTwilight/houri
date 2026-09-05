@@ -49,7 +49,6 @@ class MyAnimeListApi(
                 .add("code", authCode)
                 .add("code_verifier", codeVerifier)
                 .add("grant_type", "authorization_code")
-                .add("redirect_uri", REDIRECT_URI)
                 .build()
             with(json) {
                 client.newCall(POST("$BASE_OAUTH_URL/token", body = formBody))
@@ -314,7 +313,6 @@ class MyAnimeListApi(
 
     companion object {
         private const val CLIENT_ID = "2be14959235191ece14eebdc2eea0466"
-        private const val REDIRECT_URI = "houri://myanimelist-auth"
 
         private const val BASE_OAUTH_URL = "https://myanimelist.net/v1/oauth2"
         private const val BASE_API_URL = "https://api.myanimelist.net/v2"
@@ -329,8 +327,6 @@ class MyAnimeListApi(
         fun authUrl(): Uri = "$BASE_OAUTH_URL/authorize".toUri().buildUpon()
             .appendQueryParameter("client_id", CLIENT_ID)
             .appendQueryParameter("code_challenge", getPkceChallengeCode())
-            .appendQueryParameter("code_challenge_method", "plain")
-            .appendQueryParameter("redirect_uri", REDIRECT_URI)
             .appendQueryParameter("response_type", "code")
             .build()
 

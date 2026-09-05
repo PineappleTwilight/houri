@@ -21,12 +21,13 @@ class LocalLlmTranslator(
     private val mangaContext: String,
     private val pageBitmap: Bitmap?,
     private val offlineFallback: Boolean,
+    private val glossary: Map<String, String> = emptyMap(),
 ) : Translator {
 
     override suspend fun translate(queries: List<String>): List<String> = withContext(Dispatchers.IO) {
         if (queries.isEmpty()) return@withContext emptyList()
         val isEnFix = sourceLang.equals("EN", true) && targetLang.equals("EN", true)
-        val prompt = buildTranslationPrompt(queries, sourceLang, targetLang, breadcrumb, isEnFix, mangaContext)
+        val prompt = buildTranslationPrompt(queries, sourceLang, targetLang, breadcrumb, isEnFix, mangaContext, glossary)
         val imageBytes = pageBitmap?.let { bitmapToJpeg(it) }
         val result = try {
             manager.generate(prompt, imageBytes)

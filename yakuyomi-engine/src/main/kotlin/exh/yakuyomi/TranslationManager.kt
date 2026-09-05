@@ -129,16 +129,11 @@ class TranslationManager(
         val targetLang = prefs.targetLang().get().ifBlank { "en" }
         val lines = listOfNotNull(title.ifBlank { null }, description?.ifBlank { null })
         if (lines.isEmpty()) return null
+        val glossary = prefs.glossaryMap()
         val translated = try {
             if (localLlm.isLocalProvider()) {
                 val isEnFix = sourceLangHint.equals("EN", true) && targetLang.equals("EN", true)
-                val prompt = if (isEnFix) {
-                    "Fix grammar, preserve names, output only EN. Manga title and description:\n" +
-                        lines.joinToString("\n") { "- $it" }
-                } else {
-                    "Translate the manga title and description to $targetLang. Preserve names, output only $targetLang:\n" +
-                        lines.joinToString("\n") { "- $it" }
-                }
+                val prompt = buildTranslationPrompt(lines, sourceLangHint, targetLang, "", isEnFix, "", glossary)
                 val result = localLlm.generate(prompt) ?: return null
                 parseTranslationLines(result) ?: return null
             } else {
@@ -323,8 +318,10 @@ class TranslationManager(
         val pageHash = cache.pageHash(imageBytes)
         // Manga grounding + sliding-window context. The local provider sizes the window to the
         // model's context length; cloud keeps the 800-char default.
+        val glossary = prefs.glossaryMap()
+        val preserveSfx = prefs.preserveSfx().get()
         val localModel = if (localLlm.isLocalProvider()) localLlm.resolveModel() else null
-        val breadcrumbBudget = localModel?.let { (it.contextLength * 0.2).toInt().coerceIn(400, 2400) } ?: 800
+        val breadcrumbBudget = localModel?.let { (it.contextLength * 0.25).toInt().coerceIn(500, 3000) } ?: 1000
         val breadcrumb = notes.buildContextPrompt(mangaId, breadcrumbBudget)
         val mangaContext = mangaContextProvider(mangaId) ?: ""
 
@@ -370,6 +367,7 @@ class TranslationManager(
                         mangaContext = mangaContext,
                         pageBitmap = bitmap,
                         offlineFallback = prefs.offlineFallback().get(),
+                        glossary = glossary,
                     )
                 }
                 else -> {
@@ -391,6 +389,7 @@ class TranslationManager(
                         customBaseUrl = prefs.customBaseUrl().get(),
                         customHeaders = prefs.customHeaders().get(),
                         pageImageBytes = jpegBytes,
+                        glossary = glossary,
                     )
                 }
             }

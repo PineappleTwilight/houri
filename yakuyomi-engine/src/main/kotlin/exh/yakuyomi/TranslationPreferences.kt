@@ -116,7 +116,30 @@ class TranslationPreferences(
      */
     fun translationTextColorHex() = preferenceStore.getString("pref_yakuyomi_text_color_hex", "")
 
+    fun glossaryJson() = preferenceStore.getString("pref_yakuyomi_glossary_json", "")
+
+    fun glossaryMap(): Map<String, String> {
+        val raw = glossaryJson().get()
+        if (raw.isBlank()) return emptyMap()
+        return try {
+            val json = org.json.JSONObject(raw)
+            val map = mutableMapOf<String, String>()
+            json.keys().forEach { k -> map[k] = json.optString(k, "") }
+            map.filterValues { it.isNotBlank() }
+        } catch (_: Exception) {
+            // Fallback: parse as lines "source -> target"
+            raw.lines().mapNotNull { line ->
+                val parts = line.split("->", ":", "=", limit = 2)
+                if (parts.size == 2) parts[0].trim() to parts[1].trim() else null
+            }.toMap()
+        }
+    }
+
+    fun preserveSfx() = preferenceStore.getBoolean("pref_yakuyomi_preserve_sfx", true)
+
+    fun translationFormality() = preferenceStore.getString("pref_yakuyomi_formality", "auto")
+
     fun isConfigured(): Boolean = enabled().get() && targetLang().get().isNotBlank()
 
-    fun hasApiKey(): Boolean = apiKey().get().isNotBlank()
+    fun hasApiKey(): Boolean = effectiveApiKey().isNotBlank()
 }
