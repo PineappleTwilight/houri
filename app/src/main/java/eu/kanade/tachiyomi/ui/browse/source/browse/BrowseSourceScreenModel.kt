@@ -135,6 +135,46 @@ open class BrowseSourceScreenModel(
     val startExpanded by uiPreferences.expandFilters().asState(screenModelScope)
 
     private val filterSerializer = FilterSerializer()
+
+    private fun loadSavedFilterList(): FilterList? {
+        if (!libraryPreferences.sourceLevelFiltering().get()) return null
+        try {
+            val defaultList = source.getFilterList()
+            val sortIndex = defaultList.filterIsInstance<SourceModelFilter.Sort>().firstOrNull()?.state?.index
+            if (sortIndex != null) {
+                val perSortJson = libraryPreferences.sourceFilterJsonForSort(sourceId, sortIndex).get()
+                if (perSortJson.isNotBlank()) {
+                    val arr = Json.decodeFromString<JsonArray>(perSortJson)
+                    val list = source.getFilterList()
+                    filterSerializer.deserialize(list, arr)
+                    return list
+                }
+            }
+        } catch (_: Exception) {
+        }
+        val baseJson = libraryPreferences.sourceFilterJson(sourceId).get()
+        if (baseJson.isBlank()) return null
+        return try {
+            val arr = Json.decodeFromString<JsonArray>(baseJson)
+            val list = source.getFilterList()
+            filterSerializer.deserialize(list, arr)
+            list
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    private fun persistFilterList(filters: FilterList) {
+        if (!libraryPreferences.sourceLevelFiltering().get()) return
+        try {
+            val json = filterSerializer.serialize(filters)
+            val str = Json.encodeToString(json)
+            libraryPreferences.setSourceFilterJson(sourceId, str)
+            val sort = filters.filterIsInstance<SourceModelFilter.Sort>().firstOrNull()?.state
+            if (sort != null) libraryPreferences.setSourceFilterJsonForSort(sourceId, sort.index, str)
+        } catch (_: Exception) {
+        }
+    }
     // SY <--
 
     // KMK -->
@@ -142,18 +182,19 @@ open class BrowseSourceScreenModel(
     // KMK <--
 
     init {
+        val saved = loadSavedFilterList()
         mutableState.update {
             var query: String? = null
             var listing = it.listing
 
             if (listing is Listing.Search) {
                 query = listing.query
-                listing = Listing.Search(query, source.getFilterList())
+                listing = Listing.Search(query, saved ?: source.getFilterList())
             }
 
             it.copy(
                 listing = listing,
-                filters = source.getFilterList(),
+                filters = saved ?: source.getFilterList(),
                 toolbarQuery = query,
             )
         }
@@ -271,10 +312,11 @@ open class BrowseSourceScreenModel(
     // SY <--
 
     fun resetFilters() {
-        // KMK -->
+        if (libraryPreferences.sourceLevelFiltering().get()) {
+            libraryPreferences.clearSourceFilterJson(sourceId)
+        }
         setFilters(source.getFilterList())
         reloadSavedSearches()
-        // KMK <--
     }
 
     fun setListing(listing: Listing) {
@@ -296,13 +338,10 @@ open class BrowseSourceScreenModel(
         savedSearchId: Long? = null,
         // KMK <--
     ) {
-        // SY -->
-        if (filters != null && filters !== state.value.filters) {
-            // KMK -->
+        if (filters != null) {
+            if (savedSearchId == null) persistFilterList(filters)
             setFilters(filters)
-            // KMK <--
         }
-        // SY <--
         val input = state.value.listing as? Listing.Search
             ?: Listing.Search(query = null, filters = source.getFilterList())
 

@@ -171,6 +171,29 @@ class LibraryPreferences(
     fun setSourceSort(sourceId: Long, sort: String) {
         sourceSort(sourceId).set(sort)
     }
+
+    // JSON per-source defaults (FilterSerializer -> JsonArray string). Includes Sort state, so
+    // per-sort defaults are naturally preserved as part of the filter list. For true per-sort
+    // isolation we also keep a per-sort key.
+    fun sourceFilterJson(sourceId: Long) =
+        preferenceStore.getString("pref_source_filter_${sourceId}_json_v2", "")
+
+    fun sourceFilterJsonForSort(sourceId: Long, sortIndex: Int) =
+        preferenceStore.getString("pref_source_filter_${sourceId}_sort_${sortIndex}_json_v2", "")
+
+    fun setSourceFilterJson(sourceId: Long, json: String) {
+        sourceFilterJson(sourceId).set(json)
+    }
+
+    fun setSourceFilterJsonForSort(sourceId: Long, sortIndex: Int, json: String) {
+        sourceFilterJsonForSort(sourceId, sortIndex).set(json)
+    }
+
+    fun clearSourceFilterJson(sourceId: Long) {
+        sourceFilterJson(sourceId).delete()
+        // also clear per-sort variants (0..20 is enough for typical Sort.values size)
+        for (i in 0..20) sourceFilterJsonForSort(sourceId, i).delete()
+    }
     // KMK <--
 
     // endregion
