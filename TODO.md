@@ -266,6 +266,7 @@
 - [ ] **MTL Engine**: Improve sysprompt immensely
 - [ ] **MTL Engine**: Improve OCR immensely
 - [ ] **MTL Engine**: Improve inpainting if possible
+- [ ] **MTL Engine**: Fix text still being vertically constrained for no reason
 
 ## Chores
 - [x] Replace all Komikku icons/branding with houri icons/branding
