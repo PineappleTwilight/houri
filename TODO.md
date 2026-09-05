@@ -113,7 +113,8 @@
 - [x] **MTL Engine**: Translate manga info (title, description, etc)
 - [x] **DB Per-Manga Reading Time**: Expand feature with details from upstream [PR](https://github.com/mihonapp/mihon/pull/2728)
 - [x] **WebGPU Reader**: Port latest upstream [PR](https://github.com/mihonapp/mihon/pull/3886) changes if not already implemented
-- [ ] **Manga Details**: Improve "fill metadata from tracker" functionality
+- [x] **Manga Details**: Improve "fill metadata from tracker" functionality
+  - Added getMangaMetadata to MangaBaka + ComicK; the tracker picker no longer excludes enhanced trackers
   - Needs mangabaka support
   - Expand metadata scope to include tags and publication status
   - Allow per-category default tracker to use as an info source
@@ -234,13 +235,18 @@
 - [x] **Local MTL Provider**: Per-model llama.cpp sampling settings (temp/top_p/top_k/repeat_penalty/max_tokens/context/threads) via an "Advanced (llama.cpp)" submenu, hidden without a selected model
 - [x] **Local MTL Provider**: GGUF import overhaul — background copy (no UI freeze), original filename preserved, duplicate detection (re-import just switches to the model), imported models listed in the picker
 - [x] **Local MTL Provider**: Fix model download stalling ~150 MB — throttled progress emissions, dedicated read-timeout client, HTTP Range resume, free-space pre-check, size verification
-- [ ] **Library**: Fix tracking filters
-- [ ] **App**: Update komikku deeplinks to houri deeplinks
+- [x] **Library**: Fix tracking filters
+  - Added an overall "Tracked (any)" filter above the per-tracker rows (IS = tracked anywhere, NOT = untracked)
+- [x] **App**: Update komikku deeplinks to houri deeplinks
+  - Redirect URIs already houri://; normalized MangaBaka from mihon:// to houri://
 - [ ] **MyAnimeList**: Update oauth client to use houri's oauth credentials and not komikkus
-- [ ] **Manga Details**: Fix blacklisted chapters still appearing in the chapter list
+- [x] **Manga Details**: Fix blacklisted chapters still appearing in the chapter list
+  - Blacklist now filters unconditionally (was gated behind the smart-merge toggle)
   - Also needs visual feedback when you blacklist a chapter
-- [ ] **Smart Scanlator Filter**: Fix users "getting stuck in the deduplication menu"
-- [ ] **Smart Scanlator Filter**: Fix non-rounded decimals inside the blacklisted chapters panel
+- [x] **Smart Scanlator Filter**: Fix users "getting stuck in the deduplication menu"
+  - Explicit system-back handler guarantees exit from the scanlator preference screen
+- [x] **Smart Scanlator Filter**: Fix non-rounded decimals inside the blacklisted chapters panel
+  - Blacklist keys round to 2 decimals; the panel formats legacy entries via asChapterLabel
   - Decimals should be rounded to the 10th place
 
 ## Chores

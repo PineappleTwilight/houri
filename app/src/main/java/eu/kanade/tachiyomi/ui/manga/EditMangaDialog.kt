@@ -398,7 +398,6 @@ private suspend fun getTrackers(manga: Manga, binding: EditMangaDialogBinding, c
     tracks.value = getTracks.await(manga.id).mapNotNull { track ->
         track to (trackerManager.get(track.trackerId) ?: return@mapNotNull null)
     }
-        .filterNot { (_, tracker) -> tracker is EnhancedTracker }
 
     if (tracks.value.isEmpty()) {
         context.toast(context.stringResource(SYMR.strings.entry_not_tracked))

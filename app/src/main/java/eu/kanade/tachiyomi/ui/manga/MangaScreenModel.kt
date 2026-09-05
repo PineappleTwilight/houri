@@ -358,11 +358,19 @@ class MangaScreenModel(
                     // KMK -->
                     val chapterItems = chapters
                         .let { list ->
+                            // Blacklisted chapters never appear, regardless of the smart-merge toggle.
+                            if (manga.blacklistedChapters.isNotEmpty()) {
+                                val blacklist = manga.blacklistedChapters.toSet()
+                                list.filter { scanlatorBlacklistKey(it.chapterNumber, it.scanlator) !in blacklist }
+                            } else {
+                                list
+                            }
+                        }
+                        .let { list ->
                             if (
                                 libraryPreferences.smartScanlatorMerge().get() &&
                                 (
                                     manga.scanlatorPriority.isNotEmpty() ||
-                                        manga.blacklistedChapters.isNotEmpty() ||
                                         manga.scanlatorRangeRules.isNotEmpty()
                                     )
                             ) {

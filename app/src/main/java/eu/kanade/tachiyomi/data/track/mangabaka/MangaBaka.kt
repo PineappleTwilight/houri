@@ -6,6 +6,7 @@ import eu.kanade.tachiyomi.data.database.models.Track
 import eu.kanade.tachiyomi.data.track.BaseTracker
 import eu.kanade.tachiyomi.data.track.DeletableTracker
 import eu.kanade.tachiyomi.data.track.mangabaka.dto.MangaBakaOAuth
+import eu.kanade.tachiyomi.data.track.model.TrackMangaMetadata
 import eu.kanade.tachiyomi.data.track.model.TrackSearch
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
@@ -118,6 +119,17 @@ class MangaBaka(id: Long) : BaseTracker(id, "MangaBaka"), DeletableTracker {
         track.remote_id = remoteTrack.remote_id
         track.title = remoteTrack.title
         return track
+    }
+
+    override suspend fun getMangaMetadata(track: DomainTrack): TrackMangaMetadata {
+        val remote = api.getMangaDetails(track.remoteId.toInt()) ?: throw Exception("Could not find manga")
+        return TrackMangaMetadata(
+            remoteId = track.remoteId,
+            title = remote.title,
+            thumbnailUrl = remote.cover_url,
+            description = remote.summary,
+            authors = remote.authors?.joinToString(", "),
+        )
     }
 
     override suspend fun login(username: String, password: String) = login(password)

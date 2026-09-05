@@ -1,8 +1,13 @@
 package eu.kanade.tachiyomi.util.chapter
 
 import tachiyomi.domain.chapter.model.Chapter
+import kotlin.math.roundToInt
 
-fun scanlatorBlacklistKey(chapterNumber: Double, scanlator: String?): String = "$chapterNumber@${scanlator.orEmpty()}"
+fun scanlatorBlacklistKey(chapterNumber: Double, scanlator: String?): String {
+    // Round to 2 decimals so float artifacts (1.5000000000000002) don't leak into the panel.
+    val rounded = (chapterNumber * 100).roundToInt() / 100.0
+    return "$rounded@${scanlator.orEmpty()}"
+}
 
 /**
  * A rule pinning one scanlator over a span of chapter numbers, stored encoded as

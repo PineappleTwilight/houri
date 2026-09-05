@@ -1,5 +1,6 @@
 package eu.kanade.tachiyomi.ui.manga.scanlator
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -83,6 +84,9 @@ class ScanlatorPreferenceScreen(
         val model = remember { ScanlatorPreferenceModel(mangaId) }
         val state by model.state.collectAsState()
         var selectedTab by mutableIntStateOf(0)
+
+        // Guarantee the system back button exits this screen (users reported getting stuck here).
+        BackHandler { navigator.pop() }
 
         Scaffold(
             topBar = {
@@ -223,7 +227,7 @@ class ScanlatorPreferenceScreen(
                 }
             }
             items(state.blacklist, key = { it }) { key ->
-                val number = key.substringBefore("@")
+                val number = key.substringBefore("@").toDoubleOrNull()?.asChapterLabel() ?: key.substringBefore("@")
                 val scanlator = key.substringAfter("@", "")
                 ElevatedCard(
                     modifier = Modifier

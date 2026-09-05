@@ -11,6 +11,7 @@ import eu.kanade.tachiyomi.data.track.comick.ComicKApi.Companion.TYPE_ON_HOLD
 import eu.kanade.tachiyomi.data.track.comick.ComicKApi.Companion.TYPE_PLANNING
 import eu.kanade.tachiyomi.data.track.comick.ComicKApi.Companion.TYPE_READING
 import eu.kanade.tachiyomi.data.track.comick.ComicKApi.Companion.TYPE_UNFOLLOW
+import eu.kanade.tachiyomi.data.track.model.TrackMangaMetadata
 import eu.kanade.tachiyomi.data.track.model.TrackSearch
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
@@ -136,6 +137,17 @@ class ComicK(id: Long) : BaseTracker(id, "ComicK"), DeletableTracker {
             track.status = apiTypeToStatus(followStatus.t)
         }
         return track
+    }
+
+    override suspend fun getMangaMetadata(track: DomainTrack): TrackMangaMetadata {
+        val remote = api.getMangaDetails(track.remoteId.toString()) ?: throw Exception("Could not find manga")
+        return TrackMangaMetadata(
+            remoteId = track.remoteId,
+            title = remote.title,
+            thumbnailUrl = remote.cover_url,
+            description = remote.summary,
+            authors = remote.authors?.joinToString(", "),
+        )
     }
 
     override suspend fun login(username: String, password: String) = loginWithCookie(password, username)
