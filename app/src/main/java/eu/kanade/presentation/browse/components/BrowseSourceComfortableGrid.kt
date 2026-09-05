@@ -21,8 +21,8 @@ import eu.kanade.tachiyomi.R
 import exh.metadata.metadata.MangaDexSearchMetadata
 import exh.metadata.metadata.RaisedSearchMetadata
 import exh.metadata.metadata.RankedSearchMetadata
-import kotlinx.coroutines.flow.StateFlow
 import exh.util.isLewd
+import kotlinx.coroutines.flow.StateFlow
 import tachiyomi.domain.manga.model.Manga
 import tachiyomi.domain.manga.model.MangaCover
 import tachiyomi.presentation.core.components.Badge
