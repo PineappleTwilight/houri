@@ -126,18 +126,18 @@ class YakuyomiEngine(
         li.joye.yakuyomi.engine.EngineConfig(
             render = renderConfig(),
             ocr = li.joye.yakuyomi.engine.OcrConfig(
-                minProb = 0.45f,
-                stripPad = 6,
+                minProb = 0.52f,
+                stripPad = 4,
                 concurrent = true,
                 concurrency = 8,
                 useBicubic = true,
                 ocrUnsharp = true,
             ),
             inpainter = li.joye.yakuyomi.engine.InpainterConfig(
-                method = "aot",
-                tileSize = 768,
-                maskDilate = 24f,
-                bboxPad = 16,
+                method = "boxfill",
+                tileSize = 512,
+                maskDilate = 8f,
+                bboxPad = 4,
             ),
         )
 
