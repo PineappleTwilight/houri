@@ -56,6 +56,11 @@ class TranslationManager(
     private val pending = ConcurrentHashMap<Pair<Long, Long>, ConcurrentSkipListMap<Int, PendingTranslation>>()
     private val workers = ConcurrentHashMap<Pair<Long, Long>, kotlinx.coroutines.Job>()
 
+    private companion object {
+        const val MAX_PENDING_PER_CHAPTER = 64
+        const val TRANSLATE_TIMEOUT_MS = 120_000L
+    }
+
     private fun ensureTranslationWorker(key: Pair<Long, Long>) {
         workers.computeIfAbsent(key) {
             workerScope.launch {
@@ -73,13 +78,27 @@ class TranslationManager(
                                 imageBytes = job.imageBytes,
                                 sourceLangHint = job.sourceLangHint,
                             )
-                        }.getOrNull()
-                        job.deferred.complete(result)
+                        }.getOrElse { e ->
+                            xLogE("translate worker failed page $pageIndex", e)
+                            null
+                        }
+                        if (!job.deferred.isCompleted) job.deferred.complete(result)
                         queue.remove(pageIndex)
+                        if (queue.isEmpty()) {
+                            pending.remove(key)
+                            break
+                        }
                     }
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    xLogE("translation worker crashed", e)
+                    pending[key]?.values?.forEach { p ->
+                        if (!p.deferred.isCompleted) p.deferred.complete(null)
+                    }
+                    pending.remove(key)
                 } finally {
                     workers.remove(key)
-                    // Anything enqueued between the last drain and this removal still needs a worker.
                     if (pending[key]?.isNotEmpty() == true) ensureTranslationWorker(key)
                 }
             }
@@ -290,18 +309,31 @@ class TranslationManager(
             }
         }
 
-        // KMK --> Queue the real work per chapter; the worker drains strictly in page order so
-        // translations complete start-to-finish and the LLM context follows reading order.
-        // KMK <--
         val key = mangaId to chapterId
+        val queue = pending.computeIfAbsent(key) { ConcurrentSkipListMap() }
+        if (queue.size >= MAX_PENDING_PER_CHAPTER) {
+            val oldest = queue.firstKey()
+            queue.remove(oldest)?.deferred?.completeExceptionally(CancellationException("queue overflow"))
+        }
+        if (imageBytes.size > 30 * 1024 * 1024) {
+            status.pageError(mangaId, chapterId, pageIndex, friendlyError("Image too large"))
+            return@withContext null
+        }
         val deferred = CompletableDeferred<ByteArray?>()
-        pending.computeIfAbsent(key) { ConcurrentSkipListMap() }
-            .put(
-                pageIndex,
-                PendingTranslation(imageBytes = imageBytes, sourceLangHint = sourceLangHint, deferred = deferred),
-            )?.deferred?.complete(null)
+        val prev = queue.put(
+            pageIndex,
+            PendingTranslation(imageBytes = imageBytes, sourceLangHint = sourceLangHint, deferred = deferred),
+        )
+        prev?.let { if (!it.deferred.isCompleted) it.deferred.cancel() }
         ensureTranslationWorker(key)
-        deferred.await()
+        try {
+            kotlinx.coroutines.withTimeout(TRANSLATE_TIMEOUT_MS) { deferred.await() }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            xLogE("translatePage await failed", e)
+            null
+        }
     }
 
     /** The actual pipeline for one page - only ever called in page order by [ensureTranslationWorker]. */
@@ -328,16 +360,39 @@ class TranslationManager(
         status.pageTranslating(mangaId, chapterId, pageIndex)
         var bitmap: android.graphics.Bitmap? = null
         return try {
+            if (imageBytes.size < 1024 || imageBytes.size > 30 * 1024 * 1024) {
+                status.pageError(mangaId, chapterId, pageIndex, "Invalid image size ${imageBytes.size}")
+                return null
+            }
             val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-            BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size, bounds)
-            if (bounds.outWidth <= 0 || bounds.outHeight <= 0) {
+            try {
+                BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size, bounds)
+            } catch (e: Exception) {
                 status.pageError(mangaId, chapterId, pageIndex, "Unable to decode image bounds")
                 return null
             }
-            val needsSample = bounds.outWidth > 4096 || bounds.outHeight > 4096
-            val sampleOpts = if (needsSample) BitmapFactory.Options().apply { inSampleSize = 2 } else null
-            val decoded = BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size, sampleOpts)
-            if (decoded == null) {
+            if (bounds.outWidth <= 0 || bounds.outHeight <= 0 || bounds.outWidth > 10000 || bounds.outHeight > 10000) {
+                status.pageError(mangaId, chapterId, pageIndex, "Invalid image dimensions ${bounds.outWidth}x${bounds.outHeight}")
+                return null
+            }
+            val maxDim = maxOf(bounds.outWidth, bounds.outHeight)
+            val sampleSize = when {
+                maxDim > 6000 -> 4
+                maxDim > 4096 -> 2
+                else -> 1
+            }
+            val sampleOpts = if (sampleSize > 1) BitmapFactory.Options().apply { inSampleSize = sampleSize } else null
+            val decoded = try {
+                BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size, sampleOpts)
+            } catch (e: OutOfMemoryError) {
+                System.gc()
+                status.pageError(mangaId, chapterId, pageIndex, friendlyError("not enough memory"))
+                return null
+            } catch (e: Exception) {
+                status.pageError(mangaId, chapterId, pageIndex, "Unable to decode image")
+                return null
+            }
+            if (decoded == null || decoded.isRecycled) {
                 status.pageError(mangaId, chapterId, pageIndex, "Unable to decode image")
                 return null
             }
@@ -374,10 +429,21 @@ class TranslationManager(
                 }
                 else -> {
                     val jpegBytes = runCatching {
-                        val out = java.io.ByteArrayOutputStream()
-                        bitmap.compress(Bitmap.CompressFormat.JPEG, 85, out)
-                        out.toByteArray()
-                    }.getOrNull()
+                        if (bitmap.width * bitmap.height > 2_000_000) {
+                            val scale = kotlin.math.sqrt(2_000_000.0 / (bitmap.width * bitmap.height)).toFloat()
+                            val nw = (bitmap.width * scale).toInt().coerceAtLeast(512)
+                            val nh = (bitmap.height * scale).toInt().coerceAtLeast(512)
+                            val scaled = android.graphics.Bitmap.createScaledBitmap(bitmap, nw, nh, true)
+                            val out = java.io.ByteArrayOutputStream()
+                            scaled.compress(Bitmap.CompressFormat.JPEG, 80, out)
+                            scaled.recycle()
+                            out.toByteArray()
+                        } else {
+                            val out = java.io.ByteArrayOutputStream()
+                            bitmap.compress(Bitmap.CompressFormat.JPEG, 80, out)
+                            out.toByteArray()
+                        }
+                    }.getOrNull()?.takeIf { it.size in 1..3_000_000 }
                     YakuyomiTranslator(
                         apiKey = prefs.effectiveApiKey(),
                         sourceLang = sourceLangHint,

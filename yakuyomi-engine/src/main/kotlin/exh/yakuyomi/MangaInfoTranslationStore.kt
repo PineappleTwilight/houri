@@ -28,7 +28,20 @@ class MangaInfoTranslationStore(
     }
 
     fun put(mangaId: Long, translation: MangaInfoTranslation) {
-        runCatching { file(mangaId).writeText(json.encodeToString(translation)) }
+        if (mangaId <= 0) return
+        val safeTitle = translation.title.trim().take(300).ifBlank { return }
+        val safeDesc = translation.description?.trim()?.take(2000)
+        val safe = translation.copy(title = safeTitle, description = safeDesc)
+        runCatching {
+            val f = file(mangaId)
+            val tmp = File(f.parentFile, "${f.name}.tmp")
+            tmp.writeText(json.encodeToString(safe))
+            if (f.exists()) f.delete()
+            if (!tmp.renameTo(f)) {
+                tmp.copyTo(f, overwrite = true)
+                tmp.delete()
+            }
+        }
     }
 
     fun clear(mangaId: Long) {

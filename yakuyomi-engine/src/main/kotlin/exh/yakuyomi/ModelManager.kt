@@ -248,52 +248,69 @@ class ModelManager(
     }
 
     private suspend fun refreshManifest() {
-        try {
-            val request = Request.Builder().url(MANIFEST_URL).get().build()
-            client.newCall(request).execute().use { resp ->
-                if (resp.isSuccessful) {
-                    val body = resp.body.string()
-                    if (body.isNotBlank()) {
-                        val manifest = json.decodeFromString<ModelManifest>(body)
-                        if (manifest.models.isNotEmpty()) {
-                            models = manifest.models
-                        }
+        val reqClient = client.newBuilder()
+            .callTimeout(10, java.util.concurrent.TimeUnit.SECONDS)
+            .build()
+        repeat(2) { attempt ->
+            try {
+                val request = Request.Builder().url(MANIFEST_URL).get().build()
+                reqClient.newCall(request).execute().use { resp ->
+                    if (!resp.isSuccessful) return
+                    val body = resp.body.string().take(200_000)
+                    if (body.isBlank()) return
+                    val manifest = json.decodeFromString<ModelManifest>(body)
+                    if (manifest.models.isNotEmpty() && manifest.models.size < 20) {
+                        val valid = manifest.models.filter { it.name.isNotBlank() && it.url.startsWith("https://") && it.size in 1024..500_000_000L && it.sha256.length == 64 }
+                        if (valid.size == manifest.models.size) models = valid
                     }
                 }
+                return
+            } catch (_: Exception) {
+                if (attempt == 0) kotlinx.coroutines.delay(500)
             }
-        } catch (_: Exception) {
-            // Keep fallback models
         }
     }
 
     private fun downloadAndVerify(model: RemoteModel, onBytes: (Long) -> Unit) {
+        if (model.name.contains("..") || model.name.contains("/")) throw IllegalStateException("Invalid model name")
+        if (!model.url.startsWith("https://")) throw IllegalStateException("Invalid model URL")
+        val dlClient = client.newBuilder()
+            .callTimeout(0, java.util.concurrent.TimeUnit.SECONDS)
+            .readTimeout(60, java.util.concurrent.TimeUnit.SECONDS)
+            .connectTimeout(15, java.util.concurrent.TimeUnit.SECONDS)
+            .build()
         val request = Request.Builder().url(model.url).get().build()
-        client.newCall(request).execute().use { resp ->
-            if (!resp.isSuccessful) {
-                throw IllegalStateException("HTTP ${resp.code} for ${model.name}")
-            }
+        dlClient.newCall(request).execute().use { resp ->
+            if (!resp.isSuccessful) throw IllegalStateException("HTTP ${resp.code} for ${model.name}")
+            val contentLen = resp.header("Content-Length")?.toLongOrNull()
+            if (contentLen != null && contentLen != model.size) throw IllegalStateException("Content-Length mismatch for ${model.name}")
             val body = resp.body
             val tmp = File(modelsDir, "${model.name}.tmp")
+            var totalRead = 0L
             body.byteStream().use { input ->
                 tmp.outputStream().use { output ->
                     val buf = ByteArray(64 * 1024)
                     while (true) {
                         val read = input.read(buf)
                         if (read == -1) break
+                        totalRead += read
+                        if (totalRead > model.size + 1024 * 1024) throw IllegalStateException("Download exceeded expected size for ${model.name}")
                         output.write(buf, 0, read)
                         onBytes(read.toLong())
                     }
                     output.flush()
                 }
             }
-
+            if (tmp.length() != model.size) {
+                tmp.delete()
+                throw IllegalStateException("Size mismatch for ${model.name} (got ${tmp.length()}, expected ${model.size})")
+            }
             if (!sha256(tmp).equals(model.sha256, ignoreCase = true)) {
                 tmp.delete()
                 throw IllegalStateException("sha256 mismatch for ${model.name}")
             }
-
             val target = file(model)
-            if (target.exists()) target.delete()
+            if (target.exists() && !target.delete()) throw IllegalStateException("Cannot replace ${model.name}")
             if (!tmp.renameTo(target)) {
                 tmp.copyTo(target, overwrite = true)
                 tmp.delete()

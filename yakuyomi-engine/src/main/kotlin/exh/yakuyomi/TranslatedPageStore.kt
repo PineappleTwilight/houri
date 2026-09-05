@@ -39,11 +39,14 @@ class TranslatedPageStore(
     }
 
     fun save(mangaId: Long, chapterId: Long, pageIndex: Int, webpBytes: ByteArray) {
+        if (webpBytes.isEmpty() || webpBytes.size > 5 * 1024 * 1024) return
+        if (pageIndex < 0 || pageIndex > 5000) return
         val f = pageFile(mangaId, chapterId, pageIndex)
         try {
             val tmp = File(f.parentFile, f.name + ".tmp")
             tmp.writeBytes(webpBytes)
-            if (f.exists()) f.delete()
+            if (tmp.length() != webpBytes.size.toLong()) throw IllegalStateException("tmp incomplete")
+            if (f.exists() && !f.delete()) throw IllegalStateException("cannot replace")
             if (!tmp.renameTo(f)) {
                 tmp.copyTo(f, overwrite = true)
                 tmp.delete()
@@ -64,23 +67,23 @@ class TranslatedPageStore(
         } catch (_: Exception) {}
     }
 
-    /** Evicts the oldest chapters (by last-modified) until under the byte/chapter caps. */
     @Synchronized
     fun pruneIfNeeded() {
         try {
             val base = baseDir()
-            // Stored as <base>/<mangaId>/<chapterId>.
             val chapters = base.listFiles()?.filter { it.isDirectory }?.flatMap { manga ->
                 manga.listFiles()?.filter { it.isDirectory } ?: emptyList()
             } ?: return
-            if (chapters.size <= MAX_SAVED_CHAPTERS) {
-                val total = chapters.sumOf { dir -> dir.listFiles()?.sumOf { it.length() } ?: 0L }
-                if (total <= MAX_SAVED_BYTES) return
-            }
+            var total = chapters.sumOf { dir -> dir.listFiles()?.filter { it.isFile }?.sumOf { it.length() } ?: 0L }
+            if (chapters.size <= MAX_SAVED_CHAPTERS && total <= MAX_SAVED_BYTES) return
             val ordered = chapters.sortedBy { it.lastModified() }
             for (dir in ordered) {
-                if (ordered.size - ordered.indexOf(dir) <= MAX_SAVED_CHAPTERS / 2) break
-                dir.deleteRecursively()
+                if (chapters.size - ordered.indexOf(dir) <= MAX_SAVED_CHAPTERS && total <= MAX_SAVED_BYTES) break
+                val size = dir.listFiles()?.filter { it.isFile }?.sumOf { it.length() } ?: 0L
+                if (dir.deleteRecursively()) {
+                    total -= size
+                }
+                if (ordered.size - ordered.indexOf(dir) <= MAX_SAVED_CHAPTERS / 2 && total <= MAX_SAVED_BYTES / 2) break
             }
         } catch (_: Exception) {}
     }

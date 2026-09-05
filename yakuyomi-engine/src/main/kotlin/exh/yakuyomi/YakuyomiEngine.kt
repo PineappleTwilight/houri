@@ -92,13 +92,19 @@ class YakuyomiEngine(
 
     private fun libModelSet(): ModelSet? {
         val dir = modelsDir()
-        if (!dir.exists()) return null
-        val files = dir.listFiles()?.map { it.name to it.absolutePath } ?: return null
+        if (!dir.exists() || !dir.isDirectory) return null
+        val files = dir.listFiles()?.filter { it.isFile && it.length() > 1024 }?.map { it.name to it.absolutePath } ?: return null
+        if (files.isEmpty()) return null
         val set = ModelSet.resolve(files) ?: return null
-        // resolve() name-matches the .param/.onnx only; the NCNN roles also need their .bin
-        // siblings or the native load fails. Match the downloader's five-file readiness check.
         val params = listOfNotNull(set.detectorNcnn, set.aotInpainterNcnn)
-        if (params.any { !File(it.removeSuffix(".param") + ".bin").isFile }) return null
+        if (params.any { p ->
+                val bin = File(p.removeSuffix(".param") + ".bin")
+                !bin.isFile || bin.length() < 1_000_000L
+            }
+        ) {
+            return null
+        }
+        if (set.ocr != null && !File(set.ocr).let { it.isFile && it.length() > 1_000_000L }) return null
         return set
     }
 
@@ -119,6 +125,8 @@ class YakuyomiEngine(
 
     private fun renderConfig(): li.joye.yakuyomi.engine.RenderConfig {
         val defaults = li.joye.yakuyomi.engine.EngineConfig().render
+        val max = prefs.renderFontSizeMax().get().coerceIn(30, 100)
+        val min = prefs.renderFontSizeMin().get().coerceIn(6, 20).coerceAtMost(max - 2)
         return defaults.copy(
             colorMode = "fixed",
             fixedTextColor = resolveTextColor(),
@@ -126,8 +134,8 @@ class YakuyomiEngine(
             expandW = prefs.renderExpandW().get().coerceIn(1.0f, 2.0f),
             expandH = prefs.renderExpandH().get().coerceIn(1.0f, 2.0f),
             tateChuYoko = prefs.renderTateChuYoko().get(),
-            fontSizeMax = prefs.renderFontSizeMax().get().coerceIn(30, 100),
-            fontSizeMin = prefs.renderFontSizeMin().get().coerceIn(6, 20),
+            fontSizeMax = max,
+            fontSizeMin = min,
         )
     }
 
@@ -174,8 +182,9 @@ class YakuyomiEngine(
             render = defaultConfig().render.copy(orientation = li.joye.yakuyomi.engine.TextOrientation.HORIZONTAL),
         )
 
-    private fun loadAlphabet(): List<String> =
-        context.assets.open("yakuyomi_alphabet.txt").bufferedReader().readLines()
+    private fun loadAlphabet(): List<String> = runCatching {
+        context.assets.open("yakuyomi_alphabet.txt").bufferedReader().use { it.readLines().filter { l -> l.isNotBlank() } }
+    }.getOrElse { emptyList() }.takeIf { it.isNotEmpty() } ?: listOf(" ")
 
     private fun buildIfNeeded(): Components? = synchronized(this) {
         components ?: buildComponents()?.also { components = it }
@@ -197,28 +206,42 @@ class YakuyomiEngine(
         }
     }
 
+    @Volatile
+    private var lastBuildFailureMs = 0L
+
     private fun buildComponents(): Components? {
         if (!isHardwareSupported()) {
             logcat { "Yakuyomi engine skipped: device has too little RAM" }
             return null
         }
+        if (System.currentTimeMillis() - lastBuildFailureMs < 5000) return null
         val set = libModelSet() ?: run {
             logcat { "Yakuyomi models not ready" }
             return null
         }
         return try {
+            val alphabet = loadAlphabet()
+            if (alphabet.size < 10) {
+                logcat { "Yakuyomi alphabet load failed, size=${alphabet.size}" }
+                return null
+            }
             val cfg = defaultConfig()
             val detector = Detector(set.detectorNcnn ?: error("missing detector .param"), cfg.detector)
-            val ocr = Ocr(set.ocr, loadAlphabet(), cfg.ocr)
+            val ocr = Ocr(set.ocr, alphabet, cfg.ocr)
             val inpainter = Inpainter(set.aotInpainterNcnn ?: error("missing inpainter .param"), cfg.inpainter)
-            detector.warmUp()
-            ocr.warmUp()
-            inpainter.warmUp()
+            try {
+                detector.warmUp()
+                ocr.warmUp()
+                inpainter.warmUp()
+            } catch (e: Throwable) {
+                runCatching { detector.close() }
+                runCatching { ocr.close() }
+                runCatching { inpainter.close() }
+                throw e
+            }
             Components(detector, ocr, inpainter)
         } catch (e: Throwable) {
-            // Throwable, not Exception: UnsatisfiedLinkError (missing native lib on
-            // ABIs without engine support, e.g. x86) is an Error and must degrade to
-            // "not ready" instead of crashing the reader.
+            lastBuildFailureMs = System.currentTimeMillis()
             logcat { "Yakuyomi engine init failed: ${e.message}" }
             null
         }

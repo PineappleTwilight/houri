@@ -23,8 +23,19 @@ data class LocalLlmSamplingConfig(
 ) {
     val resolvedThreads: Int
         get() = if (numThreads <= 0) {
-            Runtime.getRuntime().availableProcessors().coerceAtLeast(4)
+            (Runtime.getRuntime().availableProcessors() - 1).coerceIn(2, 8)
         } else {
-            numThreads
+            numThreads.coerceIn(1, 8)
         }
+
+    fun validated(): LocalLlmSamplingConfig = copy(
+        temperature = temperature.coerceIn(0f, 2f),
+        topP = topP.coerceIn(0f, 1f),
+        topK = topK.coerceIn(1, 100),
+        repeatPenalty = repeatPenalty.coerceIn(0.8f, 2f),
+        maxTokens = maxTokens.coerceIn(64, 4096),
+        contextLength = contextLength.coerceIn(512, 16384),
+        numThreads = numThreads.coerceIn(0, 8),
+        gpuLayers = gpuLayers.coerceIn(-1, 100),
+    )
 }

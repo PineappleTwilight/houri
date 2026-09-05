@@ -50,8 +50,32 @@ class YakuyomiTranslator(
     private fun isVisionModel(): Boolean {
         val lowerModel = model.lowercase()
         val lowerProvider = provider.lowercase()
-        if (lowerProvider.contains("gemini") || lowerProvider.contains("qwen")) return false
-        return lowerModel.contains("vision")
+        if (lowerProvider.contains("gemini")) return false
+        val visionHints = listOf("vision", "vl", "llava", "qwen2-vl", "qwen-vl", "minicpm-v", "internvl", "pixtral")
+        return visionHints.any { it in lowerModel }
+    }
+
+    private fun sanitizeUrl(raw: String): String {
+        val trimmed = raw.trim()
+        if (trimmed.isBlank()) return ""
+        val lower = trimmed.lowercase()
+        if (lower.startsWith("http://") || lower.startsWith("https://")) return trimmed.trimEnd('/')
+        return ""
+    }
+
+    private fun isPrivateHost(url: String): Boolean = try {
+        val host = java.net.URI(url).host?.lowercase() ?: return true
+        host == "localhost" || host == "127.0.0.1" || host == "::1" ||
+            host.startsWith("10.") || host.startsWith("192.168.") || host.startsWith("172.") ||
+            host.endsWith(".local") || host == "metadata.google.internal"
+    } catch (_: Exception) {
+        true
+    }
+
+    private fun cappedVisionBytes(): ByteArray? {
+        val raw = pageImageBytes ?: return null
+        if (raw.isEmpty() || raw.size > 8 * 1024 * 1024) return null
+        return raw
     }
 
     private val json = Json {
@@ -95,9 +119,12 @@ class YakuyomiTranslator(
 
     private suspend fun callOpenAICompatible(prompt: String, apiKey: String, model: String, baseUrl: String, customHeaders: String): List<String>? = withContext(Dispatchers.IO) {
         try {
-            if (baseUrl.isBlank()) throw TranslationException("Base URL not configured for this provider")
-            val url = baseUrl.trimEnd('/') + "/chat/completions"
-            val useVision = isVisionModel() && pageImageBytes != null && pageImageBytes.isNotEmpty()
+            val safeBase = sanitizeUrl(baseUrl)
+            if (safeBase.isBlank()) throw TranslationException("Base URL not configured for this provider")
+            if (isPrivateHost(safeBase)) throw TranslationException("Base URL points to private host (blocked)")
+            val url = "$safeBase/chat/completions"
+            val visionBytes = cappedVisionBytes()
+            val useVision = isVisionModel() && visionBytes != null
             val body = buildJsonObject {
                 put("model", model)
                 putJsonArray("messages") {
@@ -105,7 +132,7 @@ class YakuyomiTranslator(
                         buildJsonObject {
                             put("role", "user")
                             if (useVision) {
-                                val b64 = java.util.Base64.getEncoder().encodeToString(pageImageBytes)
+                                val b64 = java.util.Base64.getEncoder().encodeToString(visionBytes)
                                 putJsonArray("content") {
                                     add(
                                         buildJsonObject {
@@ -133,16 +160,42 @@ class YakuyomiTranslator(
                 .post(body)
                 .header("Authorization", "Bearer $apiKey")
                 .header("Content-Type", "application/json")
-            parseCustomHeaders(customHeaders)?.forEach { (k, v) -> reqBuilder.header(k, v) }
+            parseCustomHeaders(customHeaders)?.forEach { (k, v) ->
+                if (k.lowercase() !in setOf("authorization", "host", "content-length")) {
+                    reqBuilder.header(k, v)
+                }
+            }
             val req = reqBuilder.build()
             val callClient = client.newBuilder().callTimeout(30, TimeUnit.SECONDS).build()
-            callClient.newCall(req).execute().use { resp ->
-                if (!resp.isSuccessful) {
-                    throw TranslationException("OpenAI-compatible HTTP ${resp.code}: ${resp.message}")
+            var lastEx: Exception? = null
+            repeat(2) { attempt ->
+                try {
+                    callClient.newCall(req).execute().use { resp ->
+                        if (!resp.isSuccessful) {
+                            val isTransient = resp.code in 429..503
+                            if (isTransient && attempt == 0) {
+                                kotlinx.coroutines.delay(600L shl attempt)
+                                return@repeat
+                            }
+                            throw TranslationException("OpenAI-compatible HTTP ${resp.code}: ${resp.message}")
+                        }
+                        val txt = resp.body.string()
+                        val parsed = parseOpenRouterResponse(txt)
+                        if (parsed != null) return@withContext parsed
+                        throw TranslationException("OpenAI-compatible returned no usable translation")
+                    }
+                } catch (e: TranslationException) {
+                    if (e.message?.contains("429") == true && attempt == 0) {
+                        kotlinx.coroutines.delay(800)
+                    } else {
+                        throw e
+                    }
+                } catch (e: Exception) {
+                    lastEx = e
+                    if (attempt == 0) kotlinx.coroutines.delay(500)
                 }
-                val txt = resp.body.string()
-                parseOpenRouterResponse(txt)
             }
+            throw lastEx ?: TranslationException("OpenAI-compatible call failed")
         } catch (e: CancellationException) {
             throw e
         } catch (e: TranslationException) {
@@ -154,16 +207,17 @@ class YakuyomiTranslator(
 
     private fun parseCustomHeaders(raw: String): Map<String, String>? {
         if (raw.isBlank()) return emptyMap()
+        if (raw.length > 4096) return emptyMap()
         return try {
-            raw.lines()
+            raw.lines().take(20)
                 .map { it.trim() }
-                .filter { it.isNotBlank() && it.contains(":") }
+                .filter { it.isNotBlank() && it.contains(":") && it.length < 512 }
                 .associate {
                     val idx = it.indexOf(":")
-                    val k = it.substring(0, idx).trim()
-                    val v = it.substring(idx + 1).trim()
+                    val k = it.substring(0, idx).trim().take(64)
+                    val v = it.substring(idx + 1).trim().take(512)
                     k to v
-                }
+                }.filterKeys { it.isNotBlank() && it.matches(Regex("[A-Za-z0-9\\-]+")) }
         } catch (_: Exception) {
             null
         }
@@ -171,8 +225,8 @@ class YakuyomiTranslator(
 
     private suspend fun callOpenRouter(prompt: String, apiKey: String, model: String): List<String>? = withContext(Dispatchers.IO) {
         try {
-            val url = "https://openrouter.ai/api/v1/chat/completions"
-            val useVision = isVisionModel() && pageImageBytes != null && pageImageBytes.isNotEmpty()
+            val visionBytes = cappedVisionBytes()
+            val useVision = isVisionModel() && visionBytes != null
             val body = buildJsonObject {
                 put("model", model)
                 putJsonArray("messages") {
@@ -180,7 +234,7 @@ class YakuyomiTranslator(
                         buildJsonObject {
                             put("role", "user")
                             if (useVision) {
-                                val b64 = java.util.Base64.getEncoder().encodeToString(pageImageBytes)
+                                val b64 = java.util.Base64.getEncoder().encodeToString(visionBytes)
                                 putJsonArray("content") {
                                     add(
                                         buildJsonObject {
@@ -204,7 +258,7 @@ class YakuyomiTranslator(
                 put("max_tokens", 2048)
             }.toString().toRequestBody("application/json".toMediaType())
             val req = Request.Builder()
-                .url(url)
+                .url("https://openrouter.ai/api/v1/chat/completions")
                 .post(body)
                 .header("Authorization", "Bearer $apiKey")
                 .header("Content-Type", "application/json")
@@ -214,13 +268,34 @@ class YakuyomiTranslator(
             val callClient = client.newBuilder()
                 .callTimeout(30, TimeUnit.SECONDS)
                 .build()
-            callClient.newCall(req).execute().use { resp ->
-                if (!resp.isSuccessful) {
-                    throw TranslationException("OpenRouter HTTP ${resp.code}: ${resp.message}")
+            var lastEx: Exception? = null
+            repeat(2) { attempt ->
+                try {
+                    callClient.newCall(req).execute().use { resp ->
+                        if (!resp.isSuccessful) {
+                            if (resp.code == 429 && attempt == 0) {
+                                kotlinx.coroutines.delay(1000)
+                                return@repeat
+                            }
+                            throw TranslationException("OpenRouter HTTP ${resp.code}: ${resp.message}")
+                        }
+                        val txt = resp.body.string()
+                        val parsed = parseOpenRouterResponse(txt)
+                        if (parsed != null) return@withContext parsed
+                        throw TranslationException("OpenRouter returned no usable translation")
+                    }
+                } catch (e: TranslationException) {
+                    if (e.message?.contains("429") == true && attempt == 0) {
+                        kotlinx.coroutines.delay(1000)
+                    } else {
+                        throw e
+                    }
+                } catch (e: Exception) {
+                    lastEx = e
+                    if (attempt == 0) kotlinx.coroutines.delay(500)
                 }
-                val txt = resp.body.string()
-                parseOpenRouterResponse(txt)
             }
+            throw lastEx ?: TranslationException("OpenRouter call failed")
         } catch (e: CancellationException) {
             throw e
         } catch (e: TranslationException) {

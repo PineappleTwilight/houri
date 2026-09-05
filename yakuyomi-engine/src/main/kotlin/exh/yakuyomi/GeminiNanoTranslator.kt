@@ -76,7 +76,7 @@ class GeminiNanoTranslator(
         val m = model ?: return FeatureStatus.UNAVAILABLE.also { status = it }
         val cached = status
         val now = System.currentTimeMillis()
-        if (cached != null && cached == FeatureStatus.AVAILABLE && now - lastStatusCheckMs < statusTtlMs) {
+        if (cached != null && now - lastStatusCheckMs < statusTtlMs) {
             return cached
         }
         return try {
@@ -91,16 +91,14 @@ class GeminiNanoTranslator(
         } catch (e: CancellationException) {
             throw e
         } catch (e: GenAiException) {
-            // AICore provisioning can lag model availability (601 BINDING_FAILURE /
-            // 606 FEATURE_NOT_FOUND until AICore downloads its config, minutes to hours
-            // after setup). Surface the code so the settings row can explain instead of
-            // the user assuming the device is unsupported.
             logcat { "Gemini Nano status check GenAiException: ${e.message}" }
             statusError = e.message
+            lastStatusCheckMs = now
             FeatureStatus.UNAVAILABLE.also { status = it }
         } catch (e: Exception) {
             logcat { "Gemini Nano status check failed: ${e.message}" }
             statusError = e.message
+            lastStatusCheckMs = now
             FeatureStatus.UNAVAILABLE.also { status = it }
         }
     }
@@ -139,23 +137,23 @@ class GeminiNanoTranslator(
         }
     }
 
-    /**
-     * Translates [queries] (one OCR'd text line each) with Gemini Nano. When [pageBitmap]
-     * is non-null the page is sent along as visual context. Returns the translated lines,
-     * or null when the device/model isn't ready (caller falls back to the cloud provider).
-     */
     suspend fun translate(queries: List<String>, pageBitmap: Bitmap?, sourceLang: String): List<String>? =
         withContext(Dispatchers.Default) {
             if (queries.isEmpty()) return@withContext emptyList()
             if (refreshStatus() != FeatureStatus.AVAILABLE) return@withContext null
             val m = model ?: return@withContext null
             try {
+                val capped = queries.map { it.take(500) }.take(30)
+                if (pageBitmap != null && (pageBitmap.isRecycled || pageBitmap.width < 16 || pageBitmap.height < 16)) {
+                    logcat { "Gemini Nano: invalid bitmap passed" }
+                    return@withContext null
+                }
                 val imagePrompt = if (pageBitmap != null) {
                     "The attached image is the manga page being processed. Use it for context (speakers, layout, onomatopoeia) but do not invent text. "
                 } else {
                     ""
                 }
-                val prompt = buildPrompt(queries, imagePrompt, sourceLang)
+                val prompt = buildPrompt(capped, imagePrompt, sourceLang)
                 val request = if (pageBitmap != null) {
                     generateContentRequest(ImagePart(pageBitmap), TextPart(prompt)) {
                         temperature = 0.3f
@@ -170,7 +168,8 @@ class GeminiNanoTranslator(
                 val text = m.generateContent(request)
                     .candidates.firstOrNull()?.text?.takeIf { it.isNotBlank() }
                 if (text == null) return@withContext null
-                parseTranslationLines(text)?.let { alignTranslationLines(it, queries) }
+                val parsed = parseTranslationLines(text) ?: return@withContext null
+                alignTranslationLines(parsed, capped)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: GenAiException) {
@@ -183,20 +182,26 @@ class GeminiNanoTranslator(
         }
 
     private fun buildPrompt(queries: List<String>, imageContext: String, sourceLang: String): String {
-        val targetLang = prefs.targetLang().get().ifBlank { "en" }
+        val targetLang = prefs.targetLang().get().ifBlank { "en" }.take(20)
         val isEnFix = sourceLang.equals("EN", true) && targetLang.equals("EN", true)
-        // Vision-only context prefix: the model sees the page image and must still return
-        // exactly one line per input line.
+        val glossary = prefs.glossaryMap().entries.take(30).joinToString("\n") { "- ${it.key.take(40)} -> ${it.value.take(40)}" }
+        val glossarySec = if (glossary.isNotBlank()) "Glossary:\n$glossary\n\n" else ""
         return if (isEnFix) {
-            imageContext +
+            imageContext + glossarySec +
                 "Fix grammar, preserve names, output only EN. Texts:\n" +
-                queries.joinToString("\n") { "- $it" } +
+                queries.joinToString("\n") { "- ${it.replace("\n", " ")}" } +
                 "\n\nReturn each corrected line prefixed with '- ' exactly, one per input line, no extra commentary."
         } else {
-            imageContext +
+            imageContext + glossarySec +
                 "Translate the lines to $targetLang. Preserve names, honorifics, output only $targetLang. Texts:\n" +
-                queries.joinToString("\n") { "- $it" } +
+                queries.joinToString("\n") { "- ${it.replace("\n", " ")}" } +
                 "\n\nReturn each translated line prefixed with '- ' exactly, one per input line, no extra commentary."
         }
+    }
+
+    fun close() {
+        try {
+            scope.launch { }
+        } catch (_: Exception) {}
     }
 }

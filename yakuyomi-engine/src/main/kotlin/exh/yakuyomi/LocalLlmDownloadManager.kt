@@ -101,10 +101,12 @@ class LocalLlmDownloadManager(
         return mmprojOk
     }
 
-    /** Free space on the app's data partition, in bytes. */
     private fun freeSpaceBytes(): Long = runCatching {
-        Environment.getDataDirectory().let { android.os.StatFs(it.path).availableBytes }
-    }.getOrDefault(Long.MAX_VALUE)
+        val dir = context.filesDir
+        android.os.StatFs(dir.path).availableBytes
+    }.getOrElse {
+        runCatching { Environment.getDataDirectory().let { android.os.StatFs(it.path).availableBytes } }.getOrDefault(Long.MAX_VALUE)
+    }
 
     /** Remote size of a file from the HF tree API (0 when unknown). */
     private fun remoteSize(repo: String, file: String): Long {
@@ -123,12 +125,16 @@ class LocalLlmDownloadManager(
 
     fun startDownload(model: LocalLlmModel) {
         if (model.isCustom) return
-        if (downloadJob?.isActive == true) downloadJob?.cancel()
+        downloadJob?.takeIf { it.isActive }?.let { return }
         downloadJob = scope.launch {
             val ggufFile = model.ggufFile
             val ggufRepo = model.ggufRepo
             if (ggufFile.isNullOrBlank() || ggufRepo.isNullOrBlank()) {
                 _status.value = Status(State.ERROR, error = "No GGUF configured for ${model.displayName}.")
+                return@launch
+            }
+            if (ggufFile.contains("..") || ggufFile.contains("/")) {
+                _status.value = Status(State.ERROR, error = "Invalid file name")
                 return@launch
             }
             val dir = modelDir(model)
@@ -137,19 +143,20 @@ class LocalLlmDownloadManager(
                 _status.value = Status(State.READY, downloadedBytes = bytes, totalBytes = bytes)
                 return@launch
             }
-            val mmproj = model.mmprojFile?.takeIf { !model.mmprojRepo.isNullOrBlank() }
-            val ggufSize = remoteSize(ggufRepo, ggufFile).coerceAtLeast(model.sizeBytes)
-            val mmprojSize = mmproj?.let { remoteSize(model.mmprojRepo!!, it) } ?: 0L
-            val total = ggufSize + mmprojSize
-            if (total > freeSpaceBytes()) {
+            val mmproj = model.mmprojFile?.takeIf { !model.mmprojRepo.isNullOrBlank() && !it.contains("..") }
+            val ggufSize = remoteSize(ggufRepo, ggufFile).coerceAtLeast(model.sizeBytes).coerceAtMost(20L * 1024 * 1024 * 1024)
+            val mmprojSize = mmproj?.let { remoteSize(model.mmprojRepo!!, it).coerceAtMost(4L * 1024 * 1024 * 1024) } ?: 0L
+            val total = (ggufSize + mmprojSize).coerceAtLeast(1L)
+            val free = freeSpaceBytes()
+            if (total + 500 * 1024 * 1024 > free) {
                 _status.value = Status(
                     State.ERROR,
                     totalBytes = total,
-                    error = "Not enough free storage (needs ${total / (1024 * 1024)} MB).",
+                    error = "Not enough free storage (needs ${total / (1024 * 1024)} MB, free ${free / (1024 * 1024)} MB).",
                 )
                 return@launch
             }
-            _status.value = Status(State.DOWNLOADING, 0L, total, currentFile = ggufFile)
+            _status.value = Status(State.DOWNLOADING, downloadedBytes(model), total, currentFile = ggufFile)
             try {
                 var completed = downloadWithRetries(dir, ggufRepo, ggufFile, ggufSize, total, 0L)
                 if (mmproj != null && completed < total) {
@@ -163,7 +170,6 @@ class LocalLlmDownloadManager(
                 val bytes = downloadedBytes(model)
                 _status.value = Status(State.READY, downloadedBytes = bytes, totalBytes = bytes)
             } catch (e: CancellationException) {
-                // Keep partial files for resume; reflect how far the download got.
                 _status.value = Status(State.NOT_INSTALLED, downloadedBytes = downloadedBytes(model), totalBytes = total)
                 throw e
             } catch (e: Exception) {
@@ -172,7 +178,7 @@ class LocalLlmDownloadManager(
                     State.ERROR,
                     downloadedBytes = downloadedBytes(model),
                     totalBytes = total,
-                    error = e.message ?: "Download failed",
+                    error = e.message?.take(300) ?: "Download failed",
                 )
             }
         }
@@ -190,62 +196,71 @@ class LocalLlmDownloadManager(
         totalBytes: Long,
         beforeBytes: Long,
     ): Long {
+        if (fileName.contains("..") || fileName.contains("/")) throw IllegalStateException("Invalid file name")
         val target = File(dir, fileName)
-        if (target.length() > 1_000_000L) return beforeBytes + target.length()
+        if (target.length() > 1_000_000L && (expectedSize <= 0L || target.length() == expectedSize)) {
+            return beforeBytes + target.length()
+        }
         val tmp = File(dir, "$fileName.tmp")
-        val startAt = tmp.length().takeIf { it > 0L } ?: 0L
+        var startAt = tmp.length().takeIf { it > 0L && it < 20L * 1024 * 1024 * 1024 } ?: 0L
+        if (expectedSize > 0L && startAt >= expectedSize) {
+            tmp.delete()
+            startAt = 0L
+        }
         val url = "https://huggingface.co/$repo/resolve/main/${fileName.replace(" ", "%20")}"
         val request = Request.Builder().url(url).apply {
             if (startAt > 0L) header("Range", "bytes=$startAt-")
         }.get().build()
 
         var completed = beforeBytes + startAt
-        var lastEmit = 0L
+        var lastEmitBytes = completed
         var lastTick = System.nanoTime()
+        var dataReceived = false
         downloadClient.newCall(request).execute().use { resp ->
             if (!resp.isSuccessful) throw IllegalStateException("HTTP ${resp.code} for $fileName")
-            // Server ignored the Range request (200 instead of 206) -> restart the file.
-            if (startAt > 0L && resp.code != 206) {
+            if (startAt > 0L && resp.code == 200) {
                 tmp.delete()
                 completed = beforeBytes
+                startAt = 0L
+            } else if (startAt > 0L && resp.code != 206 && resp.code != 200) {
+                throw IllegalStateException("HTTP ${resp.code} for Range $fileName")
             }
+            val append = resp.code == 206 && startAt > 0L
             resp.body.byteStream().use { input ->
-                FileOutputStream(tmp, true).use { output ->
+                FileOutputStream(tmp, append).use { output ->
                     val buf = ByteArray(64 * 1024)
                     while (true) {
-                        // Cancellation must propagate as an exception so the partial file
-                        // is kept (and never renamed over the target) by the outer catch.
                         if (!coroutineContext.isActive) throw CancellationException("Download cancelled")
                         val read = input.read(buf)
                         if (read == -1) break
+                        dataReceived = true
                         output.write(buf, 0, read)
                         completed += read
+                        if (completed > totalBytes + 100 * 1024 * 1024) {
+                            throw IllegalStateException("Download exceeded expected size for $fileName")
+                        }
                         val now = System.nanoTime()
                         val dtMs = (now - lastTick) / 1_000_000
-                        // Throttle status emissions to ~5/s so a multi-GB download
-                        // doesn't spam recompositions (the old per-64KiB emit froze the UI).
                         if (dtMs >= 200) {
-                            val speed = (completed - lastEmit) * 1_000L / dtMs
-                            val eta = if (speed > 0 && totalBytes > completed) {
-                                (totalBytes - completed) / speed
-                            } else {
-                                -1L
-                            }
+                            val delta = completed - lastEmitBytes
+                            val speed = if (dtMs > 0) delta * 1_000L / dtMs else 0L
+                            val eta = if (speed > 0 && totalBytes > completed) (totalBytes - completed) / speed else -1L
                             _status.value = Status(
                                 State.DOWNLOADING,
                                 downloadedBytes = completed,
                                 totalBytes = totalBytes,
                                 currentFile = fileName,
-                                speedBytesPerSecond = speed,
+                                speedBytesPerSecond = speed.coerceAtLeast(0L),
                                 etaSeconds = eta,
                             )
-                            lastEmit = completed
+                            lastEmitBytes = completed
                             lastTick = now
                         }
                     }
                     output.flush()
                 }
             }
+            if (!dataReceived && startAt == 0L) throw IllegalStateException("No data for $fileName")
             if (tmp.length() < 1_000_000L) {
                 tmp.delete()
                 throw IllegalStateException("Download too small for $fileName")
@@ -254,11 +269,14 @@ class LocalLlmDownloadManager(
                 tmp.delete()
                 throw IllegalStateException("Size mismatch for $fileName (got ${tmp.length()}, expected $expectedSize)")
             }
-            if (target.exists()) target.delete()
+            if (target.exists() && !target.delete()) {
+                throw IllegalStateException("Cannot replace existing $fileName")
+            }
             if (!tmp.renameTo(target)) {
                 tmp.copyTo(target, overwrite = true)
                 tmp.delete()
             }
+            if (!target.exists() || target.length() == 0L) throw IllegalStateException("Failed to finalize $fileName")
         }
         return completed
     }

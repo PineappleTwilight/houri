@@ -3,14 +3,11 @@ package exh.yakuyomi
 import com.llamatik.library.platform.GenStream
 import com.llamatik.library.platform.LlamaBridge
 import com.llamatik.library.platform.MultimodalBridge
-import exh.log.xLogE
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import tachiyomi.core.common.util.system.logcat
 import java.io.File
 import java.util.concurrent.atomic.AtomicBoolean
-import kotlin.coroutines.resume
 
 /**
  * llama.cpp backend (Llamatik runtime). Loads any GGUF file from a local path and generates
@@ -124,47 +121,31 @@ class LlamaCppLlmBackend private constructor(
         }
     }
 
-    override suspend fun generate(request: LocalGenerateRequest): String? = withContext(Dispatchers.Default) {
-        val resumed = AtomicBoolean(false)
-        suspendCancellableCoroutine<String?> { cont ->
-            cont.invokeOnCancellation { resumed.set(true) }
-            Thread {
-                try {
-                    val text = synchronized(lock) {
-                        if (request.imageBytes != null && mmprojFile != null && ensureVisionBridge()) {
-                            // Vision: the multimodal bridge reads the page directly.
-                            analyzeVision(request.imageBytes, request.prompt)
-                        } else {
-                            if (request.imageBytes != null) {
-                                logcat { "llama.cpp vision requested but mmproj missing; using text-only" }
-                            }
-                            if (!ensureTextBridge()) {
-                                logcat { "llama.cpp text bridge init failed" }
-                                return@Thread
-                            }
-                            // Apply the model's chat template — instruct models can output
-                            // nothing when the special tokens are missing.
-                            val prompt: String = runCatching {
-                                LlamaBridge.applyChatTemplate(listOf("user" to request.prompt), true)
-                            }.getOrNull() ?: request.prompt
-                            LlamaBridge.generate(prompt)
-                        }
-                    }?.let { cleanInstructArtifacts(it) }
-                    if (resumed.compareAndSet(false, true) && !cont.isCancelled) {
-                        cont.resume(text?.takeIf { it.isNotBlank() })
+    private val generateDispatcher = Dispatchers.Default.limitedParallelism(1)
+
+    override suspend fun generate(request: LocalGenerateRequest): String? = withContext(generateDispatcher) {
+        if (request.prompt.isBlank() || request.prompt.length > 20000) return@withContext null
+        if (request.imageBytes != null && request.imageBytes.size > 8 * 1024 * 1024) return@withContext null
+        val result = runCatching {
+            synchronized(lock) {
+                if (request.imageBytes != null && mmprojFile != null && ensureVisionBridge()) {
+                    analyzeVision(request.imageBytes, request.prompt)
+                } else {
+                    if (request.imageBytes != null) {
+                        logcat { "llama.cpp vision requested but mmproj missing; using text-only" }
                     }
-                } catch (e: Throwable) {
-                    logcat { "llama.cpp generate threw: ${e.message}" }
-                    if (resumed.compareAndSet(false, true) && !cont.isCancelled) {
-                        cont.resume(null)
+                    if (!ensureTextBridge()) {
+                        logcat { "llama.cpp text bridge init failed" }
+                        return@synchronized null
                     }
+                    val prompt: String = runCatching {
+                        LlamaBridge.applyChatTemplate(listOf("user" to request.prompt), true)
+                    }.getOrNull() ?: request.prompt
+                    LlamaBridge.generate(prompt)
                 }
-            }.apply {
-                isDaemon = true
-                name = "llamacpp-generate"
-                start()
-            }
-        }
+            }?.let { cleanInstructArtifacts(it) }?.takeIf { it.isNotBlank() }
+        }.onFailure { e -> logcat { "llama.cpp generate threw: ${e.message}" } }.getOrNull()
+        result
     }
 
     /** Runs a multimodal generation, collecting the streamed answer. Must hold [lock]. */
@@ -206,11 +187,11 @@ class LlamaCppLlmBackend private constructor(
     }
 
     override suspend fun close() {
-        runCatching {
-            if (visionReady.get()) MultimodalBridge.release()
-        }
-        runCatching {
-            if (textReady.get()) LlamaBridge.shutdown()
+        withContext(Dispatchers.IO) {
+            synchronized(lock) {
+                runCatching { if (visionReady.getAndSet(false)) MultimodalBridge.release() }
+                runCatching { if (textReady.getAndSet(false)) LlamaBridge.shutdown() }
+            }
         }
     }
 }

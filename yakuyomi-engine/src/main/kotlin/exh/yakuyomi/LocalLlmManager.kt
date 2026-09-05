@@ -98,9 +98,26 @@ class LocalLlmManager(
 
     private fun sanitizeGgufName(name: String): String {
         val base = name.substringAfterLast('/').substringAfterLast('\\').trim().ifBlank { "model.gguf" }
-        val cleaned = base.replace(Regex("[^A-Za-z0-9._-]"), "_")
-        return cleaned.ifBlank { "model.gguf" }
+        val withoutTraversal = base.replace("..", "_")
+        val cleaned = withoutTraversal.replace(Regex("[^A-Za-z0-9._-]"), "_").take(128)
+        val withExt = if (cleaned.lowercase().endsWith(".gguf")) cleaned else "$cleaned.gguf"
+        return withExt.ifBlank { "model.gguf" }
     }
+
+    private fun fileHashPrefix(file: File, maxBytes: Long = 4 * 1024 * 1024): String = runCatching {
+        val digest = java.security.MessageDigest.getInstance("SHA-256")
+        file.inputStream().use { input ->
+            val buf = ByteArray(64 * 1024)
+            var remaining = maxBytes
+            while (remaining > 0) {
+                val read = input.read(buf, 0, minOf(buf.size.toLong(), remaining).toInt())
+                if (read == -1) break
+                digest.update(buf, 0, read)
+                remaining -= read
+            }
+        }
+        digest.digest().joinToString("") { "%02x".format(it) }.take(16)
+    }.getOrDefault("unknown")
 
     private fun uniquifyGgufName(dir: File, name: String): File {
         val stem = name.replace(Regex("\\.gguf$"), "")
@@ -118,47 +135,88 @@ class LocalLlmManager(
         }
     }.getOrNull() ?: "model.gguf"
 
-    /**
-     * Imports a GGUF picked from device storage: copies it into the custom dir on a background
-     * thread (so a multi-GB file never freezes the UI), preserves the original filename, and
-     * detects re-imports of an already-imported file (same name + size) — in that case it just
-     * switches the selection instead of copying again. Selects the model either way.
-     */
     fun importGguf(uri: Uri, onResult: (GgufImportResult?, error: String?) -> Unit) {
-        if (_importing.value) return
+        if (_importing.value) {
+            Handler(Looper.getMainLooper()).post { onResult(null, "Import already in progress") }
+            return
+        }
         _importing.value = true
         scope.launch {
             val result = runCatching {
                 val name = sanitizeGgufName(displayName(uri))
                 val dir = customDir.apply { mkdirs() }
+                if (dir.usableSpace < 500 * 1024 * 1024) throw IllegalStateException("Not enough storage for import")
                 val target = File(dir, name)
                 if (target.exists() && target.length() > 1_000_000L) {
-                    // Same file already imported (name + size match): reuse, just switch to it.
-                    GgufImportResult(customModelFor(target), duplicate = true)
-                } else {
-                    val tmp = File(dir, "$name.tmp")
-                    context.contentResolver.openInputStream(uri)?.use { input ->
-                        tmp.outputStream().use { out -> input.copyTo(out, 64 * 1024) }
-                    } ?: throw IllegalStateException("Cannot open the selected file")
-                    if (tmp.length() < 1_000_000L) {
-                        tmp.delete()
-                        throw IllegalStateException("Not a valid GGUF (file too small)")
+                    val targetHash = fileHashPrefix(target)
+                    // Verify it's really the same file by comparing size + hash prefix before reusing.
+                    val probeTmp = File(dir, "$name.probe.tmp")
+                    var isSame = false
+                    try {
+                        context.contentResolver.openInputStream(uri)?.use { input ->
+                            probeTmp.outputStream().use { out ->
+                                val buf = ByteArray(64 * 1024)
+                                var copied = 0L
+                                while (copied < 4 * 1024 * 1024) {
+                                    val r = input.read(buf)
+                                    if (r == -1) break
+                                    out.write(buf, 0, r)
+                                    copied += r
+                                }
+                            }
+                        }
+                        if (probeTmp.exists() && probeTmp.length() > 0) {
+                            val probeHash = fileHashPrefix(probeTmp)
+                            val targetSize = target.length()
+                            // Also check total size via openAssetFileDescriptor when available.
+                            val totalSize = runCatching {
+                                context.contentResolver.openAssetFileDescriptor(uri, "r")?.use { it.length }
+                            }.getOrNull() ?: -1L
+                            isSame = probeHash == targetHash && (totalSize == -1L || totalSize == targetSize)
+                        }
+                    } finally {
+                        probeTmp.delete()
                     }
-                    // A different file colliding with an existing name: keep both.
-                    val final = if (target.exists()) uniquifyGgufName(dir, name) else target
-                    if (!tmp.renameTo(final)) {
-                        tmp.copyTo(final, overwrite = true)
-                        tmp.delete()
-                    }
-                    GgufImportResult(customModelFor(final), duplicate = false)
+                    if (isSame) return@runCatching GgufImportResult(customModelFor(target), duplicate = true)
                 }
+                val tmp = File(dir, "$name.tmp")
+                var totalCopied = 0L
+                context.contentResolver.openInputStream(uri)?.use { input ->
+                    tmp.outputStream().use { out ->
+                        val buf = ByteArray(64 * 1024)
+                        while (true) {
+                            val r = input.read(buf)
+                            if (r == -1) break
+                            out.write(buf, 0, r)
+                            totalCopied += r
+                            if (totalCopied > 20L * 1024 * 1024 * 1024) throw IllegalStateException("File too large (>20GB)")
+                        }
+                    }
+                } ?: throw IllegalStateException("Cannot open the selected file")
+                if (tmp.length() < 1_000_000L) {
+                    tmp.delete()
+                    throw IllegalStateException("Not a valid GGUF (file too small)")
+                }
+                if (!tmp.name.lowercase().endsWith(".gguf") && tmp.length() > 1_000_000L) {
+                    // Basic GGUF magic check: first 4 bytes should be "GGUF"
+                    val magic = tmp.inputStream().use { it.readNBytes(4) }
+                    if (magic.size == 4 && String(magic) != "GGUF") {
+                        tmp.delete()
+                        throw IllegalStateException("Not a GGUF file (bad magic)")
+                    }
+                }
+                val final = if (target.exists()) uniquifyGgufName(dir, name) else target
+                if (!tmp.renameTo(final)) {
+                    tmp.copyTo(final, overwrite = true)
+                    tmp.delete()
+                }
+                GgufImportResult(customModelFor(final), duplicate = false)
             }.onFailure { e ->
                 logcat { "GGUF import failed: ${e.message}" }
             }
             _importing.value = false
             val ok = result.getOrNull()
             ok?.let { prefs.localModel().set(it.model.id) }
-            // Callers (UI toasts) need the main looper; the copy ran on a background thread.
             Handler(Looper.getMainLooper()).post {
                 onResult(ok, result.exceptionOrNull()?.message)
             }
@@ -304,14 +362,18 @@ class LocalLlmManager(
     /** Whether the llama.cpp runtime is bundled in this build. */
     fun isRuntimeAvailable(): Boolean = LlamaCppLlmBackend.isAvailable()
 
-    /**
-     * Runs one on-device generation. Hardened: prompt truncated to fit context, per-model
-     * sampling applied, and a 60s timeout prevents a stuck native call from blocking the worker.
-     */
     suspend fun generate(prompt: String, imageBytes: ByteArray? = null): String? {
         val model = resolveModel() ?: return null
         if (!downloadManager.isDownloaded(model)) {
             logcat { "Local LLM ${model.id} not downloaded yet" }
+            return null
+        }
+        if (prompt.isBlank() || prompt.length > 20000) {
+            logcat { "Local LLM prompt invalid length ${prompt.length}" }
+            return null
+        }
+        if (imageBytes != null && imageBytes.size > 8 * 1024 * 1024) {
+            logcat { "Local LLM image too large ${imageBytes.size}" }
             return null
         }
         val backend = backendFor(model) ?: return null
@@ -321,12 +383,14 @@ class LocalLlmManager(
         var safePrompt = prompt
         val estTokens = safePrompt.length / 3 + maxTokens + 256
         if (estTokens > contextLen) {
-            val keep = (contextLen - maxTokens - 256).coerceAtLeast(512) * 3
-            safePrompt = safePrompt.takeLast(keep)
+            val keepChars = (contextLen - maxTokens - 256).coerceAtLeast(512) * 3
+            val cutAt = safePrompt.length - keepChars
+            val newlineIdx = safePrompt.indexOf('\n', cutAt).takeIf { it >= 0 } ?: cutAt
+            safePrompt = safePrompt.substring(newlineIdx.coerceIn(0, safePrompt.length))
             logcat { "Local LLM prompt truncated ${prompt.length} -> ${safePrompt.length} to fit $contextLen" }
         }
         return try {
-            kotlinx.coroutines.withTimeout(60_000) {
+            kotlinx.coroutines.withTimeout(90_000) {
                 backend.generate(LocalGenerateRequest(prompt = safePrompt, maxTokens = maxTokens, temperature = sampling.temperature, imageBytes = imageBytes))
             }
         } catch (e: kotlinx.coroutines.TimeoutCancellationException) {

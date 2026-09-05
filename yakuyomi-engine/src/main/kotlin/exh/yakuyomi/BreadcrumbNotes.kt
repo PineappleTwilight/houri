@@ -36,9 +36,20 @@ class BreadcrumbNotes(
     private fun noteFile(mangaId: Long, chapterId: Long): File = File(notesDir(mangaId), "$chapterId.json")
 
     fun saveNote(note: BreadcrumbNote) {
+        if (note.mangaId <= 0 || note.chapterId <= 0) return
+        val safeSummary = note.summary.replace(Regex("[\\p{Cntrl}&&[^\n]]"), " ").trim().take(500)
+        if (safeSummary.isBlank()) return
+        val safeEntities = note.keyEntities.map { it.trim().take(32) }.filter { it.length in 2..32 && it.matches(Regex("[A-Za-z][A-Za-z\\-']*")) }.distinct().take(10)
+        val safe = note.copy(summary = safeSummary, keyEntities = safeEntities)
         try {
-            val f = noteFile(note.mangaId, note.chapterId)
-            f.writeText(json.encodeToString(note))
+            val f = noteFile(safe.mangaId, safe.chapterId)
+            val tmp = File(f.parentFile, "${f.name}.tmp")
+            tmp.writeText(json.encodeToString(safe))
+            if (f.exists()) f.delete()
+            if (!tmp.renameTo(f)) {
+                tmp.copyTo(f, overwrite = true)
+                tmp.delete()
+            }
         } catch (e: Exception) {
             logcat { "Breadcrumb save failed: ${e.message}" }
         }
@@ -77,18 +88,16 @@ class BreadcrumbNotes(
     }
 
     fun appendFromTranslation(mangaId: Long, chapterId: Long, translatedTexts: List<String>) {
-        if (translatedTexts.isEmpty()) return
-        // Filter blanks and cap
-        val clean = translatedTexts.mapNotNull { it.trim().takeIf { t -> t.isNotEmpty() } }
+        if (translatedTexts.isEmpty() || translatedTexts.size > 100) return
+        val clean = translatedTexts.mapNotNull { it.trim().take(300).takeIf { t -> t.isNotEmpty() } }.take(20)
         if (clean.isEmpty()) return
         val summary = clean.take(3).joinToString(" | ").take(400)
-        // Extract entities: for EN fallback, capitalised words; for CJK-translated EN, same logic works
-        // Filter short words and deduplicate, keep only plausible proper nouns length 2..24
         val entities = clean.flatMap { line ->
             line.split(Regex("[\\s,.;:!?\"'()\\[\\]{}]+"))
                 .filter { w -> w.length in 2..24 && w.firstOrNull()?.isUpperCase() == true && w.all { ch -> ch.isLetter() } }
-        }.distinct().take(8)
-        saveNote(BreadcrumbNote(chapterId = chapterId, mangaId = mangaId, summary = summary, keyEntities = entities))
+                .filter { it.lowercase() !in setOf("the", "and", "but", "this", "that", "with", "from", "have", "will") }
+        }.distinct().take(10)
+        saveNote(BreadcrumbNote(chapterId = chapterId, mangaId = mangaId, summary = summary, keyEntities = entities, timestamp = System.currentTimeMillis()))
     }
 
     fun clearForManga(mangaId: Long) {
