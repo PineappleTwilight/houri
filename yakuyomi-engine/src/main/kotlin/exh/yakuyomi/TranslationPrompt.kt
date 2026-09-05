@@ -14,7 +14,9 @@ internal fun buildTranslationPrompt(
     val breadcrumbSection = if (breadcrumb.isNotBlank()) "Context (prev chapters, keep names consistent):\n$breadcrumb\n\n" else ""
     val glossarySection = if (glossary.isNotEmpty()) {
         "Glossary (use exactly as given):\n" + glossary.entries.joinToString("\n") { "- ${it.key} -> ${it.value}" } + "\n\n"
-    } else ""
+    } else {
+        ""
+    }
     // SFX handling: keep iconic SFX as is, translate descriptive SFX naturally
     val sfxNote = "Sound effects: keep iconic SFX (ドン, バン, ズキッ) as SFX or transliterate, translate descriptive SFX naturally."
     return if (isEnFix) {
