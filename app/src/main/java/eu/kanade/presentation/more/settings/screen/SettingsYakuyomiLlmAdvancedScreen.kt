@@ -113,6 +113,15 @@ class SettingsYakuyomiLlmAdvancedScreen(
                         steps = 15,
                         onValueChanged = { v -> update { it.copy(numThreads = v) } },
                     ),
+                    Preference.PreferenceItem.SliderPreference(
+                        value = cfg.gpuLayers.coerceIn(-1, 99),
+                        title = "GPU layers",
+                        subtitle = "Layers offloaded to the GPU (-1 = auto, falls back to CPU): %s",
+                        valueString = if (cfg.gpuLayers < 0) "auto (all layers)" else cfg.gpuLayers.toString(),
+                        valueRange = -1..99,
+                        steps = 99,
+                        onValueChanged = { v -> update { it.copy(gpuLayers = v) } },
+                    ),
                 ).toPersistentList(),
             ),
             Preference.PreferenceGroup(

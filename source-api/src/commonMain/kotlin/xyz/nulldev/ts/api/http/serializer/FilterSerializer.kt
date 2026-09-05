@@ -91,6 +91,12 @@ class FilterSerializer {
                 it.type == json[TYPE]!!.jsonPrimitive.content
             } ?: throw IllegalArgumentException("Cannot deserialize this type!")
 
+        // KMK --> A saved filter tree can drift from the current source filter list (entries are
+        // matched by position), so a stored type may not fit the filter object in front of it.
+        // Skip instead of casting blindly (e.g. EHentai AdvancedGroup vs a stored TEXT entry).
+        // KMK <--
+        if (!serializer.clazz.isInstance(filter)) return
+
         serializer.deserialize(json, filter)
 
         serializer.mappings().forEach {

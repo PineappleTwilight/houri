@@ -38,6 +38,7 @@ class TranslationManager(
     private val geminiNano: GeminiNanoTranslator,
     private val localLlm: LocalLlmManager,
     private val infoStore: MangaInfoTranslationStore,
+    private val mangaContextProvider: suspend (Long) -> String? = { null },
     // KMK <--
 ) {
     // KMK -->
@@ -320,6 +321,12 @@ class TranslationManager(
         val model = effectiveModel()
         val cacheEnabled = prefs.cacheEnabled().get()
         val pageHash = cache.pageHash(imageBytes)
+        // Manga grounding + sliding-window context. The local provider sizes the window to the
+        // model's context length; cloud keeps the 800-char default.
+        val localModel = if (localLlm.isLocalProvider()) localLlm.resolveModel() else null
+        val breadcrumbBudget = localModel?.let { (it.contextLength * 0.2).toInt().coerceIn(400, 2400) } ?: 800
+        val breadcrumb = notes.buildContextPrompt(mangaId, breadcrumbBudget)
+        val mangaContext = mangaContextProvider(mangaId) ?: ""
 
         status.pageTranslating(mangaId, chapterId, pageIndex)
         return try {
@@ -337,7 +344,6 @@ class TranslationManager(
                 return null
             }
 
-            val breadcrumb = notes.buildContextPrompt(mangaId)
             // KMK -->
             // Gemini Nano (on-device) is the priority LLM provider when the toggle is on and
             // the device has the model available; otherwise fall back to the cloud provider.
@@ -361,6 +367,7 @@ class TranslationManager(
                         sourceLang = sourceLangHint,
                         targetLang = targetLang,
                         breadcrumb = breadcrumb,
+                        mangaContext = mangaContext,
                         pageBitmap = bitmap,
                         offlineFallback = prefs.offlineFallback().get(),
                     )
@@ -371,6 +378,7 @@ class TranslationManager(
                         sourceLang = sourceLangHint,
                         targetLang = targetLang,
                         breadcrumb = breadcrumb,
+                        mangaContext = mangaContext,
                         provider = prefs.provider().get().lowercase(),
                         model = model,
                         offlineFallback = prefs.offlineFallback().get(),

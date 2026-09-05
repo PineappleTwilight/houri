@@ -36,6 +36,7 @@ class YakuyomiTranslator(
     private val sourceLang: String,
     private val targetLang: String,
     private val breadcrumb: String,
+    private val mangaContext: String = "",
     private val provider: String,
     private val model: String,
     private val offlineFallback: Boolean,
@@ -56,7 +57,7 @@ class YakuyomiTranslator(
             throw TranslationException("Yakuyomi API key not configured (set it in Settings → Translation)")
         }
         val isEnFix = sourceLang.equals("EN", true) && targetLang.equals("EN", true)
-        val prompt = buildTranslationPrompt(queries, sourceLang, targetLang, breadcrumb, isEnFix)
+        val prompt = buildTranslationPrompt(queries, sourceLang, targetLang, breadcrumb, isEnFix, mangaContext)
         val result = try {
             when (provider.lowercase()) {
                 "gemini" -> callGemini(prompt, apiKey, model)

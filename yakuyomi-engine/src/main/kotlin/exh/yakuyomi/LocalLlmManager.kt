@@ -2,6 +2,8 @@ package exh.yakuyomi
 
 import android.content.Context
 import android.net.Uri
+import android.os.Handler
+import android.os.Looper
 import android.provider.OpenableColumns
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.Inject
@@ -148,7 +150,10 @@ class LocalLlmManager(
             _importing.value = false
             val ok = result.getOrNull()
             ok?.let { prefs.localModel().set(it.model.id) }
-            onResult(ok, result.exceptionOrNull()?.message)
+            // Callers (UI toasts) need the main looper; the copy ran on a background thread.
+            Handler(Looper.getMainLooper()).post {
+                onResult(ok, result.exceptionOrNull()?.message)
+            }
         }
     }
     // ------------------------------------------------------------------
@@ -167,13 +172,15 @@ class LocalLlmManager(
         )
     }
 
-    /** Effective llama.cpp sampling config for [model]: stored override or sensible defaults. */
+    /** Effective llama.cpp sampling config for [model]: stored override, else the model's own
+     *  recommended defaults, else sensible generics. */
     fun samplingFor(model: LocalLlmModel): LocalLlmSamplingConfig {
-        val stored = samplingOverrides()[model.id] ?: return LocalLlmSamplingConfig(
+        samplingOverrides()[model.id]?.let { return it }
+        model.defaultSampling?.let { return it }
+        return LocalLlmSamplingConfig(
             temperature = if (model.isTranslationFinetune) 0.0f else 0.3f,
             contextLength = model.contextLength,
         )
-        return stored
     }
 
     /** Persist a per-model sampling override (all fields; [LocalLlmSamplingConfig] is a value object). */

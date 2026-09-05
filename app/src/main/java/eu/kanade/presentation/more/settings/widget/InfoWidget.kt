@@ -1,8 +1,9 @@
 package eu.kanade.presentation.more.settings.widget
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material3.Icon
@@ -10,8 +11,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.PreviewLightDark
+import androidx.compose.ui.unit.dp
 import eu.kanade.presentation.theme.TachiyomiPreviewTheme
 import tachiyomi.i18n.MR
 import tachiyomi.presentation.core.components.material.padding
@@ -20,22 +23,25 @@ import tachiyomi.presentation.core.util.secondaryItemAlpha
 
 @Composable
 internal fun InfoWidget(text: String) {
-    Column(
+    Row(
         modifier = Modifier
             .padding(
                 horizontal = PrefsHorizontalPadding,
                 vertical = MaterialTheme.padding.medium,
             )
             .secondaryItemAlpha(),
-        verticalArrangement = Arrangement.spacedBy(MaterialTheme.padding.medium),
+        horizontalArrangement = Arrangement.spacedBy(MaterialTheme.padding.medium),
+        verticalAlignment = Alignment.Top,
     ) {
         Icon(
             imageVector = Icons.Outlined.Info,
             contentDescription = null,
+            modifier = Modifier.size(16.dp),
         )
         Text(
             text = text,
             style = MaterialTheme.typography.bodySmall,
+            modifier = Modifier.weight(1f),
         )
     }
 }

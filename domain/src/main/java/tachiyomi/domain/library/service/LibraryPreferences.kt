@@ -148,6 +148,14 @@ class LibraryPreferences(
     )
 
     // KMK -->
+    /** Overall tracked filter: IS = tracked on any tracker, NOT = untracked entirely. */
+    fun filterTrackingOverall() = preferenceStore.getEnum(
+        "pref_filter_library_tracked_overall_v2",
+        TriState.DISABLED,
+    )
+    // KMK <--
+
+    // KMK -->
     fun sourceLevelFiltering() = preferenceStore.getBoolean("pref_source_level_filtering", false)
 
     fun sourceFilter(sourceId: Long) =

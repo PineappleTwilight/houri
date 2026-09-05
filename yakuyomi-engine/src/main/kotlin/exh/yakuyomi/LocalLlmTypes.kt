@@ -44,6 +44,8 @@ data class LocalLlmModel(
     /** True for a user-supplied GGUF loaded from device storage (no download). */
     val isCustom: Boolean = false,
     val contextLength: Int = 4096,
+    /** Recommended llama.cpp sampling for this model; falls back to the generic defaults. */
+    val defaultSampling: LocalLlmSamplingConfig? = null,
 )
 
 /** A single on-device generation request. [imageBytes] carries the manga page for vision models. */

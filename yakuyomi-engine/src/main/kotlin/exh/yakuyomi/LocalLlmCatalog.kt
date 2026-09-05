@@ -24,6 +24,12 @@ object LocalLlmCatalog {
             ggufFile = "gemma-4-E4B-it-Q5_K_M.gguf",
             mmprojRepo = "unsloth/gemma-4-E4B-it-GGUF",
             mmprojFile = "mmproj-F16.gguf",
+            contextLength = 4096,
+            defaultSampling = LocalLlmSamplingConfig(
+                temperature = 0.2f,
+                repeatPenalty = 1.0f,
+                contextLength = 4096,
+            ),
         ),
         LocalLlmModel(
             id = "gemma-4-e4b-it-qat",
@@ -39,6 +45,12 @@ object LocalLlmCatalog {
             ggufFile = "gemma-4-E4B_q4_0-it.gguf",
             mmprojRepo = "google/gemma-4-E4B-it-qat-q4_0-gguf",
             mmprojFile = "gemma-4-E4B-it-mmproj.gguf",
+            contextLength = 4096,
+            defaultSampling = LocalLlmSamplingConfig(
+                temperature = 0.2f,
+                repeatPenalty = 1.0f,
+                contextLength = 4096,
+            ),
         ),
         LocalLlmModel(
             id = "gemma-4-e2b-it",
@@ -54,6 +66,12 @@ object LocalLlmCatalog {
             ggufFile = "gemma-4-E2B-it-Q5_K_M.gguf",
             mmprojRepo = "unsloth/gemma-4-E2B-it-GGUF",
             mmprojFile = "mmproj-F16.gguf",
+            contextLength = 4096,
+            defaultSampling = LocalLlmSamplingConfig(
+                temperature = 0.2f,
+                repeatPenalty = 1.0f,
+                contextLength = 4096,
+            ),
         ),
         LocalLlmModel(
             id = "gemma-4-e2b-it-qat",
@@ -69,6 +87,12 @@ object LocalLlmCatalog {
             ggufFile = "gemma-4-E2B_q4_0-it.gguf",
             mmprojRepo = "google/gemma-4-E2B-it-qat-q4_0-gguf",
             mmprojFile = "gemma-4-E2B-it-mmproj.gguf",
+            contextLength = 4096,
+            defaultSampling = LocalLlmSamplingConfig(
+                temperature = 0.2f,
+                repeatPenalty = 1.0f,
+                contextLength = 4096,
+            ),
         ),
         // -- Translation finetunes ----------------------------------------------------------
         LocalLlmModel(
@@ -85,6 +109,12 @@ object LocalLlmCatalog {
             ggufFile = "translategemma-4b-it-q5_k_m.gguf",
             mmprojRepo = "Qwe1325/translategemma-4b-it-GGUF",
             mmprojFile = "mmproj-translategemma-4b-it-F16.gguf",
+            contextLength = 8192,
+            defaultSampling = LocalLlmSamplingConfig(
+                temperature = 0.0f,
+                repeatPenalty = 1.0f,
+                contextLength = 8192,
+            ),
         ),
         // -- Small generics (published GGUF, usable today) -----------------------------------
         LocalLlmModel(

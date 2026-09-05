@@ -7,13 +7,17 @@ internal fun buildTranslationPrompt(
     targetLang: String,
     breadcrumb: String,
     isEnFix: Boolean,
+    mangaContext: String = "",
 ): String {
     val joined = texts.joinToString("\n") { "- $it" }
+    // Manga grounding (title/description/tags) comes first — always present, separate from the
+    // sliding-window breadcrumbs, so names/honorifics stay consistent across the whole series.
+    val mangaSection = if (mangaContext.isNotBlank()) "Manga: $mangaContext\n\n" else ""
     val breadcrumbSection = if (breadcrumb.isNotBlank()) "Context notes (sliding window):\n$breadcrumb\n\n" else ""
     return if (isEnFix) {
-        "${breadcrumbSection}Fix grammar, preserve names, output only EN. Texts:\n$joined\n\nReturn each corrected line prefixed with '- ' exactly, one per input line, no extra commentary."
+        "${mangaSection}${breadcrumbSection}Fix grammar, preserve names, output only EN. Texts:\n$joined\n\nReturn each corrected line prefixed with '- ' exactly, one per input line, no extra commentary."
     } else {
-        "${breadcrumbSection}Translate $sourceLang → $targetLang. Preserve names, honorifics, output only $targetLang. Texts:\n$joined\n\nReturn each translated line prefixed with '- ' exactly, one per input line, no extra commentary."
+        "${mangaSection}${breadcrumbSection}Translate $sourceLang → $targetLang. Preserve names, honorifics, output only $targetLang. Texts:\n$joined\n\nReturn each translated line prefixed with '- ' exactly, one per input line, no extra commentary."
     }
 }
 

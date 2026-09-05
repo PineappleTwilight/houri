@@ -25,6 +25,7 @@ data class LocalLlmModel(
     val mmprojFile: String? = null,
     val isCustom: Boolean = false,
     val contextLength: Int = 4096,
+    val defaultSampling: LocalLlmSamplingConfig? = null,
 )
 
 /** Stub of [LocalLlmSamplingConfig] for the no-MTL APK variant. */
@@ -37,6 +38,7 @@ data class LocalLlmSamplingConfig(
     val maxTokens: Int = 1024,
     val contextLength: Int = 4096,
     val numThreads: Int = 0,
+    val gpuLayers: Int = -1,
 ) {
     val resolvedThreads: Int
         get() = if (numThreads <= 0) {

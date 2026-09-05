@@ -79,7 +79,7 @@ class LlamaCppLlmBackend private constructor(
                 useMmap = true,
                 flashAttention = true,
                 batchSize = 512,
-                gpuLayers = 0,
+                gpuLayers = sampling.gpuLayers,
             )
         }.onFailure { logcat { "llama.cpp updateGenerateParams failed: ${it.message}" } }
     }
@@ -90,11 +90,13 @@ class LlamaCppLlmBackend private constructor(
             if (textReady.get()) {
                 true
             } else {
+                // gpu_layers is read at MODEL LOAD, so params must be set before init; the
+                // runtime retries with 0 layers itself when the offload cannot load.
+                configureParams()
                 val ok = runCatching {
                     LlamaBridge.initGenerateModel(modelFile.absolutePath)
                 }.getOrDefault(false)
                 if (ok) {
-                    configureParams()
                     textReady.set(true)
                 }
                 ok
@@ -143,7 +145,7 @@ class LlamaCppLlmBackend private constructor(
                             }.getOrNull() ?: request.prompt
                             LlamaBridge.generate(prompt)
                         }
-                    }
+                    }?.let { cleanInstructArtifacts(it) }
                     if (resumed.compareAndSet(false, true) && !cont.isCancelled) {
                         cont.resume(text?.takeIf { it.isNotBlank() })
                     }
@@ -184,7 +186,19 @@ class LlamaCppLlmBackend private constructor(
             logcat { "llama.cpp vision failed: $failed" }
             return null
         }
-        return sb.toString().takeIf { it.isNotBlank() }
+        return cleanInstructArtifacts(sb.toString()).takeIf { it.isNotBlank() }
+    }
+
+    /** Strips chat-template/special-token residue the model may echo back around its answer. */
+    private fun cleanInstructArtifacts(raw: String): String {
+        var s = raw
+        // Trailing/leading template markers from gemma/llama chat formats.
+        s = s.replace(Regex("(?i)(\\[end_of_turn\\]|<end_of_turn>|</s>|<\\|eot_id\\|>|<start_of_turn>model\\s*|assistant\\s*:?\\s*|<\\|start_header_id\\|>assistant<\\|end_header_id\\|>\\s*)"), "")
+        // Image-token residue from vision models.
+        s = s.replace(Regex("<start_of_image>|<image_soft_token>|\\[image\\]"), "")
+        // Trim repeated blank lines and surrounding whitespace.
+        s = s.replace(Regex("\\n{3,}"), "\n\n").trim()
+        return s
     }
 
     override suspend fun close() {

@@ -183,7 +183,12 @@ class LibraryScreenModel(
                     getFavoritesFlow(),
                     ::Triple,
                 ),
-                combine(getTracksPerManga.subscribe(), getTrackingFiltersFlow(), ::Pair),
+                combine(
+                    getTracksPerManga.subscribe(),
+                    getTrackingFiltersFlow(),
+                    libraryPreferences.filterTrackingOverall().changes(),
+                    ::Triple,
+                ),
                 // KMK -->
                 combine(
                     state.map { it.includedCategories }.distinctUntilChanged(),
@@ -192,11 +197,12 @@ class LibraryScreenModel(
                 ),
                 // KMK <--
                 getLibraryItemPreferencesFlow(),
-            ) { (searchQuery, categories, favorites), (tracksMap, trackingFilters), (includedCategories, excludedCategories), itemPreferences ->
+            ) { (searchQuery, categories, favorites), (tracksMap, trackingFilters, trackedOverall), (includedCategories, excludedCategories), itemPreferences ->
                 val filteredFavorites = favorites
                     .applyFilters(
                         tracksMap,
                         trackingFilters,
+                        trackedOverall,
                         itemPreferences,
                         // KMK -->
                         includedCategories,
@@ -457,6 +463,7 @@ class LibraryScreenModel(
     private suspend fun List<LibraryItem>.applyFilters(
         trackMap: Map<Long, List<Track>>,
         trackingFilter: Map<Long, TriState>,
+        trackedOverall: TriState,
         preferences: ItemPreferences,
         // KMK -->
         includedCategories: ImmutableSet<Long>,
@@ -536,14 +543,19 @@ class LibraryScreenModel(
         // SY <--
 
         val filterFnTracking: (LibraryItem) -> Boolean = tracking@{ item ->
-            if (isNotLoggedInAnyTrack || trackFiltersIsIgnored) return@tracking true
-
-            // KMK -->
             val mangaTracks = trackMap[item.id].orEmpty()
+
+            // Overall tracked/untracked gate (tracked on ANY tracker / untracked entirely).
+            when (trackedOverall) {
+                TriState.ENABLED_IS -> if (mangaTracks.isEmpty()) return@tracking false
+                TriState.ENABLED_NOT -> if (mangaTracks.isNotEmpty()) return@tracking false
+                TriState.DISABLED -> {}
+            }
+
+            if (isNotLoggedInAnyTrack || trackFiltersIsIgnored) return@tracking true
 
             val isExcluded = excludedTracks.isNotEmpty() && mangaTracks.fastAny { it.trackerId in excludedTracks }
             val isIncluded = includedTracks.isEmpty() || mangaTracks.fastAny { it.trackerId in includedTracks }
-            // KMK <--
 
             !isExcluded && isIncluded
         }

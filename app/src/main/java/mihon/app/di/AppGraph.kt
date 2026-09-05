@@ -461,6 +461,24 @@ interface AppGraph : ViewModelGraph {
     val localLlmManager: LocalLlmManager
     val localLlmDownloadManager: LocalLlmDownloadManager
     val mangaInfoTranslationStore: MangaInfoTranslationStore
+
+    /** Provides the manga title/description/tags grounding for the translation prompt. */
+    @Provides
+    fun provideMangaContextProvider(getManga: GetManga): suspend (Long) -> String? = { mangaId ->
+        runCatching {
+            getManga.await(mangaId)?.let { m ->
+                buildString {
+                    append(m.title)
+                    m.description?.takeIf { it.isNotBlank() }?.let {
+                        append("\n").append(it.take(500))
+                    }
+                    m.genre?.takeIf { it.isNotEmpty() }?.let {
+                        append("\nTags: ").append(it.joinToString(", "))
+                    }
+                }
+            }
+        }.getOrNull()
+    }
     // KMK <--
 
     @DependencyGraph.Factory

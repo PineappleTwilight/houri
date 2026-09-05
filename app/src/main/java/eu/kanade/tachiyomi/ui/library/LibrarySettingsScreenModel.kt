@@ -50,6 +50,12 @@ class LibrarySettingsScreenModel(
         toggleFilter { libraryPreferences.filterTracking(id) }
     }
 
+    // KMK -->
+    fun toggleTrackedOverall() {
+        toggleFilter { libraryPreferences.filterTrackingOverall() }
+    }
+    // KMK <--
+
     fun setDisplayMode(mode: LibraryDisplayMode) {
         setDisplayMode.await(mode)
     }

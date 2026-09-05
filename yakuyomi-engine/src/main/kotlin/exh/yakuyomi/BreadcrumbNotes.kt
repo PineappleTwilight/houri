@@ -65,14 +65,15 @@ class BreadcrumbNotes(
             .reversed()
     }
 
-    fun buildContextPrompt(mangaId: Long): String {
+    fun buildContextPrompt(mangaId: Long, maxChars: Int = 800): String {
         val notes = loadWindow(mangaId)
         if (notes.isEmpty()) return ""
-        // Cap total prompt contribution to ~800 chars to avoid LLM token overflow
+        // Cap total prompt contribution to avoid LLM token overflow; cloud callers use the
+        // default, the local provider sizes the window to the model's context.
         val joined = notes.joinToString("\n") { n ->
             "Chapter ${n.chapterId}: ${n.summary} | Entities: ${n.keyEntities.joinToString(", ")}"
         }
-        return joined.take(800)
+        return joined.take(maxChars)
     }
 
     fun appendFromTranslation(mangaId: Long, chapterId: Long, translatedTexts: List<String>) {
