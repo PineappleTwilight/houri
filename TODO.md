@@ -283,6 +283,7 @@
   - Made defaultConfig/horizontalConfig recomputed per call (not lazy singleton) and shouldForceHorizontal for LTR; color recomputed
 - [x] **MangaDex**: Fix batch add failure
   - Pass URL straight to extension search via `MangaDex.fetchSearchManga`/`getSearchManga` `urlImportFetchSearchManga` override (kept in-app, no delegation removal); URL queries now resolve through `GalleryAdder` to extension instead of stalling
+- [ ] **Library**: Fix censor lewd manga toggle not blurring thumbnails
 
 ## Chores
 - [x] Replace all Komikku icons/branding with houri icons/branding
