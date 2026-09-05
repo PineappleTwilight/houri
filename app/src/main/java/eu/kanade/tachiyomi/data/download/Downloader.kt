@@ -497,6 +497,8 @@ class Downloader(
                         .build()
                     val request = OneTimeWorkRequestBuilder<TranslationWork>()
                         .setInputData(data)
+                        .setExpedited(androidx.work.OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
+                        .addTag("mtl-translation")
                         .build()
                     WorkManager.getInstance(context).enqueue(request)
                     xLogD("Downloader enqueued TranslationWork manga=${download.manga.id} chapter=${download.chapter.id}")

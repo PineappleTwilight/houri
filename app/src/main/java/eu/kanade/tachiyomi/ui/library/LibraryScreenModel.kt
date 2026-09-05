@@ -370,7 +370,8 @@ class LibraryScreenModel(
         combine(
             getLibraryItemPreferencesFlow(),
             getTrackingFiltersFlow(),
-        ) { prefs, trackFilters ->
+            libraryPreferences.filterTrackingOverall().changes(),
+        ) { prefs, trackFilters, trackedOverall ->
             listOf(
                 prefs.filterDownloaded,
                 prefs.filterUnread,
@@ -382,6 +383,7 @@ class LibraryScreenModel(
                 prefs.filterLewd,
                 // SY <--
                 *trackFilters.values.toTypedArray(),
+                trackedOverall,
             )
                 .fastAny { it != TriState.DISABLED } ||
                 // KMK -->

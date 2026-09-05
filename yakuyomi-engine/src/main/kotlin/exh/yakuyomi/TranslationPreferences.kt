@@ -21,6 +21,38 @@ class TranslationPreferences(
 
     fun model() = preferenceStore.getString("pref_yakuyomi_model", "google/gemma-2-9b-it:free")
 
+    fun apiKeyForProvider(provider: String) =
+        preferenceStore.getString(Preference.privateKey("pref_yakuyomi_api_key_${provider.lowercase()}"), "")
+
+    fun modelForProvider(provider: String) =
+        preferenceStore.getString("pref_yakuyomi_model_${provider.lowercase()}", "")
+
+    fun effectiveApiKey(): String {
+        val p = provider().get().lowercase()
+        val per = apiKeyForProvider(p).get()
+        if (per.isNotBlank()) return per
+        return apiKey().get()
+    }
+
+    fun effectiveModel(): String {
+        val p = provider().get().lowercase()
+        val per = modelForProvider(p).get()
+        if (per.isNotBlank()) return per
+        return model().get()
+    }
+
+    fun setEffectiveApiKey(value: String) {
+        val p = provider().get().lowercase()
+        apiKeyForProvider(p).set(value)
+        apiKey().set(value)
+    }
+
+    fun setEffectiveModel(value: String) {
+        val p = provider().get().lowercase()
+        modelForProvider(p).set(value)
+        model().set(value)
+    }
+
     /**
      * Selected on-device LLM id from [LocalLlmCatalog]. Empty means "auto" — the best-fitting
      * model for this device is presented (and used) as the default. Only the RAM gate is enforced.

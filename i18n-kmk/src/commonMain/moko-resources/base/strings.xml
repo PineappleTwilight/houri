@@ -317,6 +317,8 @@
     <string name="pref_dual_page_match_heights_summary">Scale the second page of a merged double page to the first page\'s height. Disable if chapters render extremely small on your device.</string>
     <string name="pref_smart_scanlator_merge">Smart scanlator merge</string>
     <string name="pref_smart_scanlator_merge_summary">Merge duplicate chapters across scanlators, preferring your prioritized scanlators</string>
+    <string name="pref_show_smart_scanlator_details">Show scanlator filter in details</string>
+    <string name="pref_show_smart_scanlator_details_summary">Display the smart scanlator controls inside the manga details screen</string>
     <string name="pref_discord_show_timestamp">Show Time</string>
     <string name="pref_discord_show_timestamp_summary">Display activity time</string>
     <string name="pref_discord_show_buttons">Show Buttons</string>

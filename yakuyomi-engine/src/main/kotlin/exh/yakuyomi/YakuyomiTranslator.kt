@@ -43,7 +43,15 @@ class YakuyomiTranslator(
     private val client: OkHttpClient,
     private val customBaseUrl: String = "",
     private val customHeaders: String = "",
+    private val pageImageBytes: ByteArray? = null,
 ) : Translator {
+
+    private fun isVisionModel(): Boolean {
+        val lowerModel = model.lowercase()
+        val lowerProvider = provider.lowercase()
+        if (lowerProvider.contains("gemini") || lowerProvider.contains("qwen")) return false
+        return lowerModel.contains("vision")
+    }
 
     private val json = Json {
         ignoreUnknownKeys = true
@@ -88,13 +96,32 @@ class YakuyomiTranslator(
         try {
             if (baseUrl.isBlank()) throw TranslationException("Base URL not configured for this provider")
             val url = baseUrl.trimEnd('/') + "/chat/completions"
+            val useVision = isVisionModel() && pageImageBytes != null && pageImageBytes.isNotEmpty()
             val body = buildJsonObject {
                 put("model", model)
                 putJsonArray("messages") {
                     add(
                         buildJsonObject {
                             put("role", "user")
-                            put("content", prompt)
+                            if (useVision) {
+                                val b64 = java.util.Base64.getEncoder().encodeToString(pageImageBytes)
+                                putJsonArray("content") {
+                                    add(
+                                        buildJsonObject {
+                                            put("type", "text")
+                                            put("text", prompt)
+                                        },
+                                    )
+                                    add(
+                                        buildJsonObject {
+                                            put("type", "image_url")
+                                            put("image_url", buildJsonObject { put("url", "data:image/jpeg;base64,$b64") })
+                                        },
+                                    )
+                                }
+                            } else {
+                                put("content", prompt)
+                            }
                         },
                     )
                 }
@@ -144,13 +171,32 @@ class YakuyomiTranslator(
     private suspend fun callOpenRouter(prompt: String, apiKey: String, model: String): List<String>? = withContext(Dispatchers.IO) {
         try {
             val url = "https://openrouter.ai/api/v1/chat/completions"
+            val useVision = isVisionModel() && pageImageBytes != null && pageImageBytes.isNotEmpty()
             val body = buildJsonObject {
                 put("model", model)
                 putJsonArray("messages") {
                     add(
                         buildJsonObject {
                             put("role", "user")
-                            put("content", prompt)
+                            if (useVision) {
+                                val b64 = java.util.Base64.getEncoder().encodeToString(pageImageBytes)
+                                putJsonArray("content") {
+                                    add(
+                                        buildJsonObject {
+                                            put("type", "text")
+                                            put("text", prompt)
+                                        },
+                                    )
+                                    add(
+                                        buildJsonObject {
+                                            put("type", "image_url")
+                                            put("image_url", buildJsonObject { put("url", "data:image/jpeg;base64,$b64") })
+                                        },
+                                    )
+                                }
+                            } else {
+                                put("content", prompt)
+                            }
                         },
                     )
                 }

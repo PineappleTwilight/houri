@@ -16,15 +16,14 @@ data class LocalLlmSamplingConfig(
     val topP: Float = 0.9f,
     val topK: Int = 40,
     val repeatPenalty: Float = 1.1f,
-    val maxTokens: Int = 1024,
-    val contextLength: Int = 4096,
+    val maxTokens: Int = 768,
+    val contextLength: Int = 3072,
     val numThreads: Int = 0,
-    /** -1 = auto (offload as much as possible; the runtime falls back to CPU when it cannot). */
     val gpuLayers: Int = -1,
 ) {
     val resolvedThreads: Int
         get() = if (numThreads <= 0) {
-            (Runtime.getRuntime().availableProcessors() - 2).coerceAtLeast(2)
+            Runtime.getRuntime().availableProcessors().coerceAtLeast(4)
         } else {
             numThreads
         }

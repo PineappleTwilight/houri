@@ -41,7 +41,7 @@ class MangaHandler(
             val responseData = response.await()
             val coverFileName = if (tryUsingFirstVolumeCover) {
                 async(Dispatchers.IO) {
-                    service.fetchFirstVolumeCover(responseData)
+                    runCatching { service.fetchFirstVolumeCover(responseData) }.getOrNull()
                 }
             } else {
                 null

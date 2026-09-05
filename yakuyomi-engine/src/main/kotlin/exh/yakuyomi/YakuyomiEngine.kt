@@ -122,14 +122,29 @@ class YakuyomiEngine(
         return prefs.translationTextColor().get()
     }
 
-    private val defaultConfig: li.joye.yakuyomi.engine.EngineConfig by lazy {
-        li.joye.yakuyomi.engine.EngineConfig(render = renderConfig())
-    }
-    private val horizontalConfig: li.joye.yakuyomi.engine.EngineConfig by lazy {
-        defaultConfig.copy(
-            render = defaultConfig.render.copy(orientation = li.joye.yakuyomi.engine.TextOrientation.HORIZONTAL),
+    private fun defaultConfig(): li.joye.yakuyomi.engine.EngineConfig =
+        li.joye.yakuyomi.engine.EngineConfig(
+            render = renderConfig(),
+            ocr = li.joye.yakuyomi.engine.OcrConfig(
+                minProb = 0.45f,
+                stripPad = 6,
+                concurrent = true,
+                concurrency = 8,
+                useBicubic = true,
+                ocrUnsharp = true,
+            ),
+            inpainter = li.joye.yakuyomi.engine.InpainterConfig(
+                method = "aot",
+                tileSize = 768,
+                maskDilate = 24f,
+                bboxPad = 16,
+            ),
         )
-    }
+
+    private fun horizontalConfig(): li.joye.yakuyomi.engine.EngineConfig =
+        defaultConfig().copy(
+            render = defaultConfig().render.copy(orientation = li.joye.yakuyomi.engine.TextOrientation.HORIZONTAL),
+        )
 
     private fun loadAlphabet(): List<String> =
         context.assets.open("yakuyomi_alphabet.txt").bufferedReader().readLines()
@@ -214,8 +229,7 @@ class YakuyomiEngine(
         // sessions, so this call can never race a close of the components it captured.
         pipelineMutex.withLock {
             val c = buildIfNeeded() ?: return@withContext PageResult.Failed("models not ready")
-            // Resolved per call so text color/font pref changes apply without restarting.
-            val cfg = if (shouldForceHorizontal(targetLang)) horizontalConfig else defaultConfig
+            val cfg = if (shouldForceHorizontal(targetLang)) horizontalConfig() else defaultConfig()
             Pipeline(c.detector, c.ocr, translator, c.inpainter, cfg, resolveTypeface()).translatePage(bitmap)
         }
     }

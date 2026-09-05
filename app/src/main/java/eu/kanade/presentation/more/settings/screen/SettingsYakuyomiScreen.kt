@@ -54,12 +54,58 @@ object SettingsYakuyomiScreen : SearchableSettings {
         val modelManager = remember { globalAppGraph.modelManager }
 
         return listOfNotNull(
+            getHeader(),
             getStatusOverview(),
             getGeneralGroup(prefs),
             getProviderGroup(prefs),
             getLocalLlmGroup(),
             getModelGroup(modelManager),
             getBehaviorGroup(prefs, cache),
+        )
+    }
+
+    @Composable
+    private fun getHeader(): Preference.PreferenceGroup {
+        return Preference.PreferenceGroup(
+            title = "",
+            preferenceItems = persistentListOf(
+                Preference.PreferenceItem.CustomPreference(
+                    title = "",
+                    content = {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 12.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(56.dp)
+                                    .clip(CircleShape)
+                                    .background(MaterialTheme.colorScheme.primaryContainer),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Text(
+                                    text = "文",
+                                    style = MaterialTheme.typography.headlineMedium,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                )
+                            }
+                            Spacer(modifier = Modifier.padding(vertical = 4.dp))
+                            Text(
+                                text = "AI Manga Translation",
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.onSurface,
+                            )
+                            Text(
+                                text = "On-device + Cloud · Per-manga · Cached",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    },
+                ),
+            ),
         )
     }
 
@@ -230,9 +276,19 @@ object SettingsYakuyomiScreen : SearchableSettings {
     private fun getProviderGroup(prefs: exh.yakuyomi.TranslationPreferences): Preference.PreferenceGroup {
         val enabled by prefs.enabled().collectAsState()
         val provider by prefs.provider().collectAsState()
-        val apiKey by prefs.apiKey().collectAsState()
+        val apiKey by prefs.apiKeyForProvider(provider).collectAsState()
         val baseUrl by prefs.customBaseUrl().collectAsState()
-        val model by prefs.model().collectAsState()
+        val model by prefs.modelForProvider(provider).collectAsState()
+        val legacyApiKey by prefs.apiKey().collectAsState()
+        val legacyModel by prefs.model().collectAsState()
+        LaunchedEffect(provider) {
+            if (prefs.apiKeyForProvider(provider).get().isBlank() && legacyApiKey.isNotBlank()) {
+                prefs.apiKeyForProvider(provider).set(legacyApiKey)
+            }
+            if (prefs.modelForProvider(provider).get().isBlank() && legacyModel.isNotBlank()) {
+                prefs.modelForProvider(provider).set(legacyModel)
+            }
+        }
 
         var fetchedModels by remember { mutableStateOf<List<String>>(emptyList()) }
         var fetchingModels by remember { mutableStateOf(false) }
@@ -338,7 +394,7 @@ object SettingsYakuyomiScreen : SearchableSettings {
                 if (!isLocalProvider) {
                     add(
                         Preference.PreferenceItem.EditTextPreference(
-                            preference = prefs.apiKey(),
+                            preference = prefs.apiKeyForProvider(provider),
                             title = stringResource(KMR.strings.pref_yakuyomi_api_key),
                             subtitle = apiKeySubtitle,
                             enabled = enabled,
@@ -346,7 +402,7 @@ object SettingsYakuyomiScreen : SearchableSettings {
                     )
                     add(
                         Preference.PreferenceItem.ListPreference(
-                            preference = prefs.model(),
+                            preference = prefs.modelForProvider(provider),
                             entries = entries,
                             title = stringResource(KMR.strings.pref_yakuyomi_model),
                             subtitle = "%s",
@@ -484,7 +540,7 @@ object SettingsYakuyomiScreen : SearchableSettings {
             preferenceItems = buildList {
                 add(
                     Preference.PreferenceItem.InfoPreference(
-                        title = "Runs a small LLM fully offline on this device — no API key needed. Uses llama.cpp (GGUF models); you can also load your own GGUF file.",
+                        title = "Offline LLM (GGUF) — no API key needed. Pick a model or import your own .gguf.",
                     ),
                 )
                 add(
@@ -499,11 +555,11 @@ object SettingsYakuyomiScreen : SearchableSettings {
                 add(
                     Preference.PreferenceItem.InfoPreference(
                         title = buildString {
-                            append("Recommended for this device: ${best?.displayName ?: "none"}")
+                            append("Best for this device: ${best?.displayName ?: "none"}")
                             if (!runtimeBundled) {
-                                append("\nThe on-device LLM runtime isn't bundled in this build — the local provider needs a build with the llama.cpp runtime.")
+                                append(" · Runtime not bundled in this build")
                             } else {
-                                append("\nRuntime available. Only the RAM gate (3GB+) is enforced — any model you pick will run if it fits.")
+                                append(" · Runtime ready (3GB+ RAM required)")
                             }
                         },
                     ),
@@ -673,6 +729,7 @@ object SettingsYakuyomiScreen : SearchableSettings {
                         },
                         onClick = {
                             manager.clearModel()
+                            importTick++
                             context.toast("Local model cleared")
                         },
                         enabled = localEnabled && status.state != exh.yakuyomi.LocalLlmDownloadManager.State.DOWNLOADING,

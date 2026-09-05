@@ -412,6 +412,12 @@ object SettingsAdvancedScreen : SearchableSettings {
                     title = stringResource(KMR.strings.pref_smart_scanlator_merge),
                     subtitle = stringResource(KMR.strings.pref_smart_scanlator_merge_summary),
                 ),
+                Preference.PreferenceItem.SwitchPreference(
+                    preference = libraryPreferences.showSmartScanlatorInDetails(),
+                    title = stringResource(KMR.strings.pref_show_smart_scanlator_details),
+                    subtitle = stringResource(KMR.strings.pref_show_smart_scanlator_details_summary),
+                    enabled = libraryPreferences.smartScanlatorMerge().get(),
+                ),
                 // KMK <--
             ),
         )

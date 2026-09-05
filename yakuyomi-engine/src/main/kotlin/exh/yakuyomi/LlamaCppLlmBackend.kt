@@ -57,10 +57,14 @@ class LlamaCppLlmBackend private constructor(
                 onError("Model file not found: ${file.path}")
                 return null
             }
-            val mmproj = model.mmprojFile
-                ?.takeIf { !model.mmprojRepo.isNullOrBlank() }
-                ?.let { File(modelDir, it) }
-                ?.takeIf { it.exists() && it.length() > 1_000_000L }
+            val mmproj = when {
+                model.isCustom -> model.mmprojFile?.let { File(it) }?.takeIf { it.exists() && it.length() > 1_000_000L }
+                else ->
+                    model.mmprojFile
+                        ?.takeIf { !model.mmprojRepo.isNullOrBlank() }
+                        ?.let { File(modelDir, it) }
+                        ?.takeIf { it.exists() && it.length() > 1_000_000L }
+            }
             return LlamaCppLlmBackend(model, file, mmproj, sampling)
         }
     }

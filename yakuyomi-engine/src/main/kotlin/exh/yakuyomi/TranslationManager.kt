@@ -142,14 +142,14 @@ class TranslationManager(
                 val result = localLlm.generate(prompt) ?: return null
                 parseTranslationLines(result) ?: return null
             } else {
-                if (prefs.apiKey().get().isBlank()) return null
+                if (prefs.effectiveApiKey().isBlank()) return null
                 YakuyomiTranslator(
-                    apiKey = prefs.apiKey().get(),
+                    apiKey = prefs.effectiveApiKey(),
                     sourceLang = sourceLangHint,
                     targetLang = targetLang,
                     breadcrumb = "",
                     provider = prefs.provider().get().lowercase(),
-                    model = prefs.model().get(),
+                    model = prefs.effectiveModel(),
                     offlineFallback = prefs.offlineFallback().get(),
                     client = client,
                     customBaseUrl = prefs.customBaseUrl().get(),
@@ -222,7 +222,7 @@ class TranslationManager(
         if (localLlm.isLocalProvider()) {
             return "local:${localLlm.resolveModel()?.id ?: "auto"}"
         }
-        return prefs.model().get().ifBlank { "google/gemma-2-9b-it:free" }
+        return prefs.effectiveModel().ifBlank { "google/gemma-2-9b-it:free" }
     }
 
     /**
@@ -373,8 +373,13 @@ class TranslationManager(
                     )
                 }
                 else -> {
+                    val jpegBytes = runCatching {
+                        val out = java.io.ByteArrayOutputStream()
+                        bitmap.compress(Bitmap.CompressFormat.JPEG, 85, out)
+                        out.toByteArray()
+                    }.getOrNull()
                     YakuyomiTranslator(
-                        apiKey = prefs.apiKey().get(),
+                        apiKey = prefs.effectiveApiKey(),
                         sourceLang = sourceLangHint,
                         targetLang = targetLang,
                         breadcrumb = breadcrumb,
@@ -385,6 +390,7 @@ class TranslationManager(
                         client = client,
                         customBaseUrl = prefs.customBaseUrl().get(),
                         customHeaders = prefs.customHeaders().get(),
+                        pageImageBytes = jpegBytes,
                     )
                 }
             }

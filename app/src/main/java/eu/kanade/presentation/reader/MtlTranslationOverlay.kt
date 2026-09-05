@@ -104,30 +104,47 @@ fun MtlTranslationOverlay(
 
 @Composable
 private fun TranslatingChip(doneCount: Int, totalPages: Int) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    Column(
         modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            if (totalPages > 0) {
+                val progress = (doneCount.coerceAtMost(totalPages)).toFloat() / totalPages.toFloat()
+                CircularProgressIndicator(
+                    progress = { progress },
+                    strokeWidth = 2.dp,
+                    modifier = Modifier.padding(2.dp),
+                )
+                Text(
+                    text = stringResource(KMR.strings.mtl_translating_progress, doneCount.coerceAtMost(totalPages), totalPages),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            } else {
+                CircularProgressIndicator(
+                    strokeWidth = 2.dp,
+                    modifier = Modifier.padding(2.dp),
+                )
+                Text(
+                    text = stringResource(KMR.strings.mtl_translating),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            }
+        }
         if (totalPages > 0) {
-            val progress = (doneCount.coerceAtMost(totalPages)).toFloat() / totalPages.toFloat()
-            CircularProgressIndicator(
-                progress = { progress },
-                strokeWidth = 2.dp,
-                modifier = Modifier.padding(2.dp),
-            )
+            val stage = when {
+                doneCount == 0 -> "Detecting · OCR"
+                doneCount < totalPages / 2 -> "Translating"
+                doneCount < totalPages -> "Inpainting · Typesetting"
+                else -> "Finalizing"
+            }
             Text(
-                text = stringResource(KMR.strings.mtl_translating_progress, doneCount.coerceAtMost(totalPages), totalPages),
-                style = MaterialTheme.typography.bodyMedium,
-            )
-        } else {
-            CircularProgressIndicator(
-                strokeWidth = 2.dp,
-                modifier = Modifier.padding(2.dp),
-            )
-            Text(
-                text = stringResource(KMR.strings.mtl_translating),
-                style = MaterialTheme.typography.bodyMedium,
+                text = stage,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
     }

@@ -88,6 +88,7 @@ fun MangaToolbar(
     val isHomeEnabled = globalAppGraph.uiPreferences.showHomeOnRelatedMangas().get()
     val libraryPreferences = remember { globalAppGraph.libraryPreferences }
     val smartScanlatorMerge by libraryPreferences.smartScanlatorMerge().collectAsState()
+    val showSmartScanlator by libraryPreferences.showSmartScanlatorInDetails().collectAsState()
     // KMK <--
 
     val isActionMode = actionModeCounter > 0
@@ -207,13 +208,15 @@ fun MangaToolbar(
                     )
                     // KMK <--
                     // KMK -->
-                    add(
-                        AppBar.OverflowAction(
-                            title = stringResource(KMR.strings.pref_smart_scanlator_merge),
-                            checked = smartScanlatorMerge,
-                            onClick = { libraryPreferences.smartScanlatorMerge().toggle() },
-                        ),
-                    )
+                    if (showSmartScanlator) {
+                        add(
+                            AppBar.OverflowAction(
+                                title = stringResource(KMR.strings.pref_smart_scanlator_merge),
+                                checked = smartScanlatorMerge,
+                                onClick = { libraryPreferences.smartScanlatorMerge().toggle() },
+                            ),
+                        )
+                    }
                     // KMK <--
                     // SY -->
                     if (onClickMerge != null) {

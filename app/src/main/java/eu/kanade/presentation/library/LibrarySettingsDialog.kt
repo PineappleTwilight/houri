@@ -202,15 +202,6 @@ private fun ColumnScope.FilterPage(
         0 -> {
             // No trackers
         }
-        1 -> {
-            val service = trackers[0]
-            val filterTracker by screenModel.libraryPreferences.filterTracking(service.id.toInt()).collectAsState()
-            TriStateItem(
-                label = stringResource(MR.strings.action_filter_tracked),
-                state = filterTracker,
-                onClick = { screenModel.toggleTracker(service.id.toInt()) },
-            )
-        }
         else -> {
             HeadingItem(MR.strings.action_filter_tracked)
             // KMK --> Overall tracked/untracked filter (any tracker) above the per-tracker rows.
@@ -221,7 +212,7 @@ private fun ColumnScope.FilterPage(
                 onClick = { screenModel.toggleTrackedOverall() },
             )
             // KMK <--
-            trackers.map { service ->
+            trackers.forEach { service ->
                 val filterTracker by screenModel.libraryPreferences.filterTracking(service.id.toInt()).collectAsState()
                 TriStateItem(
                     label = service.name,

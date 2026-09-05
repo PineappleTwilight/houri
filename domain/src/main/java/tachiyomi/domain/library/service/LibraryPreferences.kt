@@ -298,6 +298,7 @@ class LibraryPreferences(
 
     // KMK -->
     fun smartScanlatorMerge() = preferenceStore.getBoolean("pref_smart_scanlator_merge", false)
+    fun showSmartScanlatorInDetails() = preferenceStore.getBoolean("pref_show_smart_scanlator_details", true)
     // KMK <--
 
     fun disallowNonAsciiFilenames() = preferenceStore.getBoolean("disallow_non_ascii_filenames", false)

@@ -387,7 +387,7 @@ class ReaderActivity : BaseActivity() {
                         modifier = Modifier
                             .align(Alignment.BottomCenter)
                             .navigationBarsPadding()
-                            .padding(bottom = 44.dp),
+                            .padding(bottom = if (state.menuVisible) 16.dp else 72.dp),
                     )
                 }
                 // KMK <--

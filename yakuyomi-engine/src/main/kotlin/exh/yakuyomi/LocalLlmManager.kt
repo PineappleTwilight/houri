@@ -74,19 +74,27 @@ class LocalLlmManager(
             .map { customModelFor(it) }
     }
 
-    private fun customModelFor(file: File): LocalLlmModel = LocalLlmModel(
-        id = "custom:${file.name}",
-        displayName = file.nameWithoutExtension,
-        description = "User-imported GGUF",
-        paramsB = "?",
-        qualityTier = 3,
-        isTranslationFinetune = false,
-        supportsVision = false,
-        sizeBytes = file.length(),
-        minRamBytes = 3L * 1024 * 1024 * 1024,
-        ggufFile = file.absolutePath,
-        isCustom = true,
-    )
+    private fun customModelFor(file: File): LocalLlmModel {
+        val mmprojCandidate = File(file.parentFile, "${file.nameWithoutExtension}.mmproj")
+            .takeIf { it.exists() && it.length() > 1_000_000L }
+            ?: File(file.parentFile, "${file.nameWithoutExtension}_mmproj.gguf")
+                .takeIf { it.exists() && it.length() > 1_000_000L }
+        return LocalLlmModel(
+            id = "custom:${file.name}",
+            displayName = file.nameWithoutExtension,
+            description = "User-imported GGUF" + if (mmprojCandidate != null) " + vision" else "",
+            paramsB = "?",
+            qualityTier = 3,
+            isTranslationFinetune = false,
+            supportsVision = mmprojCandidate != null,
+            sizeBytes = file.length() + (mmprojCandidate?.length() ?: 0L),
+            minRamBytes = 3L * 1024 * 1024 * 1024,
+            ggufFile = file.absolutePath,
+            mmprojFile = mmprojCandidate?.absolutePath,
+            mmprojRepo = if (mmprojCandidate != null) "custom" else null,
+            isCustom = true,
+        )
+    }
 
     private fun sanitizeGgufName(name: String): String {
         val base = name.substringAfterLast('/').substringAfterLast('\\').trim().ifBlank { "model.gguf" }
@@ -256,10 +264,14 @@ class LocalLlmManager(
     fun stop() {
         _loading.value = false
         scope.launch {
-            backendMutex.withLock {
-                current?.second?.close()
+            val toClose = backendMutex.withLock {
+                val c = current
                 current = null
                 _running.value = false
+                c
+            }
+            toClose?.second?.let { backend ->
+                runCatching { backend.close() }.onFailure { logcat { "LocalLlm stop failed: ${it.message}" } }
             }
         }
     }
@@ -267,10 +279,14 @@ class LocalLlmManager(
     fun clearModel() {
         val model = resolveModel() ?: return
         scope.launch {
-            backendMutex.withLock {
-                current?.second?.close()
+            val toClose = backendMutex.withLock {
+                val c = current
                 current = null
                 _running.value = false
+                c
+            }
+            toClose?.second?.let { backend ->
+                runCatching { backend.close() }.onFailure { logcat { "LocalLlm clear close failed: ${it.message}" } }
             }
         }
         if (model.isCustom) {
@@ -320,10 +336,14 @@ class LocalLlmManager(
 
     fun closeAll() {
         scope.launch {
-            backendMutex.withLock {
-                current?.second?.close()
+            val toClose = backendMutex.withLock {
+                val c = current
                 current = null
                 _running.value = false
+                c
+            }
+            toClose?.second?.let { backend ->
+                runCatching { backend.close() }.onFailure { logcat { "LocalLlm closeAll failed: ${it.message}" } }
             }
         }
     }

@@ -529,8 +529,9 @@ class AnilistApi(val client: OkHttpClient, interceptor: AnilistInterceptor) {
     }
 
     companion object {
-        // Registered under KMK's MAL account
+        // Registered under Houri / KMK's account — keep in sync with AndroidManifest houri://anilist-auth
         private const val CLIENT_ID = "16801"
+        private const val REDIRECT_URI = "houri://anilist-auth"
         private const val API_URL = "https://graphql.anilist.co/"
         private const val BASE_URL = "https://anilist.co/api/v2/"
         private const val BASE_MANGA_URL = "https://anilist.co/manga/"
@@ -541,6 +542,7 @@ class AnilistApi(val client: OkHttpClient, interceptor: AnilistInterceptor) {
 
         fun authUrl(): Uri = "${BASE_URL}oauth/authorize".toUri().buildUpon()
             .appendQueryParameter("client_id", CLIENT_ID)
+            .appendQueryParameter("redirect_uri", REDIRECT_URI)
             .appendQueryParameter("response_type", "token")
             .build()
     }

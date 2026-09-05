@@ -151,9 +151,9 @@ class LocalLlmDownloadManager(
             }
             _status.value = Status(State.DOWNLOADING, 0L, total, currentFile = ggufFile)
             try {
-                var completed = downloadOne(dir, ggufRepo, ggufFile, ggufSize, total, 0L)
+                var completed = downloadWithRetries(dir, ggufRepo, ggufFile, ggufSize, total, 0L)
                 if (mmproj != null && completed < total) {
-                    completed = downloadOne(dir, model.mmprojRepo!!, mmproj, mmprojSize, total, completed)
+                    completed = downloadWithRetries(dir, model.mmprojRepo!!, mmproj, mmprojSize, total, completed)
                 }
                 if (!isDownloaded(model)) {
                     File(dir, ggufFile).delete()
@@ -261,6 +261,33 @@ class LocalLlmDownloadManager(
             }
         }
         return completed
+    }
+
+    private suspend fun downloadWithRetries(
+        dir: File,
+        repo: String,
+        fileName: String,
+        expectedSize: Long,
+        totalBytes: Long,
+        beforeBytes: Long,
+    ): Long {
+        var last: Exception? = null
+        repeat(3) { attempt ->
+            try {
+                return downloadOne(dir, repo, fileName, expectedSize, totalBytes, beforeBytes)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                last = e
+                val isTimeout = e.message?.contains("timeout", true) == true || e is java.net.SocketTimeoutException
+                if (attempt < 2 && isTimeout) {
+                    kotlinx.coroutines.delay(1000L shl attempt)
+                } else if (attempt < 2) {
+                    kotlinx.coroutines.delay(500L * (attempt + 1))
+                }
+            }
+        }
+        throw last ?: IllegalStateException("Download failed for $fileName")
     }
 
     fun cancelDownload() {

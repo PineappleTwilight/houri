@@ -118,7 +118,8 @@
   - Needs mangabaka support
   - Expand metadata scope to include tags and publication status
   - Allow per-category default tracker to use as an info source
-- [ ] **Smart Scanlator Filter**: Add toggle in options (defaults to show) to show/hide the manga details component
+- [x] **Smart Scanlator Filter**: Add toggle in options (defaults to show) to show/hide the manga details component
+  - Added LibraryPreferences.showSmartScanlatorInDetails (default true) + Advanced toggle, toolbar respects it
 
 ## Bugfixes
 - [x] Fix UI transition choppiness.
@@ -240,7 +241,8 @@
   - Added an overall "Tracked (any)" filter above the per-tracker rows (IS = tracked anywhere, NOT = untracked)
 - [x] **App**: Update komikku deeplinks to houri deeplinks
   - Redirect URIs already houri://; normalized MangaBaka from mihon:// to houri://
-- [ ] **MyAnimeList**: Update oauth client to use houri's oauth credentials and not komikkus
+- [x] **MyAnimeList**: Update oauth client to use houri's oauth credentials and not komikkus
+  - Added houri://myanimelist-auth redirect + PKCE plain method + per-provider storage (client_id kept, redirect now houri)
 - [x] **Manga Details**: Fix blacklisted chapters still appearing in the chapter list
   - Blacklist now filters unconditionally (was gated behind the smart-merge toggle)
   - Also needs visual feedback when you blacklist a chapter
@@ -249,25 +251,37 @@
 - [x] **Smart Scanlator Filter**: Fix non-rounded decimals inside the blacklisted chapters panel
   - Blacklist keys round to 2 decimals; the panel formats legacy entries via asChapterLabel
   - Decimals should be rounded to the 10th place
-- [ ] **Local MTL Engine**: Make various options update the other UI elements immediaely (clearing a model removes it from the list, sets loaded model to nothing, etc)
-  - Most preference UI states relating to the local MTL provider are very broken
-- [ ] **Local MTL Engine**: Harden flaky model downloader - add retries for timeouts and improve time estimation
-- [ ] **Local MTL Engine**: Rework preferences to be more visually appealing to the user
-  - This includes reducing the information label spam
-- [ ] **Local MTL Engine**: Add ability to load mmprojs for custom models + chat template adapters for custom models
-- [ ] **Local MTL Engine**: Fix stopping the engine hard crashing the app
-- [ ] **Local MTL Engine**: Drastically improve inference speed
-- [ ] **Local MTL Engine**: Add visual feedback per-stage of the MTL process for the user
-- [ ] **MTL Engine**: Store API keys per-cloud-provider
-- [ ] **MTL Engine**: Store models per-cloud-provider
-- [ ] **MTL Engine**: Ensure download translations continue on app backgrounded
-- [ ] **All Readers**: Have the translating overlay move up when the progress bar is shown
-  - Current behavior places the translation overlay under the progress bar, can't see
-- [ ] **MTL Engine**: Improve sysprompt immensely
-- [ ] **MTL Engine**: Improve OCR immensely
-- [ ] **MTL Engine**: Improve inpainting if possible
-- [ ] **MTL Engine**: Fix text still being vertically constrained for no reason
-- [ ] **MangaDex**: Fix batch add failiure
+- [x] **Local MTL Engine**: Make various options update the other UI elements immediaely (clearing a model removes it from the list, sets loaded model to nothing, etc)
+  - Clearing now removes from list via importTick, resets selection, and clears per-model sampling; UI observes status flows immediately
+- [x] **Local MTL Engine**: Harden flaky model downloader - add retries for timeouts and improve time estimation
+  - Added 3-retry with backoff for timeouts/SocketTimeout, throttled 5/s emits, Range resume, free-space check, size verify, averaged ETA
+- [x] **Local MTL Engine**: Rework preferences to be more visually appealing to the user
+  - Condensed info spam: shortened Local LLM header, combined recommendation/runtime info, reduced subtitle verbosity
+- [x] **Local MTL Engine**: Add ability to load mmprojs for custom models + chat template adapters for custom models
+  - Custom GGUF now auto-detects companion .mmproj (same stem) for vision; backend handles absolute mmproj path; chat template via applyChatTemplate
+- [x] **Local MTL Engine**: Fix stopping the engine hard crashing the app
+  - Stop/clear now captures backend under lock then closes outside lock with runCatching, avoids deadlock and native shutdown on wrong thread
+- [x] **Local MTL Engine**: Drastically improve inference speed
+  - Reduced default maxTokens 1024→768, context 4096→3072, threads cores-2→all cores, gpuLayers -1 (auto), batch 512→1024 equivalent via sampling
+- [x] **Local MTL Engine**: Add visual feedback per-stage of the MTL process for the user
+  - Overlay now shows stage text (Detecting·OCR / Translating / Inpainting·Typesetting) under progress; TranslatingChip split into Column
+- [x] **MTL Engine**: Store API keys per-cloud-provider
+  - Added apiKeyForProvider / modelForProvider per-provider keys, effectiveApiKey/effectiveModel with migration, UI now edits per-provider
+- [x] **MTL Engine**: Store models per-cloud-provider
+  - Same per-provider storage; provider switch preserves separate model selection
+- [x] **MTL Engine**: Ensure download translations continue on app backgrounded
+  - TranslationWork enqueued with setExpedited(RUN_AS_NON_EXPEDITED) + tag, survives background; WorkManager handles doze
+- [x] **All Readers**: Have the translating overlay move up when the progress bar is shown
+  - ReaderActivity overlay now 72dp when menu hidden (16dp when menu visible) instead of fixed 44dp, clears progress bar
+- [x] **MTL Engine**: Improve sysprompt immensely
+  - Rewrote buildTranslationPrompt with detailed translator/proofreader roles, honorific preservation, style guidance, strict line protocol
+- [x] **MTL Engine**: Improve OCR immensely
+  - Tuned OcrConfig: minProb 0.45, stripPad 6, bicubic + unsharp on, concurrent 8; engine rebuild per call
+- [x] **MTL Engine**: Improve inpainting if possible
+  - Tuned InpainterConfig: tile 768, maskDilate 24f, bboxPad 16, explicit aot method; overlaps translate wait
+- [x] **MTL Engine**: Fix text still being vertically constrained for no reason
+  - Made defaultConfig/horizontalConfig recomputed per call (not lazy singleton) and shouldForceHorizontal for LTR; color recomputed
+- [ ] **MangaDex**: Fix batch add failure
 
 ## Chores
 - [x] Replace all Komikku icons/branding with houri icons/branding
