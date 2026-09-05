@@ -22,6 +22,7 @@ import exh.metadata.metadata.MangaDexSearchMetadata
 import exh.metadata.metadata.RaisedSearchMetadata
 import exh.metadata.metadata.RankedSearchMetadata
 import kotlinx.coroutines.flow.StateFlow
+import exh.util.isLewd
 import tachiyomi.domain.manga.model.Manga
 import tachiyomi.domain.manga.model.MangaCover
 import tachiyomi.presentation.core.components.Badge
@@ -96,6 +97,7 @@ internal fun BrowseSourceComfortableGridItem(
 ) {
     MangaComfortableGridItem(
         title = manga.title,
+        isLewd = manga.isLewd(),
         coverData = MangaCover(
             mangaId = manga.id,
             sourceId = manga.source,

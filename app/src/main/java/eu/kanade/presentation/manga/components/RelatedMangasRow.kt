@@ -21,6 +21,7 @@ import eu.kanade.presentation.browse.components.EmptyResultItem
 import eu.kanade.presentation.browse.components.GlobalSearchLoadingResultItem
 import eu.kanade.presentation.browse.components.MangaItem
 import eu.kanade.tachiyomi.ui.manga.RelatedManga
+import exh.util.isLewd
 import tachiyomi.domain.manga.model.Manga
 import tachiyomi.domain.manga.model.asMangaCover
 import tachiyomi.presentation.core.components.material.padding
@@ -72,6 +73,7 @@ fun RelatedMangaCardRow(
                 title = manga.title,
                 cover = manga.asMangaCover(),
                 isFavorite = manga.favorite,
+                isLewd = manga.isLewd(),
                 onClick = { onMangaClick(manga) },
                 onLongClick = { onMangaLongClick(manga) },
                 isSelected = false,

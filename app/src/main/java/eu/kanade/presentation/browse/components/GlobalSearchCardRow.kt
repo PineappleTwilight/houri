@@ -22,6 +22,7 @@ import eu.kanade.presentation.library.components.CommonMangaItemDefaults
 import eu.kanade.presentation.library.components.MangaComfortableGridItem
 import eu.kanade.presentation.manga.components.RatioSwitchToPanorama
 import mihon.app.di.globalAppGraph
+import exh.util.isLewd
 import tachiyomi.domain.manga.model.Manga
 import tachiyomi.domain.manga.model.MangaCover
 import tachiyomi.domain.manga.model.asMangaCover
@@ -55,6 +56,7 @@ fun GlobalSearchCardRow(
                 title = title.title,
                 cover = title.asMangaCover(),
                 isFavorite = title.favorite,
+                isLewd = title.isLewd(),
                 onClick = { onClick(title) },
                 onLongClick = { onLongClick(title) },
                 // KMK -->
@@ -70,6 +72,7 @@ internal fun MangaItem(
     title: String,
     cover: MangaCover,
     isFavorite: Boolean,
+    isLewd: Boolean = false,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
     // KMK -->
@@ -90,6 +93,7 @@ internal fun MangaItem(
     ) {
         MangaComfortableGridItem(
             title = title,
+            isLewd = isLewd,
             titleMaxLines = 3,
             coverData = cover,
             coverBadgeStart = {
