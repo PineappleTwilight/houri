@@ -61,6 +61,7 @@ object SettingsYakuyomiScreen : SearchableSettings {
             getLocalLlmGroup(),
             getModelGroup(modelManager),
             getBehaviorGroup(prefs, cache),
+            getAdvancedGroup(prefs),
         )
     }
 
@@ -251,21 +252,6 @@ object SettingsYakuyomiScreen : SearchableSettings {
                         title = stringResource(KMR.strings.pref_yakuyomi_text_color),
                         subtitle = stringResource(KMR.strings.pref_yakuyomi_text_color_summary) + ": %s",
                         enabled = enabled,
-                    ),
-                )
-                add(
-                    Preference.PreferenceItem.EditTextPreference(
-                        preference = prefs.translationTextColorHex(),
-                        title = stringResource(KMR.strings.pref_yakuyomi_text_color_custom),
-                        subtitle = "Custom hex color (e.g. #FFFFFF). Overrides the preset when valid: %s",
-                        validator = { it.isBlank() || HEX_COLOR_REGEX.matches(it.trim().removePrefix("#")) },
-                        enabled = enabled,
-                    ),
-                )
-                add(
-                    Preference.PreferenceItem.InfoPreference(
-                        title = "EN → EN uses grammar/vocab fix (same LLM). " +
-                            "Disabled by default; uploads are gated by Incognito/Censor.",
                     ),
                 )
             }.toPersistentList(),
@@ -862,24 +848,6 @@ object SettingsYakuyomiScreen : SearchableSettings {
                     subtitle = "Keep translated WEBP images alongside originals to avoid re-translating",
                     enabled = enabled,
                 ),
-                Preference.PreferenceItem.SwitchPreference(
-                    preference = prefs.autoSaveWhileReading(),
-                    title = "Auto-save while reading",
-                    subtitle = "Save translated pages as you read to avoid re-translating later",
-                    enabled = enabled,
-                ),
-                Preference.PreferenceItem.ListPreference(
-                    preference = prefs.breadcrumbWindowSize(),
-                    entries = persistentMapOf(
-                        3 to "3 chapters",
-                        5 to "5 chapters",
-                        8 to "8 chapters",
-                        10 to "10 chapters",
-                    ),
-                    title = "Context window",
-                    subtitle = "Sliding window for translation consistency: %s",
-                    enabled = enabled,
-                ),
                 Preference.PreferenceItem.TextPreference(
                     title = "Clear translation cache",
                     subtitle = "Current: ${cacheBytes / 1024} KB / 32768 KB",
@@ -891,6 +859,61 @@ object SettingsYakuyomiScreen : SearchableSettings {
                     enabled = enabled,
                 ),
             ),
+        )
+    }
+
+    @Composable
+    private fun getAdvancedGroup(prefs: exh.yakuyomi.TranslationPreferences): Preference.PreferenceGroup {
+        val enabled by prefs.enabled().collectAsState()
+        val navigator = LocalNavigator.currentOrThrow
+        return Preference.PreferenceGroup(
+            title = "Advanced",
+            preferenceItems = buildList {
+                add(
+                    Preference.PreferenceItem.TextPreference(
+                        title = stringResource(KMR.strings.pref_yakuyomi_engine_advanced),
+                        subtitle = "Detector / OCR / Inpaint / Typeset — not recommended, unsupported",
+                        onClick = { navigator.push(SettingsYakuyomiEngineAdvancedScreen()) },
+                        enabled = enabled,
+                    ),
+                )
+                add(
+                    Preference.PreferenceItem.EditTextPreference(
+                        preference = prefs.translationTextColorHex(),
+                        title = stringResource(KMR.strings.pref_yakuyomi_text_color_custom),
+                        subtitle = "Custom hex (e.g. #FFFFFF) — overrides preset: %s",
+                        validator = { it.isBlank() || HEX_COLOR_REGEX.matches(it.trim().removePrefix("#")) },
+                        enabled = enabled,
+                    ),
+                )
+                add(
+                    Preference.PreferenceItem.SwitchPreference(
+                        preference = prefs.autoSaveWhileReading(),
+                        title = "Auto-save while reading",
+                        subtitle = "Save translated pages as you read",
+                        enabled = enabled,
+                    ),
+                )
+                add(
+                    Preference.PreferenceItem.ListPreference(
+                        preference = prefs.breadcrumbWindowSize(),
+                        entries = persistentMapOf(
+                            3 to "3 chapters",
+                            5 to "5 chapters",
+                            8 to "8 chapters",
+                            10 to "10 chapters",
+                        ),
+                        title = "Context window",
+                        subtitle = "Sliding window for translation consistency: %s",
+                        enabled = enabled,
+                    ),
+                )
+                add(
+                    Preference.PreferenceItem.InfoPreference(
+                        title = "EN → EN uses grammar/vocab fix (same LLM). Uploads gated by Incognito/Censor.",
+                    ),
+                )
+            }.toPersistentList(),
         )
     }
 }

@@ -60,6 +60,21 @@ class YakuyomiEngine(
                 }
             }
             .launchIn(scope)
+        // Tuning changes require rebuilding native sessions that were constructed with the old config.
+        scope.launch {
+            kotlinx.coroutines.flow.merge(
+                prefs.detectorInputSize().changes(),
+                prefs.detectorBoxThreshold().changes(),
+                prefs.detectorSegThreshold().changes(),
+                prefs.ocrMinProb().changes(),
+                prefs.ocrBicubic().changes(),
+                prefs.ocrUnsharp().changes(),
+                prefs.inpainterMethod().changes(),
+                prefs.inpainterTileSize().changes(),
+                prefs.inpainterMaskDilate().changes(),
+                prefs.inpainterBboxPad().changes(),
+            ).collect { invalidateComponents() }
+        }
     }
 
     /** Human-readable reason reported when the device has too little RAM for the native pipeline. */
@@ -102,11 +117,19 @@ class YakuyomiEngine(
     @Volatile
     private var components: Components? = null
 
-    private fun renderConfig(): li.joye.yakuyomi.engine.RenderConfig =
-        li.joye.yakuyomi.engine.EngineConfig().render.copy(
+    private fun renderConfig(): li.joye.yakuyomi.engine.RenderConfig {
+        val defaults = li.joye.yakuyomi.engine.EngineConfig().render
+        return defaults.copy(
             colorMode = "fixed",
             fixedTextColor = resolveTextColor(),
+            fontScale = prefs.renderFontScale().get().coerceIn(0.6f, 1.2f),
+            expandW = prefs.renderExpandW().get().coerceIn(1.0f, 2.0f),
+            expandH = prefs.renderExpandH().get().coerceIn(1.0f, 2.0f),
+            tateChuYoko = prefs.renderTateChuYoko().get(),
+            fontSizeMax = prefs.renderFontSizeMax().get().coerceIn(30, 100),
+            fontSizeMin = prefs.renderFontSizeMin().get().coerceIn(6, 20),
         )
+    }
 
     /** Custom hex override wins when parseable; otherwise the preset int preference. */
     private fun resolveTextColor(): Int {
@@ -122,24 +145,29 @@ class YakuyomiEngine(
         return prefs.translationTextColor().get()
     }
 
-    private fun defaultConfig(): li.joye.yakuyomi.engine.EngineConfig =
-        li.joye.yakuyomi.engine.EngineConfig(
+    private fun defaultConfig(): li.joye.yakuyomi.engine.EngineConfig {
+        val defaults = li.joye.yakuyomi.engine.EngineConfig()
+        return li.joye.yakuyomi.engine.EngineConfig(
             render = renderConfig(),
-            ocr = li.joye.yakuyomi.engine.OcrConfig(
-                minProb = 0.52f,
-                stripPad = 4,
-                concurrent = true,
-                concurrency = 8,
-                useBicubic = true,
-                ocrUnsharp = true,
+            detector = defaults.detector.copy(
+                dbnetInputSize = prefs.detectorInputSize().get().coerceIn(512, 1536),
+                dbBoxThreshold = prefs.detectorBoxThreshold().get().coerceIn(0.3f, 0.9f),
+                segThreshold = prefs.detectorSegThreshold().get().coerceIn(0.05f, 0.4f),
             ),
-            inpainter = li.joye.yakuyomi.engine.InpainterConfig(
-                method = "boxfill",
-                tileSize = 512,
-                maskDilate = 8f,
-                bboxPad = 4,
+            ocr = defaults.ocr.copy(
+                minProb = prefs.ocrMinProb().get().coerceIn(0.2f, 0.9f),
+                useBicubic = prefs.ocrBicubic().get(),
+                ocrUnsharp = prefs.ocrUnsharp().get(),
             ),
+            inpainter = defaults.inpainter.copy(
+                method = prefs.inpainterMethod().get().takeIf { it in setOf("aot", "boxfill") } ?: "aot",
+                tileSize = prefs.inpainterTileSize().get().coerceIn(256, 1024),
+                maskDilate = prefs.inpainterMaskDilate().get().coerceIn(4f, 48f),
+                bboxPad = prefs.inpainterBboxPad().get().coerceIn(0, 32),
+            ),
+            translator = defaults.translator,
         )
+    }
 
     private fun horizontalConfig(): li.joye.yakuyomi.engine.EngineConfig =
         defaultConfig().copy(
@@ -179,9 +207,10 @@ class YakuyomiEngine(
             return null
         }
         return try {
-            val detector = Detector(set.detectorNcnn ?: error("missing detector .param"))
-            val ocr = Ocr(set.ocr, loadAlphabet())
-            val inpainter = Inpainter(set.aotInpainterNcnn ?: error("missing inpainter .param"))
+            val cfg = defaultConfig()
+            val detector = Detector(set.detectorNcnn ?: error("missing detector .param"), cfg.detector)
+            val ocr = Ocr(set.ocr, loadAlphabet(), cfg.ocr)
+            val inpainter = Inpainter(set.aotInpainterNcnn ?: error("missing inpainter .param"), cfg.inpainter)
             detector.warmUp()
             ocr.warmUp()
             inpainter.warmUp()

@@ -326,6 +326,7 @@ class TranslationManager(
         val mangaContext = mangaContextProvider(mangaId) ?: ""
 
         status.pageTranslating(mangaId, chapterId, pageIndex)
+        var bitmap: android.graphics.Bitmap? = null
         return try {
             val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
             BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size, bounds)
@@ -335,11 +336,12 @@ class TranslationManager(
             }
             val needsSample = bounds.outWidth > 4096 || bounds.outHeight > 4096
             val sampleOpts = if (needsSample) BitmapFactory.Options().apply { inSampleSize = 2 } else null
-            val bitmap = BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size, sampleOpts)
-            if (bitmap == null) {
+            val decoded = BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size, sampleOpts)
+            if (decoded == null) {
                 status.pageError(mangaId, chapterId, pageIndex, "Unable to decode image")
                 return null
             }
+            bitmap = decoded
 
             // KMK -->
             // Gemini Nano (on-device) is the priority LLM provider when the toggle is on and
@@ -395,9 +397,20 @@ class TranslationManager(
             }
             // KMK <--
 
-            when (val result = engine.translatePage(bitmap, translator, targetLang)) {
+            val result = try {
+                kotlinx.coroutines.withTimeout(90_000) { engine.translatePage(bitmap!!, translator, targetLang) }
+            } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
+                status.pageError(mangaId, chapterId, pageIndex, friendlyError("Translation timed out"))
+                runCatching { bitmap?.recycle() }
+                bitmap = null
+                return null
+            }
+            runCatching { bitmap?.recycle() }
+            bitmap = null
+            when (result) {
                 is PageResult.Translated -> {
                     val webp = engine.bitmapToWebP(result.page, quality = 85)
+                    runCatching { result.page.recycle() }
                     if (cacheEnabled) {
                         cache.put(pageHash, targetLang, model, webp)
                     }
@@ -421,6 +434,8 @@ class TranslationManager(
                 }
             }
         } catch (e: Exception) {
+            runCatching { bitmap?.recycle() }
+            bitmap = null
             xLogE("translatePage failed", e)
             status.pageError(mangaId, chapterId, pageIndex, friendlyError(e.message ?: "Unknown translation error"))
             null

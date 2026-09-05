@@ -305,9 +305,8 @@ class LocalLlmManager(
     fun isRuntimeAvailable(): Boolean = LlamaCppLlmBackend.isAvailable()
 
     /**
-     * Runs one on-device generation. Vision input is not supported by llama.cpp yet, so the
-     * page image is ignored. Returns null when the runtime is unavailable, the model isn't
-     * downloaded, or generation failed.
+     * Runs one on-device generation. Hardened: prompt truncated to fit context, per-model
+     * sampling applied, and a 60s timeout prevents a stuck native call from blocking the worker.
      */
     suspend fun generate(prompt: String, imageBytes: ByteArray? = null): String? {
         val model = resolveModel() ?: return null
@@ -316,8 +315,27 @@ class LocalLlmManager(
             return null
         }
         val backend = backendFor(model) ?: return null
-        val temperature = samplingFor(model).temperature
-        return backend.generate(LocalGenerateRequest(prompt = prompt, maxTokens = 1024, temperature = temperature, imageBytes = imageBytes))
+        val sampling = samplingFor(model)
+        val maxTokens = sampling.maxTokens.coerceIn(64, 4096)
+        val contextLen = sampling.contextLength.coerceAtLeast(512)
+        var safePrompt = prompt
+        val estTokens = safePrompt.length / 3 + maxTokens + 256
+        if (estTokens > contextLen) {
+            val keep = (contextLen - maxTokens - 256).coerceAtLeast(512) * 3
+            safePrompt = safePrompt.takeLast(keep)
+            logcat { "Local LLM prompt truncated ${prompt.length} -> ${safePrompt.length} to fit $contextLen" }
+        }
+        return try {
+            kotlinx.coroutines.withTimeout(60_000) {
+                backend.generate(LocalGenerateRequest(prompt = safePrompt, maxTokens = maxTokens, temperature = sampling.temperature, imageBytes = imageBytes))
+            }
+        } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
+            logcat { "Local LLM timeout for ${model.id}" }
+            null
+        } catch (e: Exception) {
+            logcat { "Local LLM generate failed: ${e.message}" }
+            null
+        }
     }
 
     private suspend fun backendFor(model: LocalLlmModel): LocalLlmBackend? = backendMutex.withLock {
