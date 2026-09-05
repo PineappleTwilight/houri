@@ -4,6 +4,7 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.util.concurrent.TimeUnit
@@ -68,17 +69,28 @@ object ModelCatalog {
     ): List<String> {
         val endpoint = modelsEndpoint(provider, baseUrl) ?: return emptyList()
         val isGemini = provider.equals("gemini", ignoreCase = true)
-        val url = if (isGemini && apiKey.isNotBlank()) "$endpoint?key=$apiKey" else endpoint
+        // Gemini requires an API key to list models — without it the request is guaranteed
+        // to 403 and the UI would spuriously show "fetch failed". Let the caller keep the
+        // curated fallback silently in that case.
+        if (isGemini && apiKey.isBlank()) return emptyList()
+        val url = if (isGemini) {
+            endpoint.toHttpUrlOrNull()?.newBuilder()?.addQueryParameter("key", apiKey)?.build()?.toString() ?: "$endpoint?key=$apiKey"
+        } else {
+            endpoint
+        }
         val reqBuilder = Request.Builder().url(url).get()
         if (apiKey.isNotBlank() && !isGemini) {
             reqBuilder.header("Authorization", "Bearer $apiKey")
         }
+        // OpenRouter public models endpoint works without auth, but its CORS/docs expect
+        // the canonical headers; keep the request minimal.
         val req = reqBuilder.build()
         val callClient = client.newBuilder().callTimeout(15, TimeUnit.SECONDS).build()
         return try {
             callClient.newCall(req).execute().use { resp ->
                 if (!resp.isSuccessful) return@use emptyList()
-                val text = resp.body.string()
+                val text = resp.body?.string() ?: return@use emptyList()
+                if (text.isBlank()) return@use emptyList()
                 parseModelIds(text, isGemini)
             }
         } catch (_: Exception) {
@@ -86,13 +98,16 @@ object ModelCatalog {
         }
     }
 
-    /** Parses OpenAI-compatible `data[].id` or Gemini `models[].name` payloads. */
     private fun parseModelIds(text: String, gemini: Boolean): List<String> {
         return try {
             val root = json.parseToJsonElement(text).jsonObject
             val raw = if (gemini) {
-                root["models"]?.jsonArray?.mapNotNull {
-                    it.jsonObject["name"]?.jsonPrimitive?.content?.removePrefix("models/")
+                root["models"]?.jsonArray?.mapNotNull { el ->
+                    val obj = el.jsonObject
+                    val name = obj["name"]?.jsonPrimitive?.content?.removePrefix("models/") ?: return@mapNotNull null
+                    val methods = obj["supportedGenerationMethods"]?.jsonArray?.mapNotNull { it.jsonPrimitive.content } ?: emptyList()
+                    if (methods.isNotEmpty() && "generateContent" !in methods) return@mapNotNull null
+                    name
                 }
             } else {
                 root["data"]?.jsonArray?.mapNotNull {

@@ -110,25 +110,31 @@ object SettingsYakuyomiScreen : SearchableSettings {
         )
     }
 
-    /** At-a-glance MTL state: enabled/provider/engine/model — the first thing a user sees. */
     @Composable
     private fun getStatusOverview(): Preference.PreferenceGroup {
         val prefs = remember { globalAppGraph.translationPreferences }
         val manager = remember { globalAppGraph.localLlmManager }
         val enabled by prefs.enabled().collectAsState()
         val provider by prefs.provider().collectAsState()
+        val targetLang by prefs.targetLang().collectAsState()
+        val localModelKey by prefs.localModel().collectAsState()
         val running by manager.running.collectAsState()
         val loading by manager.loading.collectAsState()
+        val downloadStatus by remember { globalAppGraph.localLlmDownloadManager.status }.collectAsState()
         val context = LocalContext.current
+
+        val resolvedLocalModel = remember(localModelKey, provider, downloadStatus) { manager.resolveModel() }
+        val isModelReady = remember(downloadStatus, resolvedLocalModel) {
+            resolvedLocalModel != null && globalAppGraph.localLlmDownloadManager.isDownloaded(resolvedLocalModel)
+        }
 
         val (dotColor, lines) = when {
             !enabled -> Color(0xFF9E9E9E) to listOf("MTL is off — enable it below to translate pages")
             provider == "local" -> {
-                val model = manager.resolveModel()
                 when {
                     loading -> Color(0xFFFFA726) to listOf("Local engine: starting…")
-                    running -> Color(0xFF4CAF50) to listOf("Local engine running — ${model?.displayName ?: "unknown model"}")
-                    manager.isModelReady() -> Color(0xFF9E9E9E) to listOf("Local engine stopped — ${model?.displayName ?: "auto"} ready")
+                    running -> Color(0xFF4CAF50) to listOf("Local engine running — ${resolvedLocalModel?.displayName ?: "unknown model"}")
+                    isModelReady -> Color(0xFF9E9E9E) to listOf("Local engine stopped — ${resolvedLocalModel?.displayName ?: "auto"} ready")
                     else -> Color(0xFFE53935) to listOf("Local provider: no model downloaded yet")
                 }
             }
@@ -137,7 +143,7 @@ object SettingsYakuyomiScreen : SearchableSettings {
 
         val subtitle = buildString {
             append("MTL: ${if (enabled) "on" else "off"}")
-            if (enabled && provider != "local") append(" · target ${prefs.targetLang().get().ifBlank { "en" }}")
+            if (enabled && provider != "local") append(" · target ${targetLang.ifBlank { "en" }}")
             if (!exh.yakuyomi.DeviceMemory.isMtlSupported(context)) append(" · low-RAM device (translation blocked)")
         }
 
@@ -265,15 +271,21 @@ object SettingsYakuyomiScreen : SearchableSettings {
         val apiKey by prefs.apiKeyForProvider(provider).collectAsState()
         val baseUrl by prefs.customBaseUrl().collectAsState()
         val model by prefs.modelForProvider(provider).collectAsState()
+        val geminiNanoEnabled by prefs.geminiNanoEnabled().collectAsState()
         val legacyApiKey by prefs.apiKey().collectAsState()
         val legacyModel by prefs.model().collectAsState()
-        LaunchedEffect(provider) {
-            if (prefs.apiKeyForProvider(provider).get().isBlank() && legacyApiKey.isNotBlank()) {
+        var migratedProviders by remember { mutableStateOf(setOf<String>()) }
+        LaunchedEffect(provider, legacyApiKey, legacyModel) {
+            if (provider in migratedProviders) return@LaunchedEffect
+            val perKeyBlank = prefs.apiKeyForProvider(provider).get().isBlank()
+            val perModelBlank = prefs.modelForProvider(provider).get().isBlank()
+            if (perKeyBlank && legacyApiKey.isNotBlank()) {
                 prefs.apiKeyForProvider(provider).set(legacyApiKey)
             }
-            if (prefs.modelForProvider(provider).get().isBlank() && legacyModel.isNotBlank()) {
+            if (perModelBlank && legacyModel.isNotBlank()) {
                 prefs.modelForProvider(provider).set(legacyModel)
             }
+            migratedProviders = migratedProviders + provider
         }
 
         var fetchedModels by remember { mutableStateOf<List<String>>(emptyList()) }
@@ -281,28 +293,48 @@ object SettingsYakuyomiScreen : SearchableSettings {
         var modelFetchFailed by remember { mutableStateOf(false) }
         var refreshTick by remember { mutableStateOf(0) }
 
-        // Populate the model selector automatically from the provider's models endpoint.
         LaunchedEffect(provider, apiKey, baseUrl, refreshTick) {
+            val currentProvider = provider
+            val endpoint = ModelCatalog.modelsEndpoint(currentProvider, baseUrl)
+            if (endpoint == null || currentProvider == "local") {
+                fetchedModels = emptyList()
+                modelFetchFailed = false
+                fetchingModels = false
+                return@LaunchedEffect
+            }
+            if (currentProvider.equals("gemini", ignoreCase = true) && apiKey.isBlank()) {
+                fetchedModels = emptyList()
+                modelFetchFailed = false
+                fetchingModels = false
+                return@LaunchedEffect
+            }
+            if (currentProvider == "custom_openai" && baseUrl.isBlank()) {
+                fetchedModels = emptyList()
+                modelFetchFailed = false
+                fetchingModels = false
+                return@LaunchedEffect
+            }
             fetchingModels = true
+            modelFetchFailed = false
             val models = withIOContext {
                 runCatching {
-                    ModelCatalog.fetchModels(provider, apiKey, baseUrl, globalAppGraph.networkHelper.client)
+                    ModelCatalog.fetchModels(currentProvider, apiKey, baseUrl, globalAppGraph.networkHelper.client)
                 }.getOrDefault(emptyList())
             }
+            if (currentProvider != provider) return@LaunchedEffect
             if (models.isNotEmpty()) {
                 fetchedModels = models
                 modelFetchFailed = false
             } else {
-                modelFetchFailed = true
+                fetchedModels = emptyList()
+                modelFetchFailed = endpoint != null
             }
             fetchingModels = false
         }
 
         val entries = remember(fetchedModels, provider, model) {
-            // Always seed with the curated list so the selector works offline; fetched models
-            // from the provider endpoint extend it. The current value is always included.
             val base = ModelCatalog.fallbackModels[provider].orEmpty()
-            val all = (fetchedModels + base + listOfNotNull(model)).distinct().sorted()
+            val all = (fetchedModels + base + listOfNotNull(model.takeIf { it.isNotBlank() })).distinct().sorted()
             persistentMapOf(*all.map { it to it }.toTypedArray())
         }
 
@@ -329,11 +361,12 @@ object SettingsYakuyomiScreen : SearchableSettings {
                         title = "Gemini Nano device status",
                         content = {
                             var statusText by remember { mutableStateOf("Checking…") }
-                            LaunchedEffect(Unit) {
+                            var nanoRefreshTick by remember { mutableStateOf(0) }
+                            LaunchedEffect(geminiNanoEnabled, nanoRefreshTick) {
                                 statusText = withIOContext {
                                     val nano = globalAppGraph.geminiNanoTranslator
                                     when {
-                                        !prefs.geminiNanoEnabled().get() -> "Disabled by toggle — cloud provider will be used"
+                                        !geminiNanoEnabled -> "Disabled by toggle — cloud provider will be used"
                                         nano.isAvailable() -> "Available — on-device translation active"
                                         else -> {
                                             val err = nano.statusError()
@@ -353,11 +386,20 @@ object SettingsYakuyomiScreen : SearchableSettings {
                                     }
                                 }
                             }
-                            Text(
-                                text = statusText,
-                                style = MaterialTheme.typography.bodyMedium,
-                                modifier = Modifier.padding(horizontal = MaterialTheme.padding.medium, vertical = 8.dp),
-                            )
+                            Column(modifier = Modifier.padding(horizontal = MaterialTheme.padding.medium, vertical = 4.dp)) {
+                                Text(
+                                    text = statusText,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                )
+                                if (geminiNanoEnabled) {
+                                    androidx.compose.material3.TextButton(
+                                        onClick = { nanoRefreshTick = nanoRefreshTick + 1 },
+                                        modifier = Modifier.padding(top = 4.dp),
+                                    ) {
+                                        Text("Recheck")
+                                    }
+                                }
+                            }
                         },
                     ),
                 )
@@ -407,7 +449,7 @@ object SettingsYakuyomiScreen : SearchableSettings {
                                 else -> null
                             },
                             onClick = {
-                                refreshTick++
+                                refreshTick = refreshTick + 1
                             },
                             enabled = enabled,
                         ),
@@ -453,21 +495,23 @@ object SettingsYakuyomiScreen : SearchableSettings {
         val status by downloadManager.status.collectAsState()
         val running by manager.running.collectAsState()
         val loading by manager.loading.collectAsState()
+        val localModelKey by prefs.localModel().collectAsState()
         val autoStart by prefs.localLlmAutoStart().collectAsState()
         val entryNavigator = LocalNavigator.currentOrThrow
-        val model = remember(provider, enabled) { manager.resolveModel() }
-        val best = remember { exh.yakuyomi.LocalLlmCatalog.bestForDevice(exh.yakuyomi.DeviceMemory.totalRamBytes(context)) }
-        val runtimeBundled = remember { manager.isRuntimeAvailable() }
-        val modelReady = remember { manager.isModelReady() }
-
         var importTick by remember { mutableStateOf(0) }
         val importing by manager.importing.collectAsState()
-        val importedModels = remember(importTick) { manager.importedModels() }
+        val importedModels = remember(importTick, status) { manager.importedModels() }
+        val model = remember(localModelKey, provider, importTick, status) { manager.resolveModel() }
+        val best = remember { exh.yakuyomi.LocalLlmCatalog.bestForDevice(exh.yakuyomi.DeviceMemory.totalRamBytes(context)) }
+        val runtimeBundled = manager.isRuntimeAvailable()
+        val modelReady = remember(status, model) {
+            model != null && downloadManager.isDownloaded(model)
+        }
 
-        val entries = remember(importTick) {
+        val entries = remember(importTick, status) {
             val base = persistentMapOf<String, String>("" to "Auto — best for this device")
             val catalog = exh.yakuyomi.LocalLlmCatalog.allModels.associate { it.id to it.displayName }
-            val imported = manager.importedModels().associate { it.id to it.displayName }
+            val imported = importedModels.associate { it.id to it.displayName }
             persistentMapOf(*((base + catalog + imported).toList()).toTypedArray())
         }
 
@@ -480,7 +524,7 @@ object SettingsYakuyomiScreen : SearchableSettings {
             if (uri != null) {
                 manager.importGguf(uri) { result, error ->
                     if (result != null) {
-                        importTick++
+                        importTick = importTick + 1
                         if (result.duplicate) {
                             context.toast("Already imported — switched to ${result.model.displayName}")
                         } else {
@@ -715,7 +759,7 @@ object SettingsYakuyomiScreen : SearchableSettings {
                         },
                         onClick = {
                             manager.clearModel()
-                            importTick++
+                            importTick = importTick + 1
                             context.toast("Local model cleared")
                         },
                         enabled = localEnabled && status.state != exh.yakuyomi.LocalLlmDownloadManager.State.DOWNLOADING,
@@ -820,7 +864,9 @@ object SettingsYakuyomiScreen : SearchableSettings {
     ): Preference.PreferenceGroup {
         val context = LocalContext.current
         val enabled by prefs.enabled().collectAsState()
-        var cacheBytes by remember { mutableStateOf(cache.sizeBytes()) }
+        val cacheEnabled by prefs.cacheEnabled().collectAsState()
+        var cacheTick by remember { mutableStateOf(0) }
+        val cacheBytes = remember(cacheTick, cacheEnabled) { cache.sizeBytes() }
         return Preference.PreferenceGroup(
             title = "Behavior & Cache",
             preferenceItems = persistentListOf(
@@ -853,7 +899,7 @@ object SettingsYakuyomiScreen : SearchableSettings {
                     subtitle = "Current: ${cacheBytes / 1024} KB / 32768 KB",
                     onClick = {
                         cache.clearAll()
-                        cacheBytes = cache.sizeBytes()
+                        cacheTick = cacheTick + 1
                         context.toast("Translation cache cleared")
                     },
                     enabled = enabled,
