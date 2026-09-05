@@ -118,6 +118,7 @@
   - Needs mangabaka support
   - Expand metadata scope to include tags and publication status
   - Allow per-category default tracker to use as an info source
+- [ ] **Smart Scanlator Filter**: Add toggle in options (defaults to show) to show/hide the manga details component
 
 ## Bugfixes
 - [x] Fix UI transition choppiness.
@@ -257,7 +258,14 @@
 - [ ] **Local MTL Engine**: Fix stopping the engine hard crashing the app
 - [ ] **Local MTL Engine**: Drastically improve inference speed
 - [ ] **Local MTL Engine**: Add visual feedback per-stage of the MTL process for the user
-
+- [ ] **MTL Engine**: Store API keys per-cloud-provider
+- [ ] **MTL Engine**: Store models per-cloud-provider
+- [ ] **MTL Engine**: Ensure download translations continue on app backgrounded
+- [ ] **All Readers**: Have the translating overlay move up when the progress bar is shown
+  - Current behavior places the translation overlay under the progress bar, can't see
+- [ ] **MTL Engine**: Improve sysprompt immensely
+- [ ] **MTL Engine**: Improve OCR immensely
+- [ ] **MTL Engine**: Improve inpainting if possible
 
 ## Chores
 - [x] Replace all Komikku icons/branding with houri icons/branding
