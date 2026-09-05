@@ -11,6 +11,7 @@ import eu.kanade.tachiyomi.data.track.TrackerManager
 import eu.kanade.tachiyomi.data.track.mdlist.MdList
 import eu.kanade.tachiyomi.network.asObservableSuccess
 import eu.kanade.tachiyomi.network.awaitSuccess
+import eu.kanade.tachiyomi.source.model.FilterList
 import eu.kanade.tachiyomi.source.model.MangasPage
 import eu.kanade.tachiyomi.source.model.Page
 import eu.kanade.tachiyomi.source.model.SChapter
@@ -44,6 +45,8 @@ import exh.md.utils.MdLang
 import exh.md.utils.MdUtil
 import exh.metadata.metadata.MangaDexSearchMetadata
 import exh.source.DelegatedHttpSource
+import exh.util.urlImportFetchSearchManga
+import exh.util.urlImportFetchSearchMangaSuspend
 import mihon.app.di.globalAppGraph
 import okhttp3.OkHttpClient
 import okhttp3.Response
@@ -196,6 +199,18 @@ class MangaDex(delegate: HttpSource, val context: Context) :
         return SMangaUpdate(asyncManga ?: manga, asyncChapters ?: chapters)
     }
     // KMK <--
+
+    @Deprecated("Use the suspend API instead", replaceWith = ReplaceWith("getSearchManga"))
+    override fun fetchSearchManga(page: Int, query: String, filters: FilterList): Observable<MangasPage> =
+        urlImportFetchSearchManga(context, query) {
+            @Suppress("DEPRECATION")
+            delegate.fetchSearchManga(page, query, filters)
+        }
+
+    override suspend fun getSearchManga(page: Int, query: String, filters: FilterList): MangasPage =
+        urlImportFetchSearchMangaSuspend(context, query) {
+            delegate.getSearchManga(page, query, filters)
+        }
 
     @Deprecated("Use the combined suspend API instead", replaceWith = ReplaceWith("getMangaUpdate"))
     override fun fetchMangaDetails(manga: SManga): Observable<SManga> {

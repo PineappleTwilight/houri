@@ -281,7 +281,8 @@
   - Tuned InpainterConfig: tile 768, maskDilate 24f, bboxPad 16, explicit aot method; overlaps translate wait
 - [x] **MTL Engine**: Fix text still being vertically constrained for no reason
   - Made defaultConfig/horizontalConfig recomputed per call (not lazy singleton) and shouldForceHorizontal for LTR; color recomputed
-- [ ] **MangaDex**: Fix batch add failure
+- [x] **MangaDex**: Fix batch add failure
+  - Pass URL straight to extension search via `MangaDex.fetchSearchManga`/`getSearchManga` `urlImportFetchSearchManga` override (kept in-app, no delegation removal); URL queries now resolve through `GalleryAdder` to extension instead of stalling
 
 ## Chores
 - [x] Replace all Komikku icons/branding with houri icons/branding
