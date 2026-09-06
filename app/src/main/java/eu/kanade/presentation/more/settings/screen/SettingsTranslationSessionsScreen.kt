@@ -29,8 +29,6 @@ import androidx.compose.ui.unit.dp
 import cafe.adriel.voyager.core.screen.Screen
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
-import eu.kanade.presentation.more.settings.Preference
-import eu.kanade.presentation.more.settings.screen.SearchableSettings.getTitleRes
 import mihon.app.di.globalAppGraph
 import tachiyomi.presentation.core.components.material.padding
 

@@ -57,6 +57,7 @@ class TranslationStatus {
     fun pageSkipped(mangaId: Long, chapterId: Long, pageIndex: Int) = Unit
     fun pageError(mangaId: Long, chapterId: Long, pageIndex: Int, error: String, totalPages: Int = 0) = Unit
     fun resetChapter(mangaId: Long, chapterId: Long) = Unit
+    fun updateForRetry(mangaId: Long, chapterId: Long, pages: Set<Int>) = Unit
     fun clearAll() {
         _chapters.value = emptyMap()
     }

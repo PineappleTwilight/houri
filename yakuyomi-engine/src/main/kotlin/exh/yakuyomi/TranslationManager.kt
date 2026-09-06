@@ -165,6 +165,8 @@ class TranslationManager(
         status.clearAll()
     }
 
+    fun clearAll() = clearAllChapters()
+
     /**
      * Translates a manga's metadata (title + optional description) with the active provider
      * (on-device local LLM, or the configured cloud model). Results are cached on disk via

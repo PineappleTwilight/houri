@@ -53,4 +53,11 @@ class TranslationManager {
     ): MangaInfoTranslation? = null
 
     fun bitmapToWebP(bitmap: Bitmap): ByteArray = ByteArray(0)
+
+    fun cancelChapter(mangaId: Long, chapterId: Long) = Unit
+    fun pauseChapter(mangaId: Long, chapterId: Long) = Unit
+    fun resumeChapter(mangaId: Long, chapterId: Long) = Unit
+    fun retryChapter(mangaId: Long, chapterId: Long) = Unit
+    fun clearAllChapters() = clearAll()
+    fun clearAll() = Unit
 }
