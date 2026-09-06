@@ -57,6 +57,8 @@ open class WebGpuViewer(
     val pager: ImageView = ImageView(activity, isVertical = isVertical, isReversed = isReversed),
 ) : Viewer {
 
+    private val positionStore by lazy { WebGpuReadingPositionStore(activity) }
+
     open val isContinuous: Boolean = false
 
     val readerPreferences by lazy { globalAppGraph.readerPreferences }
@@ -512,6 +514,9 @@ open class WebGpuViewer(
     }
 
     override fun destroy() {
+        try {
+            (currentPage as? ViewerReaderPage)?.let { reportPageSelected(it) }
+        } catch (_: Exception) {}
         synchronized(lock) {
             if (isDestroyed) return
             isDestroyed = true
@@ -589,6 +594,25 @@ open class WebGpuViewer(
     private fun reportPageSelected(page: ViewerReaderPage) {
         val hasExtraPage = isDualPageMode() && canFormSpread(page)
         activity.onPageSelected(page.page, hasExtraPage)
+        try {
+            val cid = page.page.chapter.chapter.id
+            if (cid != null && cid != -1L) {
+                val offset = if (isContinuous) {
+                    try {
+                        val cont = pager as? ca.mpreg.webgpuviewer.ImageViewContinuous
+                        val st = cont?.state
+                        val y = st?.let { it.javaClass.getDeclaredField("scrollY").let { f -> f.isAccessible = true; f.getFloat(it) } } ?: 0f
+                        val h = st?.let { it.javaClass.getDeclaredField("contentHeight").let { f -> f.isAccessible = true; f.getFloat(it) } } ?: 1f
+                        if (h > 0f) (y / h).coerceIn(0f, 1f) else 0f
+                    } catch (_: Exception) { 0f }
+                } else 0f
+                val zoom = try {
+                    val p = pager.state.getPage(0)
+                    p?.scale ?: 1f
+                } catch (_: Exception) { 1f }
+                positionStore.save(cid, page.page.index, offset, zoom)
+            }
+        } catch (_: Exception) {}
     }
 
     /**
@@ -600,14 +624,49 @@ open class WebGpuViewer(
 
         this.viewerChapters = chapters
 
-        val requestedIndex = min(chapters.currChapter.requestedPage, pages.lastIndex)
-        val requestedPage = pages[requestedIndex]
+        val chapterId = chapters.currChapter.chapter.id
+        val stored = if (chapterId != null && chapterId != -1L) positionStore.load(chapterId) else null
+        val targetIndex = stored?.pageIndex?.coerceIn(0, pages.lastIndex)
+            ?: min(chapters.currChapter.requestedPage, pages.lastIndex)
+        val requestedPage = pages[targetIndex]
 
         // Get the page and align to spread anchor if needed
         val page = currentPage ?: getPage(requestedPage)
         currentPage = getSpreadAnchor(page)
         (currentPage as? ViewerReaderPage)?.let { reportPageSelected(it) }
         preloadPages(currentPage!!)
+        if (stored != null && isContinuous) {
+            try {
+                scope.launch(Dispatchers.Main) {
+                    delay(200)
+                    val cont = pager as? ca.mpreg.webgpuviewer.ImageViewContinuous ?: return@launch
+                    val st = cont.state
+                    val hField = st.javaClass.getDeclaredField("contentHeight").also { it.isAccessible = true }
+                    val yField = st.javaClass.getDeclaredField("scrollY").also { it.isAccessible = true }
+                    val shField = st.javaClass.getDeclaredField("scrollH").let { runCatching { it.also { f -> f.isAccessible = true } }.getOrNull() }
+                    val h = hField.getFloat(st)
+                    if (h > 0f && stored.offsetRatio > 0f) {
+                        val targetY = stored.offsetRatio * h
+                        try {
+                            val m = st.javaClass.getMethod("scrollTo", Float::class.java)
+                            m.invoke(st, targetY)
+                        } catch (_: Exception) {
+                            yField.setFloat(st, targetY)
+                        }
+                        if (stored.zoom > 1f) {
+                            try {
+                                val p = pager.state.getPage(0)
+                                p?.let {
+                                    val sField = it.javaClass.getDeclaredField("scale").also { f -> f.isAccessible = true }
+                                    sField.setFloat(it, stored.zoom.coerceIn(1f, 4f))
+                                }
+                            } catch (_: Exception) {}
+                        }
+                        pager.state.invalidate()
+                    }
+                }
+            } catch (_: Exception) {}
+        }
 
         pager.state.apply {
             onPageChange = onPageChange@{ delta ->

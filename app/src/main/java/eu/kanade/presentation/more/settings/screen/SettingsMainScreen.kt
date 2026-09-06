@@ -171,8 +171,15 @@ object SettingsMainScreen : Screen() {
         )
     }
 
+    @Volatile
+    private var lastSettingsNavigate: Long = 0L
+
     private fun Navigator.navigate(screen: VoyagerScreen, twoPane: Boolean) {
         if (lastItemOrNull?.key == screen.key) return
+        val now = System.currentTimeMillis()
+        val last = lastSettingsNavigate
+        if (now - last < 300) return
+        lastSettingsNavigate = now
         if (twoPane) replaceAll(screen) else push(screen)
     }
 

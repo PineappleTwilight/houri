@@ -716,7 +716,24 @@ class MangaScreen(
         if (unreadChapter != null) openChapter(context, unreadChapter)
     }
 
+    @Volatile private var lastOpenChapterTime: Long = 0L
+    @Volatile private var lastMangaNavTime: Long = 0L
+    private fun Navigator.safePush(screen: Screen) {
+        val now = System.currentTimeMillis()
+        if (now - lastMangaNavTime < 350) return
+        lastMangaNavTime = now
+        push(screen)
+    }
+    private fun Navigator.safeReplace(screen: Screen) {
+        val now = System.currentTimeMillis()
+        if (now - lastMangaNavTime < 350) return
+        lastMangaNavTime = now
+        replace(screen)
+    }
     private fun openChapter(context: Context, chapter: Chapter) {
+        val now = System.currentTimeMillis()
+        if (now - lastOpenChapterTime < 500) return
+        lastOpenChapterTime = now
         context.startActivity(ReaderActivity.newIntent(context, mangaId, chapter.id))
     }
 
@@ -905,6 +922,9 @@ class MangaScreen(
 
     // KMK -->
     private fun browseSource(navigator: Navigator, source: Source, useNewSourceNavigation: Boolean) {
+        val now = System.currentTimeMillis()
+        if (now - lastMangaNavTime < 350) return
+        lastMangaNavTime = now
         val screen = when {
             // Clicked on source of an entry being merged with previous entry or
             // source of an recommending entry (to search again)
@@ -933,7 +953,7 @@ class MangaScreen(
     // KMK <--
 
     private fun openMorePagePreviews(navigator: Navigator, manga: Manga) {
-        navigator.push(PagePreviewScreen(manga.id))
+        navigator.safePush(PagePreviewScreen(manga.id))
     }
 
     private fun openPagePreview(context: Context, chapter: Chapter?, page: Int) {
@@ -948,8 +968,7 @@ class MangaScreen(
      */
     private fun openSmartSearch(navigator: Navigator, manga: Manga) {
         val smartSearchConfig = SourcesScreen.SmartSearchConfig(manga.title, manga.id)
-
-        navigator.push(SourcesScreen(smartSearchConfig))
+        navigator.safePush(SourcesScreen(smartSearchConfig))
     }
 
     @OptIn(DelicateCoroutinesApi::class)
@@ -987,9 +1006,8 @@ class MangaScreen(
     // AZ -->
     private fun openRecommends(navigator: Navigator, source: Source?, manga: Manga) {
         source ?: return
-        RecommendsScreen.Args.SingleSourceManga(manga.id, source.id)
-            .let(::RecommendsScreen)
-            .let(navigator::push)
+        val screen = RecommendsScreen.Args.SingleSourceManga(manga.id, source.id).let(::RecommendsScreen)
+        navigator.safePush(screen)
     }
     // AZ <--
 }
