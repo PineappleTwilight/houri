@@ -327,7 +327,7 @@ class LibraryPreferences(
     fun disallowNonAsciiFilenames() = preferenceStore.getBoolean("disallow_non_ascii_filenames", false)
 
     // KMK -->
-    fun librarySearchAstEnabled() = preferenceStore.getBoolean("pref_library_search_ast", false)
+    fun librarySearchAstEnabled() = preferenceStore.getBoolean("pref_library_search_ast", true)
     // KMK <--
 
     // endregion

@@ -10,6 +10,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ProvidableCompositionLocal
 import androidx.compose.runtime.remember
@@ -113,7 +114,11 @@ fun ScreenTransition(
             "screen-transition-${screen.key}-${navigator.items.size}-${System.identityHashCode(navigator)}"
         }
         navigator.saveableState(saveableKey, screen) {
-            content(screen)
+            androidx.compose.foundation.layout.Box(
+                modifier = Modifier.fillMaxSize(),
+            ) {
+                content(screen)
+            }
         }
     }
 }

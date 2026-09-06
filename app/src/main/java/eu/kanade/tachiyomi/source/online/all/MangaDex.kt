@@ -84,7 +84,11 @@ class MangaDex(delegate: HttpSource, val context: Context) :
         .addInterceptor(mdList.interceptor)
         .build()
 
-    private fun dataSaver() = sourcePreferences.getBoolean(getDataSaverPreferenceKey(mdLang.lang), false)
+    private fun dataSaver(): Boolean {
+        if (sourcePreferences.getBoolean(getDataSaverPreferenceKey(mdLang.lang), false)) return true
+        val globalDataSaver = globalAppGraph.sourcePreferences.dataSaver().get()
+        return globalDataSaver != eu.kanade.domain.source.service.SourcePreferences.DataSaver.NONE
+    }
     private fun usePort443Only() = sourcePreferences.getBoolean(getStandardHttpsPreferenceKey(mdLang.lang), false)
     private fun blockedGroups() = sourcePreferences.getString(getBlockedGroupsPrefKey(mdLang.lang), "").orEmpty()
     private fun blockedUploaders() = sourcePreferences.getString(getBlockedUploaderPrefKey(mdLang.lang), "").orEmpty()

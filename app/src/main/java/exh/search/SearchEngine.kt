@@ -177,10 +177,10 @@ class SearchEngine {
                 nextIsExcluded = true
             } else if (char == '$') {
                 nextIsExact = true
-            } else if (char == ':' && enableAst) {
+            } else if (char == ':' && enableAst && !inQuotes) {
                 flushText()
                 var flushed = flushToText().rawTextOnly()
-                flushed = when (flushed) {
+                val mapped = when (flushed) {
                     "a" -> "artist"
                     "c", "char" -> "character"
                     "f" -> "female"
@@ -191,11 +191,21 @@ class SearchEngine {
                     "r" -> "reclass"
                     else -> flushed
                 }
-                if (flushed.isBlank() || flushed.contains(' ') || flushed.contains('\t')) {
+                // Only treat colon as namespace separator when prefix is a known field.
+                // This keeps titles like "Re:Zero", "JoJo: Part" as plain text search
+                // instead of mis-parsing "re" as a namespace.
+                val allowedNamespaces = setOf(
+                    "artist", "character", "female", "group", "language", "male", "parody", "reclass",
+                    "a", "c", "char", "f", "g", "creator", "circle", "l", "lang", "m", "p", "series", "r",
+                    "title", "author", "source", "genre", "tag", "tags", "status", "tracker",
+                    "desc", "description", "uploader", "id", "src",
+                )
+                val isAllowed = mapped in allowedNamespaces || flushed in allowedNamespaces
+                if (flushed.isBlank() || flushed.contains(' ') || flushed.contains('\t') || !isAllowed) {
                     if (flushed.isNotEmpty()) queuedText.add(StringTextComponent(flushed))
                     queuedText.add(StringTextComponent(":"))
                 } else {
-                    namespace = Namespace(flushed, null)
+                    namespace = Namespace(mapped, null)
                 }
             } else if (arrayOf(' ', ',').contains(char) && !inQuotes) {
                 flushAll()

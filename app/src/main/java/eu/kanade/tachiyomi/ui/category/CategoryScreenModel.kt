@@ -18,7 +18,9 @@ import tachiyomi.domain.category.interactor.GetCategories
 import tachiyomi.domain.category.interactor.HideCategory
 import tachiyomi.domain.category.interactor.RenameCategory
 import tachiyomi.domain.category.interactor.ReorderCategory
+import tachiyomi.domain.category.interactor.UpdateCategory
 import tachiyomi.domain.category.model.Category
+import tachiyomi.domain.category.model.CategoryUpdate
 import tachiyomi.i18n.MR
 
 class CategoryScreenModel(
@@ -29,6 +31,7 @@ class CategoryScreenModel(
     private val renameCategory: RenameCategory = globalAppGraph.renameCategory,
     // KMK -->
     private val hideCategory: HideCategory = globalAppGraph.hideCategory,
+    private val updateCategory: UpdateCategory = globalAppGraph.updateCategory,
     // KMK <--
 ) : StateScreenModel<CategoryScreenState>(CategoryScreenState.Loading) {
 
@@ -98,6 +101,23 @@ class CategoryScreenModel(
             }
         }
     }
+
+    // KMK -->
+    fun reparentSubcategory(category: Category, newParentId: Long, newIndex: Int) {
+        screenModelScope.launch {
+            val updateResult = updateCategory.await(CategoryUpdate(id = category.id, parentId = newParentId))
+            if (updateResult is UpdateCategory.Result.Error) {
+                _events.send(CategoryEvent.InternalError)
+                return@launch
+            }
+            val updated = category.copy(parentId = newParentId)
+            when (reorderCategory.await(updated, newIndex)) {
+                is ReorderCategory.Result.InternalError -> _events.send(CategoryEvent.InternalError)
+                else -> {}
+            }
+        }
+    }
+    // KMK <--
 
     fun renameCategory(category: Category, name: String) {
         screenModelScope.launch {

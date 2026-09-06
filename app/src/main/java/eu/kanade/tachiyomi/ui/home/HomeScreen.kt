@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.consumeWindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
@@ -160,17 +161,21 @@ object HomeScreen : Screen() {
                         AnimatedContent(
                             targetState = tabNavigator.current,
                             transitionSpec = {
-                                materialFadeThroughIn(
-                                    initialScale = 1f,
-                                    durationMillis = TAB_FADE_DURATION,
-                                ) togetherWith
-                                    materialFadeThroughOut(durationMillis = TAB_FADE_DURATION)
+                                (
+                                    materialFadeThroughIn(
+                                        initialScale = 1f,
+                                        durationMillis = TAB_FADE_DURATION,
+                                    ) togetherWith
+                                        materialFadeThroughOut(durationMillis = TAB_FADE_DURATION)
+                                    )
                             },
                             label = "tabContent",
                             contentKey = { it.key },
                         ) {
                             tabNavigator.saveableState(key = "currentTab", it) {
-                                it.Content()
+                                Box(modifier = Modifier.fillMaxSize()) {
+                                    it.Content()
+                                }
                             }
                         }
                     }
@@ -234,9 +239,13 @@ object HomeScreen : Screen() {
         val navigator = LocalNavigator.currentOrThrow
         val scope = rememberCoroutineScope()
         val selected = tabNavigator.current::class == tab::class
+        val lastClick = remember { longArrayOf(0L) }
         NavigationBarItem(
             selected = selected,
             onClick = {
+                val now = System.currentTimeMillis()
+                if (now - lastClick[0] < 250) return@NavigationBarItem
+                lastClick[0] = now
                 if (!selected) {
                     tabNavigator.current = tab
                 } else {
@@ -267,9 +276,13 @@ object HomeScreen : Screen() {
         val navigator = LocalNavigator.currentOrThrow
         val scope = rememberCoroutineScope()
         val selected = tabNavigator.current::class == tab::class
+        val lastClick = remember { longArrayOf(0L) }
         NavigationRailItem(
             selected = selected,
             onClick = {
+                val now = System.currentTimeMillis()
+                if (now - lastClick[0] < 250) return@NavigationRailItem
+                lastClick[0] = now
                 if (!selected) {
                     tabNavigator.current = tab
                 } else {

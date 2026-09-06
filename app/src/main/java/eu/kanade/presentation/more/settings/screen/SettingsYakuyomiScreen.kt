@@ -703,7 +703,7 @@ object SettingsYakuyomiScreen : SearchableSettings {
                 Preference.PreferenceItem.CustomPreference(
                     title = stringResource(KMR.strings.mtl_models_title),
                     content = {
-                        Column(modifier = Modifier.padding(vertical = 8.dp)) {
+                        Column(modifier = Modifier.padding(horizontal = MaterialTheme.padding.medium, vertical = 8.dp)) {
                             when (status.state) {
                                 exh.yakuyomi.ModelManager.State.READY -> {
                                     Text(

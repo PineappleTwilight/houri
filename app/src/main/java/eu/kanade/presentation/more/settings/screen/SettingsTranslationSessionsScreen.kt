@@ -3,8 +3,11 @@ package eu.kanade.presentation.more.settings.screen
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
@@ -40,7 +43,10 @@ object SettingsTranslationSessionsScreen : Screen {
         val chapters by status.chapters.collectAsState()
         val navigator = LocalNavigator.currentOrThrow
 
-        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Column(
+            modifier = Modifier.windowInsetsPadding(WindowInsets.statusBars).padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
             Text(text = "Active Translation Sessions", style = MaterialTheme.typography.titleLarge)
             Text(
                 text = "Manage on-the-fly and download translations. Kill cancels pending pages, Pause keeps queue, Retry re-queues failed pages.",

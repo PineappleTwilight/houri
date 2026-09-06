@@ -237,7 +237,7 @@
     <string name="pref_webhook_manga_finished">Manga finished</string>
     <string name="pref_webhook_library_update">Library update finished</string>
     <string name="pref_webhook_backup_created">Backup created</string>
-    <string name="webhook_info">Send app events as notifications to a Discord webhook or any custom JSON endpoint. Webhook URLs are stored privately and are not included in backups.</string>
+    <string name="webhook_info">Send app events as notifications to a Discord webhook or any custom JSON endpoint. Webhook URLs are stored privately and are included in backups.</string>
     <string name="pref_webhook_manga_added">Manga added to library</string>
     <string name="pref_webhook_manga_removed">Manga removed from library</string>
     <string name="pref_webhook_downloads_finished">Downloads finished</string>

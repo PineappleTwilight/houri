@@ -45,6 +45,7 @@ class CategoryScreen : Screen() {
             // KMK -->
             onClickHide = screenModel::hideCategory,
             onCreateSubcategory = { screenModel.showDialog(CategoryDialog.CreateSubcategory(it)) },
+            onReparentSubcategory = screenModel::reparentSubcategory,
             // KMK <--
             navigateUp = navigator::pop,
         )

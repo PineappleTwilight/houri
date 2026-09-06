@@ -111,6 +111,13 @@ data object LibraryTab : Tab {
         val context = LocalContext.current
         val scope = rememberCoroutineScope()
         val haptic = LocalHapticFeedback.current
+        val lastNavClick = remember { longArrayOf(0L) }
+        fun canNavigate(): Boolean {
+            val now = System.currentTimeMillis()
+            if (now - lastNavClick[0] < 350) return false
+            lastNavClick[0] = now
+            return true
+        }
 
         val screenModel = rememberScreenModel { LibraryScreenModel() }
         val settingsScreenModel = rememberScreenModel { LibrarySettingsScreenModel() }
@@ -175,7 +182,7 @@ data object LibraryTab : Tab {
                         scope.launch {
                             val randomItem = screenModel.getRandomLibraryItemForCurrentCategory()
                             if (randomItem != null) {
-                                navigator.push(MangaScreen(randomItem.libraryManga.manga.id))
+                                if (canNavigate()) navigator.push(MangaScreen(randomItem.libraryManga.manga.id))
                             } else {
                                 snackbarHostState.showSnackbar(
                                     context.stringResource(MR.strings.information_no_entries_found),
@@ -214,6 +221,7 @@ data object LibraryTab : Tab {
                         .takeIf { state.selectedManga.fastAll { !it.isLocal() } },
                     onDeleteClicked = screenModel::openDeleteMangaDialog,
                     onMigrateClicked = {
+                        if (!canNavigate()) return@LibraryBottomActionMenu
                         val selection = state
                             // KMK -->
                             .selectedManga
@@ -231,6 +239,7 @@ data object LibraryTab : Tab {
                     },
                     // KMK -->
                     onMergeClicked = {
+                        if (!canNavigate()) return@LibraryBottomActionMenu
                         if (state.selection.size == 1) {
                             state.selectedManga.firstOrNull()?.let { manga ->
                                 // Invoke merging for this manga
@@ -337,7 +346,7 @@ data object LibraryTab : Tab {
                         hasActiveFilters = state.hasActiveFilters,
                         showPageTabs = state.showCategoryTabs || !state.searchQuery.isNullOrEmpty(),
                         onChangeCurrentPage = screenModel::updateActiveCategoryIndex,
-                        onClickManga = { navigator.push(MangaScreen(it)) },
+                        onClickManga = { if (canNavigate()) navigator.push(MangaScreen(it)) },
                         onContinueReadingClicked = { it: LibraryManga ->
                             scope.launchIO {
                                 val chapter = screenModel.getNextUnreadChapter(it.manga)
@@ -358,7 +367,7 @@ data object LibraryTab : Tab {
                         },
                         onRefresh = { onClickRefresh(state.activeCategory) },
                         onGlobalSearchClicked = {
-                            navigator.push(GlobalSearchScreen(screenModel.state.value.searchQuery ?: ""))
+                            if (canNavigate()) navigator.push(GlobalSearchScreen(screenModel.state.value.searchQuery ?: ""))
                         },
                         getItemCountForCategory = { state.getItemCountForCategory(it) },
                         getDisplayMode = { screenModel.getDisplayMode() },
@@ -392,7 +401,7 @@ data object LibraryTab : Tab {
                         // KMK -->
                         // screenModel.clearSelection()
                         // KMK <--
-                        navigator.push(CategoryScreen())
+                        if (canNavigate()) navigator.push(CategoryScreen())
                     },
                     onConfirm = { include, exclude ->
                         screenModel.clearSelection()

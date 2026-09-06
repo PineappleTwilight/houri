@@ -23,9 +23,26 @@ interface DataSaver {
 
         suspend fun HttpSource.getImage(page: Page, dataSaver: DataSaver): Response {
             val imageUrl = page.imageUrl ?: return getImage(page)
-            page.imageUrl = dataSaver.compress(imageUrl)
-            return try {
+            val compressed = dataSaver.compress(imageUrl)
+            if (compressed == imageUrl) return getImage(page)
+            page.imageUrl = compressed
+            val compressedResponse = try {
                 getImage(page)
+            } catch (e: Exception) {
+                page.imageUrl = imageUrl
+                throw e
+            }
+            if (compressedResponse.code == 403) {
+                compressedResponse.close()
+                page.imageUrl = imageUrl
+                return try {
+                    getImage(page)
+                } finally {
+                    page.imageUrl = imageUrl
+                }
+            }
+            try {
+                return compressedResponse
             } finally {
                 page.imageUrl = imageUrl
             }
@@ -69,7 +86,7 @@ private class BandwidthHeroDataSaver(preferences: SourcePreferences) : DataSaver
 
     private fun getUrl(imageUrl: String): String {
         val encoded = try {
-            java.net.URLEncoder.encode(imageUrl, "UTF-8")
+            java.net.URLEncoder.encode(imageUrl, "UTF-8").replace("+", "%20")
         } catch (_: Exception) {
             imageUrl
         }
@@ -89,6 +106,7 @@ private class WsrvNlDataSaver(preferences: SourcePreferences) : DataSaver {
     override fun compress(imageUrl: String): String {
         if (imageUrl.startsWith("https://wsrv.nl", true)) return imageUrl
         if (imageUrl.startsWith("/") && !imageUrl.startsWith("//")) return imageUrl
+        if (imageUrl.isBlank()) return imageUrl
         return when {
             imageUrl.contains(".jpeg", true) || imageUrl.contains(".jpg", true) -> if (ignoreJpg) imageUrl else getUrl(imageUrl)
             imageUrl.contains(".gif", true) -> if (ignoreGif) imageUrl else getUrl(imageUrl)
@@ -98,7 +116,7 @@ private class WsrvNlDataSaver(preferences: SourcePreferences) : DataSaver {
 
     private fun getUrl(imageUrl: String): String {
         val encoded = try {
-            java.net.URLEncoder.encode(imageUrl, "UTF-8")
+            java.net.URLEncoder.encode(imageUrl, "UTF-8").replace("+", "%20")
         } catch (_: Exception) {
             imageUrl
         }
