@@ -601,15 +601,31 @@ open class WebGpuViewer(
                     try {
                         val cont = pager as? ca.mpreg.webgpuviewer.ImageViewContinuous
                         val st = cont?.state
-                        val y = st?.let { it.javaClass.getDeclaredField("scrollY").let { f -> f.isAccessible = true; f.getFloat(it) } } ?: 0f
-                        val h = st?.let { it.javaClass.getDeclaredField("contentHeight").let { f -> f.isAccessible = true; f.getFloat(it) } } ?: 1f
+                        val y = st?.let {
+                            it.javaClass.getDeclaredField("scrollY").let { f ->
+                                f.isAccessible = true
+                                f.getFloat(it)
+                            }
+                        } ?: 0f
+                        val h = st?.let {
+                            it.javaClass.getDeclaredField("contentHeight").let { f ->
+                                f.isAccessible = true
+                                f.getFloat(it)
+                            }
+                        } ?: 1f
                         if (h > 0f) (y / h).coerceIn(0f, 1f) else 0f
-                    } catch (_: Exception) { 0f }
-                } else 0f
+                    } catch (_: Exception) {
+                        0f
+                    }
+                } else {
+                    0f
+                }
                 val zoom = try {
                     val p = pager.state.getPage(0)
                     p?.scale ?: 1f
-                } catch (_: Exception) { 1f }
+                } catch (_: Exception) {
+                    1f
+                }
                 positionStore.save(cid, page.page.index, offset, zoom)
             }
         } catch (_: Exception) {}

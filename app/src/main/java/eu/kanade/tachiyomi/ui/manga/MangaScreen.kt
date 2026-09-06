@@ -717,6 +717,7 @@ class MangaScreen(
     }
 
     @Volatile private var lastOpenChapterTime: Long = 0L
+
     @Volatile private var lastMangaNavTime: Long = 0L
     private fun Navigator.safePush(screen: Screen) {
         val now = System.currentTimeMillis()
