@@ -120,6 +120,11 @@
   - Allow per-category default tracker to use as an info source
 - [x] **Smart Scanlator Filter**: Add toggle in options (defaults to show) to show/hide the manga details component
   - Added LibraryPreferences.showSmartScanlatorInDetails (default true) + Advanced toggle, toolbar respects it
+- [ ] **New**: Optional on-device AI upscaling for manga reader (Real-CUGAN / Real-ESRGAN / Waifu2x) — improve low-resolution/heavily compressed pages offline
+  - References: AniZen (https://github.com/salmanbappi/AniZen) — real-time Anime4K shaders with adaptive quality scaling and Vulkan/NPU hardware fallback (video → adapt for static manga: background/on-demand pre-processing)
+  - mihon_img_upscale (https://github.com/HaoweiLi97/mihon_img_upscale) — Mihon PoC supporting multiple models (Real-CUGAN, Real-ESRGAN, Waifu2x) and backends (Vulkan, Qualcomm NPU)
+  - komikku_img_upscale (https://github.com/Viel0320/komikku_img_upscale) — empty, possibly abandoned attempt for Komikku ecosystem
+  - Proposed integration for Houri: per-series or global toggle for "AI Upscaling" in reader settings; bundled inference engine (NCNN / ONNX Runtime) with Vulkan/NPU acceleration where available; quality presets Fast/Balanced/High like AniZen's Anime4K levels; cache upscaled pages to avoid repeated processing
 
 ## Bugfixes
 - [x] Fix UI transition choppiness.
