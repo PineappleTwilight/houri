@@ -180,7 +180,6 @@ class SearchEngine {
             } else if (char == ':') {
                 flushText()
                 var flushed = flushToText().rawTextOnly()
-                // Map tag aliases
                 flushed = when (flushed) {
                     "a" -> "artist"
                     "c", "char" -> "character"
@@ -192,7 +191,12 @@ class SearchEngine {
                     "r" -> "reclass"
                     else -> flushed
                 }
-                namespace = Namespace(flushed, null)
+                if (flushed.isBlank() || flushed.contains(' ') || flushed.contains('\t')) {
+                    if (flushed.isNotEmpty()) queuedText.add(StringTextComponent(flushed))
+                    queuedText.add(StringTextComponent(":"))
+                } else {
+                    namespace = Namespace(flushed, null)
+                }
             } else if (arrayOf(' ', ',').contains(char) && !inQuotes) {
                 flushAll()
             } else {

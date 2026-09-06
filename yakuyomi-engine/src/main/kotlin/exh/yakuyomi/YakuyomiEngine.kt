@@ -136,6 +136,8 @@ class YakuyomiEngine(
             tateChuYoko = prefs.renderTateChuYoko().get(),
             fontSizeMax = max,
             fontSizeMin = min,
+            colTrim = 1,
+            rowTrim = 1,
         )
     }
 

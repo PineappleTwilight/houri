@@ -88,7 +88,7 @@ fun MtlTranslationOverlay(
             shadowElevation = 4.dp,
         ) {
             when {
-                isTranslating -> TranslatingChip(doneCount = translatedCount, totalPages = totalPages)
+                isTranslating -> TranslatingChip(doneCount = translatedCount, totalPages = totalPages, isTranslating = isTranslating)
                 errorCount > 0 -> ErrorChip(
                     errorCount = errorCount,
                     reason = chapterStatus?.lastError,
@@ -103,7 +103,7 @@ fun MtlTranslationOverlay(
 }
 
 @Composable
-private fun TranslatingChip(doneCount: Int, totalPages: Int) {
+private fun TranslatingChip(doneCount: Int, totalPages: Int, isTranslating: Boolean = true) {
     Column(
         modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -136,7 +136,8 @@ private fun TranslatingChip(doneCount: Int, totalPages: Int) {
         }
         if (totalPages > 0) {
             val stage = when {
-                doneCount == 0 -> "Detecting · OCR"
+                doneCount == 0 && !isTranslating -> "Detecting · OCR"
+                doneCount == 0 && isTranslating -> "Translating"
                 doneCount < totalPages / 2 -> "Translating"
                 doneCount < totalPages -> "Inpainting · Typesetting"
                 else -> "Finalizing"

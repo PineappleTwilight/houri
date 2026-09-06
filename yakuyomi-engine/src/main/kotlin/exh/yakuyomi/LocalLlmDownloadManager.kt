@@ -216,17 +216,26 @@ class LocalLlmDownloadManager(
         var lastEmitBytes = completed
         var lastTick = System.nanoTime()
         var dataReceived = false
+        var bytesToSkip = 0L
         downloadClient.newCall(request).execute().use { resp ->
             if (!resp.isSuccessful) throw IllegalStateException("HTTP ${resp.code} for $fileName")
             if (startAt > 0L && resp.code == 200) {
-                tmp.delete()
-                completed = beforeBytes
-                startAt = 0L
+                bytesToSkip = startAt
             } else if (startAt > 0L && resp.code != 206 && resp.code != 200) {
                 throw IllegalStateException("HTTP ${resp.code} for Range $fileName")
             }
-            val append = resp.code == 206 && startAt > 0L
+            val append = (resp.code == 206 && startAt > 0L) || (resp.code == 200 && startAt > 0L)
             resp.body.byteStream().use { input ->
+                if (bytesToSkip > 0L) {
+                    var remaining = bytesToSkip
+                    val skipBuf = ByteArray(64 * 1024)
+                    while (remaining > 0) {
+                        val toRead = minOf(remaining, skipBuf.size.toLong()).toInt()
+                        val r = input.read(skipBuf, 0, toRead)
+                        if (r == -1) break
+                        remaining -= r
+                    }
+                }
                 FileOutputStream(tmp, append).use { output ->
                     val buf = ByteArray(64 * 1024)
                     while (true) {

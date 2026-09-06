@@ -132,6 +132,39 @@ class TranslationManager(
 
     fun setPerMangaEnabled(mangaId: Long, enabled: Boolean) = perMangaStore.setEnabled(mangaId, enabled)
 
+    fun cancelChapter(mangaId: Long, chapterId: Long) {
+        val key = mangaId to chapterId
+        pending[key]?.values?.forEach { runCatching { it.deferred.cancel() } }
+        pending.remove(key)
+        workers[key]?.cancel()
+        workers.remove(key)
+        status.resetChapter(mangaId, chapterId)
+    }
+
+    fun pauseChapter(mangaId: Long, chapterId: Long) {
+        val key = mangaId to chapterId
+        workers[key]?.cancel()
+        workers.remove(key)
+    }
+
+    fun resumeChapter(mangaId: Long, chapterId: Long) {
+        val key = mangaId to chapterId
+        if (pending[key]?.isNotEmpty() == true) ensureTranslationWorker(key)
+    }
+
+    fun retryChapter(mangaId: Long, chapterId: Long) {
+        val st = status.chapterStatus(mangaId, chapterId) ?: return
+        val failedPages = st.pages.filter { it.value.state == TranslationStatus.PageState.ERROR }.keys
+        if (failedPages.isEmpty()) return
+        status.updateForRetry(mangaId, chapterId, failedPages)
+    }
+
+    fun clearAllChapters() {
+        val keys = pending.keys.toList()
+        keys.forEach { (m, c) -> cancelChapter(m, c) }
+        status.clearAll()
+    }
+
     /**
      * Translates a manga's metadata (title + optional description) with the active provider
      * (on-device local LLM, or the configured cloud model). Results are cached on disk via

@@ -146,6 +146,15 @@ class TranslationStatus {
         _chapters.update { it - (mangaId to chapterId) }
     }
 
+    fun updateForRetry(mangaId: Long, chapterId: Long, pages: Set<Int>) {
+        _chapters.update { map ->
+            val key = mangaId to chapterId
+            val cur = map[key] ?: return@update map
+            val newPages = cur.pages.filterKeys { it !in pages }
+            map + (key to cur.copy(pages = newPages, lastError = null, lastUpdated = now()))
+        }
+    }
+
     fun clearAll() {
         _chapters.value = emptyMap()
     }

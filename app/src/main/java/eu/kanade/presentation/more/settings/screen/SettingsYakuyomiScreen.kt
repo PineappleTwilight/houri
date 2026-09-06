@@ -62,6 +62,7 @@ object SettingsYakuyomiScreen : SearchableSettings {
             getModelGroup(modelManager),
             getBehaviorGroup(prefs, cache),
             getAdvancedGroup(prefs),
+            getSessionsGroup(),
         )
     }
 
@@ -960,6 +961,21 @@ object SettingsYakuyomiScreen : SearchableSettings {
                     ),
                 )
             }.toPersistentList(),
+        )
+    }
+
+    @Composable
+    private fun getSessionsGroup(): Preference.PreferenceGroup {
+        val navigator = LocalNavigator.currentOrThrow
+        return Preference.PreferenceGroup(
+            title = "Sessions",
+            preferenceItems = persistentListOf(
+                Preference.PreferenceItem.TextPreference(
+                    title = "Manage active translations",
+                    subtitle = "Kill / Pause / Resume / Retry per chapter",
+                    onClick = { navigator.push(SettingsTranslationSessionsScreen) },
+                ),
+            ),
         )
     }
 }
