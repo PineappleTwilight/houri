@@ -290,7 +290,7 @@
 - [ ] **Data Saver**: Fix all non-mangadex entries returning 403
 - [ ] **Data Saver**: Fix not working at all for mangadex (original image is used instead)
 - [ ] **Library**: Change default AST-style searching preference to enabled
-
+- [ ] **Library Search**: Truncate text if too long and no results found (search input is displayed in the middle of the screen and is not truncated)
 
 ## Chores
 - [x] Replace all Komikku icons/branding with houri icons/branding
@@ -317,4 +317,4 @@
 
 ## Drawing Board
 - [ ] **Anizen Port**: Multi-feed
-- [ ] **New**: Lovense support
+- [ ] **New**: Lovense support (joke, never happening)
