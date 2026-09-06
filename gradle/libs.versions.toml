@@ -18,8 +18,7 @@ metrox-viewmodel = "1.4.2"
 metrox-viewmodel-compose = "1.4.2"
 ben-manes-versions = "0.61.0"
 kim = "0.38.1"
-webgpuviewer = "40"
-mpreg-imagedecoder = "10"
+# webgpuviewer and imagedecoder now provided via local submodules (external/webgpuviewer-houri, external/imagedecoder-houri) via includeBuild substitution — no version catalog entry
 mlkit_text = "16.0.1"
 mlkit_text_chinese = "16.0.1"
 mlkit_text_japanese = "16.0.1"
@@ -130,8 +129,6 @@ markdown-coil = { module = "com.mikepenz:multiplatform-markdown-renderer-coil3",
 stringSimilarity = { module = "com.aallam.similarity:string-similarity-kotlin", version = "0.1.0" }
 
 kim = { module = "de.stefan-oltmann:kim", version.ref = "kim" }
-webgpuviewer = { module = "ca.mpreg:webgpuviewer", version.ref = "webgpuviewer" }
-mpreg-imagedecoder = { module = "ca.mpreg:imagedecoder", version.ref = "mpreg-imagedecoder" }
 
 materialKolor = { module = "com.materialkolor:material-kolor", version.ref = "materialKolor" }
 

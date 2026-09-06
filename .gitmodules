@@ -1,3 +1,9 @@
 [submodule "external/yakuyomi-engine"]
 	path = external/yakuyomi-engine
 	url = https://github.com/PineappleTwilight/houri-engine.git
+[submodule "external/webgpuviewer-houri"]
+	path = external/webgpuviewer-houri
+	url = https://github.com/PineappleTwilight/webgpuviewer-houri.git
+[submodule "external/imagedecoder-houri"]
+	path = external/imagedecoder-houri
+	url = https://github.com/PineappleTwilight/imagedecoder-houri.git
