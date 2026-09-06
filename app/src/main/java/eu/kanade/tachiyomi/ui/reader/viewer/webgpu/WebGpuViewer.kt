@@ -601,19 +601,7 @@ open class WebGpuViewer(
                     try {
                         val cont = pager as? ca.mpreg.webgpuviewer.ImageViewContinuous
                         val st = cont?.state
-                        val y = st?.let {
-                            it.javaClass.getDeclaredField("scrollY").let { f ->
-                                f.isAccessible = true
-                                f.getFloat(it)
-                            }
-                        } ?: 0f
-                        val h = st?.let {
-                            it.javaClass.getDeclaredField("contentHeight").let { f ->
-                                f.isAccessible = true
-                                f.getFloat(it)
-                            }
-                        } ?: 1f
-                        if (h > 0f) (y / h).coerceIn(0f, 1f) else 0f
+                        st?.documentY ?: st?.scrollY ?: 0f
                     } catch (_: Exception) {
                         0f
                     }
@@ -652,36 +640,25 @@ open class WebGpuViewer(
         (currentPage as? ViewerReaderPage)?.let { reportPageSelected(it) }
         preloadPages(currentPage!!)
         if (stored != null && isContinuous) {
-            try {
-                scope.launch(Dispatchers.Main) {
-                    delay(200)
+            scope.launch(Dispatchers.Main) {
+                try {
+                    delay(300)
                     val cont = pager as? ca.mpreg.webgpuviewer.ImageViewContinuous ?: return@launch
                     val st = cont.state
-                    val hField = st.javaClass.getDeclaredField("contentHeight").also { it.isAccessible = true }
-                    val yField = st.javaClass.getDeclaredField("scrollY").also { it.isAccessible = true }
-                    val shField = st.javaClass.getDeclaredField("scrollH").let { runCatching { it.also { f -> f.isAccessible = true } }.getOrNull() }
-                    val h = hField.getFloat(st)
-                    if (h > 0f && stored.offsetRatio > 0f) {
-                        val targetY = stored.offsetRatio * h
+                    if (stored.offsetRatio != 0f) {
                         try {
-                            val m = st.javaClass.getMethod("scrollTo", Float::class.java)
-                            m.invoke(st, targetY)
-                        } catch (_: Exception) {
-                            yField.setFloat(st, targetY)
-                        }
-                        if (stored.zoom > 1f) {
-                            try {
-                                val p = pager.state.getPage(0)
-                                p?.let {
-                                    val sField = it.javaClass.getDeclaredField("scale").also { f -> f.isAccessible = true }
-                                    sField.setFloat(it, stored.zoom.coerceIn(1f, 4f))
-                                }
-                            } catch (_: Exception) {}
-                        }
-                        pager.state.invalidate()
+                            st.scrollTo(stored.offsetRatio)
+                        } catch (_: Exception) {}
                     }
-                }
-            } catch (_: Exception) {}
+                    if (stored.zoom > 1f) {
+                        try {
+                            val p = pager.state.getPage(0)
+                            if (p != null) p.scale = stored.zoom.coerceIn(1f, 4f)
+                        } catch (_: Exception) {}
+                    }
+                    pager.state.invalidate()
+                } catch (_: Exception) {}
+            }
         }
 
         pager.state.apply {

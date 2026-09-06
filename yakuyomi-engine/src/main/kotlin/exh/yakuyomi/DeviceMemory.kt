@@ -22,6 +22,20 @@ object DeviceMemory {
     /** Minimum total RAM required to run the WebGPU (high-quality) renderer (3 GiB). */
     const val WEBGPU_MIN_RAM_BYTES: Long = 3L * 1024 * 1024 * 1024
 
+    private const val BYPASS_PREFS = "ram_gate_bypass"
+    private const val BYPASS_KEY = "disabled"
+
+    /** Whether the user has permanently disabled the RAM gate via the About screen easter-egg. */
+    fun isRamGateDisabled(context: Context): Boolean = runCatching {
+        context.getSharedPreferences(BYPASS_PREFS, Context.MODE_PRIVATE).getBoolean(BYPASS_KEY, false)
+    }.getOrDefault(false)
+
+    fun setRamGateDisabled(context: Context, disabled: Boolean) {
+        runCatching {
+            context.getSharedPreferences(BYPASS_PREFS, Context.MODE_PRIVATE).edit().putBoolean(BYPASS_KEY, disabled).apply()
+        }
+    }
+
     /** Total physical RAM in bytes, or 0 when the system service is unavailable. */
     fun totalRamBytes(context: Context): Long {
         return runCatching {
@@ -39,10 +53,10 @@ object DeviceMemory {
     }
 
     /** Whether this device has enough RAM for the on-device AI translation pipeline. */
-    fun isMtlSupported(context: Context): Boolean = hasSufficientRam(context, MTL_MIN_RAM_BYTES)
+    fun isMtlSupported(context: Context): Boolean = if (isRamGateDisabled(context)) true else hasSufficientRam(context, MTL_MIN_RAM_BYTES)
 
     /** Whether this device has enough RAM for the WebGPU (high-quality) renderer. */
-    fun isWebGpuSupported(context: Context): Boolean = hasSufficientRam(context, WEBGPU_MIN_RAM_BYTES)
+    fun isWebGpuSupported(context: Context): Boolean = if (isRamGateDisabled(context)) true else hasSufficientRam(context, WEBGPU_MIN_RAM_BYTES)
 
     /** Whether the device runs a 64-bit ABI (32-bit processes have a much smaller address space). */
     fun is64Bit(): Boolean = Build.SUPPORTED_ABIS.any { it.contains("64") }

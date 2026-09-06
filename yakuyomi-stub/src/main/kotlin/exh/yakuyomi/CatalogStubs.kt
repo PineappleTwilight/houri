@@ -65,6 +65,19 @@ object DeviceMemory {
     const val MTL_MIN_RAM_BYTES: Long = 3L * 1024 * 1024 * 1024
     const val WEBGPU_MIN_RAM_BYTES: Long = 3L * 1024 * 1024 * 1024
 
+    private const val BYPASS_PREFS = "ram_gate_bypass"
+    private const val BYPASS_KEY = "disabled"
+
+    fun isRamGateDisabled(context: Context): Boolean = runCatching {
+        context.getSharedPreferences(BYPASS_PREFS, Context.MODE_PRIVATE).getBoolean(BYPASS_KEY, false)
+    }.getOrDefault(false)
+
+    fun setRamGateDisabled(context: Context, disabled: Boolean) {
+        runCatching {
+            context.getSharedPreferences(BYPASS_PREFS, Context.MODE_PRIVATE).edit().putBoolean(BYPASS_KEY, disabled).apply()
+        }
+    }
+
     fun totalRamBytes(context: Context): Long {
         return runCatching {
             val activityManager = context.getSystemService(Context.ACTIVITY_SERVICE) as? android.app.ActivityManager
@@ -75,8 +88,8 @@ object DeviceMemory {
     }
 
     fun hasSufficientRam(context: Context, minBytes: Long): Boolean = totalRamBytes(context) >= minBytes
-    fun isMtlSupported(context: Context): Boolean = hasSufficientRam(context, MTL_MIN_RAM_BYTES)
-    fun isWebGpuSupported(context: Context): Boolean = hasSufficientRam(context, WEBGPU_MIN_RAM_BYTES)
+    fun isMtlSupported(context: Context): Boolean = if (isRamGateDisabled(context)) true else hasSufficientRam(context, MTL_MIN_RAM_BYTES)
+    fun isWebGpuSupported(context: Context): Boolean = if (isRamGateDisabled(context)) true else hasSufficientRam(context, WEBGPU_MIN_RAM_BYTES)
     fun is64Bit(): Boolean = android.os.Build.SUPPORTED_ABIS.any { it.contains("64") }
     fun socManufacturer(): String = "unknown"
     fun matchesSoc(soc: String, required: String): Boolean =

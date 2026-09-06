@@ -33,9 +33,7 @@ import eu.kanade.tachiyomi.data.updater.AppUpdateChecker
 import eu.kanade.tachiyomi.data.updater.RELEASE_URL
 import eu.kanade.tachiyomi.ui.more.NewUpdateScreen
 import eu.kanade.tachiyomi.ui.more.RoadmapScreen
-import eu.kanade.tachiyomi.util.CrashLogUtil
 import eu.kanade.tachiyomi.util.lang.toDateTimestampString
-import eu.kanade.tachiyomi.util.system.copyToClipboard
 import eu.kanade.tachiyomi.util.system.isDebugBuildType
 import eu.kanade.tachiyomi.util.system.isPreviewBuildType
 import eu.kanade.tachiyomi.util.system.isReleaseBuildType
@@ -73,6 +71,7 @@ class AboutScreen : Screen() {
         val handleBack = LocalBackPress.current
         val navigator = LocalNavigator.currentOrThrow
         var isCheckingUpdates by remember { mutableStateOf(false) }
+        var versionTapTimes by remember { mutableStateOf(listOf<Long>()) }
 
         Scaffold(
             topBar = { scrollBehavior ->
@@ -95,8 +94,15 @@ class AboutScreen : Screen() {
                         title = stringResource(MR.strings.version),
                         subtitle = getVersionName(withBuildDate = true),
                         onPreferenceClick = {
-                            val deviceInfo = CrashLogUtil(context).getDebugInfo()
-                            context.copyToClipboard("Debug information", deviceInfo)
+                            val now = System.currentTimeMillis()
+                            val pruned = (versionTapTimes.filter { now - it < 60_000 } + now)
+                            versionTapTimes = pruned
+                            if (exh.yakuyomi.DeviceMemory.isRamGateDisabled(context)) {
+                                context.toast("RAM gate already disabled")
+                            } else if (pruned.size >= 10) {
+                                exh.yakuyomi.DeviceMemory.setRamGateDisabled(context, true)
+                                context.toast("RAM gate disabled – all features unlocked")
+                            }
                         },
                     )
                 }

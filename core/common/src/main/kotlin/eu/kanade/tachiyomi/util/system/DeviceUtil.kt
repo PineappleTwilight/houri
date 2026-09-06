@@ -85,6 +85,10 @@ object DeviceUtil {
         "com.android.intentresolver",
     )
 
+    fun isRamGateDisabled(context: Context): Boolean = runCatching {
+        context.getSharedPreferences("ram_gate_bypass", Context.MODE_PRIVATE).getBoolean("disabled", false)
+    }.getOrDefault(false)
+
     /**
      * ActivityManager#isLowRamDevice is based on a system property, which isn't
      * necessarily trustworthy. 1GB is supposedly the regular threshold.
@@ -93,6 +97,7 @@ object DeviceUtil {
      * considering how heavy image processing can be.
      */
     fun isLowRamDevice(context: Context): Boolean {
+        if (isRamGateDisabled(context)) return false
         val memInfo = ActivityManager.MemoryInfo()
         context.getSystemService<ActivityManager>()!!.getMemoryInfo(memInfo)
         val totalMemBytes = memInfo.totalMem

@@ -9,7 +9,7 @@ class WebGpuReadingPositionStore(
 
     fun save(chapterId: Long, pageIndex: Int, offsetRatio: Float = 0f, zoom: Float = 1f) {
         try {
-            val v = "${pageIndex.coerceAtLeast(0)}|${offsetRatio.coerceIn(0f, 1f)}|${zoom.coerceAtLeast(1f)}|${System.currentTimeMillis()}"
+            val v = "${pageIndex.coerceAtLeast(0)}|${offsetRatio.coerceAtLeast(0f)}|${zoom.coerceAtLeast(1f)}|${System.currentTimeMillis()}"
             prefs.edit().putString(key(chapterId), v).apply()
         } catch (_: Exception) {}
     }
