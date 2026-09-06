@@ -85,7 +85,11 @@ class YakuyomiEngine(
 
     fun isStorageSupported(): Boolean {
         val dir = modelsDir()
-        val usable = try { dir.usableSpace } catch (_: Exception) { -1L }
+        val usable = try {
+            dir.usableSpace
+        } catch (_: Exception) {
+            -1L
+        }
         if (usable in 1..(150L * 1024 * 1024)) return false
         return true
     }

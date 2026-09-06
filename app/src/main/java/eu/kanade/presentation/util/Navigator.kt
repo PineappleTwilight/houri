@@ -48,7 +48,7 @@ interface Tab : cafe.adriel.voyager.navigator.tab.Tab {
 }
 
 abstract class Screen : Screen {
-    override val key: ScreenKey = "${this::class.qualifiedName}#${uniqueScreenKey}#${System.identityHashCode(this)}"
+    override val key: ScreenKey = "${this::class.qualifiedName}#$uniqueScreenKey#${System.identityHashCode(this)}"
 }
 
 /**

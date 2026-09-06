@@ -409,7 +409,9 @@ class TranslationManager(
             val trimmed = rawBreadcrumb.takeLast(breadcrumbBudget)
             val cut = trimmed.indexOf('\n')
             if (cut in 0..200) trimmed.substring(cut + 1) else trimmed
-        } else rawBreadcrumb
+        } else {
+            rawBreadcrumb
+        }
         val mangaContext = mangaContextProvider(mangaId) ?: ""
 
         status.pageTranslating(mangaId, chapterId, pageIndex)
