@@ -20,11 +20,15 @@ class WebGpuReadingPositionStore(
             val p = raw.split("|")
             if (p.size < 3) return null
             PositionData(p[0].toInt(), p[1].toFloat(), p[2].toFloat())
-        } catch (_: Exception) { null }
+        } catch (_: Exception) {
+            null
+        }
     }
 
     fun clear(chapterId: Long) {
-        try { prefs.edit().remove(key(chapterId)).apply() } catch (_: Exception) {}
+        try {
+            prefs.edit().remove(key(chapterId)).apply()
+        } catch (_: Exception) {}
     }
 
     private fun key(chapterId: Long) = "pos_$chapterId"
