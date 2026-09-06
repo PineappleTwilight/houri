@@ -342,10 +342,10 @@ internal suspend fun WebGpuViewer.decodeReaderPage(page: ViewerReaderPage) {
             }
         }
 
-        // Capture bytes once; keep full decode bytes while gating translation on 32MB cap.
-        // Previous code nulled bytes on oversize and fell back to already-consumed input, breaking decode.
         val decodeBytes: ByteArray? = try {
-            input.readBytes()
+            val bytes = input.readBytes()
+            if (bytes.size > 80 * 1024 * 1024) throw Exception("Page too large: ${bytes.size} bytes >80MB")
+            if (bytes.isEmpty()) null else bytes
         } catch (e: OutOfMemoryError) {
             System.gc()
             null
@@ -384,7 +384,16 @@ internal suspend fun WebGpuViewer.decodeReaderPage(page: ViewerReaderPage) {
         }
 
         val dec = try {
-            ImageDecoder.new(decodeBytes.inputStream())
+            ImageDecoder.new(decodeBytes.inputStream()).also { d ->
+                if (d.pages <= 0) {
+                    try { d.close() } catch (_: Exception) {}
+                    throw Exception("No pages reported by decoder")
+                }
+            }
+        } catch (e: ImageDecoder.UnknownFormatException) {
+            throw Exception("Unsupported image format: ${e.message}", e)
+        } catch (e: ImageDecoder.DecodeException) {
+            throw Exception("ImageDecoder init failed: ${e.message}", e)
         } catch (e: Exception) {
             throw Exception("ImageDecoder init failed: ${e.message}", e)
         }
