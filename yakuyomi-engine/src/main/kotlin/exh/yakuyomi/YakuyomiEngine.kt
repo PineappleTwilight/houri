@@ -81,12 +81,14 @@ class YakuyomiEngine(
     val notEnoughMemoryReason: String
         get() = "not enough memory on this device — AI translation requires at least 3GB of RAM"
 
-    /**
-     * Whether the on-device native pipeline can run on this device at all. Currently gates on total
-     * RAM: the detector + OCR + inpainter sessions together need more address space than low-RAM
-     * devices have, and a failed native allocation SIGSEGVs the process (uncatchable in Kotlin).
-     */
     fun isHardwareSupported(): Boolean = DeviceMemory.isMtlSupported(context)
+
+    fun isStorageSupported(): Boolean {
+        val dir = modelsDir()
+        val usable = try { dir.usableSpace } catch (_: Exception) { -1L }
+        if (usable in 1..(150L * 1024 * 1024)) return false
+        return true
+    }
 
     private fun modelsDir(): File = File(context.filesDir, "yakuyomi_models")
 
@@ -99,12 +101,19 @@ class YakuyomiEngine(
         val params = listOfNotNull(set.detectorNcnn, set.aotInpainterNcnn)
         if (params.any { p ->
                 val bin = File(p.removeSuffix(".param") + ".bin")
-                !bin.isFile || bin.length() < 1_000_000L
+                val ok = bin.isFile && bin.length() >= 1_000_000L
+                if (!ok) logcat { "Model missing bin for $p" }
+                !ok
             }
         ) {
             return null
         }
-        if (set.ocr != null && !File(set.ocr).let { it.isFile && it.length() > 1_000_000L }) return null
+        if (set.ocr != null && !File(set.ocr).let { it.isFile && it.length() > 1_000_000L }) {
+            logcat { "Model missing ocr ${set.ocr}" }
+            return null
+        }
+        val totalBytes = dir.listFiles()?.sumOf { it.length() } ?: 0L
+        if (totalBytes > 0) logcat { "Models ready total ${totalBytes / (1024 * 1024)} MB" }
         return set
     }
 
@@ -138,6 +147,9 @@ class YakuyomiEngine(
             fontSizeMin = min,
             colTrim = 1,
             rowTrim = 1,
+            lineSpacing = 1.05f,
+            adaptiveStroke = true,
+            rtlSupport = false,
         )
     }
 
@@ -168,14 +180,18 @@ class YakuyomiEngine(
                 minProb = prefs.ocrMinProb().get().coerceIn(0.2f, 0.9f),
                 useBicubic = prefs.ocrBicubic().get(),
                 ocrUnsharp = prefs.ocrUnsharp().get(),
+                adaptiveConcurrency = true,
             ),
             inpainter = defaults.inpainter.copy(
                 method = prefs.inpainterMethod().get().takeIf { it in setOf("aot", "boxfill") } ?: "aot",
                 tileSize = prefs.inpainterTileSize().get().coerceIn(256, 1024),
                 maskDilate = prefs.inpainterMaskDilate().get().coerceIn(4f, 48f),
                 bboxPad = prefs.inpainterBboxPad().get().coerceIn(0, 32),
+                featherRadius = 1,
+                preserveAspect = true,
             ),
             translator = defaults.translator,
+            pipeline = defaults.pipeline,
         )
     }
 
@@ -188,21 +204,20 @@ class YakuyomiEngine(
         context.assets.open("yakuyomi_alphabet.txt").bufferedReader().use { it.readLines().filter { l -> l.isNotBlank() } }
     }.getOrElse { emptyList() }.takeIf { it.isNotEmpty() } ?: listOf(" ")
 
-    private fun buildIfNeeded(): Components? = synchronized(this) {
-        components ?: buildComponents()?.also { components = it }
+    private fun buildIfNeeded(): Components? {
+        components?.let { return it }
+        return buildComponents()?.also { components = it }
     }
 
-    /**
-     * Drops the cached native sessions so the next [translatePage] rebuilds from the current
-     * on-disk models. Runs the close under [pipelineMutex] — the same lock that guards pipeline
-     * execution — so an in-flight translatePage can never touch a closed session.
-     */
+    private suspend fun buildIfNeededLocked(): Components? {
+        components?.let { return it }
+        return buildComponents()?.also { components = it }
+    }
+
     private fun invalidateComponents() {
         scope.launch {
             pipelineMutex.withLock {
-                val old = synchronized(this@YakuyomiEngine) {
-                    components.also { components = null }
-                }
+                val old = components.also { components = null }
                 if (old != null) old.closeAll()
             }
         }
@@ -277,13 +292,16 @@ class YakuyomiEngine(
      */
     suspend fun translatePage(bitmap: Bitmap, translator: Translator?, targetLang: String? = null): PageResult = withContext(Dispatchers.Default) {
         if (!isHardwareSupported()) {
-            return@withContext PageResult.Failed(notEnoughMemoryReason)
+            return@withContext PageResult.Failed(notEnoughMemoryReason, li.joye.yakuyomi.engine.PipelineErrorCode.INVALID_BITMAP)
         }
-        // Build and run under the same lock [invalidateComponents] uses to close stale
-        // sessions, so this call can never race a close of the components it captured.
+        if (!isStorageSupported()) {
+            return@withContext PageResult.Failed("not enough storage for translation", li.joye.yakuyomi.engine.PipelineErrorCode.UNKNOWN)
+        }
         pipelineMutex.withLock {
-            val c = buildIfNeeded() ?: return@withContext PageResult.Failed("models not ready")
+            val c = buildIfNeededLocked() ?: return@withContext PageResult.Failed("models not ready", li.joye.yakuyomi.engine.PipelineErrorCode.UNKNOWN)
             val cfg = if (shouldForceHorizontal(targetLang)) horizontalConfig() else defaultConfig()
+            val errs = cfg.validate()
+            if (errs.isNotEmpty()) return@withContext PageResult.Failed("invalid config: ${errs.first()}", li.joye.yakuyomi.engine.PipelineErrorCode.UNKNOWN)
             Pipeline(c.detector, c.ocr, translator, c.inpainter, cfg, resolveTypeface()).translatePage(bitmap)
         }
     }

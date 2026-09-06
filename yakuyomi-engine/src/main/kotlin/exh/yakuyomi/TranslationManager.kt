@@ -233,6 +233,10 @@ class TranslationManager(
         return when {
             "not enough memory" in lower || ("requires at least 3gb" in lower) ->
                 "This device doesn't have enough RAM for AI translation (needs 3GB+). Translation is disabled on this device."
+            "not enough storage" in lower ->
+                "Not enough storage for translation — free up space and retry"
+            "invalid config" in lower ->
+                "Translation misconfigured — check Settings → Translation → Advanced"
             "not downloaded" in lower || "is the model downloaded" in lower ->
                 "On-device model not downloaded — download it in Settings → Translation (Local)"
             "not bundled" in lower || ("runtime" in lower && "mlc" in lower) ->
@@ -241,6 +245,10 @@ class TranslationManager(
                 "AI models not installed — download them in Settings → Translation"
             "gemini nano" in lower && "unavailable" in lower ->
                 "Gemini Nano not available on this device — it fell back to the cloud provider. Check the provider/API key in Settings → Translation"
+            "invalid page bitmap" in lower ->
+                "Image corrupted or too large — skipping page"
+            "all filtered" in lower ->
+                "No translatable text survived filtering — page skipped"
             "api key" in lower && ("not configured" in lower || "blank" in lower) ->
                 "No API key set — add one in Settings → Translation"
             "429" in lower || "rate limit" in lower ->
@@ -255,6 +263,10 @@ class TranslationManager(
                 "Provider returned an empty/invalid translation — try a different model"
             "timeout" in lower || "timed out" in lower ->
                 "Provider timed out — check your connection and retry"
+            "queue overflow" in lower ->
+                "Too many pages queued — retry the chapter"
+            "image too large" in lower ->
+                "Page image too large (>30MB) — compressed or skipped"
             else -> "Translation failed: $raw"
         }
     }
@@ -349,9 +361,14 @@ class TranslationManager(
         if (queue.size >= MAX_PENDING_PER_CHAPTER) {
             val oldest = queue.firstKey()
             queue.remove(oldest)?.deferred?.completeExceptionally(CancellationException("queue overflow"))
+            xLogE("queue overflowevicted $oldest for $key size=${queue.size}")
         }
         if (imageBytes.size > 30 * 1024 * 1024) {
             status.pageError(mangaId, chapterId, pageIndex, friendlyError("Image too large"))
+            return@withContext null
+        }
+        if (imageBytes.size < 1024) {
+            status.pageError(mangaId, chapterId, pageIndex, friendlyError("Image too small/c Corrupted"))
             return@withContext null
         }
         val deferred = CompletableDeferred<ByteArray?>()
@@ -383,13 +400,16 @@ class TranslationManager(
         val model = effectiveModel()
         val cacheEnabled = prefs.cacheEnabled().get()
         val pageHash = cache.pageHash(imageBytes)
-        // Manga grounding + sliding-window context. The local provider sizes the window to the
-        // model's context length; cloud keeps the 800-char default.
         val glossary = prefs.glossaryMap()
         val preserveSfx = prefs.preserveSfx().get()
         val localModel = if (localLlm.isLocalProvider()) localLlm.resolveModel() else null
         val breadcrumbBudget = localModel?.let { (it.contextLength * 0.25).toInt().coerceIn(500, 3000) } ?: 1000
-        val breadcrumb = notes.buildContextPrompt(mangaId, breadcrumbBudget)
+        val rawBreadcrumb = notes.buildContextPrompt(mangaId, breadcrumbBudget)
+        val breadcrumb = if (rawBreadcrumb.length > breadcrumbBudget * 1.2) {
+            val trimmed = rawBreadcrumb.takeLast(breadcrumbBudget)
+            val cut = trimmed.indexOf('\n')
+            if (cut in 0..200) trimmed.substring(cut + 1) else trimmed
+        } else rawBreadcrumb
         val mangaContext = mangaContextProvider(mangaId) ?: ""
 
         status.pageTranslating(mangaId, chapterId, pageIndex)
