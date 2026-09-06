@@ -5,6 +5,8 @@ import androidx.compose.animation.graphics.res.rememberAnimatedVectorPainter
 import androidx.compose.animation.graphics.vector.AnimatedImageVector
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -245,15 +247,42 @@ fun MoreScreen(
 }
 
 // KMK -->
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun Sponsor() {
     val context = LocalContext.current
-    Row(
+    FlowRow(
         modifier = Modifier
             .fillMaxWidth()
             .padding(bottom = MaterialTheme.padding.medium),
-        horizontalArrangement = Arrangement.Center,
+        horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally),
+        verticalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterVertically),
     ) {
+        TextButton(
+            onClick = { context.openInBrowser(Constants.KOFI) },
+            modifier = Modifier
+                .border(
+                    width = 2.dp,
+                    color = MaterialTheme.colorScheme.primary,
+                    shape = MaterialTheme.shapes.small,
+                ),
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Favorite,
+                    contentDescription = stringResource(KMR.strings.sponsor_houri),
+                    tint = MaterialTheme.colorScheme.primary,
+                )
+                Spacer(Modifier.width(4.dp))
+                Text(
+                    text = stringResource(KMR.strings.sponsor_houri),
+                    color = MaterialTheme.colorScheme.primary,
+                    style = MaterialTheme.typography.labelLarge,
+                )
+            }
+        }
         TextButton(
             onClick = { context.openInBrowser(Constants.SPONSOR) },
             modifier = Modifier
@@ -268,12 +297,12 @@ fun Sponsor() {
             ) {
                 Icon(
                     imageVector = Icons.Filled.Favorite,
-                    contentDescription = stringResource(KMR.strings.sponsor_me),
+                    contentDescription = stringResource(KMR.strings.sponsor_original_fork),
                     tint = MaterialTheme.colorScheme.primary,
                 )
                 Spacer(Modifier.width(4.dp))
                 Text(
-                    text = stringResource(KMR.strings.sponsor_me),
+                    text = stringResource(KMR.strings.sponsor_original_fork),
                     color = MaterialTheme.colorScheme.primary,
                     style = MaterialTheme.typography.labelLarge,
                 )
