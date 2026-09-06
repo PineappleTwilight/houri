@@ -289,6 +289,7 @@
 - [ ] **App**: Fix brief flicker when changing active panels
 - [ ] **Data Saver**: Fix all non-mangadex entries returning 403
 - [ ] **Data Saver**: Fix not working at all for mangadex (original image is used instead)
+- [ ] **Library**: Change default AST-style searching preference to enabled
 
 
 ## Chores
