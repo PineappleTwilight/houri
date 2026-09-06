@@ -284,6 +284,12 @@
 - [x] **MangaDex**: Fix batch add failure
   - Pass URL straight to extension search via `MangaDex.fetchSearchManga`/`getSearchManga` `urlImportFetchSearchManga` override (kept in-app, no delegation removal); URL queries now resolve through `GalleryAdder` to extension instead of stalling
 - [x] **Library**: Fix censor lewd manga toggle not blurring thumbnails
+- [ ] **Library**: Fix AST-style search functionality to handle colons in manga names
+- [ ] **App**: Fix bug where spam tapping a button causes all future app states to be messed up (e.g. tapping a manga entry brings up the settings page)
+- [ ] **App**: Fix brief flicker when changing active panels
+- [ ] **Data Saver**: Fix all non-mangadex entries returning 403
+- [ ] **Data Saver**: Fix not working at all for mangadex (original image is used instead)
+
 
 ## Chores
 - [x] Replace all Komikku icons/branding with houri icons/branding
