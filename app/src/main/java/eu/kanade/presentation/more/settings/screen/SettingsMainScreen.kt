@@ -136,7 +136,7 @@ object SettingsMainScreen : Screen() {
                 ) {
                     itemsIndexed(
                         items = items,
-                        key = { _, item -> "settings-main-${item.hashCode()}" },
+                        key = { _, item -> "settings-main-${item.screen.key}" },
                     ) { index, item ->
                         val selected = indexSelected == index
                         var modifier: Modifier = Modifier
@@ -172,6 +172,7 @@ object SettingsMainScreen : Screen() {
     }
 
     private fun Navigator.navigate(screen: VoyagerScreen, twoPane: Boolean) {
+        if (lastItemOrNull?.key == screen.key) return
         if (twoPane) replaceAll(screen) else push(screen)
     }
 

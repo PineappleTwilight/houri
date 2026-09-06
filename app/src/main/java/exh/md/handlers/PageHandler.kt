@@ -99,9 +99,10 @@ class PageHandler(
             atHomeDto.chapter.data.map { "/data/$hash/$it" }
         }
         val now = System.currentTimeMillis()
-
+        val baseUrl = atHomeDto.baseUrl.trimEnd('/')
         return pageArray.mapIndexed { pos, imgUrl ->
-            Page(pos, "${atHomeDto.baseUrl},$atHomeRequestUrl,$now", imgUrl)
+            val fullUrl = if (imgUrl.startsWith("http")) imgUrl else baseUrl + imgUrl
+            Page(pos, "${atHomeDto.baseUrl},$atHomeRequestUrl,$now", fullUrl)
         }
     }
 

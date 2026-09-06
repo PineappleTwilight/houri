@@ -12,6 +12,7 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ProvidableCompositionLocal
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
 import cafe.adriel.voyager.core.model.ScreenModel
@@ -47,9 +48,7 @@ interface Tab : cafe.adriel.voyager.navigator.tab.Tab {
 }
 
 abstract class Screen : Screen {
-    // known bug: https://github.com/mihonapp/mihon/issues/712
-    // This is where it create a key Screen#uuid:transition which causes exception Key ... was used multiple times
-    override val key: ScreenKey = "$uniqueScreenKey#${this::class.simpleName}"
+    override val key: ScreenKey = "${this::class.qualifiedName}#${uniqueScreenKey}#${System.identityHashCode(this)}"
 }
 
 /**
@@ -110,7 +109,10 @@ fun ScreenTransition(
         if (isPreviewBuildType) {
             logcat(LogPriority.ERROR) { "ScreenTransition: ${screen.key}" }
         }
-        navigator.saveableState("screen-transition-${screen.key}", screen) {
+        val saveableKey = remember(screen.key, navigator.items.size) {
+            "screen-transition-${screen.key}-${navigator.items.size}-${System.identityHashCode(navigator)}"
+        }
+        navigator.saveableState(saveableKey, screen) {
             content(screen)
         }
     }

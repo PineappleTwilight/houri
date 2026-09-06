@@ -248,6 +248,8 @@
     <string name="pref_webhook_excluded_categories_summary">Events are not sent for manga in these categories or subcategories</string>
     <string name="pref_ignore_articles_in_sort">Ignore articles in sort</string>
     <string name="pref_ignore_articles_in_sort_summary">Sort "A Sign of Affection" under S, "The Apothecary Diaries" under A</string>
+    <string name="pref_library_search_ast">Advanced search (colons)</string>
+    <string name="pref_library_search_ast_summary">When enabled, queries like "author:Tanaka" filter by field. When off, colons are treated as normal text so titles like "Re:Zero" work as expected.</string>
     <!-- Migration -->
     <string name="current_">Current: %1$s</string>
     <string name="migrationConfigScreen_smartSearchSingleEntryTitle">Use smart search</string>

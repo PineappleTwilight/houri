@@ -721,14 +721,14 @@ private fun MangaScreenSmallImpl(
                     // KMK --> MTL toggles are compiled out on the no-MTL variant.
                     if (!BuildConfig.IS_NOMTL) {
                         item(
-                            key = MangaScreenItem.TRANSLATE_TOGGLE,
+                            key = "translate-toggle-${state.manga.id}",
                             contentType = MangaScreenItem.TRANSLATE_TOGGLE,
                         ) {
                             TranslateMangaToggle(manga = state.manga)
                         }
 
                         item(
-                            key = MangaScreenItem.TRANSLATE_MANGA_INFO_TOGGLE,
+                            key = "translate-manga-info-toggle-${state.manga.id}",
                             contentType = MangaScreenItem.TRANSLATE_MANGA_INFO_TOGGLE,
                         ) {
                             TranslateMangaInfoToggle(manga = state.manga)
@@ -850,7 +850,7 @@ private fun MangaScreenSmallImpl(
                     // SY <--
 
                     // KMK -->
-                    item(key = "scanlator-preference") {
+                    item(key = "scanlator-preference-${state.manga.id}") {
                         val entryNavigator = LocalNavigator.currentOrThrow
                         Column(
                             modifier = Modifier
@@ -885,7 +885,7 @@ private fun MangaScreenSmallImpl(
                     // KMK <--
 
                     item(
-                        key = MangaScreenItem.CHAPTER_HEADER,
+                        key = "chapter-header-${state.manga.id}",
                         contentType = MangaScreenItem.CHAPTER_HEADER,
                     ) {
                         val missingChapterCount = remember(chapters) {
@@ -1357,7 +1357,7 @@ private fun MangaScreenLargeImpl(
                             // KMK <--
 
                             // KMK -->
-                            item(key = "scanlator-preference") {
+                            item(key = "scanlator-preference-${state.manga.id}-end") {
                                 val entryNavigator = LocalNavigator.currentOrThrow
                                 Column(
                                     modifier = Modifier
@@ -1392,7 +1392,7 @@ private fun MangaScreenLargeImpl(
                             // KMK <--
 
                             item(
-                                key = MangaScreenItem.CHAPTER_HEADER,
+                                key = "chapter-header-${state.manga.id}",
                                 contentType = MangaScreenItem.CHAPTER_HEADER,
                             ) {
                                 val missingChapterCount = remember(chapters) {
@@ -1498,10 +1498,8 @@ private fun LazyListScope.sharedChapterItems(
         items = chapters,
         key = { item ->
             when (item) {
-                // KMK: using hashcode to prevent edge-cases where the missing count might duplicate,
-                // especially on merged manga
-                is ChapterList.MissingCount -> "missing-count-${item.hashCode()}"
-                is ChapterList.Item -> "chapter-${item.id}"
+                is ChapterList.MissingCount -> "missing-count-${manga.id}-${item.count}-${item.hashCode()}"
+                is ChapterList.Item -> "chapter-${manga.id}-${item.id}"
             }
         },
         contentType = { MangaScreenItem.CHAPTER },

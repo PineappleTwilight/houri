@@ -87,6 +87,8 @@ private class WsrvNlDataSaver(preferences: SourcePreferences) : DataSaver {
     private val quality = preferences.dataSaverImageQuality().get()
 
     override fun compress(imageUrl: String): String {
+        if (imageUrl.startsWith("https://wsrv.nl", true)) return imageUrl
+        if (imageUrl.startsWith("/") && !imageUrl.startsWith("//")) return imageUrl
         return when {
             imageUrl.contains(".jpeg", true) || imageUrl.contains(".jpg", true) -> if (ignoreJpg) imageUrl else getUrl(imageUrl)
             imageUrl.contains(".gif", true) -> if (ignoreGif) imageUrl else getUrl(imageUrl)

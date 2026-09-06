@@ -128,7 +128,7 @@ class SearchEngine {
         return baseQuery to completeParams
     }
 
-    fun parseQuery(query: String, enableWildcard: Boolean = true) = queryCache.getOrPut(query) {
+    fun parseQuery(query: String, enableWildcard: Boolean = true, enableAst: Boolean = true) = queryCache.getOrPut("$query|$enableWildcard|$enableAst") {
         val res = mutableListOf<QueryComponent>()
 
         var inQuotes = false
@@ -177,7 +177,7 @@ class SearchEngine {
                 nextIsExcluded = true
             } else if (char == '$') {
                 nextIsExact = true
-            } else if (char == ':') {
+            } else if (char == ':' && enableAst) {
                 flushText()
                 var flushed = flushToText().rawTextOnly()
                 flushed = when (flushed) {

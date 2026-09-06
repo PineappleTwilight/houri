@@ -332,6 +332,11 @@ object SettingsLibraryScreen : SearchableSettings {
                     title = stringResource(KMR.strings.pref_fetch_manga_chapters_on_add),
                     subtitle = stringResource(KMR.strings.pref_fetch_manga_chapters_on_add_description),
                 ),
+                Preference.PreferenceItem.SwitchPreference(
+                    preference = libraryPreferences.librarySearchAstEnabled(),
+                    title = stringResource(KMR.strings.pref_library_search_ast),
+                    subtitle = stringResource(KMR.strings.pref_library_search_ast_summary),
+                ),
                 // KMK <--
             ),
         )

@@ -1304,7 +1304,10 @@ class LibraryScreenModel(
             }
             // KMK <--
             // Prepare filter object
-            val parsedQuery = searchEngine.parseQuery(query)
+            val parsedQuery = searchEngine.parseQuery(
+                query,
+                enableAst = libraryPreferences.librarySearchAstEnabled().get(),
+            )
             val mangaWithMetaIds = getIdsOfFavoriteMangaWithMetadata.await()
             val tracks = if (loggedInTrackServices.isNotEmpty()) {
                 getTracks.await().groupBy { it.mangaId }
