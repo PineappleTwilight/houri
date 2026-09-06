@@ -570,100 +570,46 @@ object SettingsYakuyomiScreen : SearchableSettings {
             title = "Local (On-device LLM)",
             preferenceItems = buildList {
                 add(
-                    Preference.PreferenceItem.InfoPreference(
-                        title = "Offline LLM (GGUF) — no API key needed. Pick a model or import your own .gguf.",
-                    ),
-                )
-                add(
                     Preference.PreferenceItem.ListPreference(
                         preference = prefs.localModel(),
                         entries = entries,
                         title = "Local model",
-                        subtitleProvider = { v, _ -> if (v.isNullOrBlank()) "Auto — ${best?.displayName ?: "none"}" else modelSubtitle },
+                        subtitleProvider = { v, _ ->
+                            when {
+                                v.isNullOrBlank() -> "Auto — ${best?.displayName ?: "none"}${if (!runtimeBundled) " · Runtime not bundled" else ""}"
+                                else -> modelSubtitle
+                            }
+                        },
                         enabled = localEnabled,
                     ),
                 )
-                add(
-                    Preference.PreferenceItem.InfoPreference(
-                        title = buildString {
-                            append("Best for this device: ${best?.displayName ?: "none"}")
-                            if (!runtimeBundled) {
-                                append(" · Runtime not bundled in this build")
-                            } else {
-                                append(" · Runtime ready (3GB+ RAM required)")
-                            }
-                        },
-                    ),
-                )
-                // KMK --> Per-model llama.cpp sampling/context editor; only reachable with a model.
                 if (model != null) {
                     add(
                         Preference.PreferenceItem.TextPreference(
                             title = stringResource(KMR.strings.pref_yakuyomi_llm_advanced),
                             subtitle = "Sampling, context and threads for ${model.displayName}",
-                            onClick = {
-                                entryNavigator.push(SettingsYakuyomiLlmAdvancedScreen(model))
-                            },
+                            onClick = { entryNavigator.push(SettingsYakuyomiLlmAdvancedScreen(model)) },
                             enabled = localEnabled,
                         ),
                     )
                 }
-                // KMK <--
                 add(
                     Preference.PreferenceItem.TextPreference(
-                        title = if (importing) "Importing GGUF…" else "Import GGUF from device…",
+                        title = if (importing) "Importing GGUF…" else "Import GGUF from device",
                         subtitle = when {
-                            importing -> "Copying to app storage — this can take a while for large files…"
-                            importedModels.isEmpty() -> "Pick a .gguf file (its filename is kept; re-importing just switches to it)"
-                            else -> "Imported: ${importedModels.joinToString(", ") { it.displayName }}"
+                            importing -> "Copying…"
+                            importedModels.isEmpty() -> "Pick .gguf file"
+                            else -> importedModels.joinToString(", ") { it.displayName }
                         },
-                        onClick = {
-                            importLauncher.launch(arrayOf("application/octet-stream", "*/*"))
-                        },
+                        onClick = { importLauncher.launch(arrayOf("application/octet-stream", "*/*")) },
                         enabled = localEnabled && !importing,
-                    ),
-                )
-                // KMK --> Engine lifecycle controls; only actionable once a loadable model exists.
-                add(
-                    Preference.PreferenceItem.CustomPreference(
-                        title = "Engine status",
-                        content = {
-                            val dotColor = when {
-                                running -> Color(0xFF4CAF50)
-                                loading -> Color(0xFFFFA726)
-                                modelReady -> Color(0xFF9E9E9E)
-                                else -> Color(0xFFE53935)
-                            }
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                modifier = Modifier.padding(horizontal = MaterialTheme.padding.medium, vertical = 8.dp),
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(10.dp)
-                                        .clip(CircleShape)
-                                        .background(dotColor),
-                                )
-                                Text(
-                                    text = engineState,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                )
-                            }
-                        },
                     ),
                 )
                 add(
                     Preference.PreferenceItem.TextPreference(
                         title = if (running) "Stop engine" else "Start engine",
-                        subtitle = if (modelReady) {
-                            "Loads ${model?.displayName ?: "the selected model"} into memory (first translation can take a few seconds otherwise)"
-                        } else {
-                            "Download a model first — this is enabled once a model is ready"
-                        },
-                        onClick = {
-                            if (running) manager.stop() else manager.start()
-                        },
+                        subtitle = engineState,
+                        onClick = { if (running) manager.stop() else manager.start() },
                         enabled = localEnabled && modelReady,
                     ),
                 )
@@ -671,11 +617,10 @@ object SettingsYakuyomiScreen : SearchableSettings {
                     Preference.PreferenceItem.SwitchPreference(
                         preference = prefs.localLlmAutoStart(),
                         title = "Start engine on app launch",
-                        subtitle = "Preload the model on startup so first translation is instant",
+                        subtitle = "Preload so first translation is instant",
                         enabled = localEnabled && modelReady,
                     ),
                 )
-                // KMK <--
                 add(
                     Preference.PreferenceItem.CustomPreference(
                         title = "Download",
@@ -683,10 +628,7 @@ object SettingsYakuyomiScreen : SearchableSettings {
                             Column(modifier = Modifier.padding(horizontal = MaterialTheme.padding.medium, vertical = 8.dp)) {
                                 when (status.state) {
                                     exh.yakuyomi.LocalLlmDownloadManager.State.READY -> {
-                                        Text(
-                                            text = "Installed: ${status.downloadedBytes / (1024 * 1024)} MB",
-                                            style = MaterialTheme.typography.bodyMedium,
-                                        )
+                                        Text(text = "Installed: ${status.downloadedBytes / (1024 * 1024)} MB", style = MaterialTheme.typography.bodyMedium)
                                     }
                                     exh.yakuyomi.LocalLlmDownloadManager.State.DOWNLOADING -> {
                                         val percent = (status.progress * 100).toInt()
@@ -694,45 +636,21 @@ object SettingsYakuyomiScreen : SearchableSettings {
                                         val totalMb = (status.totalBytes / (1024 * 1024)).coerceAtLeast(mb)
                                         val speedMb = status.speedBytesPerSecond / (1024 * 1024)
                                         Text(
-                                            text = "Downloading $percent% — $mb MB / $totalMb MB" +
-                                                if (speedMb > 0) " · $speedMb MB/s" else "",
+                                            text = "Downloading $percent% — $mb/$totalMb MB" + if (speedMb > 0) " · $speedMb MB/s" else "",
                                             style = MaterialTheme.typography.bodyMedium,
                                         )
                                         if (status.etaSeconds > 0) {
-                                            Spacer(modifier = Modifier.padding(vertical = 2.dp))
-                                            Text(
-                                                text = "About ${formatEta(status.etaSeconds)} left",
-                                                style = MaterialTheme.typography.bodySmall,
-                                            )
+                                            Text(text = "About ${formatEta(status.etaSeconds)} left", style = MaterialTheme.typography.bodySmall)
                                         }
-                                        Spacer(modifier = Modifier.padding(vertical = 4.dp))
                                         LinearProgressIndicator(
                                             progress = { status.progress },
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .padding(horizontal = 16.dp),
+                                            modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
                                         )
-                                        if (!status.currentFile.isNullOrBlank()) {
-                                            Spacer(modifier = Modifier.padding(vertical = 4.dp))
-                                            Text(
-                                                text = "File: ${status.currentFile}",
-                                                style = MaterialTheme.typography.bodySmall,
-                                            )
-                                        }
                                     }
                                     exh.yakuyomi.LocalLlmDownloadManager.State.ERROR -> {
-                                        Text(
-                                            text = status.error ?: "Download failed",
-                                            style = MaterialTheme.typography.bodyMedium,
-                                            color = MaterialTheme.colorScheme.error,
-                                        )
+                                        Text(text = status.error ?: "Download failed", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error)
                                     }
-                                    else -> {
-                                        Text(
-                                            text = "Not installed",
-                                            style = MaterialTheme.typography.bodyMedium,
-                                        )
-                                    }
+                                    else -> Text(text = "Not installed", style = MaterialTheme.typography.bodyMedium)
                                 }
                             }
                         },
@@ -750,22 +668,20 @@ object SettingsYakuyomiScreen : SearchableSettings {
                         enabled = localEnabled && manager.isRuntimeAvailable(),
                     ),
                 )
-                add(
-                    Preference.PreferenceItem.TextPreference(
-                        title = "Clear local model",
-                        subtitle = if (model?.isCustom == true) {
-                            "Delete the selected imported GGUF"
-                        } else {
-                            "Remove the downloaded model files (must re-download to use again)"
-                        },
-                        onClick = {
-                            manager.clearModel()
-                            importTick = importTick + 1
-                            context.toast("Local model cleared")
-                        },
-                        enabled = localEnabled && status.state != exh.yakuyomi.LocalLlmDownloadManager.State.DOWNLOADING,
-                    ),
-                )
+                if (model != null || importedModels.isNotEmpty() || status.state == exh.yakuyomi.LocalLlmDownloadManager.State.READY) {
+                    add(
+                        Preference.PreferenceItem.TextPreference(
+                            title = "Clear local model",
+                            subtitle = if (model?.isCustom == true) "Delete imported GGUF" else "Remove downloaded files",
+                            onClick = {
+                                manager.clearModel()
+                                importTick = importTick + 1
+                                context.toast("Local model cleared")
+                            },
+                            enabled = localEnabled && status.state != exh.yakuyomi.LocalLlmDownloadManager.State.DOWNLOADING,
+                        ),
+                    )
+                }
             }.toPersistentList(),
         )
     }
