@@ -386,7 +386,9 @@ internal suspend fun WebGpuViewer.decodeReaderPage(page: ViewerReaderPage) {
         val dec = try {
             ImageDecoder.new(decodeBytes.inputStream()).also { d ->
                 if (d.pages <= 0) {
-                    try { d.close() } catch (_: Exception) {}
+                    try {
+                        d.close()
+                    } catch (_: Exception) {}
                     throw Exception("No pages reported by decoder")
                 }
             }

@@ -184,6 +184,15 @@ jobs:
           java-version-file: .github/.java-version
           distribution: temurin
 
+      - name: Install native build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y meson ninja-build pkg-config gperf python3-pip
+          cmake --version
+          meson --version
+          ninja --version
+          pkg-config --version
+
       - name: Write google-services.json
         env:
           GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
