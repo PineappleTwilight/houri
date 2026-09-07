@@ -77,13 +77,5 @@ include(":yakuyomi")
 include(":yakuyomi-stub")
 project(":yakuyomi").projectDir = file("yakuyomi-engine")
 includeBuild("external/yakuyomi-engine")
-includeBuild("external/webgpuviewer-houri") {
-    dependencySubstitution {
-        substitute(module("ca.mpreg:webgpuviewer")).using(project(":library"))
-    }
-}
-includeBuild("external/imagedecoder-houri") {
-    dependencySubstitution {
-        substitute(module("ca.mpreg:imagedecoder")).using(project(":library"))
-    }
-}
+includeBuild("external/webgpuviewer-houri")
+includeBuild("external/imagedecoder-houri")

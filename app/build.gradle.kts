@@ -329,8 +329,8 @@ dependencies {
     implementation(libs.image.decoder)
 
     // Mihon -->
-    implementation("ca.mpreg:webgpuviewer")
-    implementation("ca.mpreg:imagedecoder")
+    implementation("ca.mpreg:webgpuviewer:0.0.0")
+    implementation("ca.mpreg:imagedecoder:0.0.0")
     implementation(libs.kim)
     // Mihon <--
 
