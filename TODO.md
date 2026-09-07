@@ -125,6 +125,9 @@
   - mihon_img_upscale (https://github.com/HaoweiLi97/mihon_img_upscale) — Mihon PoC supporting multiple models (Real-CUGAN, Real-ESRGAN, Waifu2x) and backends (Vulkan, Qualcomm NPU)
   - komikku_img_upscale (https://github.com/Viel0320/komikku_img_upscale) — empty, possibly abandoned attempt for Komikku ecosystem
   - Proposed integration for Houri: per-series or global toggle for "AI Upscaling" in reader settings; bundled inference engine (NCNN / ONNX Runtime) with Vulkan/NPU acceleration where available; quality presets Fast/Balanced/High like AniZen's Anime4K levels; cache upscaled pages to avoid repeated processing
+- [ ] **Trackers**: Allow "fill metadata from tracker" to manage tags and publication status
+- [ ] **Trackers**: Ability to set a tracker as a definitive metadata source
+  - This functionality should be able to be applied to individual manga or entire categories
 
 ## Bugfixes
 - [x] Fix UI transition choppiness.
