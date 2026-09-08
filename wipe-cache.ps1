@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-  Convenience wrapper — runs the nuclear wipe with confirmation.
+  Convenience wrapper - runs the nuclear wipe with confirmation.
 
 .DESCRIPTION
   From repo root:  powershell -ExecutionPolicy Bypass -File .\wipe-cache.ps1

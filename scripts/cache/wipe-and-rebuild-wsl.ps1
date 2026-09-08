@@ -46,12 +46,12 @@ $isWindows = Test-IsWindows
 $hasWsl = -not $NoWslCheck -and (Test-WslAvailable)
 Write-Host "Windows: $isWindows  WSL: $hasWsl" -ForegroundColor Cyan
 if ($isWindows -and $hasWsl) {
-  Write-Host "WSL detected — CMake will use 'wsl meson' (1.7.0) instead of 'C:/Program Files/Meson/meson.exe' (1.12.0) to avoid C:/ is_parent_path bug" -ForegroundColor Green
+  Write-Host "WSL detected - CMake will use 'wsl meson' (1.7.0) instead of 'C:/Program Files/Meson/meson.exe' (1.12.0) to avoid C:/ is_parent_path bug" -ForegroundColor Green
   # Verify WSL meson version
   try { $wslMesonVer = wsl meson --version 2>$null; Write-Host "WSL meson: $wslMesonVer" -ForegroundColor DarkGray } catch {}
   try { $wslBashVer = wsl bash --version 2>$null | Select-Object -First 1; Write-Host "WSL bash: $wslBashVer" -ForegroundColor DarkGray } catch {}
 } elseif ($isWindows) {
-  Write-Host "WSL not found — falling back to MSYS/Windows tools (may still hit gio:925 bug). Install WSL: wsl --install" -ForegroundColor Yellow
+  Write-Host "WSL not found - falling back to MSYS/Windows tools (may still hit gio:925 bug). Install WSL: wsl --install" -ForegroundColor Yellow
 }
 
 function Remove-Target($path, $label) {
@@ -105,7 +105,7 @@ if ($hasWsl -and -not $DryRun) {
   wsl bash -c "which meson && meson --version; which pkg-config && pkg-config --version; which bash && bash --version | head -1" 2>$null | ForEach-Object { Write-Host "  $_" -ForegroundColor DarkGray }
 }
 
-if ($DryRun) { Write-Host "`nDryRun — nothing deleted." -ForegroundColor Magenta; exit 0 }
+if ($DryRun) { Write-Host "`nDryRun - nothing deleted." -ForegroundColor Magenta; exit 0 }
 
 Write-Host "`nDone. Next steps:" -ForegroundColor Green
 Write-Host "  git submodule update --init --recursive external\imagedecoder-houri" -ForegroundColor White

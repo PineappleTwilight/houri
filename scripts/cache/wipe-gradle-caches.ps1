@@ -13,7 +13,7 @@
     - User home ~/.gradle/configuration-cache
     - Daemon registry
 
-  Does NOT touch .cxx or build/ — use wipe-all-caches.ps1 for that.
+  Does NOT touch .cxx or build/ - use wipe-all-caches.ps1 for that.
 
 .NOTES
   Run from repo root: powershell -ExecutionPolicy Bypass -File scripts\cache\wipe-gradle-caches.ps1 [-DryRun]

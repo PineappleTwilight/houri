@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-  Nuclear wipe — everything that can hold a stale CMake/ExternalProject/Gradle hash.
+  Nuclear wipe - everything that can hold a stale CMake/ExternalProject/Gradle hash.
 
 .DESCRIPTION
   Combines wipe-imagedecoder-cache.ps1 + wipe-gradle-caches.ps1 + additional
@@ -102,7 +102,7 @@ $homeRoot = "$env:USERPROFILE\.gradle"
 Remove-Target "$homeRoot\daemon" "daemon registry"
 Remove-Target "$homeRoot\caches\build-cache-1" "build-cache-1"
 Remove-Target "$homeRoot\caches\configuration-cache" "configuration-cache"
-# Versioned caches (8.x, 9.x) — wildcard delete
+# Versioned caches (8.x, 9.x) - wildcard delete
 foreach ($pat in @("transforms-*", "8.*", "9.*", "modules-*", "jars-*", "build-cache-*", "journal-*")) {
   $base = "$homeRoot\caches"
   if (Test-Path $base) {
@@ -114,5 +114,5 @@ foreach ($pat in @("transforms-*", "8.*", "9.*", "modules-*", "jars-*", "build-c
 }
 
 Write-Host "`n==============================================" -ForegroundColor Cyan
-if ($DryRun) { Write-Host "DryRun complete — nothing deleted. Re-run without -DryRun to wipe." -ForegroundColor Magenta }
+if ($DryRun) { Write-Host "DryRun complete - nothing deleted. Re-run without -DryRun to wipe." -ForegroundColor Magenta }
 else { Write-Host "Done. Next: Sync in Android Studio or .\gradlew.bat assembleDebug --no-configuration-cache" -ForegroundColor Green; Write-Host "Verify: .cxx/.../fk/src/ep_libiconv/srclib/fcntl.c starts with #ifndef F_SETFD and Makefile has '# cd src &&'" -ForegroundColor DarkGray }
