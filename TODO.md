@@ -322,7 +322,10 @@
 - [ ] **Manga Details**: Tapping on a tag then on search doesn't actually search and just sends you back to the main page of the extension
 - [ ] **App**: Panel switch flickering (library -> settings, setting -> extensions, etc)
 - [ ] **WebGPU Reader**: Blank screen if the manga page is in JXL format
-- [ ] **
+- [ ] **Library Filter**: The local source does not appear correctly even when selecting the local source icon. This problem does not exist in mihon.
+- [ ] **WebGPU Reader**: Fix webgpu "remember last position" crash
+- [ ] **Manga Details Add Tracker Dialog**: Fix extremely vertically long dialog with tons of empty space where trackers would normally be
+
 
 ## Chores
 - [x] Replace all Komikku icons/branding with houri icons/branding
