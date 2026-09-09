@@ -38,7 +38,7 @@
     - Allows users to "flex" on others of lower rank
     - Ranks should be overall statistics + # of achievements, e.g. 500 read chapters and 10 achievements etc
       - Chapter statistics should exclude the "mark as read" feature and only track organically read chapters
-  - Implemented 2026-09-09: `tachiyomi.domain.achievement` (`Achievement`, `AchievementPreferences` organic counter, rank tiers, wipe with double confirmation, backup via memo JSON)
+  - Implemented 2026-09-09: `tachiyomi.domain.achievement` (`Achievement` 25 entries, `AchievementTier`/`Category`, `AchievementStats` with Legend/Master/Veteran/Explorer/Apprentice/Novice ranks, `AchievementPreferences` organic/mangaFinished/library counts + timestamps, `AchievementManager` unlock thresholds, organic-only increment via `ReaderViewModel` (manually=false path), double-confirm wipe, backup via `PreferenceBackupCreator` re-import)
 - [x] **Subcategories**: Subcategory reordering
 - [x] **Discord RPC**: Majorly improve the Discord RPC feature and what information it shows
   - Subcategory exclusion also needs to be properly wired into it
@@ -99,7 +99,7 @@
     - This avoids having the user need to download all chapters at once and can instead flow naturally in reading order
   - Biggest issue with this approach is the amount of API calls it would use. Free models would need to be investigated.
 - [x] **New**: WebAssembly computation engine for extensions — *Feasibility: investigated 2026-08-27, feasible via J2V8 + WebAssembly, not bare wasmtime; for website wasm bundles (keygen/auth)*
-  - Implemented 2026-09-09 scaffold: `WasmEngine` (`AppScope` `Inject`, V8 detection, `computeWebsiteWasm` stub, LRU cache), ready for J2V8 wiring
+  - Implemented 2026-09-09: `WasmEngine` (`AppScope` `Inject`, J2V8 V8 detection, LRU 24-entry module cache `sha256(wasmUrl+jsUrl)`, `fetchBytes`/`fetchText` via `OkHttpClient` with CF, `computeWebsiteWasm` with 16MB/5s caps, `executeViaJ2V8` reflect invocation + fallback, `computeStandaloneWasm`, `cacheSize`)
   - Goal is **website `*.wasm` bundles** (key generation, auth, `decrypt` as manga sites use Emscripten/`wasm-bindgen` with `env.memory`/`env.table`/`js.*` imports + `*.js` glue), not `STANDALONE_WASM` — bare `wasmtime`/`wasm3`/`WAMR` only provide `wasi_snapshot_preview1` and trap on `env.__memory_base`/`js.crypto_getRandomValues`
   - Current `JavaScriptEngine` is `app.cash.quickjs:quickjs` which **has no `WebAssembly` global** → `WebAssembly.instantiate` throws; `V8`/`WebView` does (`WebAssembly.Memory/Table`)
   - Host `:wasm-engine` (`~3.5 MB` `J2V8` `com.eclipsesource.j2v8` arm64 split, `+0.6 MB` `wasm3` optional for pure extension `STANDALONE_WASM`); `Metro @SingleIn(AppScope::class) @Inject class WasmEngine @Inject constructor(context: Context, client: OkHttpClient)` with LRU compiled `Module` cache (key `sha256(wasmUrl+jsUrl)`)
@@ -128,7 +128,7 @@
   - mihon_img_upscale (https://github.com/HaoweiLi97/mihon_img_upscale) — Mihon PoC supporting multiple models (Real-CUGAN, Real-ESRGAN, Waifu2x) and backends (Vulkan, Qualcomm NPU)
   - komikku_img_upscale (https://github.com/Viel0320/komikku_img_upscale) — empty, possibly abandoned attempt for Komikku ecosystem
   - Proposed integration for Houri: per-series or global toggle for "AI Upscaling" in reader settings; bundled inference engine (NCNN / ONNX Runtime) with Vulkan/NPU acceleration where available; quality presets Fast/Balanced/High like AniZen's Anime4K levels; cache upscaled pages to avoid repeated processing
-  - Implemented 2026-09-09 scaffold: `UpscalePreferences` (enabled/preset/backend per-series), ready for NCNN/ONNX engine wiring; cache strategy mirrors translation cache
+  - Implemented 2026-09-09: `UpscalePreferences` (enabled/preset FAST/BALANCED/HIGH, backend AUTO/VULKAN/NPU/CPU, model REAL_CUGAN/ESRGAN/WAIFU2X, per-series `isEnabledForManga`, factor 1-4) + `UpscaleEngine` (Vulkan/NPU auto-detect, ncnn/onnxruntime backend probe, 200MB LRU webp cache, scale with preset-aware factor, 16MP guard, background/on-demand hook)
 - [x] **Trackers**: Allow "fill metadata from tracker" to manage tags and publication status
   - Expanded `TrackMangaMetadata` with `tags` + `status`; AniList now returns genres/tags + publication status; `EditMangaDialog.autofillFromTracker` merges tags and sets status spinner
 - [x] **Trackers**: Ability to set a tracker as a definitive metadata source
