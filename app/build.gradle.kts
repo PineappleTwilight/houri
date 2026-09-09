@@ -137,17 +137,24 @@ android {
     splits {
         abi {
             isEnable = true
-            isUniversalApk = true
+            // Universal APK packages all 4 ABIs (≈120MB native libs) and, with legacy packaging,
+            // compresses them serially — hangs at 99% for 40m+ (packageMtl/NomtlDebug). Debug
+            // install uses per-ABI splits; release universal is produced via bundle if needed.
+            isUniversalApk = false
             reset()
             include("armeabi-v7a", "arm64-v8a", "x86", "x86_64")
         }
     }
 
     packaging {
+        dex {
+            useLegacyPackaging = false
+        }
         jniLibs {
-            // AGP 8+ incremental splitter can fail on large native libs (imagedecoder + webgpu + yakuyomi)
-            // with DuplicateFileException. Legacy packaging is more robust for universal APK splits.
-            useLegacyPackaging = true
+            // New ApkCreator (incremental) is significantly faster and does not hang.
+            // DuplicateFileException is already handled via excludes/pickFirsts; legacy
+            // packaging is not needed and disables incremental, causing the 42m hang.
+            useLegacyPackaging = false
             keepDebugSymbols += listOf(
                 "libandroidx.graphics.path",
                 "libarchive-jni",
@@ -177,11 +184,13 @@ android {
                 "META-INF/*.kotlin_module",
                 "META-INF/com/android/build/gradle/aar-metadata.properties",
             )
-            // pickFirst for any remaining duplicates (e.g. libc++_shared.so from multiple ABIs)
+            // pickFirst for any remaining duplicates (IncrementalSplitter otherwise fails without legacy mode)
             pickFirsts += setOf(
                 "**/libc++_shared.so",
                 "**/libwebgpu.so",
                 "**/libjxl.so",
+                "**/*.so",
+                "META-INF/**",
             )
         }
     }
