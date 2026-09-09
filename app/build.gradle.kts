@@ -145,6 +145,9 @@ android {
 
     packaging {
         jniLibs {
+            // AGP 8+ incremental splitter can fail on large native libs (imagedecoder + webgpu + yakuyomi)
+            // with DuplicateFileException. Legacy packaging is more robust for universal APK splits.
+            useLegacyPackaging = true
             keepDebugSymbols += listOf(
                 "libandroidx.graphics.path",
                 "libarchive-jni",
@@ -168,6 +171,17 @@ android {
                 "META-INF/LICENSE",
                 "META-INF/NOTICE",
                 "META-INF/README.md",
+                // webgpu + brotli + yuku bring duplicate AL2.0 / LGPL files that trip IncrementalSplitter
+                "META-INF/AL2.0",
+                "META-INF/LGPL2.1",
+                "META-INF/*.kotlin_module",
+                "META-INF/com/android/build/gradle/aar-metadata.properties",
+            )
+            // pickFirst for any remaining duplicates (e.g. libc++_shared.so from multiple ABIs)
+            pickFirsts += setOf(
+                "**/libc++_shared.so",
+                "**/libwebgpu.so",
+                "**/libjxl.so",
             )
         }
     }
