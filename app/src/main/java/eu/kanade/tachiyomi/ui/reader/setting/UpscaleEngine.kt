@@ -6,27 +6,36 @@ import android.graphics.BitmapFactory
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
-import java.io.File
-import java.security.MessageDigest
+import eu.kanade.tachiyomi.BuildConfig
+import exh.yakuyomi.TranslationPreferences
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import tachiyomi.core.common.util.system.logcat
 import logcat.LogPriority
+import tachiyomi.core.common.util.system.logcat
+import java.io.File
+import java.security.MessageDigest
 
 @SingleIn(AppScope::class)
 @Inject
 class UpscaleEngine(
     private val context: Context,
     private val prefs: UpscalePreferences,
+    private val translationPreferences: TranslationPreferences,
 ) {
     private val cacheDir by lazy { File(context.cacheDir, "upscale_cache").apply { mkdirs() } }
     private val maxCacheBytes = 200L * 1024 * 1024
 
     fun isAvailable(): Boolean {
         return try {
-            System.loadLibrary("ncnn") ; true
+            System.loadLibrary("ncnn")
+            true
         } catch (_: Throwable) {
-            try { System.loadLibrary("onnxruntime"); true } catch (_: Throwable) { false }
+            try {
+                System.loadLibrary("onnxruntime")
+                true
+            } catch (_: Throwable) {
+                false
+            }
         }
     }
 
@@ -43,11 +52,16 @@ class UpscaleEngine(
     private fun isVulkanAvailable(): Boolean = try {
         val pm = context.packageManager
         pm.hasSystemFeature("android.hardware.vulkan.version")
-    } catch (_: Throwable) { false }
+    } catch (_: Throwable) {
+        false
+    }
 
     private fun isNpuAvailable(): Boolean = try {
-        Class.forName("ai.onnxruntime.OrtEnvironment"); true
-    } catch (_: Throwable) { false }
+        Class.forName("ai.onnxruntime.OrtEnvironment")
+        true
+    } catch (_: Throwable) {
+        false
+    }
 
     private fun cacheKey(bytes: ByteArray, factor: Float, model: String): String {
         val d = MessageDigest.getInstance("SHA-256").digest(bytes + "$factor|$model".toByteArray())
@@ -67,6 +81,8 @@ class UpscaleEngine(
     }
 
     suspend fun upscaleIfNeeded(mangaId: Long, bytes: ByteArray): ByteArray? = withContext(Dispatchers.Default) {
+        if (BuildConfig.IS_NOMTL) return@withContext null
+        if (!translationPreferences.enabled().get()) return@withContext null
         if (!prefs.isEnabledForManga(mangaId)) return@withContext null
         val factor = prefs.upscaleFactor().get().coerceIn(1f, 4f)
         val model = prefs.effectiveModel().name
@@ -124,8 +140,14 @@ class UpscaleEngine(
     }
 
     fun clearCache() {
-        try { cacheDir.listFiles()?.forEach { it.delete() } } catch (_: Exception) {}
+        try {
+            cacheDir.listFiles()?.forEach { it.delete() }
+        } catch (_: Exception) {}
     }
 
-    fun cacheSizeBytes(): Long = try { cacheDir.listFiles()?.sumOf { it.length() } ?: 0 } catch (_: Exception) { 0 }
+    fun cacheSizeBytes(): Long = try {
+        cacheDir.listFiles()?.sumOf { it.length() } ?: 0
+    } catch (_: Exception) {
+        0
+    }
 }

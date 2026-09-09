@@ -3,12 +3,15 @@ package eu.kanade.tachiyomi.ui.reader.setting
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
+import eu.kanade.tachiyomi.BuildConfig
+import exh.yakuyomi.TranslationPreferences
 import tachiyomi.core.common.preference.PreferenceStore
 
 @SingleIn(AppScope::class)
 @Inject
 class UpscalePreferences(
     private val preferenceStore: PreferenceStore,
+    private val translationPreferences: TranslationPreferences,
 ) {
     enum class Preset { FAST, BALANCED, HIGH }
     enum class Backend { AUTO, VULKAN, NPU, CPU }
@@ -22,7 +25,11 @@ class UpscalePreferences(
     fun cacheEnabled() = preferenceStore.getBoolean("pref_upscale_cache_enabled", true)
     fun upscaleFactor() = preferenceStore.getFloat("pref_upscale_factor", 2f)
 
+    fun isMtlEnabled(): Boolean = !BuildConfig.IS_NOMTL && translationPreferences.enabled().get()
+
     fun isEnabledForManga(mangaId: Long): Boolean {
+        if (BuildConfig.IS_NOMTL) return false
+        if (!translationPreferences.enabled().get()) return false
         if (!enabled().get()) return false
         val perSeries = perSeriesEnabled().get()
         if (perSeries.isBlank()) return true
