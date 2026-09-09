@@ -300,8 +300,14 @@
 - [x] **Library**: Change default AST-style searching preference to enabled
 - [x] **Library Search**: Truncate text if too long and no results found (search input is displayed in the middle of the screen and is not truncated)
 - [ ] **WebGPU**: Fix double-page scaling issues (hopefully for the last time)
+  - We now have access to the native module, so hopefully we can fix this for good one way or another
+- [ ] **WebGPU**: Fix extremely tiny pages on e-ink devices after the device sleeps or otherwise hibernates
+  - We now have access to the native module, so hopefully we can fix this for good one way or another
 - [ ] **Image Decoder**: Add JPG-XL support (jxl)
 - [ ] **WebGPU Reader**: Fix/improve reading position tracking
+- [ ] **External Module**: Heavily harden and improve the logic of the webgpu-houri native module (and also add useful features and patches).
+- [ ] **External Module**: Heavily harden and improve the logic of the imagedecoder-houri native module (and also add useful features and patches).
+-
 
 ## Chores
 - [x] Replace all Komikku icons/branding with houri icons/branding
