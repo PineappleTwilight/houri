@@ -10,6 +10,10 @@ import tachiyomi.core.common.preference.PreferenceStore
 class AchievementPreferences(
     private val preferenceStore: PreferenceStore,
 ) {
+    fun achievementsEnabled() = preferenceStore.getBoolean("pref_achievements_enabled", true)
+    fun achievementToastsEnabled() = preferenceStore.getBoolean("pref_achievement_toasts_enabled", true)
+    fun achievementSoundsEnabled() = preferenceStore.getBoolean("pref_achievement_sounds_enabled", true)
+
     fun unlockedAchievements() = preferenceStore.getString("pref_unlocked_achievements", "")
     fun organicChaptersRead() = preferenceStore.getLong("pref_organic_chapters_read", 0)
     fun mangaFinishedCount() = preferenceStore.getLong("pref_achievement_manga_finished", 0)

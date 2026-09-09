@@ -319,7 +319,10 @@
   - Kotlin-side hardening complete; native module uses deterministic height-match and OOM guards; further native patches tracked in `external/webgpu-houri`
 - [x] **External Module**: Heavily harden and improve the logic of the imagedecoder-houri native module (and also add useful features and patches).
   - Kotlin `ImageDecoder` hardened with Cleaner + AtomicLong double-free guard, synchronized decode, format normalization; native `libvips+jxl+heif` already enabled
--
+- [ ] **Manga Details**: Tapping on a tag then on search doesn't actually search and just sends you back to the main page of the extension
+- [ ] **App**: Panel switch flickering (library -> settings, setting -> extensions, etc)
+- [ ] **WebGPU Reader**: Blank screen if the manga page is in JXL format
+- [ ] **
 
 ## Chores
 - [x] Replace all Komikku icons/branding with houri icons/branding

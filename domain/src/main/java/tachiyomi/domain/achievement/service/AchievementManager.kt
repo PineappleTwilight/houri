@@ -3,31 +3,36 @@ package tachiyomi.domain.achievement.service
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
-import tachiyomi.domain.achievement.model.Achievements
 import tachiyomi.domain.achievement.model.AchievementStats
+import tachiyomi.domain.achievement.model.Achievements
 
 @SingleIn(AppScope::class)
 @Inject
 class AchievementManager(
     private val prefs: AchievementPreferences,
+    private val notifier: AchievementUnlockNotifier? = null,
 ) {
     fun onOrganicChapterRead(totalRead: Long): List<String> {
+        if (!prefs.achievementsEnabled().get()) return emptyList()
         prefs.incrementOrganicRead()
         val count = prefs.organicChaptersRead().get()
-        return checkThresholds(count)
+        val r = checkThresholds(count)
+        notifyIfNeeded(r); return r
     }
 
     fun onMangaFinished(): List<String> {
+        if (!prefs.achievementsEnabled().get()) return emptyList()
         prefs.incrementMangaFinished()
         val count = prefs.mangaFinishedCount().get()
         val unlocked = mutableListOf<String>()
         if (count >= 1) tryUnlock("first_manga_finished", unlocked)
         if (count >= 5) tryUnlock("five_manga_finished", unlocked)
         if (count >= 10) tryUnlock("ten_manga_finished", unlocked)
-        return unlocked
+        notifyIfNeeded(unlocked); return unlocked
     }
 
     fun onLibraryCountChanged(count: Long): List<String> {
+        if (!prefs.achievementsEnabled().get()) return emptyList()
         prefs.setLibraryCount(count)
         val unlocked = mutableListOf<String>()
         if (count >= 5) tryUnlock("library_5", unlocked)
@@ -35,28 +40,31 @@ class AchievementManager(
         if (count >= 50) tryUnlock("library_50", unlocked)
         if (count >= 100) tryUnlock("library_100", unlocked)
         if (count >= 250) tryUnlock("library_250", unlocked)
-        return unlocked
+        notifyIfNeeded(unlocked); return unlocked
     }
 
     fun onTrackerConnected(totalTrackers: Int): List<String> {
+        if (!prefs.achievementsEnabled().get()) return emptyList()
         val unlocked = mutableListOf<String>()
         if (totalTrackers >= 1) tryUnlock("tracker_connected", unlocked)
         if (totalTrackers >= 3) tryUnlock("tracker_three", unlocked)
-        return unlocked
+        notifyIfNeeded(unlocked); return unlocked
     }
 
     fun onReread(count: Int = 1): List<String> {
+        if (!prefs.achievementsEnabled().get()) return emptyList()
         val unlocked = mutableListOf<String>()
         tryUnlock("rereader", unlocked)
         if (count >= 5) tryUnlock("reread_five", unlocked)
-        return unlocked
+        notifyIfNeeded(unlocked); return unlocked
     }
 
     fun onTranslated(count: Long): List<String> {
+        if (!prefs.achievementsEnabled().get()) return emptyList()
         val unlocked = mutableListOf<String>()
         if (count >= 1) tryUnlock("translator", unlocked)
         if (count >= 10) tryUnlock("translator_ten", unlocked)
-        return unlocked
+        notifyIfNeeded(unlocked); return unlocked
     }
 
     private fun checkThresholds(count: Long): List<String> {
@@ -73,7 +81,12 @@ class AchievementManager(
     }
 
     private fun tryUnlock(id: String, out: MutableList<String>) {
+        if (!prefs.achievementsEnabled().get()) return
         if (prefs.unlock(id)) out.add(id)
+    }
+
+    private fun notifyIfNeeded(unlocked: List<String>) {
+        if (unlocked.isNotEmpty()) notifier?.onUnlocked(unlocked)
     }
 
     fun getStats(): AchievementStats = prefs.computeStats(Achievements.all.size)

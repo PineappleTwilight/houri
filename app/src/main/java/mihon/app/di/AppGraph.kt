@@ -290,6 +290,10 @@ interface AppGraph : ViewModelGraph {
     val mangaRepository: MangaRepository
     val preferenceStore: PreferenceStore
     val backupRestoreStatus: BackupRestoreStatus
+    val achievementPreferences: tachiyomi.domain.achievement.service.AchievementPreferences
+    val achievementManager: tachiyomi.domain.achievement.service.AchievementManager
+    val achievementSoundPlayer: eu.kanade.tachiyomi.data.achievement.AchievementSoundPlayer
+    val achievementNotifier: eu.kanade.tachiyomi.data.achievement.AchievementNotifier
     // KMK <--
 
     // Domain
@@ -479,6 +483,9 @@ interface AppGraph : ViewModelGraph {
             }
         }.getOrNull()
     }
+
+    @Provides
+    fun provideAchievementUnlockNotifier(notifier: eu.kanade.tachiyomi.data.achievement.AchievementNotifier): tachiyomi.domain.achievement.service.AchievementUnlockNotifier = notifier
     // KMK <--
 
     @DependencyGraph.Factory

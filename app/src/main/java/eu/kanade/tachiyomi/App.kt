@@ -187,6 +187,9 @@ class App : Application(), DefaultLifecycleObserver, SingletonImageLoader.Factor
                     .onFailure { xLogE("Failed to auto-start local LLM engine", it) }
             }
         }
+        // Start achievement unlock notifier (toasts + tier chimes)
+        runCatching { globalAppGraph.achievementNotifier.start() }
+            .onFailure { xLogE("Failed to start achievement notifier", it) }
         // KMK <--
         // MetroInteropModule bridges Metro singletons to Injekt for extension backwards compat;
         // must be imported AFTER graph.inject() so Metro graph is built
