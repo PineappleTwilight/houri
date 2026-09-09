@@ -301,7 +301,7 @@
 - [x] **Library Search**: Truncate text if too long and no results found (search input is displayed in the middle of the screen and is not truncated)
 - [ ] **WebGPU**: Fix double-page scaling issues (hopefully for the last time)
 - [ ] **Image Decoder**: Add JPG-XL support (jxl)
-- [ ] **WebGPU Reader**: Fix reading position tracking
+- [ ] **WebGPU Reader**: Fix/improve reading position tracking
 
 ## Chores
 - [x] Replace all Komikku icons/branding with houri icons/branding
