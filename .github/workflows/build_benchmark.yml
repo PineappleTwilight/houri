@@ -19,7 +19,6 @@ permissions:
 jobs:
   prepare-build:
     runs-on: 'ubuntu-24.04'
-    timeout-minutes: 15
     outputs:
       VERSION_TAG: ${{ steps.get_tag.outputs.VERSION_TAG }}
       ARTIFACTS_PREFIX: mtl/benchmark/app-mtl
@@ -60,7 +59,6 @@ jobs:
   build-app:
     runs-on: 'ubuntu-24.04'
     needs: prepare-build
-    timeout-minutes: 90
     steps:
       - name: Clone Repository (${{ needs.prepare-build.outputs.TAG_NAME }})
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -76,27 +74,61 @@ jobs:
           java-version-file: .github/.java-version
           distribution: temurin
 
+      - name: Cache apt packages
+        uses: actions/cache@v4
+        with:
+          path: /var/cache/apt/archives
+          key: ${{ runner.os }}-apt-${{ hashFiles('.github/workflows/build_benchmark.yml') }}
+          restore-keys: |
+            ${{ runner.os }}-apt-
+
       - name: Install native build dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential autoconf automake libtool pkg-config meson ninja-build cmake python3 python3-pip nasm gperf libltdl-dev libglib2.0-dev texinfo
+          sudo apt-get install -y build-essential autoconf automake libtool pkg-config meson ninja-build cmake python3 python3-pip nasm gperf libltdl-dev libglib2.0-dev texinfo ccache
           cmake --version
           meson --version
           ninja --version
           pkg-config --version
           nasm --version
+          ccache --version
+
+      - name: Setup ccache
+        uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          key: ${{ runner.os }}-ccache-${{ hashFiles('external/imagedecoder-houri/library/src/main/cpp/**', 'gradle/libs.versions.toml') }}
+          max-size: 2G
+          verbose: 1
+
+      - name: Cache native build
+        uses: actions/cache@v4
+        with:
+          path: |
+            external/imagedecoder-houri/library/.cxx
+            ~/.ccache
+          key: ${{ runner.os }}-native-${{ hashFiles('external/imagedecoder-houri/library/src/main/cpp/CMakeLists.txt', 'external/imagedecoder-houri/library/src/main/cpp/cmake/**', 'gradle/libs.versions.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-native-
 
       - name: Set up gradle
         uses: gradle/actions/setup-gradle@3f131e8634966bd73d06cc69884922b02e6faf92 # v6
+        with:
+          cache-encryption-key: ${{ secrets.GRADLE_ENCRYPTION_KEY }}
+          cache-cleanup: on-success
+          addJobSummary: onFailure
 
       - name: Check code format
-        run: ./gradlew spotlessCheck
+        run: ./gradlew spotlessCheck --build-cache
 
       - name: Build app
-        run: ./gradlew assembleMtlBenchmark
+        run: ./gradlew assembleMtlBenchmark --build-cache --parallel
+        env:
+          CCACHE_DIR: /home/runner/.ccache
+          CMAKE_C_COMPILER_LAUNCHER: ccache
+          CMAKE_CXX_COMPILER_LAUNCHER: ccache
 
       - name: Run unit tests
-        run: ./gradlew testDebugUnitTest
+        run: ./gradlew testDebugUnitTest --build-cache --parallel
 
       - name: Sign APK
         uses: r0adkll/sign-android-release@f30bdd30588842ac76044ecdbd4b6d0e3e813478
