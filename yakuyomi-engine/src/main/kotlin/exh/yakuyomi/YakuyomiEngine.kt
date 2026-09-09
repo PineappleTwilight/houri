@@ -112,7 +112,7 @@ class YakuyomiEngine(
         ) {
             return null
         }
-        if (set.ocr != null && !File(set.ocr).let { it.isFile && it.length() > 1_000_000L }) {
+        if (!File(set.ocr).let { it.isFile && it.length() > 1_000_000L }) {
             logcat { "Model missing ocr ${set.ocr}" }
             return null
         }

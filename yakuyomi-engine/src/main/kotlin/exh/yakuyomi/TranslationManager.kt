@@ -520,15 +520,16 @@ class TranslationManager(
             }
             // KMK <--
 
+            val currentBitmap = bitmap ?: return null
             val result = try {
-                kotlinx.coroutines.withTimeout(90_000) { engine.translatePage(bitmap!!, translator, targetLang) }
+                kotlinx.coroutines.withTimeout(90_000) { engine.translatePage(currentBitmap, translator, targetLang) }
             } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
                 status.pageError(mangaId, chapterId, pageIndex, friendlyError("Translation timed out"))
-                runCatching { bitmap?.recycle() }
+                runCatching { currentBitmap.recycle() }
                 bitmap = null
                 return null
             }
-            runCatching { bitmap?.recycle() }
+            runCatching { currentBitmap.recycle() }
             bitmap = null
             when (result) {
                 is PageResult.Translated -> {

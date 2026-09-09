@@ -61,6 +61,17 @@ kotlin {
                 implementation(project.dependencies.platform(kotlinx.coroutines.bom))
             }
         }
+        // Fix: connect unused commonTest to androidUnitTest to silence
+        // "commonTest was configured but not added to any Kotlin compilation" warning
+        // Use maybeCreate semantics — androidUnitTest may not exist yet when using
+        // `com.android.kotlin.multiplatform.library` (name is androidHostTest in some
+        // KMP versions). Create it if absent.
+        val commonTest by getting
+        // The Android KMP plugin creates `androidUnitTest` lazily; using the
+        // `androidUnitTest {}` accessor creates it if missing (unlike `by getting`).
+        androidUnitTest {
+            dependsOn(commonTest)
+        }
     }
 
     @OptIn(ExperimentalKotlinGradlePluginApi::class)

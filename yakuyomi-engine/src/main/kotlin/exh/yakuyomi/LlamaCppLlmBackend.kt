@@ -28,7 +28,7 @@ class LlamaCppLlmBackend private constructor(
 
     override val backendType: LocalLlmBackendType = LocalLlmBackendType.LLAMACPP
 
-    private val lock = Object()
+    private val lock = Any()
     private val textReady = AtomicBoolean(false)
     private val visionReady = AtomicBoolean(false)
 
@@ -156,14 +156,14 @@ class LlamaCppLlmBackend private constructor(
             imageBytes,
             prompt,
             object : GenStream {
-                override fun onDelta(token: String) {
-                    sb.append(token)
+                override fun onDelta(text: String) {
+                    sb.append(text)
                 }
 
                 override fun onComplete() = Unit
 
-                override fun onError(error: String) {
-                    failed = error
+                override fun onError(message: String) {
+                    failed = message
                 }
             },
         )
