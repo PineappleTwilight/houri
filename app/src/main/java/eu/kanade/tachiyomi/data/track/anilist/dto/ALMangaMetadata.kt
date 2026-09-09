@@ -21,4 +21,14 @@ data class ALMangaMetadataMedia(
     val coverImage: ItemCover,
     val description: String?,
     val staff: ALStaff,
+    // KMK -->
+    val genres: List<String>? = null,
+    val tags: List<ALTag>? = null,
+    val status: String? = null,
+    // KMK <--
+)
+
+@Serializable
+data class ALTag(
+    val name: String,
 )

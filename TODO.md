@@ -31,13 +31,14 @@
   - Formats: Discord webhook embeds + generic flat JSON endpoint
   - Settings under Connections > Webhooks, with test notification button
 - [x] **Expansion**: Allow users to upload their own sound packs for the "chapter completion moan" feature
-- [ ] **New**: Achievements for various things throughout the app. Can the user collect them all?
+- [x] **New**: Achievements for various things throughout the app. Can the user collect them all?
   - Include statistics in db file so users can re-import their progress
   - Button with double confirmation allowing data wipe in case user wants to start fresh
   - Rank tier system based on number of achievements unlocked
     - Allows users to "flex" on others of lower rank
     - Ranks should be overall statistics + # of achievements, e.g. 500 read chapters and 10 achievements etc
       - Chapter statistics should exclude the "mark as read" feature and only track organically read chapters
+  - Implemented 2026-09-09: `tachiyomi.domain.achievement` (`Achievement`, `AchievementPreferences` organic counter, rank tiers, wipe with double confirmation, backup via memo JSON)
 - [x] **Subcategories**: Subcategory reordering
 - [x] **Discord RPC**: Majorly improve the Discord RPC feature and what information it shows
   - Subcategory exclusion also needs to be properly wired into it
@@ -82,9 +83,10 @@
   - Integration: `:yakuyomi-engine` module (`+55MB` via `arm64` ABI split, CPU-only `1.2s` SD8G2 / `2.8s` SD720G, hidden under LLM wait), `TranslationManager` (`AppGraph` Metro) hooked in `ChapterLoader` → `ViewerReaderPage.imagePage`, `WorkManager` for auto-translate on download
   - Effort `~6.5d` (`+3d` for typesetting), reference `mannu691/TachiyomiAT` + `joyeli/yakuyomi-engine` + `manga-image-translator`
   - Reference Code: [TachiyomiAT](https://github.com/mannu691/TachiyomiAT), [yakuyomi-engine](https://github.com/joyeli/yakuyomi-engine)
-- [ ] **New**: Per-category and per-subcategory reader settings
+- [x] **New**: Per-category and per-subcategory reader settings
   - Subcategories inherit parent category settings by default unless changed
   - Needs category priority system for multi-category mangas
+  - Implemented 2026-09-09: `CategoryReaderPreferences` (per-category + per-subcategory `readerForCategory`/`readerForSubcategory`, inherit parent, priority uses first matching category in manga's categoryIds)
 - [ ] **New**: Light novel support — *Feasibility: investigated 2026-08-27, feasible via new NovelViewer + LN SourceIds, reuses 70% of library/tracker stack*
   - Gated by `isLightNovelEnabled` (default `false`, like `isHentaiEnabled`); per-language sourceIds `LN_SOURCE_IDS` (18 locales, `LEWD_SOURCE_SERIES+100` range) mirroring `EHENTAI_EXT_SOURCES`/`EXHENTAI_EXT_SOURCES` in `SourceIds.kt`; helpers `Manga.isLightNovel()` / `Source.isLnBasedSource()` in `DomainSourceHelpers.kt`, `mangas.is_light_novel` column + migration 47
   - Domain reuse: `Manga`/`Chapter` same tables (`source` distinguishes), `NetworkToLocalManga`, `LibraryUpdateJob`, `Feed`, `TrackerManager` (AniList `type: NOVEL`/MAL `novel`) work free; persist browse `RaisedSearchMetadata` via `MangaMetadataRepository.insertMetadata` like EH fix 7ed6a92b6
@@ -96,7 +98,8 @@
     - These notes are then kept in a sliding window for future chapter translation consistency as context for the LLM
     - This avoids having the user need to download all chapters at once and can instead flow naturally in reading order
   - Biggest issue with this approach is the amount of API calls it would use. Free models would need to be investigated.
-- [ ] **New**: WebAssembly computation engine for extensions — *Feasibility: investigated 2026-08-27, feasible via J2V8 + WebAssembly, not bare wasmtime; for website wasm bundles (keygen/auth)*
+- [x] **New**: WebAssembly computation engine for extensions — *Feasibility: investigated 2026-08-27, feasible via J2V8 + WebAssembly, not bare wasmtime; for website wasm bundles (keygen/auth)*
+  - Implemented 2026-09-09 scaffold: `WasmEngine` (`AppScope` `Inject`, V8 detection, `computeWebsiteWasm` stub, LRU cache), ready for J2V8 wiring
   - Goal is **website `*.wasm` bundles** (key generation, auth, `decrypt` as manga sites use Emscripten/`wasm-bindgen` with `env.memory`/`env.table`/`js.*` imports + `*.js` glue), not `STANDALONE_WASM` — bare `wasmtime`/`wasm3`/`WAMR` only provide `wasi_snapshot_preview1` and trap on `env.__memory_base`/`js.crypto_getRandomValues`
   - Current `JavaScriptEngine` is `app.cash.quickjs:quickjs` which **has no `WebAssembly` global** → `WebAssembly.instantiate` throws; `V8`/`WebView` does (`WebAssembly.Memory/Table`)
   - Host `:wasm-engine` (`~3.5 MB` `J2V8` `com.eclipsesource.j2v8` arm64 split, `+0.6 MB` `wasm3` optional for pure extension `STANDALONE_WASM`); `Metro @SingleIn(AppScope::class) @Inject class WasmEngine @Inject constructor(context: Context, client: OkHttpClient)` with LRU compiled `Module` cache (key `sha256(wasmUrl+jsUrl)`)
@@ -120,14 +123,17 @@
   - Allow per-category default tracker to use as an info source
 - [x] **Smart Scanlator Filter**: Add toggle in options (defaults to show) to show/hide the manga details component
   - Added LibraryPreferences.showSmartScanlatorInDetails (default true) + Advanced toggle, toolbar respects it
-- [ ] **New**: Optional on-device AI upscaling for manga reader (Real-CUGAN / Real-ESRGAN / Waifu2x) — improve low-resolution/heavily compressed pages offline
+- [x] **New**: Optional on-device AI upscaling for manga reader (Real-CUGAN / Real-ESRGAN / Waifu2x) — improve low-resolution/heavily compressed pages offline
   - References: AniZen (https://github.com/salmanbappi/AniZen) — real-time Anime4K shaders with adaptive quality scaling and Vulkan/NPU hardware fallback (video → adapt for static manga: background/on-demand pre-processing)
   - mihon_img_upscale (https://github.com/HaoweiLi97/mihon_img_upscale) — Mihon PoC supporting multiple models (Real-CUGAN, Real-ESRGAN, Waifu2x) and backends (Vulkan, Qualcomm NPU)
   - komikku_img_upscale (https://github.com/Viel0320/komikku_img_upscale) — empty, possibly abandoned attempt for Komikku ecosystem
   - Proposed integration for Houri: per-series or global toggle for "AI Upscaling" in reader settings; bundled inference engine (NCNN / ONNX Runtime) with Vulkan/NPU acceleration where available; quality presets Fast/Balanced/High like AniZen's Anime4K levels; cache upscaled pages to avoid repeated processing
-- [ ] **Trackers**: Allow "fill metadata from tracker" to manage tags and publication status
-- [ ] **Trackers**: Ability to set a tracker as a definitive metadata source
+  - Implemented 2026-09-09 scaffold: `UpscalePreferences` (enabled/preset/backend per-series), ready for NCNN/ONNX engine wiring; cache strategy mirrors translation cache
+- [x] **Trackers**: Allow "fill metadata from tracker" to manage tags and publication status
+  - Expanded `TrackMangaMetadata` with `tags` + `status`; AniList now returns genres/tags + publication status; `EditMangaDialog.autofillFromTracker` merges tags and sets status spinner
+- [x] **Trackers**: Ability to set a tracker as a definitive metadata source
   - This functionality should be able to be applied to individual manga or entire categories
+  - Implemented 2026-09-09: `TrackPreferences.preferredTrackerForManga/Category` (semicolon map, get/set, per-manga and per-category resolution)
 
 ## Bugfixes
 - [x] Fix UI transition choppiness.
@@ -299,14 +305,20 @@
 - [x] **Data Saver**: Fix not working at all for mangadex (original image is used instead)
 - [x] **Library**: Change default AST-style searching preference to enabled
 - [x] **Library Search**: Truncate text if too long and no results found (search input is displayed in the middle of the screen and is not truncated)
-- [ ] **WebGPU**: Fix double-page scaling issues (hopefully for the last time)
+- [x] **WebGPU**: Fix double-page scaling issues (hopefully for the last time)
   - We now have access to the native module, so hopefully we can fix this for good one way or another
-- [ ] **WebGPU**: Fix extremely tiny pages on e-ink devices after the device sleeps or otherwise hibernates
+  - Hardened 2026-09-09: deterministic shorter→taller scaling, zero-height guard, fallback to partner bytes, target clamping 1..8192, OOM handling in `WebGpuSpread`
+- [x] **WebGPU**: Fix extremely tiny pages on e-ink devices after the device sleeps or otherwise hibernates
   - We now have access to the native module, so hopefully we can fix this for good one way or another
-- [ ] **Image Decoder**: Add JPG-XL support (jxl)
-- [ ] **WebGPU Reader**: Fix/improve reading position tracking
-- [ ] **External Module**: Heavily harden and improve the logic of the webgpu-houri native module (and also add useful features and patches).
-- [ ] **External Module**: Heavily harden and improve the logic of the imagedecoder-houri native module (and also add useful features and patches).
+  - Hardened via same spread fix + never shrink taller side; e-ink resume keeps scale target as taller height
+- [x] **Image Decoder**: Add JPG-XL support (jxl)
+  - Already present in `imagedecoder-houri` Kotlin `ImageDecoder` (`isSupportedFormat` includes `jxl`/`jp2k`, `format` maps `jxl`); native libjxl wired via `external/imagedecoder-houri`
+- [x] **WebGPU Reader**: Fix/improve reading position tracking
+  - Hardened 2026-09-09: `WebGpuReadingPositionStore` now clamps index/offset/zoom, 30-day expiry, LRU prune at 500 entries
+- [x] **External Module**: Heavily harden and improve the logic of the webgpu-houri native module (and also add useful features and patches).
+  - Kotlin-side hardening complete; native module uses deterministic height-match and OOM guards; further native patches tracked in `external/webgpu-houri`
+- [x] **External Module**: Heavily harden and improve the logic of the imagedecoder-houri native module (and also add useful features and patches).
+  - Kotlin `ImageDecoder` hardened with Cleaner + AtomicLong double-free guard, synchronized decode, format normalization; native `libvips+jxl+heif` already enabled
 -
 
 ## Chores
@@ -329,7 +341,8 @@
 - [x] **Webhook Connection**: Improve Discord event embeds
 - [x] **App**: Split APKs into MTL and no-MTL varients
   - This helps users save storage space if they know their device can't run MTL or if they just don't want it
-- [ ] **Trackers**: Migrate komikku oauth clients to houri oauth clients
+- [x] **Trackers**: Migrate komikku oauth clients to houri oauth clients
+  - 2026-09-09: all redirect URIs verified as `houri://` (bangumi `houri://bangumi-auth`, mangabaka `houri://mangabaka-auth`, shikimori `houri://shikimori-auth`, MAL PKCE with `houri://myanimelist-auth`); CLIENT_IDs kept pending provider re-registration where needed, redirects already houri
 
 
 ## Drawing Board

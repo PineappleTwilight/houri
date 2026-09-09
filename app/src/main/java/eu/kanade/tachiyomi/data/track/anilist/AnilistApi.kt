@@ -402,6 +402,9 @@ class AnilistApi(val client: OkHttpClient, interceptor: AnilistInterceptor) {
                         |large
                     |}
                     |description
+                    |status
+                    |genres
+                    |tags { name }
                     |staff {
                         |edges {
                             |role
@@ -453,6 +456,17 @@ class AnilistApi(val client: OkHttpClient, interceptor: AnilistInterceptor) {
                                 .mapNotNull { it.node.name() }
                                 .joinToString(", ")
                                 .ifEmpty { null },
+                            // KMK -->
+                            tags = (media.genres.orEmpty() + media.tags.orEmpty().map { it.name }).distinct().ifEmpty { null },
+                            status = when (media.status) {
+                                "FINISHED" -> eu.kanade.tachiyomi.source.model.SManga.COMPLETED.toLong()
+                                "RELEASING" -> eu.kanade.tachiyomi.source.model.SManga.ONGOING.toLong()
+                                "NOT_YET_RELEASED" -> eu.kanade.tachiyomi.source.model.SManga.PUBLISHING_FINISHED.toLong()
+                                "CANCELLED" -> eu.kanade.tachiyomi.source.model.SManga.CANCELLED.toLong()
+                                "HIATUS" -> eu.kanade.tachiyomi.source.model.SManga.ON_HIATUS.toLong()
+                                else -> null
+                            },
+                            // KMK <--
                         )
                     }
             }

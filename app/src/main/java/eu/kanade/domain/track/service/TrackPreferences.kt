@@ -61,5 +61,57 @@ class TrackPreferences(
 
     // KMK -->
     fun autoSyncProgressFromTrackers() = preferenceStore.getBoolean("pref_auto_sync_progress_from_trackers_key", true)
+
+    fun preferredTrackerForManga() = preferenceStore.getString("pref_preferred_tracker_for_manga", "")
+
+    fun preferredTrackerForCategory() = preferenceStore.getString("pref_preferred_tracker_for_category", "")
+
+    fun getPreferredTrackerForManga(mangaId: Long): Long? {
+        val raw = preferredTrackerForManga().get()
+        if (raw.isBlank()) return null
+        return try {
+            val map = raw.split(";").associate {
+                val (k, v) = it.split(":", limit = 2)
+                k.toLong() to v.toLong()
+            }
+            map[mangaId]
+        } catch (_: Exception) { null }
+    }
+
+    fun setPreferredTrackerForManga(mangaId: Long, trackerId: Long?) {
+        val raw = preferredTrackerForManga().get()
+        val map = try {
+            if (raw.isBlank()) mutableMapOf<Long, Long>() else raw.split(";").associate {
+                val (k, v) = it.split(":", limit = 2)
+                k.toLong() to v.toLong()
+            }.toMutableMap()
+        } catch (_: Exception) { mutableMapOf() }
+        if (trackerId == null) map.remove(mangaId) else map[mangaId] = trackerId
+        preferredTrackerForManga().set(map.entries.joinToString(";") { "${it.key}:${it.value}" })
+    }
+
+    fun getPreferredTrackerForCategory(categoryId: Long): Long? {
+        val raw = preferredTrackerForCategory().get()
+        if (raw.isBlank()) return null
+        return try {
+            val map = raw.split(";").associate {
+                val (k, v) = it.split(":", limit = 2)
+                k.toLong() to v.toLong()
+            }
+            map[categoryId]
+        } catch (_: Exception) { null }
+    }
+
+    fun setPreferredTrackerForCategory(categoryId: Long, trackerId: Long?) {
+        val raw = preferredTrackerForCategory().get()
+        val map = try {
+            if (raw.isBlank()) mutableMapOf<Long, Long>() else raw.split(";").associate {
+                val (k, v) = it.split(":", limit = 2)
+                k.toLong() to v.toLong()
+            }.toMutableMap()
+        } catch (_: Exception) { mutableMapOf() }
+        if (trackerId == null) map.remove(categoryId) else map[categoryId] = trackerId
+        preferredTrackerForCategory().set(map.entries.joinToString(";") { "${it.key}:${it.value}" })
+    }
     // KMK <--
 }

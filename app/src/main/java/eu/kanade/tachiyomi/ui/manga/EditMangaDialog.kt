@@ -425,6 +425,47 @@ private suspend fun autofillFromTracker(binding: EditMangaDialogBinding, track: 
         setTextIfNotBlank(binding.mangaArtist::setText, trackerMangaMetadata.artists)
         setTextIfNotBlank(binding.thumbnailUrl::setText, trackerMangaMetadata.thumbnailUrl)
         setTextIfNotBlank(binding.mangaDescription::setText, trackerMangaMetadata.description)
+        // KMK -->
+        trackerMangaMetadata.tags?.takeIf { it.isNotEmpty() }?.let { tags ->
+            try {
+                val existing = binding.mangaGenresTags.getTextStrings()
+                val merged = (existing + tags).distinct()
+                binding.mangaGenresTags.post {
+                    try {
+                        val context = binding.root.context
+                        binding.mangaGenresTags.removeAllViews()
+                        merged.forEach { tag ->
+                            val chip = com.google.android.material.chip.Chip(context).apply {
+                                text = tag
+                                isCloseIconVisible = true
+                                setOnCloseIconClickListener { binding.mangaGenresTags.removeView(this) }
+                            }
+                            binding.mangaGenresTags.addView(chip)
+                        }
+                        val addChip = com.google.android.material.chip.Chip(context).apply {
+                            text = tachiyomi.i18n.sy.SYMR.strings.add_tags.getString(context)
+                            isCloseIconVisible = false
+                        }
+                        binding.mangaGenresTags.addView(addChip)
+                    } catch (_: Throwable) {}
+                }
+            } catch (_: Throwable) {}
+        }
+        trackerMangaMetadata.status?.let { status ->
+            binding.status.post {
+                val idx = when (status.toInt()) {
+                    SManga.ONGOING -> 1
+                    SManga.COMPLETED -> 2
+                    SManga.LICENSED -> 3
+                    SManga.PUBLISHING_FINISHED -> 4
+                    SManga.CANCELLED -> 5
+                    SManga.ON_HIATUS -> 6
+                    else -> 0
+                }
+                if (idx != 0) binding.status.setSelection(idx)
+            }
+        }
+        // KMK <--
     } catch (e: Throwable) {
         tracker.logcat(LogPriority.ERROR, e)
         binding.root.context.toast(

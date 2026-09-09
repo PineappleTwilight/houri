@@ -9,8 +9,12 @@ class WebGpuReadingPositionStore(
 
     fun save(chapterId: Long, pageIndex: Int, offsetRatio: Float = 0f, zoom: Float = 1f) {
         try {
-            val v = "${pageIndex.coerceAtLeast(0)}|${offsetRatio.coerceAtLeast(0f)}|${zoom.coerceAtLeast(1f)}|${System.currentTimeMillis()}"
+            val safeIndex = pageIndex.coerceAtLeast(0).coerceAtMost(9999)
+            val safeOffset = offsetRatio.coerceIn(0f, 1f)
+            val safeZoom = zoom.coerceIn(0.5f, 8f)
+            val v = "$safeIndex|$safeOffset|$safeZoom|${System.currentTimeMillis()}"
             prefs.edit().putString(key(chapterId), v).apply()
+            pruneIfNeeded()
         } catch (_: Exception) {}
     }
 
@@ -19,7 +23,14 @@ class WebGpuReadingPositionStore(
             val raw = prefs.getString(key(chapterId), null) ?: return null
             val p = raw.split("|")
             if (p.size < 3) return null
-            PositionData(p[0].toInt(), p[1].toFloat(), p[2].toFloat())
+            val idx = p[0].toInt().coerceAtLeast(0)
+            val off = p[1].toFloat().coerceIn(0f, 1f)
+            val zom = p[2].toFloat().coerceIn(0.5f, 8f)
+            if (p.size >= 4) {
+                val ts = p[3].toLongOrNull() ?: 0L
+                if (System.currentTimeMillis() - ts > 30L * 24 * 60 * 60 * 1000) return null
+            }
+            PositionData(idx, off, zom)
         } catch (_: Exception) {
             null
         }
@@ -28,6 +39,17 @@ class WebGpuReadingPositionStore(
     fun clear(chapterId: Long) {
         try {
             prefs.edit().remove(key(chapterId)).apply()
+        } catch (_: Exception) {}
+    }
+
+    private fun pruneIfNeeded() {
+        try {
+            if (prefs.all.size > 500) {
+                val oldest = prefs.all.entries.sortedBy { (it.value as? String)?.substringAfterLast("|")?.toLongOrNull() ?: 0L }.take(100)
+                val ed = prefs.edit()
+                oldest.forEach { ed.remove(it.key) }
+                ed.apply()
+            }
         } catch (_: Exception) {}
     }
 
