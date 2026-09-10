@@ -337,7 +337,9 @@ class LibraryScreenModel(
                     .let { map ->
                         val achievementsEnabled = try {
                             mihon.app.di.globalAppGraph.achievementPreferences.achievementsEnabled().get()
-                        } catch (_: Exception) { true }
+                        } catch (_: Exception) {
+                            true
+                        }
                         if (achievementsEnabled) {
                             val achCategory = Category(
                                 Companion.ACHIEVEMENTS_CATEGORY_ID,
@@ -348,8 +350,12 @@ class LibraryScreenModel(
                             )
                             if (map.none { it.key.id == achCategory.id }) {
                                 map + (achCategory to emptyList())
-                            } else map
-                        } else map
+                            } else {
+                                map
+                            }
+                        } else {
+                            map
+                        }
                     }
                     // KMK -->
                     .let { it to subcategoryMangaMap }
