@@ -156,6 +156,8 @@
   - Implemented 2026-09-10: `AchievementProgress` (threshold map + `progressFor`/`labelFor`/`hasProgress`, `currentFor` per prefs) + `LinearProgressIndicator` + `X/Y` label in both `AchievementsContent` + `SettingsAchievementsScreen` (shows `2/10` etc, hidden when unlocked or no threshold)
 - [x] **Achievements**: Add achievements for "catching up" with manga
   - Implemented 2026-09-10: already had 5 `*_caught_up` achievements (1/5/10/20/50) + `prefs.mangaCaughtUpCount` + `manager.onMangaCaughtUp` + `ReaderViewModel` permanent-status branch (`onMangaCaughtUp` for ongoing, `onMangaFinished` for completed) + progress tracker wiring via `AchievementProgress`
+- [ ] **Debug**: Add button to clear logs to the debug menu
+- [ ] **Debug**: Add more information to crash reports
 
 ## Bugfixes
 - [x] Fix UI transition choppiness.
@@ -370,12 +372,15 @@
   - Fixed 2026-09-10: `LibraryScreenModel.getSubcategoriesForCategory` now returns empty for `ACHIEVEMENTS_CATEGORY_ID=-100` and filters blank names; `LibraryContent` guards achievements tab + blank names; `LibraryTabs.LibrarySubcategoryTabs` filters blank names, uses `visibleSubcategories` for empty check/collapsed key/iteration, eliminating phantom chip
 - [x] **Achievements**: Harden achievement tracking
   - Implemented 2026-09-10: `AchievementEvent` sealed interface (OrganicChapterRead/ReadingTime/LibraryCount/MangaFinished/CaughtUp/Ltr/Backlog/Negative/EhBrowsed/DirectUnlock etc) + `AchievementDispatcher.dispatch(event)` centralized sync + `prefs.achievementsEnabled` gate, `@Inject` constructor for Metro, easy wiring for future call sites (`dispatcher.dispatchAsync(EhBrowsed)`)
-- [x] **App**: Fix flickering/jank when changing panel states
-  - Fixed 2026-09-10: `HomeScreen` `AnimatedContent` now `SizeTransform(clip=false)` + `Modifier.fillMaxSize().background(...)` on `AnimatedContent` itself (prevents transparent overlap flicker), `Navigator.ScreenTransition` now `transition().using(SizeTransform(clip=false))` + `modifier.fillMaxSize().background(...)` so shared panel transitions no longer flash underlying content; retains 250ms spam-tap debounce on rail/bar items
+- [ ] **App**: Fix flickering/jank when changing panel states
+  - ~~Fixed 2026-09-10: `HomeScreen` `AnimatedContent` now `SizeTransform(clip=false)` + `Modifier.fillMaxSize().background(...)` on `AnimatedContent` itself (prevents transparent overlap flicker), `Navigator.ScreenTransition` now `transition().using(SizeTransform(clip=false))` + `modifier.fillMaxSize().background(...)` so shared panel transitions no longer flash underlying content; retains 250ms spam-tap debounce on rail/bar items~~ Fix ineffective
 - [x] **Achievements**: Improve toasts
   - Implemented 2026-09-10: `AchievementNotifier.notifyNow` batches >3 unlocks into summary toast (`Unlocked 5: X, Y +3 more`) + staggered last-2 details, truncates description >80 chars, shows `ULTIMATE` tier label, `AchievementProgress`-aware grouping, preserves 900ms stagger and `achievementToastsEnabled` gate
 - [x] **Achievements**: Disable achievement chime by default
   - Fixed 2026-09-10: `AchievementPreferences.achievementSoundsEnabled` default `false` (was `true`); `AchievementSoundPlayer.play` still gates on pref, user must opt-in via Settings → Achievements → Achievement sounds
+- [ ] **Achievements**: Fix delay on entering/exit the achievements settings page
+  - Note: This delay appears to be for all app transitions
+- [ ] **Achievements**: Ensure all achievements trigger properly and are wired properly
 
 ## Chores
 - [x] Replace all Komikku icons/branding with houri icons/branding
