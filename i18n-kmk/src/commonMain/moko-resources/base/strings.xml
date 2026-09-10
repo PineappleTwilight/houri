@@ -35,12 +35,12 @@
     <string name="pref_chapter_completion_sound">NSFW chapter completion sound</string>
     <string name="pref_chapter_completion_sound_summary">Play a random NSFW sound when finishing a chapter (gacha mechanic)</string>
     <string name="pref_chapter_completion_sound_random_location">Randomize moan location</string>
-    <string name="pref_chapter_completion_sound_random_location_summary" formatted="false">50% on the last page, 50% between chapters</string>
+    <string name="pref_chapter_completion_sound_random_location_summary" formatted="false">50%% on the last page, 50%% between chapters</string>
     <string name="pref_chapter_completion_sound_import">Import custom sounds</string>
     <string name="pref_chapter_completion_sound_import_tier">Choose a rarity tier for the imported sounds</string>
-    <string name="pref_chapter_completion_sound_tier_common">Common (60%)</string>
-    <string name="pref_chapter_completion_sound_tier_rare">Rare (30%)</string>
-    <string name="pref_chapter_completion_sound_tier_legendary">Legendary (10%)</string>
+    <string name="pref_chapter_completion_sound_tier_common" formatted="false">Common (60%)</string>
+    <string name="pref_chapter_completion_sound_tier_rare" formatted="false">Rare (30%)</string>
+    <string name="pref_chapter_completion_sound_tier_legendary" formatted="false">Legendary (10%)</string>
     <string name="pref_chapter_completion_sound_remove">Remove imported sounds</string>
     <string name="pref_chapter_completion_sound_remove_confirm">Remove all imported sounds? The bundled sounds will be used again.</string>
     <string name="pref_chapter_completion_sound_imported">Imported %1$d sound(s)</string>

@@ -67,7 +67,7 @@ class WasmEngine(
                 logcat(LogPriority.WARN) { "WasmEngine fetch failed $url: ${resp.code}" }
                 return@withContext null
             }
-            val body = resp.body?.bytes() ?: return@withContext null
+            val body = resp.body.bytes()
             if (body.size > maxModuleBytes) {
                 logcat(LogPriority.WARN) { "WasmEngine wasm too large: ${body.size}" }
                 return@withContext null
@@ -84,7 +84,7 @@ class WasmEngine(
             val req = Request.Builder().url(url).get().build()
             val resp = client.newCall(req).execute()
             if (!resp.isSuccessful) return@withContext null
-            resp.body?.string()
+            resp.body.string()
         } catch (e: Exception) {
             logcat(LogPriority.ERROR, e) { "WasmEngine fetchText error $url" }
             null
