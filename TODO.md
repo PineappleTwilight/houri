@@ -394,6 +394,7 @@
 - [ ] **Achievements**: Fix achievement tracking not firing
 - [ ] **Achievements**: Ensure both legacy reader and webgpu have support for achievements
 - [ ] **MangaBaka**: Use raw cover for manga instead of LQ current cover behavior
+- [ ] **Unified Tracker**: Overhaul UI with example image from the suggestion thread ([image](https://private-user-images.githubusercontent.com/157998949/646875564-aa30088e-b8bb-47a3-88b6-bb795085970b.png?jwt=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmF3LmdpdGh1YnVzZXJjb250ZW50LmNvbSIsImtleSI6ImtleTUiLCJleHAiOjE3ODkwNzE5NDksIm5iZiI6MTc4OTA3MTY0OSwicGF0aCI6Ii8xNTc5OTg5NDkvNjQ2ODc1NTY0LWFhMzAwODhlLWI4YmItNDdhMy04OGI2LWJiNzk1MDg1OTcwYi5wbmc_WC1BbXotQWxnb3JpdGhtPUFXUzQtSE1BQy1TSEEyNTYmWC1BbXotQ3JlZGVudGlhbD1BS0lBVkNPRFlMU0E1M1BRSzRaQSUyRjIwMjYwOTEwJTJGdXMtZWFzdC0xJTJGczMlMkZhd3M0X3JlcXVlc3QmWC1BbXotRGF0ZT0yMDI2MDkxMFQyMDIwNDlaJlgtQW16LUV4cGlyZXM9MzAwJlgtQW16LVNpZ25hdHVyZT0zMWQzZjhhZWNkNTI3MzUzMDY2NTFhN2E4YzVkMzMwNTEwMjBjMTc4MmJjMGRhNTY4NzBjYjFjNmE5MDI5MDk2JlgtQW16LVNpZ25lZEhlYWRlcnM9aG9zdCZyZXNwb25zZS1jb250ZW50LXR5cGU9aW1hZ2UlMkZwbmcifQ.Qm1m6ppdEvGpE6VgtFxNw2B1iNtS8oVe9lctiL05I-U))
 
 ## Chores
 - [x] Replace all Komikku icons/branding with houri icons/branding
