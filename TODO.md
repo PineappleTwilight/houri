@@ -319,12 +319,20 @@
   - Kotlin-side hardening complete; native module uses deterministic height-match and OOM guards; further native patches tracked in `external/webgpu-houri`
 - [x] **External Module**: Heavily harden and improve the logic of the imagedecoder-houri native module (and also add useful features and patches).
   - Kotlin `ImageDecoder` hardened with Cleaner + AtomicLong double-free guard, synchronized decode, format normalization; native `libvips+jxl+heif` already enabled
-- [ ] **Manga Details**: Tapping on a tag then on search doesn't actually search and just sends you back to the main page of the extension
-- [ ] **App**: Panel switch flickering (library -> settings, setting -> extensions, etc)
-- [ ] **WebGPU Reader**: Blank screen if the manga page is in JXL format
-- [ ] **Library Filter**: The local source does not appear correctly even when selecting the local source icon. This problem does not exist in mihon.
-- [ ] **WebGPU Reader**: Fix webgpu "remember last position" crash
-- [ ] **Manga Details Add Tracker Dialog**: Fix extremely vertically long dialog with tons of empty space where trackers would normally be
+- [x] **Manga Details**: Tapping on a tag then on search doesn't actually search and just sends you back to the main page of the extension
+  - Fixed 2026-09-09: `MangaScreen.performGenreSearch` now pushes a new `BrowseSourceScreen` for the source when no prior browse screen exists (was falling back to library search)
+- [x] **App**: Panel switch flickering (library -> settings, setting -> extensions, etc)
+  - Fixed 2026-09-09: `ScreenTransition` and `HomeScreen AnimatedContent` now `fillMaxSize` + `background(MaterialTheme.colorScheme.background)` to prevent overlap transparency flicker
+- [x] **WebGPU Reader**: Blank screen if the manga page is in JXL format
+  - Fixed 2026-09-09: `WebGpuDecode.decodeReaderPage` disables crop-trim for `jxl` (`isJxl` guard) to avoid blank trim
+- [x] **Library Filter**: The local source does not appear correctly even when selecting the local source icon. This problem does not exist in mihon.
+  - Fixed 2026-09-09: `LibraryScreenModel.getGroupedMangaItems` BY_SOURCE now uses distinct Category id `-2L` for LocalSource to avoid colliding with `UNCATEGORIZED_ID=0`
+- [x] **WebGPU Reader**: Fix webgpu "remember last position" crash
+  - Fixed 2026-09-09: `WebGpuDecode.queueForDecode` now `synchronized(lock)` internally (was `Must be called while holding lock` + bare `lock.notify()` causing `IllegalMonitorStateException` at line 69 when called from `ImageViewer` tap handler without holding lock)
+- [x] **Manga Details Add Tracker Dialog**: Fix extremely vertically long dialog with tons of empty space where trackers would normally be
+  - Fixed 2026-09-09: `TrackInfoDialogHome` now `heightIn(max=520.dp)` with constrained scroll to prevent full-screen empty expansion
+- [ ] **Library**: Fix achievements tab not showing up in the library
+  - Confirmed at least when there's no library entries. May be present even if entries are added, should be comprehensively checked.
 
 
 ## Chores
