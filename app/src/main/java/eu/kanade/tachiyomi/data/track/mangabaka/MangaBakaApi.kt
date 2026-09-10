@@ -279,7 +279,7 @@ class MangaBakaApi(
     }
 
     companion object {
-        private const val CLIENT_ID = "zEZYMHXLWsLsafgbvJHXqzGvqQNOdkpo"
+        private const val CLIENT_ID = "KGYevUxfQRNJcAuYZARthnRYIVIhNAGP"
 
         private const val BASE_URL = "https://mangabaka.org"
         private const val API_BASE_URL = "https://api.mangabaka.org"
