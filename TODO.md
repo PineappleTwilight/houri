@@ -141,6 +141,10 @@
 - [ ] **Achievements**: Add negative achievements that don't count towards the total unlocks and don't give any rank points
 - [ ] **Achievements**: Add backlog-related achievements
 - [ ] **Achievements**: Add LTR achievement to match parity with RTL achievement
+- [ ] **Achievements**: Add achievements for reading time
+- [ ] **Achievements**: Add daily/weekly rotating achievement pool
+  - Unique achievements should be made for this (50-100)
+  - If the user has already unlocked an achievement in the pool, it should be handled well
 
 ## Bugfixes
 - [x] Fix UI transition choppiness.
