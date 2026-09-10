@@ -4,14 +4,14 @@ import android.content.Context
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
-import java.security.MessageDigest
-import java.util.LinkedHashMap
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import logcat.LogPriority
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import tachiyomi.core.common.util.system.logcat
-import logcat.LogPriority
+import java.security.MessageDigest
+import java.util.LinkedHashMap
 
 /**
  * Host-side WebAssembly engine for extension keygen/auth.
@@ -46,7 +46,9 @@ class WasmEngine(
     fun isAvailable(): Boolean = try {
         Class.forName("com.eclipsesource.v8.V8")
         true
-    } catch (_: Throwable) { false }
+    } catch (_: Throwable) {
+        false
+    }
 
     fun isQuickJsFallbackAvailable(): Boolean = true
 
@@ -161,7 +163,9 @@ class WasmEngine(
         return null
     }
 
-    fun clearCache() { synchronized(moduleCache) { moduleCache.clear() } }
+    fun clearCache() {
+        synchronized(moduleCache) { moduleCache.clear() }
+    }
 
     fun cacheSize(): Int = synchronized(moduleCache) { moduleCache.size }
 }

@@ -21,27 +21,42 @@ class AchievementPreferences(
     fun achievementsData() = preferenceStore.getString("pref_achievements_data", "")
     fun unlockedTimestamps() = preferenceStore.getString("pref_achievement_timestamps", "")
 
+    @Synchronized
     fun incrementOrganicRead() {
-        organicChaptersRead().set(organicChaptersRead().get() + 1)
+        val cur = organicChaptersRead().get()
+        if (cur < 1_000_000L) organicChaptersRead().set(cur + 1)
     }
 
+    @Synchronized
     fun incrementMangaFinished() {
-        mangaFinishedCount().set(mangaFinishedCount().get() + 1)
+        val cur = mangaFinishedCount().get()
+        if (cur < 1_000_000L) mangaFinishedCount().set(cur + 1)
     }
 
+    @Synchronized
     fun setLibraryCount(count: Long) {
-        libraryMangaCount().set(count)
+        libraryMangaCount().set(count.coerceIn(0L, 10_000L))
     }
 
+    @Synchronized
     fun unlock(id: String): Boolean {
+        if (id.isBlank() || id.length > 64) return false
+        if (tachiyomi.domain.achievement.model.Achievements.forId(id) == null) return false
         if (isUnlocked(id)) return false
         val current = unlockedAchievements().get()
-        val set = if (current.isBlank()) mutableSetOf<String>() else current.split(",").filter { it.isNotBlank() }.toMutableSet()
+        val set = if (current.isBlank()) mutableSetOf<String>() else current.split(",").map { it.trim() }.filter { it.isNotBlank() }.toMutableSet()
+        if (set.size >= 300) return false
         if (!set.add(id)) return false
         unlockedAchievements().set(set.joinToString(","))
         val ts = unlockedTimestamps().get()
         val entry = "$id:${System.currentTimeMillis()}"
-        unlockedTimestamps().set(if (ts.isBlank()) entry else "$ts,$entry")
+        val newTs = if (ts.isBlank()) entry else "$ts,$entry"
+        if (newTs.length > 16_000) {
+            val trimmed = newTs.split(",").takeLast(200).joinToString(",")
+            unlockedTimestamps().set(trimmed)
+        } else {
+            unlockedTimestamps().set(newTs)
+        }
         return true
     }
 
@@ -54,7 +69,7 @@ class AchievementPreferences(
     fun getUnlockedIds(): Set<String> {
         val current = unlockedAchievements().get()
         if (current.isBlank()) return emptySet()
-        return current.split(",").filter { it.isNotBlank() }.toSet()
+        return current.split(",").map { it.trim() }.filter { it.isNotBlank() && it.length <= 64 && Achievements.forId(it) != null }.toSet()
     }
 
     fun getUnlockedWithTimestamps(): Map<String, Long> {
@@ -63,22 +78,29 @@ class AchievementPreferences(
         return raw.split(",").mapNotNull {
             val parts = it.split(":", limit = 2)
             if (parts.size != 2) return@mapNotNull null
+            val id = parts[0].trim()
+            if (id.isBlank() || id.length > 64 || Achievements.forId(id) == null) return@mapNotNull null
             val ts = parts[1].toLongOrNull() ?: return@mapNotNull null
-            parts[0] to ts
+            if (ts <= 0L || ts > System.currentTimeMillis() + 86_400_000L) return@mapNotNull null
+            id to ts
         }.toMap()
     }
 
     fun computeStats(totalAchievements: Int): tachiyomi.domain.achievement.model.AchievementStats {
-        val unlocked = getUnlockedIds().size
+        val ids = getUnlockedIds()
+        val unlocked = ids.size
+        val secretUnlocked = ids.count { tachiyomi.domain.achievement.model.Achievements.forId(it)?.isSecret == true }
         return tachiyomi.domain.achievement.model.AchievementStats(
-            organicChaptersRead = organicChaptersRead().get(),
-            mangaFinished = mangaFinishedCount().get(),
-            libraryCount = libraryMangaCount().get(),
-            totalAchievements = totalAchievements,
+            organicChaptersRead = organicChaptersRead().get().coerceAtLeast(0L),
+            mangaFinished = mangaFinishedCount().get().coerceAtLeast(0L),
+            libraryCount = libraryMangaCount().get().coerceAtLeast(0L),
+            totalAchievements = totalAchievements.coerceAtLeast(0),
             unlockedCount = unlocked,
+            secretUnlocked = secretUnlocked,
         )
     }
 
+    @Synchronized
     fun wipe() {
         unlockedAchievements().set("")
         organicChaptersRead().set(0)
@@ -86,5 +108,13 @@ class AchievementPreferences(
         libraryMangaCount().set(0)
         achievementsData().set("")
         unlockedTimestamps().set("")
+    }
+
+    fun isEnabled(): Boolean = achievementsEnabled().get()
+
+    fun hasCompletedOnboarding(): Boolean = preferenceStore.getBoolean("pref_achievements_onboarded", false).get()
+
+    fun setOnboarded() {
+        preferenceStore.getBoolean("pref_achievements_onboarded", false).set(true)
     }
 }

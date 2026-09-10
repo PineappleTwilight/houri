@@ -12,59 +12,99 @@ class AchievementManager(
     private val prefs: AchievementPreferences,
     private val notifier: AchievementUnlockNotifier? = null,
 ) {
+    @Synchronized
     fun onOrganicChapterRead(totalRead: Long): List<String> {
         if (!prefs.achievementsEnabled().get()) return emptyList()
+        if (totalRead < 0) return emptyList()
         prefs.incrementOrganicRead()
-        val count = prefs.organicChaptersRead().get()
+        val count = prefs.organicChaptersRead().get().coerceAtLeast(0L)
         val r = checkThresholds(count)
-        notifyIfNeeded(r); return r
+        if (r.isNotEmpty()) notifyIfNeeded(r)
+        return r
     }
 
+    @Synchronized
     fun onMangaFinished(): List<String> {
         if (!prefs.achievementsEnabled().get()) return emptyList()
         prefs.incrementMangaFinished()
-        val count = prefs.mangaFinishedCount().get()
+        val count = prefs.mangaFinishedCount().get().coerceAtLeast(0L)
         val unlocked = mutableListOf<String>()
         if (count >= 1) tryUnlock("first_manga_finished", unlocked)
         if (count >= 5) tryUnlock("five_manga_finished", unlocked)
         if (count >= 10) tryUnlock("ten_manga_finished", unlocked)
-        notifyIfNeeded(unlocked); return unlocked
+        if (count >= 20) tryUnlock("twenty_manga_finished", unlocked)
+        if (count >= 50) tryUnlock("fifty_manga_finished", unlocked)
+        if (unlocked.isNotEmpty()) notifyIfNeeded(unlocked)
+        return unlocked
     }
 
+    @Synchronized
     fun onLibraryCountChanged(count: Long): List<String> {
         if (!prefs.achievementsEnabled().get()) return emptyList()
-        prefs.setLibraryCount(count)
+        val safe = count.coerceIn(0L, 10_000L)
+        prefs.setLibraryCount(safe)
         val unlocked = mutableListOf<String>()
-        if (count >= 5) tryUnlock("library_5", unlocked)
-        if (count >= 10) tryUnlock("library_10", unlocked)
-        if (count >= 50) tryUnlock("library_50", unlocked)
-        if (count >= 100) tryUnlock("library_100", unlocked)
-        if (count >= 250) tryUnlock("library_250", unlocked)
-        notifyIfNeeded(unlocked); return unlocked
+        if (safe >= 1) tryUnlock("library_1", unlocked)
+        if (safe >= 5) tryUnlock("library_5", unlocked)
+        if (safe >= 10) tryUnlock("library_10", unlocked)
+        if (safe >= 25) tryUnlock("library_25", unlocked)
+        if (safe >= 50) tryUnlock("library_50", unlocked)
+        if (safe >= 100) tryUnlock("library_100", unlocked)
+        if (safe >= 250) tryUnlock("library_250", unlocked)
+        if (safe >= 500) tryUnlock("library_500", unlocked)
+        if (safe >= 1000) tryUnlock("library_1000", unlocked)
+        if (unlocked.isNotEmpty()) notifyIfNeeded(unlocked)
+        return unlocked
     }
 
+    @Synchronized
     fun onTrackerConnected(totalTrackers: Int): List<String> {
         if (!prefs.achievementsEnabled().get()) return emptyList()
+        val safe = totalTrackers.coerceIn(0, 20)
         val unlocked = mutableListOf<String>()
-        if (totalTrackers >= 1) tryUnlock("tracker_connected", unlocked)
-        if (totalTrackers >= 3) tryUnlock("tracker_three", unlocked)
-        notifyIfNeeded(unlocked); return unlocked
+        if (safe >= 1) tryUnlock("tracker_connected", unlocked)
+        if (safe >= 2) tryUnlock("tracker_two", unlocked)
+        if (safe >= 3) tryUnlock("tracker_three", unlocked)
+        if (safe >= 5) tryUnlock("tracker_five", unlocked)
+        if (safe >= 8) tryUnlock("tracker_all", unlocked)
+        if (unlocked.isNotEmpty()) notifyIfNeeded(unlocked)
+        return unlocked
     }
 
+    @Synchronized
     fun onReread(count: Int = 1): List<String> {
         if (!prefs.achievementsEnabled().get()) return emptyList()
+        val safe = count.coerceIn(1, 10_000)
         val unlocked = mutableListOf<String>()
         tryUnlock("rereader", unlocked)
-        if (count >= 5) tryUnlock("reread_five", unlocked)
-        notifyIfNeeded(unlocked); return unlocked
+        if (safe >= 5) tryUnlock("reread_five", unlocked)
+        if (safe >= 20) tryUnlock("reread_twenty", unlocked)
+        if (safe >= 100) tryUnlock("reread_hundred", unlocked)
+        if (unlocked.isNotEmpty()) notifyIfNeeded(unlocked)
+        return unlocked
     }
 
+    @Synchronized
     fun onTranslated(count: Long): List<String> {
         if (!prefs.achievementsEnabled().get()) return emptyList()
+        val safe = count.coerceIn(0L, 10_000L)
         val unlocked = mutableListOf<String>()
-        if (count >= 1) tryUnlock("translator", unlocked)
-        if (count >= 10) tryUnlock("translator_ten", unlocked)
-        notifyIfNeeded(unlocked); return unlocked
+        if (safe >= 1) tryUnlock("translator", unlocked)
+        if (safe >= 5) tryUnlock("translator_five", unlocked)
+        if (safe >= 10) tryUnlock("translator_ten", unlocked)
+        if (safe >= 50) tryUnlock("translator_fifty", unlocked)
+        if (safe >= 100) tryUnlock("translator_hundred", unlocked)
+        if (unlocked.isNotEmpty()) notifyIfNeeded(unlocked)
+        return unlocked
+    }
+
+    @Synchronized
+    fun tryUnlockDirect(id: String): Boolean {
+        if (!prefs.achievementsEnabled().get()) return false
+        val out = mutableListOf<String>()
+        tryUnlock(id, out)
+        if (out.isNotEmpty()) notifyIfNeeded(out)
+        return out.isNotEmpty()
     }
 
     private fun checkThresholds(count: Long): List<String> {

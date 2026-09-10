@@ -24,32 +24,34 @@ import tachiyomi.core.common.util.system.logcat
 /**
  * Queue a page for decoding if not already queued/loading/decoded.
  * If prioritize=true and page is already queued, moves it to front.
- * Must be called while holding lock.
+ * Thread-safe: acquires [lock] internally.
  */
 internal fun WebGpuViewer.queueForDecode(page: ViewerReaderPage, prioritize: Boolean = false) {
-    // Already has a decoded image
-    if (page.isDecoded) return
+    synchronized(lock) {
+        // Already has a decoded image
+        if (page.isDecoded) return
 
-    when (page.state) {
-        PageState.IDLE -> {
-            page.state = PageState.QUEUED
-            if (prioritize) {
-                decodeQueue.addLast(page)
-            } else {
-                decodeQueue.addFirst(page)
+        when (page.state) {
+            PageState.IDLE -> {
+                page.state = PageState.QUEUED
+                if (prioritize) {
+                    decodeQueue.addLast(page)
+                } else {
+                    decodeQueue.addFirst(page)
+                }
+                lock.notify()
             }
-            lock.notify()
-        }
 
-        PageState.QUEUED -> {
-            // Already queued - move to front if prioritizing
-            if (prioritize && decodeQueue.remove(page)) {
-                decodeQueue.addLast(page)
+            PageState.QUEUED -> {
+                // Already queued - move to front if prioritizing
+                if (prioritize && decodeQueue.remove(page)) {
+                    decodeQueue.addLast(page)
+                }
             }
-        }
 
-        PageState.LOADING, PageState.DECODING -> {
-            // Already being processed
+            PageState.LOADING, PageState.DECODING -> {
+                // Already being processed
+            }
         }
     }
 }
@@ -204,11 +206,13 @@ internal fun WebGpuViewer.startPageLoad(page: ViewerReaderPage) {
             if (!pageInCache(page)) return
             if (!page.isDecoded) {
                 page.state = PageState.IDLE
-                queueForDecode(page, prioritize = currentPage?.let { pageKey(it) == pageKey(page) } ?: false)
-                synchronized(lock) { lock.notify() }
             } else {
                 page.state = PageState.IDLE
+                return
             }
+        }
+        if (!page.isDecoded) {
+            queueForDecode(page, prioritize = currentPage?.let { pageKey(it) == pageKey(page) } ?: false)
         }
         return
     }
@@ -292,7 +296,6 @@ internal fun WebGpuViewer.startPageLoad(page: ViewerReaderPage) {
                                 page,
                                 prioritize = currentPage?.let { pageKey(it) == pageKey(page) } ?: false,
                             )
-                            lock.notify()
                         }
                     }
                     is Page.State.Error -> {
@@ -409,8 +412,8 @@ internal suspend fun WebGpuViewer.decodeReaderPage(page: ViewerReaderPage) {
         val firstFrame = dec.decodeNext()
 
         val imagePage = if (pageCount == 1) {
-            // Only trim when not animated and not in dual page mode
-            val trimColors = if (config.imageCropBorders && !isDualPageMode()) {
+            val isJxl = dec.format == "jxl"
+            val trimColors = if (!isJxl && config.imageCropBorders && !isDualPageMode()) {
                 listOf(
                     floatArrayOf(1f, 1f, 1f),
                     floatArrayOf(0f, 0f, 0f),

@@ -399,4 +399,15 @@
     <string name="pref_yakuyomi_engine_advanced">Advanced engine tuning</string>
     <string name="pref_yakuyomi_engine_advanced_warning_title">Not recommended — unsupported</string>
     <string name="pref_yakuyomi_engine_advanced_warning">These are low-level engine tunables. Defaults are measured on real devices; changing them can break translation, degrade quality, or crash the engine. Only touch if you know what you\'re doing — this is not recommended or supported.</string>
+    <!-- Achievements onboarding -->
+    <string name="onboarding_achievements_title">Achievements</string>
+    <string name="onboarding_achievements_description">Track your reading milestones with ranks and unlocks. Disable if you want a minimal experience — no tracking or popups when off.</string>
+    <string name="onboarding_achievements_enabled_desc">Track progress, rank up and get popups</string>
+    <string name="onboarding_achievements_disabled_desc">No tracking, no popups, no sounds</string>
+    <string name="onboarding_achievements_toasts_desc">Show a popup when you unlock one</string>
+    <string name="onboarding_achievements_sounds_desc">Play a chime per tier (bronze → mythic)</string>
+    <string name="label_achievements">Achievements</string>
+    <string name="achievements_empty">No achievements unlocked yet — start reading to earn your first!</string>
+    <string name="achievements_unlocked_count">%1$d / %2$d unlocked</string>
+    <string name="achievements_rank_prefix">Rank: %1$s</string>
 </resources>

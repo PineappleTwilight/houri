@@ -373,7 +373,10 @@ object SettingsAdvancedScreen : SearchableSettings {
                 title = { Text("Reset achievements?") },
                 text = { Text("This will wipe all achievement progress and stats. Are you sure?") },
                 confirmButton = {
-                    TextButton(onClick = { showWipeFirst = false; showWipeSecond = true }) { Text("Yes, continue") }
+                    TextButton(onClick = {
+                        showWipeFirst = false
+                        showWipeSecond = true
+                    }) { Text("Yes, continue") }
                 },
                 dismissButton = { TextButton(onClick = { showWipeFirst = false }) { Text("Cancel") } },
             )
@@ -418,7 +421,16 @@ object SettingsAdvancedScreen : SearchableSettings {
                 Preference.PreferenceItem.TextPreference(
                     title = "View achievements",
                     subtitle = "${achievementPrefs.getUnlockedIds().size} / ${tachiyomi.domain.achievement.model.Achievements.all.size} unlocked",
-                    onClick = { context.toast("Open Library → Achievements tab to view all") },
+                    onClick = {
+                        scope.launch {
+                            try {
+                                eu.kanade.tachiyomi.ui.library.LibraryTab.selectAchievements()
+                                eu.kanade.tachiyomi.ui.home.HomeScreen.openTab(eu.kanade.tachiyomi.ui.home.HomeScreen.Tab.Library(null))
+                            } catch (_: Exception) {
+                                context.toast("Open Library → Achievements tab to view all")
+                            }
+                        }
+                    },
                     enabled = enabled,
                 ),
                 Preference.PreferenceItem.TextPreference(

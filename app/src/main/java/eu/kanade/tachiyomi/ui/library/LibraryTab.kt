@@ -32,6 +32,7 @@ import cafe.adriel.voyager.navigator.tab.TabOptions
 import eu.kanade.presentation.category.components.ChangeCategoryDialog
 import eu.kanade.presentation.library.DeleteLibraryMangaDialog
 import eu.kanade.presentation.library.LibrarySettingsDialog
+import eu.kanade.presentation.library.components.AchievementsContent
 import eu.kanade.presentation.library.components.LibraryContent
 import eu.kanade.presentation.library.components.LibraryToolbar
 import eu.kanade.presentation.library.components.SyncFavoritesConfirmDialog
@@ -122,6 +123,8 @@ data object LibraryTab : Tab {
         val screenModel = rememberScreenModel { LibraryScreenModel() }
         val settingsScreenModel = rememberScreenModel { LibrarySettingsScreenModel() }
         val state by screenModel.state.collectAsState()
+        val achievementsEnabled by globalAppGraph.achievementPreferences.achievementsEnabled().collectAsState()
+        val isAchievementsTab = state.activeCategory?.id == LibraryScreenModel.ACHIEVEMENTS_CATEGORY_ID
 
         // KMK -->
         val useFolderLayout by settingsScreenModel.libraryPreferences.subcategoryFolderLayout().collectAsState()
@@ -313,7 +316,7 @@ data object LibraryTab : Tab {
                         if (it) tachiyomi.presentation.core.components.LibraryShimmerGrid()
                     }
                 }
-                state.searchQuery.isNullOrEmpty() && !state.hasActiveFilters && state.isLibraryEmpty -> {
+                state.searchQuery.isNullOrEmpty() && !state.hasActiveFilters && state.isLibraryEmpty && !achievementsEnabled -> {
                     val handler = LocalUriHandler.current
                     EmptyScreen(
                         stringRes = MR.strings.information_empty_library,
@@ -325,6 +328,11 @@ data object LibraryTab : Tab {
                                 onClick = { handler.openUri(GETTING_STARTED_URL) },
                             ),
                         ),
+                    )
+                }
+                isAchievementsTab && achievementsEnabled -> {
+                    AchievementsContent(
+                        contentPadding = contentPadding,
                     )
                 }
                 else -> {
@@ -521,12 +529,21 @@ data object LibraryTab : Tab {
         LaunchedEffect(Unit) {
             launch { queryEvent.receiveAsFlow().collect(screenModel::search) }
             launch { requestSettingsSheetEvent.receiveAsFlow().collectLatest { screenModel.showSettingsDialog() } }
+            launch {
+                selectAchievementsEvent.receiveAsFlow().collectLatest {
+                    val idx = screenModel.state.value.displayedCategories.indexOfFirst { it.id == LibraryScreenModel.ACHIEVEMENTS_CATEGORY_ID }
+                    if (idx != -1) screenModel.updateActiveCategoryIndex(idx)
+                }
+            }
         }
     }
 
     // For invoking search from other screen
     private val queryEvent = Channel<String>()
     suspend fun search(query: String) = queryEvent.send(query)
+
+    private val selectAchievementsEvent = Channel<Unit>()
+    suspend fun selectAchievements() = selectAchievementsEvent.send(Unit)
 
     // For opening settings sheet in LibraryController
     private val requestSettingsSheetEvent = Channel<Unit>()

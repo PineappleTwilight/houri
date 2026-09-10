@@ -334,6 +334,23 @@ class LibraryScreenModel(
                             )
                         }
                     }
+                    .let { map ->
+                        val achievementsEnabled = try {
+                            mihon.app.di.globalAppGraph.achievementPreferences.achievementsEnabled().get()
+                        } catch (_: Exception) { true }
+                        if (achievementsEnabled) {
+                            val achCategory = Category(
+                                Companion.ACHIEVEMENTS_CATEGORY_ID,
+                                preferences.context.stringResource(tachiyomi.i18n.kmk.KMR.strings.label_achievements),
+                                order = 9999,
+                                flags = 0,
+                                hidden = false,
+                            )
+                            if (map.none { it.key.id == achCategory.id }) {
+                                map + (achCategory to emptyList())
+                            } else map
+                        } else map
+                    }
                     // KMK -->
                     .let { it to subcategoryMangaMap }
                 // KMK <--
@@ -1690,8 +1707,9 @@ class LibraryScreenModel(
                 val sourceOrderMap = sources.withIndex().associate { (index, source) -> source.id to index.toLong() }
 
                 sources.associate {
+                    val categoryId = if (it.id == LocalSource.ID) -2L else it.id
                     val category = Category(
-                        id = it.id,
+                        id = categoryId,
                         name = if (it.id == LocalSource.ID) {
                             context.stringResource(MR.strings.local_source)
                         } else {
@@ -1975,6 +1993,8 @@ class LibraryScreenModel(
 
     // KMK -->
     companion object {
+        const val ACHIEVEMENTS_CATEGORY_ID = -100L
+
         /** List of MangaDex UUIDs subject to DMCA takedowns */
         @Volatile
         private var mangaDexDmcaUuids = hashSetOf<String>()

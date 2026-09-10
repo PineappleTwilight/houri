@@ -134,6 +134,10 @@
 - [x] **Trackers**: Ability to set a tracker as a definitive metadata source
   - This functionality should be able to be applied to individual manga or entire categories
   - Implemented 2026-09-09: `TrackPreferences.preferredTrackerForManga/Category` (semicolon map, get/set, per-manga and per-category resolution)
+- [x] **Onboarding**: Enable/disable achievements system on first load
+  - Helps users who don't want it enabled to easily disable it before use
+  - Current users should either re-onboard or toggle it in settings
+  - Implemented 2026-09-09: `AchievementsStep` (Theme→Storage→**Achievements**→Permission→Guides) with three switches (system/toasts/sounds) bound to `AchievementPreferences`; re-onboard via Settings → Advanced → Onboarding guide, or toggle in Settings → Advanced → Achievements
 
 ## Bugfixes
 - [x] Fix UI transition choppiness.
@@ -331,9 +335,11 @@
   - Fixed 2026-09-09: `WebGpuDecode.queueForDecode` now `synchronized(lock)` internally (was `Must be called while holding lock` + bare `lock.notify()` causing `IllegalMonitorStateException` at line 69 when called from `ImageViewer` tap handler without holding lock)
 - [x] **Manga Details Add Tracker Dialog**: Fix extremely vertically long dialog with tons of empty space where trackers would normally be
   - Fixed 2026-09-09: `TrackInfoDialogHome` now `heightIn(max=520.dp)` with constrained scroll to prevent full-screen empty expansion
-- [ ] **Library**: Fix achievements tab not showing up in the library
+- [x] **Library**: Fix achievements tab not showing up in the library
   - Confirmed at least when there's no library entries. May be present even if entries are added, should be comprehensively checked.
-- [ ] **Achievements**: Overall analyze, harden, and improve.
+  - Fixed 2026-09-09: `LibraryScreenModel.ACHIEVEMENTS_CATEGORY_ID=-100` synthetic category injected when `achievementsEnabled` (always visible, survives empty-library `ifEmpty` fallback); `LibraryTab` now bypasses `EmptyScreen` when achievements enabled and renders `AchievementsContent` for that tab; `LibraryTab.selectAchievements()` + `HomeScreen.openTab` wiring via Settings → View achievements
+- [x] **Achievements**: Overall analyze, harden, and improve.
+  - Hardened 2026-09-09: `AchievementPreferences` synchronized increments/sets, id validation (exists + ≤64 chars), 300-unlock cap, timestamp trimming at 16k/200 entries, corrupted-string filtering, `isEnabled/hasCompletedOnboarding` helpers; `AchievementManager` synchronized thresholds, expanded library/tracker/reread/translation unlocks, `tryUnlockDirect` for manual, `wipe` double-confirm preserved; `AchievementStats` now includes `secretUnlocked` in `computeStats`; `AchievementNotifier/SoundPlayer` already gated by `achievementsEnabled`
 
 ## Chores
 - [x] Replace all Komikku icons/branding with houri icons/branding

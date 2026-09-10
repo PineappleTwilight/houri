@@ -861,7 +861,12 @@ class MangaScreen(
             }
             // KMK <--
         }
-        performSearch(navigator, genreName, global = false)
+        if (source is HttpSource) {
+            navigator.push(BrowseSourceScreen(source.id, ""))
+            (navigator.lastItem as? BrowseSourceScreen)?.searchGenre(genreName)
+        } else {
+            performSearch(navigator, genreName, global = false)
+        }
     }
 
     /**
