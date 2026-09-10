@@ -71,22 +71,7 @@ class AchievementSoundPlayer(
         }
     }
 
-    private fun tierBundledRes(tier: AchievementTier): Int? {
-        return try {
-            val r = eu.kanade.tachiyomi.R.raw::class.java
-            val field = when (tier) {
-                AchievementTier.BRONZE -> r.getField("moan_common_1")
-                AchievementTier.SILVER -> r.getField("moan_common_2")
-                AchievementTier.GOLD -> r.getField("moan_rare_1")
-                AchievementTier.PLATINUM -> r.getField("moan_rare_2")
-                AchievementTier.LEGENDARY -> r.getField("moan_legendary_1")
-                AchievementTier.MYTHIC -> r.getField("moan_legendary_1")
-            }
-            field.getInt(null)
-        } catch (_: Exception) {
-            null
-        }
-    }
+    private fun tierBundledRes(tier: AchievementTier): Int? = null
 
     private fun scanExternal(tier: AchievementTier): String? {
         val dir = File(File(context.filesDir, "achievement_sounds"), tier.name.lowercase())
@@ -107,6 +92,7 @@ class AchievementSoundPlayer(
                 AchievementTier.PLATINUM -> 0.92f
                 AchievementTier.LEGENDARY -> 1.0f
                 AchievementTier.MYTHIC -> 1.0f
+                AchievementTier.ULTIMATE -> 1.0f
             }
             val rate = when (tier) {
                 AchievementTier.BRONZE -> 1.0f
@@ -115,6 +101,7 @@ class AchievementSoundPlayer(
                 AchievementTier.PLATINUM -> 1.0f
                 AchievementTier.LEGENDARY -> 1.0f
                 AchievementTier.MYTHIC -> 1.0f
+                AchievementTier.ULTIMATE -> 1.0f
             }
             try {
                 pool.play(id, vol, vol, 1, 0, rate)
@@ -135,7 +122,6 @@ class AchievementSoundPlayer(
         soundIds.clear()
     }
 
-    // Pleasant bell synthesis — sine with harmonics + exponential decay, not telephone beeps.
     private fun synthesizeChime(tier: AchievementTier): ByteArray {
         val sr = 44100
         val wav = when (tier) {
@@ -149,6 +135,7 @@ class AchievementSoundPlayer(
             AchievementTier.PLATINUM -> arpeggioWav(sr, listOf(1046.5, 1318.5, 1568.0, 2093.0), each = 0.14, decay = 2.9)
             AchievementTier.LEGENDARY -> glissWav(sr, from = 523.25, to = 2093.0, duration = 0.9, decay = 2.2)
             AchievementTier.MYTHIC -> mythicWav(sr)
+            AchievementTier.ULTIMATE -> ultimateWav(sr)
         }
         return wav
     }
@@ -250,6 +237,25 @@ class AchievementSoundPlayer(
             }
             s += sin(2 * PI * 1318.5 * t) * 0.06 * exp(-2.5 * t)
             pcm[i] = (s * env * 0.26 * Short.MAX_VALUE).toInt().coerceIn(-32767, 32767).toShort()
+        }
+        return pcmToWav(pcm, sr)
+    }
+
+    private fun ultimateWav(sr: Int): ByteArray {
+        val dur = 1.4
+        val n = (sr * dur).toInt()
+        val pcm = ShortArray(n)
+        val freqs = listOf(130.81, 261.63, 523.25, 1046.5, 2093.0)
+        for (i in 0 until n) {
+            val t = i.toDouble() / sr
+            val env = exp(-1.3 * t) * (1 - exp(-25 * t))
+            var s = 0.0
+            for (f in freqs) {
+                s += sin(2 * PI * f * t) * 0.14
+                s += sin(2 * PI * f * 2 * t) * 0.05
+            }
+            s += sin(2 * PI * 1568.0 * t * (1 + 0.1 * sin(2 * PI * 5 * t))) * 0.04 * exp(-1.5 * t)
+            pcm[i] = (s * env * 0.3 * Short.MAX_VALUE).toInt().coerceIn(-32767, 32767).toShort()
         }
         return pcmToWav(pcm, sr)
     }

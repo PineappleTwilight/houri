@@ -292,6 +292,7 @@ interface AppGraph : ViewModelGraph {
     val backupRestoreStatus: BackupRestoreStatus
     val achievementPreferences: tachiyomi.domain.achievement.service.AchievementPreferences
     val achievementManager: tachiyomi.domain.achievement.service.AchievementManager
+    val rotatingAchievementPool: tachiyomi.domain.achievement.service.RotatingAchievementPool
     val achievementSoundPlayer: eu.kanade.tachiyomi.data.achievement.AchievementSoundPlayer
     val achievementNotifier: eu.kanade.tachiyomi.data.achievement.AchievementNotifier
     // KMK <--

@@ -357,6 +357,16 @@ open class BrowseSourceScreenModel(
                 toolbarQuery = query ?: input.query,
             )
         }
+        if (source.isEhBasedSource()) {
+            try {
+                mihon.app.di.globalAppGraph.achievementManager.onEhBrowsed()
+                mihon.app.di.globalAppGraph.achievementManager.tryUnlockDirect("eh_enabled")
+            } catch (_: Exception) {}
+        }
+        try {
+            mihon.app.di.globalAppGraph.rotatingAchievementPool.markProgress("rotating_daily_search_5")
+            mihon.app.di.globalAppGraph.rotatingAchievementPool.markProgress("rotating_daily_genre_explore")
+        } catch (_: Exception) {}
     }
 
     fun searchGenre(genreName: String) {

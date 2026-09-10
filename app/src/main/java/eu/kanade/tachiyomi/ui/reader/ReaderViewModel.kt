@@ -163,6 +163,8 @@ class ReaderViewModel(
     // KMK -->
     private val webhookNotifier: WebhookNotifier,
     private val webhookPreferences: WebhookPreferences,
+    private val achievementManager: tachiyomi.domain.achievement.service.AchievementManager,
+    private val achievementPreferences: tachiyomi.domain.achievement.service.AchievementPreferences,
     // KMK <--
 ) : ViewModel() {
 
@@ -947,9 +949,25 @@ class ReaderViewModel(
             )
 
             // KMK -->
-            if (readerChapter.chapter.read) {
+            if (readerChapter.chapter.read && !incognitoMode) {
                 manga?.let { currentManga ->
                     viewModelScope.launchNonCancellable { completeRereadIfNeeded.await(currentManga.id) }
+                }
+                viewModelScope.launchNonCancellable {
+                    try {
+                        achievementManager.onOrganicChapterRead(0)
+                        val mode = getMangaReadingMode()
+                        if (mode == tachiyomi.domain.manga.model.Manga.CHAPTER_SHOW_READ) {
+                        }
+                        if (mode == eu.kanade.tachiyomi.ui.reader.setting.ReadingMode.DEFAULT.flagValue) {
+                        }
+                        val orientation = getMangaOrientation()
+                        if (orientation == eu.kanade.tachiyomi.ui.reader.setting.ReaderOrientation.LEFT_TO_RIGHT.flagValue.toInt()) {
+                            achievementManager.onLtrFinished()
+                        }
+                        achievementManager.tryUnlockDirect("rtl_reader")
+                        achievementManager.tryUnlockDirect("vertical_reader")
+                    } catch (_: Exception) {}
                 }
             }
             // KMK <--
@@ -1023,6 +1041,12 @@ class ReaderViewModel(
                     sourceId = currentManga.source,
                     mangaId = currentManga.id,
                 )
+                try {
+                    achievementManager.onMangaFinished()
+                } catch (_: Exception) {}
+                try {
+                    achievementManager.onBacklogCleared(1)
+                } catch (_: Exception) {}
             }
         }
         // KMK <--
@@ -1103,6 +1127,12 @@ class ReaderViewModel(
             val sessionReadDuration = chapterReadStartTime?.let { endTime.time - it } ?: 0
 
             upsertHistory.await(HistoryUpdate(chapterId, endTime, sessionReadDuration))
+            if (sessionReadDuration > 0) {
+                try {
+                    val minutes = (sessionReadDuration / 60000L).coerceAtLeast(1L)
+                    achievementManager.onReadingTimeMinutes(minutes)
+                } catch (_: Exception) {}
+            }
             chapterReadStartTime = null
         }
     }

@@ -1,6 +1,7 @@
 package eu.kanade.presentation.library.components
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -15,9 +16,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -38,11 +41,28 @@ fun AchievementsContent(
     val prefs = globalAppGraph.achievementPreferences
     val unlockedIds by prefs.unlockedAchievements().collectAsState()
     val unlockedSet = rememberUnlockedSet(unlockedIds)
-    val stats = prefs.computeStats(Achievements.all.size)
+    val countableTotal = Achievements.countable.size
+    val countableUnlocked = unlockedSet.count { Achievements.forId(it)?.countsTowardsProgress == true }
+    val stats = prefs.computeStats(countableTotal)
+    val animationsEnabled by prefs.animationsEnabled().collectAsState()
+    val rotatingPoolActive = remember {
+        try {
+            globalAppGraph.rotatingAchievementPool.getAllActive()
+        } catch (_: Exception) {
+            emptyList()
+        }
+    }
     val all = Achievements.all
 
     Column(modifier = modifier.padding(contentPadding)) {
-        AchievementsHeader(stats = stats, unlocked = unlockedSet.size, total = all.size)
+        AchievementsHeader(stats = stats, unlocked = countableUnlocked, total = countableTotal, animationsEnabled = animationsEnabled, onToggleAnimations = { prefs.animationsEnabled().set(it) })
+        if (rotatingPoolActive.isNotEmpty()) {
+            Text(
+                text = "Rotating Pool (Daily/Weekly)",
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+            )
+        }
         LazyVerticalGrid(
             columns = GridCells.Adaptive(minSize = 148.dp),
             contentPadding = PaddingValues(12.dp),
@@ -51,9 +71,10 @@ fun AchievementsContent(
             modifier = Modifier.weight(1f),
         ) {
             items(all, key = { it.id }) { ach ->
-                val unlockedAt = if (ach.id in unlockedSet) System.currentTimeMillis() else null
-                val display = ach.copy(unlockedAt = if (ach.id in unlockedSet) 1L else null)
-                AchievementCard(achievement = display, isUnlocked = ach.id in unlockedSet)
+                val isUnlocked = ach.id in unlockedSet
+                val display = ach.copy(unlockedAt = if (isUnlocked) 1L else null)
+                val progress = rememberTierProgress(animationsEnabled && isUnlocked, ach.tier)
+                AchievementCard(achievement = display, isUnlocked = isUnlocked, animationsEnabled = animationsEnabled, progress = progress)
             }
         }
     }
@@ -70,6 +91,8 @@ private fun AchievementsHeader(
     stats: tachiyomi.domain.achievement.model.AchievementStats,
     unlocked: Int,
     total: Int,
+    animationsEnabled: Boolean,
+    onToggleAnimations: (Boolean) -> Unit,
 ) {
     Card(
         modifier = Modifier
@@ -79,10 +102,16 @@ private fun AchievementsHeader(
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
     ) {
         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text(
-                text = stringResource(KMR.strings.label_achievements),
-                style = MaterialTheme.typography.titleLarge,
-            )
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = stringResource(KMR.strings.label_achievements),
+                    style = MaterialTheme.typography.titleLarge,
+                )
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text(text = "Animations", style = MaterialTheme.typography.labelMedium)
+                    Switch(checked = animationsEnabled, onCheckedChange = onToggleAnimations)
+                }
+            }
             Text(
                 text = stringResource(KMR.strings.achievements_unlocked_count, unlocked, total),
                 style = MaterialTheme.typography.bodyMedium,
@@ -97,6 +126,11 @@ private fun AchievementsHeader(
                 StatChip(label = "Read", value = "${stats.organicChaptersRead}")
                 StatChip(label = "Finished", value = "${stats.mangaFinished}")
                 StatChip(label = "Library", value = "${stats.libraryCount}")
+                StatChip(label = "Hours", value = "${stats.readingTimeMinutes / 60}")
+                if (stats.negativeUnlocked > 0) StatChip(label = "Neg", value = "${stats.negativeUnlocked}")
+            }
+            if (stats.backlogCount > 0) {
+                Text(text = "Backlog: ${stats.backlogCount}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
     }
@@ -111,7 +145,7 @@ private fun StatChip(label: String, value: String) {
 }
 
 @Composable
-private fun AchievementCard(achievement: Achievement, isUnlocked: Boolean) {
+private fun AchievementCard(achievement: Achievement, isUnlocked: Boolean, animationsEnabled: Boolean, progress: Float) {
     val alpha = if (isUnlocked) 1f else 0.45f
     val tierColor = when (achievement.tier) {
         tachiyomi.domain.achievement.model.AchievementTier.BRONZE -> MaterialTheme.colorScheme.secondary
@@ -120,43 +154,74 @@ private fun AchievementCard(achievement: Achievement, isUnlocked: Boolean) {
         tachiyomi.domain.achievement.model.AchievementTier.PLATINUM -> MaterialTheme.colorScheme.primary
         tachiyomi.domain.achievement.model.AchievementTier.LEGENDARY -> MaterialTheme.colorScheme.error
         tachiyomi.domain.achievement.model.AchievementTier.MYTHIC -> MaterialTheme.colorScheme.error
+        tachiyomi.domain.achievement.model.AchievementTier.ULTIMATE -> MaterialTheme.colorScheme.error
     }
+    val animatedModifier = if (isUnlocked && animationsEnabled && !achievement.isNegative) {
+        when (achievement.tier) {
+            tachiyomi.domain.achievement.model.AchievementTier.GOLD,
+            tachiyomi.domain.achievement.model.AchievementTier.PLATINUM,
+            tachiyomi.domain.achievement.model.AchievementTier.LEGENDARY,
+            tachiyomi.domain.achievement.model.AchievementTier.MYTHIC,
+            tachiyomi.domain.achievement.model.AchievementTier.ULTIMATE,
+            -> Modifier.tierAnimatedBackground(achievement.tier, isUnlocked, achievement.isNegative, achievement.isSecret, animationsEnabled, progress)
+            else -> Modifier
+        }
+    } else {
+        Modifier
+    }
+    val cardModifier = Modifier.alpha(alpha).then(animatedModifier)
     Card(
-        modifier = Modifier.alpha(alpha),
+        modifier = cardModifier,
         shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        colors = CardDefaults.cardColors(containerColor = if (animatedModifier != Modifier) MaterialTheme.colorScheme.surface.copy(alpha = 0.85f) else MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = if (isUnlocked) 2.dp else 0.dp),
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp),
-        ) {
-            Text(text = achievement.displayIcon, style = MaterialTheme.typography.titleLarge)
-            Text(
-                text = achievement.displayTitle,
-                style = MaterialTheme.typography.titleSmall,
-                maxLines = 2,
-            )
-            Text(
-                text = achievement.displayDescription,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 3,
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = achievement.tier.name,
-                style = MaterialTheme.typography.labelSmall,
-                color = tierColor,
-            )
-            if (achievement.isSecret) {
+        Box {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(12.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                Text(text = achievement.displayIcon, style = MaterialTheme.typography.titleLarge)
                 Text(
-                    text = if (isUnlocked) "Secret • Unlocked" else "Secret",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    text = achievement.displayTitle,
+                    style = MaterialTheme.typography.titleSmall,
+                    maxLines = 2,
                 )
+                Text(
+                    text = achievement.displayDescription,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 3,
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = achievement.tier.name,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = tierColor,
+                )
+                if (achievement.isSecret) {
+                    Text(
+                        text = if (isUnlocked) "Secret • Unlocked" else "Secret",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                if (achievement.isNegative) {
+                    Text(
+                        text = "Negative • No rank points",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
+                if (achievement.isRotating) {
+                    Text(
+                        text = "Rotating",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.tertiary,
+                    )
+                }
             }
         }
     }

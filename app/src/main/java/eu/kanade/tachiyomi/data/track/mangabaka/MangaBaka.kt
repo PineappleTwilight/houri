@@ -149,8 +149,12 @@ class MangaBaka(id: Long) : BaseTracker(id, "MangaBaka"), DeletableTracker {
             }
             scorePreference.set(scoreType)
             saveCredentials(currentUser.nickname ?: currentUser.preferredUsername ?: currentUser.id, oauth.accessToken)
-        } catch (_: Exception) {
+            try { mihon.app.di.globalAppGraph.preferenceStore.getString("mangabaka_code_verifier", "").delete() } catch (_: Exception) {}
+            try { mihon.app.di.globalAppGraph.preferenceStore.getString("mangabaka_oauth_state", "").delete() } catch (_: Exception) {}
+        } catch (e: Exception) {
+            try { exh.log.xLogE("MangaBaka OAuth failed", e) } catch (_: Exception) {}
             logout()
+            throw e
         }
     }
 

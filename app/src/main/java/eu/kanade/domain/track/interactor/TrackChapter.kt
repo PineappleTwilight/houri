@@ -35,19 +35,20 @@ class TrackChapter(
             val tracks = getTracks.await(mangaId)
             if (tracks.isEmpty()) return@withNonCancellableContext
 
+            val preferredId = try { mihon.app.di.globalAppGraph.trackPreferences.getPreferredTrackerForManga(mangaId) } catch (_: Exception) { null }
+            val effectivePreferred = preferredId ?: try {
+                val cats = mihon.app.di.globalAppGraph.getCategories.await(mangaId).map { it.id }
+                cats.firstNotNullOfOrNull { mihon.app.di.globalAppGraph.trackPreferences.getPreferredTrackerForCategory(it) }
+            } catch (_: Exception) { null }
+
             tracks.mapNotNull { track ->
                 val service = trackerManager.get(track.trackerId)
-                // KMK -->
-                // Allow chapter progress regressions while the entry is being re-read
                 val isRereadingTrack = track.status == service?.getRereadingStatus()
-                // KMK <--
                 if (
                     service == null ||
                     !service.isLoggedIn ||
-                    // KMK -->
                     (chapterNumber <= track.lastChapterRead && !isRereadingTrack) ||
-                    // KMK <--
-                    /* SY --> */ (service is MdList && track.status == FollowStatus.UNFOLLOWED.long)/* SY <-- */
+                    (service is MdList && track.status == FollowStatus.UNFOLLOWED.long)
                 ) {
                     return@mapNotNull null
                 }
@@ -55,11 +56,20 @@ class TrackChapter(
                 async {
                     runCatching {
                         try {
-                            val updatedTrack = service.refresh(track.toDbTrack())
-                                .toDomainTrack(idRequired = true)!!
-                                .copy(lastChapterRead = chapterNumber)
-                            service.update(updatedTrack.toDbTrack(), true)
-                            insertTrack.await(updatedTrack)
+                            val refreshed = service.refresh(track.toDbTrack()).toDomainTrack(idRequired = true)!!
+                            val toUpdate = if (effectivePreferred != null && track.trackerId != effectivePreferred) {
+                                val prefTrack = tracks.find { it.trackerId == effectivePreferred }
+                                val prefChapter = prefTrack?.lastChapterRead ?: chapterNumber
+                                val syncChapter = maxOf(chapterNumber, prefChapter)
+                                refreshed.copy(lastChapterRead = syncChapter)
+                            } else {
+                                refreshed.copy(lastChapterRead = chapterNumber)
+                            }
+                            val withCompletion = if (toUpdate.totalChapters > 0 && toUpdate.lastChapterRead >= toUpdate.totalChapters) {
+                                toUpdate.copy(status = service.getCompletionStatus())
+                            } else toUpdate
+                            service.update(withCompletion.toDbTrack(), true)
+                            insertTrack.await(withCompletion)
                             delayedTrackingStore.remove(track.id)
                         } catch (e: Exception) {
                             delayedTrackingStore.add(track.id, chapterNumber)

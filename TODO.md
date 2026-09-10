@@ -138,21 +138,20 @@
   - Helps users who don't want it enabled to easily disable it before use
   - Current users should either re-onboard or toggle it in settings
   - Implemented 2026-09-09: `AchievementsStep` (Theme→Storage→**Achievements**→Permission→Guides) with three switches (system/toasts/sounds) bound to `AchievementPreferences`; re-onboard via Settings → Advanced → Onboarding guide, or toggle in Settings → Advanced → Achievements
-- [ ] **Achievements**: Add negative achievements that don't count towards the total unlocks and don't give any rank points
-- [ ] **Achievements**: Add backlog-related achievements
-- [ ] **Achievements**: Add LTR achievement to match parity with RTL achievement
-- [ ] **Achievements**: Add achievements for reading time
-- [ ] **Achievements**: Add daily/weekly rotating achievement pool
-  - Unique achievements should be made for this (50-100)
-  - If the user has already unlocked an achievement in the pool, it should be handled well
-- [ ] **Achievements**: Add new tier: ultimate
-  - These achievements should be near impossible to obtain
-- [ ] **Achievements**: Cool animated text colors/gradients for unlocked high tier achievements (toggleable, defaults to enabled
-  - Icons should also be animated too somehow
-  - Should be performance friendly but still cool
-  - Can also be creative, e.g. animated flames, black hole/void themed animations, and more
-  - Specific achievements should also have custom animations
-  - This should likely be a modular "framework" for future use and ease of implementing 
+- [x] **Achievements**: Add negative achievements that don't count towards the total unlocks and don't give any rank points
+  - Implemented 2026-09-10: `Achievement.isNegative` + `countsTowardsProgress`, 7 negatives (binge guilt, abandoned, burnout, spoiled, hoarder shame, rage quit, DND), excluded from rank/stats via `AchievementPreferences.computeStats` countable filter, grayed + "Negative • No rank points" badge in `AchievementsContent`
+- [x] **Achievements**: Add backlog-related achievements
+  - Implemented 2026-09-10: backlog thresholds 10/25/50/100/250 via `AchievementManager.onBacklogChanged` + cleared counters 10/100 via `onBacklogCleared`, `TrackPreferences` backlog calc `libraryCount-finishedCount`
+- [x] **Achievements**: Add LTR achievement to match parity with RTL achievement
+  - Implemented 2026-09-10: `ltr_reader` BRONZE (parallels `rtl_reader`), `AchievementPreferences.ltrMangaFinishedCount`, `AchievementManager.onLtrFinished()` wired in `ReaderViewModel` LTR orientation check
+- [x] **Achievements**: Add achievements for reading time
+  - Implemented 2026-09-10: 6 reading-time achievements 1h/10h/50h/100h/500h/1000h + ultimate 2000h, `totalReadingTimeMinutes` pref, `onReadingTimeMinutes` in `ReaderViewModel.updateHistory` (ms→min)
+- [x] **Achievements**: Add daily/weekly rotating achievement pool
+  - Implemented 2026-09-10: 50 rotating achievements (`rotating_daily_*` 3 picks/day, `rotating_weekly_*` 4 picks/week), `RotatingAchievementPool` LRU epoch rotation (daily=days, weekly=days/7), unlocked-aware filtering (prefers not-yet-unlocked), `rotatingProgress` mapping + `markProgress`/`getProgress`, handled via `achievements.isRotating` + `AchievementCategory.ROTATING`
+- [x] **Achievements**: Add new tier: ultimate
+  - Implemented 2026-09-10: `AchievementTier.ULTIMATE` (7th tier), 5 ultimate achievements (ink god 20k chapters, eternal library 2k manga, time dilation 2k h, absolute perfection 200 countable, ultimate hunter 20 secrets), `AchievementStats` rank "Ultimate" + `rankTier=ULTIMATE`, `AchievementSoundPlayer.ultimateWav` shimmer chime, duration 1200ms
+- [x] **Achievements**: Cool animated text colors/gradients for unlocked high tier achievements (toggleable, defaults to enabled
+  - Implemented 2026-09-10: `AchievementTierAnimation` modular framework — `brushForTier` linear/sweep gradients per tier (silver→ultimate), `rememberTierProgress` infinite transition (perf-friendly, only for unlocked high tiers), `Modifier.tierAnimatedBackground`, `AchievementsContent` header toggle `animationsEnabled` (default true) + per-card `animatedModifier`, negative/secret excluded
 
 ## Bugfixes
 - [x] Fix UI transition choppiness.
@@ -355,10 +354,14 @@
   - Fixed 2026-09-09: `LibraryScreenModel.ACHIEVEMENTS_CATEGORY_ID=-100` synthetic category injected when `achievementsEnabled` (always visible, survives empty-library `ifEmpty` fallback); `LibraryTab` now bypasses `EmptyScreen` when achievements enabled and renders `AchievementsContent` for that tab; `LibraryTab.selectAchievements()` + `HomeScreen.openTab` wiring via Settings → View achievements
 - [x] **Achievements**: Overall analyze, harden, and improve.
   - Hardened 2026-09-09: `AchievementPreferences` synchronized increments/sets, id validation (exists + ≤64 chars), 300-unlock cap, timestamp trimming at 16k/200 entries, corrupted-string filtering, `isEnabled/hasCompletedOnboarding` helpers; `AchievementManager` synchronized thresholds, expanded library/tracker/reread/translation unlocks, `tryUnlockDirect` for manual, `wipe` double-confirm preserved; `AchievementStats` now includes `secretUnlocked` in `computeStats`; `AchievementNotifier/SoundPlayer` already gated by `achievementsEnabled`
-- [ ] **Achievements**: Ensure all achievements trigger properly
-  - Change achievements that require no user input and are enabled by default
-    - Example: enable e/exhentai -> browse e/exhentai for the first time
-- [ ] **App**: Fix and improve/harden data saver mode
+- [x] **Achievements**: Ensure all achievements trigger properly
+  - Fixed 2026-09-10: EH browsed trigger — `eh_browsed` + `eh_enabled` now unlock on first EH browse via `BrowseSourceScreenModel.search` (`isEhBasedSource` check) instead of toggle; added `AchievementManager.onEhBrowsed`, `onReadingTimeMinutes`, `onBacklogChanged/Cleared`, `onLtrFinished` wiring in `ReaderViewModel` (orientation + history + mangaFinished); data-saver achievement via `DataSaver.getImage` compressed success; rotating pool progress via search/data-saver hooks; achievement chimes are synthesized bell/chord/arpeggio jingles per tier (not moans)
+- [x] **App**: Fix and improve/harden data saver mode
+  - Hardened 2026-09-10: `DataSaver.getImage` now validates blank/data/blob, tries compress with fallback on ANY exception, retries 403/404/429/500/502/503 to original, restores `page.imageUrl` correctly; `BandwidthHeroDataSaver` validates server URL, length guards >1800, scheme fix, quality clamp 0-100; `WsrvNlDataSaver` same guards + data/blob + length; both avoid double-compression; achievement + rotating progress unlocked on compressed success
+- [x] **MangaBaka OAuth**: Fix invalid_redirect / login not working ([#5](https://github.com/PineappleTwilight/houri/issues/5))
+  - Fixed 2026-09-10: Persist PKCE `code_verifier` + `state` in `PreferenceStore` (`mangabaka_code_verifier`/`mangabaka_oauth_state`) to survive process death between `authUrl()` and callback; `persistedCodeVerifier()`/`persistedState()` fallback, `verifyOAuthState` now checks persisted, `getAccessToken` uses persisted verifier, clear prefs on success, `MangaBaka.login` now logs and rethrows instead of silent logout
+- [x] **Unified Tracker**: Preferred tracker sync + mismatch indication ([#4](https://github.com/PineappleTwilight/houri/issues/4))
+  - Implemented 2026-09-10: `UnifiedTrackerHelper` (mismatch detection), `TrackChapter.await` now syncs to preferred tracker (per-manga → per-category fallback via `TrackPreferences`), maxes chapter progress across trackers, auto-completes (`COMPLETED` when `lastChapterRead >= totalChapters`), `TrackInfoDialogHome` yellow `tertiaryContainer` highlight for mismatched chapter numbers
 
 ## Chores
 - [x] Replace all Komikku icons/branding with houri icons/branding

@@ -21,6 +21,15 @@ class AchievementPreferences(
     fun libraryMangaCount() = preferenceStore.getLong("pref_achievement_library_count", 0)
     fun achievementsData() = preferenceStore.getString("pref_achievements_data", "")
     fun unlockedTimestamps() = preferenceStore.getString("pref_achievement_timestamps", "")
+    fun totalReadingTimeMinutes() = preferenceStore.getLong("pref_achievement_reading_time_minutes", 0)
+    fun backlogClearedCount() = preferenceStore.getLong("pref_achievement_backlog_cleared", 0)
+    fun ltrMangaFinishedCount() = preferenceStore.getLong("pref_achievement_ltr_finished", 0)
+    fun animationsEnabled() = preferenceStore.getBoolean("pref_achievement_animations_enabled", true)
+    fun rotatingLastDailyEpoch() = preferenceStore.getLong("pref_achievement_rotating_daily_epoch", 0)
+    fun rotatingLastWeeklyEpoch() = preferenceStore.getLong("pref_achievement_rotating_weekly_epoch", 0)
+    fun rotatingDailyIds() = preferenceStore.getString("pref_achievement_rotating_daily_ids", "")
+    fun rotatingWeeklyIds() = preferenceStore.getString("pref_achievement_rotating_weekly_ids", "")
+    fun rotatingProgress() = preferenceStore.getString("pref_achievement_rotating_progress", "")
 
     @Synchronized
     fun incrementOrganicRead() {
@@ -37,6 +46,25 @@ class AchievementPreferences(
     @Synchronized
     fun setLibraryCount(count: Long) {
         libraryMangaCount().set(count.coerceIn(0L, 10_000L))
+    }
+
+    @Synchronized
+    fun addReadingTimeMinutes(minutes: Long) {
+        if (minutes <= 0) return
+        val cur = totalReadingTimeMinutes().get()
+        totalReadingTimeMinutes().set((cur + minutes).coerceIn(0L, 10_000_000L))
+    }
+
+    @Synchronized
+    fun incrementBacklogCleared() {
+        val cur = backlogClearedCount().get()
+        if (cur < 1_000_000L) backlogClearedCount().set(cur + 1)
+    }
+
+    @Synchronized
+    fun incrementLtrFinished() {
+        val cur = ltrMangaFinishedCount().get()
+        if (cur < 1_000_000L) ltrMangaFinishedCount().set(cur + 1)
     }
 
     @Synchronized
@@ -89,8 +117,11 @@ class AchievementPreferences(
 
     fun computeStats(totalAchievements: Int): tachiyomi.domain.achievement.model.AchievementStats {
         val ids = getUnlockedIds()
-        val unlocked = ids.size
+        val countableIds = ids.filter { tachiyomi.domain.achievement.model.Achievements.forId(it)?.countsTowardsProgress == true }
+        val unlocked = countableIds.size
         val secretUnlocked = ids.count { tachiyomi.domain.achievement.model.Achievements.forId(it)?.isSecret == true }
+        val negatives = ids.count { tachiyomi.domain.achievement.model.Achievements.forId(it)?.isNegative == true }
+        val backlog = (libraryMangaCount().get() - mangaFinishedCount().get()).coerceAtLeast(0L)
         return tachiyomi.domain.achievement.model.AchievementStats(
             organicChaptersRead = organicChaptersRead().get().coerceAtLeast(0L),
             mangaFinished = mangaFinishedCount().get().coerceAtLeast(0L),
@@ -98,6 +129,9 @@ class AchievementPreferences(
             totalAchievements = totalAchievements.coerceAtLeast(0),
             unlockedCount = unlocked,
             secretUnlocked = secretUnlocked,
+            readingTimeMinutes = totalReadingTimeMinutes().get().coerceAtLeast(0L),
+            backlogCount = backlog,
+            negativeUnlocked = negatives,
         )
     }
 
@@ -107,6 +141,14 @@ class AchievementPreferences(
         organicChaptersRead().set(0)
         mangaFinishedCount().set(0)
         libraryMangaCount().set(0)
+        totalReadingTimeMinutes().set(0)
+        backlogClearedCount().set(0)
+        ltrMangaFinishedCount().set(0)
+        rotatingDailyIds().set("")
+        rotatingWeeklyIds().set("")
+        rotatingProgress().set("")
+        rotatingLastDailyEpoch().set(0)
+        rotatingLastWeeklyEpoch().set(0)
         achievementsData().set("")
         unlockedTimestamps().set("")
     }

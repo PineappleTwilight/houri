@@ -10,18 +10,22 @@ data class Achievement(
     val tier: AchievementTier,
     val category: AchievementCategory = AchievementCategory.READING,
     val isSecret: Boolean = false,
+    val isNegative: Boolean = false,
+    val isRotating: Boolean = false,
     val icon: String = "🏆",
     val unlockedAt: Long? = null,
 ) {
     val isUnlocked: Boolean get() = unlockedAt != null
+    // Negative achievements do not count toward progress/rank.
+    val countsTowardsProgress: Boolean get() = !isNegative
     val displayTitle: String get() = if (isSecret && unlockedAt == null) "???" else title
     val displayDescription: String get() = if (isSecret && unlockedAt == null) "Secret achievement — keep exploring" else description
     val displayIcon: String get() = if (isSecret && unlockedAt == null) "❓" else icon
 }
 
-enum class AchievementTier { BRONZE, SILVER, GOLD, PLATINUM, LEGENDARY, MYTHIC }
+enum class AchievementTier { BRONZE, SILVER, GOLD, PLATINUM, LEGENDARY, MYTHIC, ULTIMATE }
 
-enum class AchievementCategory { READING, LIBRARY, TRACKER, TRANSLATION, SOCIAL, EXPLORATION }
+enum class AchievementCategory { READING, LIBRARY, TRACKER, TRANSLATION, SOCIAL, EXPLORATION, ROTATING }
 
 @Serializable
 data class AchievementStats(
@@ -31,8 +35,12 @@ data class AchievementStats(
     val totalAchievements: Int = 0,
     val unlockedCount: Int = 0,
     val secretUnlocked: Int = 0,
+    val readingTimeMinutes: Long = 0,
+    val backlogCount: Long = 0,
+    val negativeUnlocked: Int = 0,
 ) {
     val rank: String get() = when {
+        unlockedCount >= 150 && organicChaptersRead >= 5000 && mangaFinished >= 50 -> "Ultimate"
         unlockedCount >= 120 && organicChaptersRead >= 2000 && mangaFinished >= 25 -> "Mythic"
         unlockedCount >= 90 && organicChaptersRead >= 1000 && mangaFinished >= 15 -> "Legend"
         unlockedCount >= 60 && organicChaptersRead >= 500 && mangaFinished >= 8 -> "Master"
@@ -43,6 +51,7 @@ data class AchievementStats(
     }
 
     val rankTier: AchievementTier get() = when (rank) {
+        "Ultimate" -> AchievementTier.ULTIMATE
         "Mythic" -> AchievementTier.MYTHIC
         "Legend" -> AchievementTier.LEGENDARY
         "Master" -> AchievementTier.PLATINUM
@@ -168,12 +177,88 @@ object Achievements {
         Achievement("search_ast", "AST Searcher", "Use advanced search (AST) with filters", AchievementTier.BRONZE, AchievementCategory.EXPLORATION, icon = "🔎"),
         Achievement("backup_created", "Safety Net", "Create a backup", AchievementTier.BRONZE, AchievementCategory.EXPLORATION, icon = "💾"),
         Achievement("backup_restored", "Phoenix", "Restore a backup", AchievementTier.SILVER, AchievementCategory.EXPLORATION, icon = "🦅"),
+        Achievement("ltr_reader", "Left to Right", "Complete a manga in LTR mode", AchievementTier.BRONZE, AchievementCategory.READING, icon = "➡️"),
+        Achievement("reading_time_1h", "First Hour", "Accumulate 1 hour of reading", AchievementTier.BRONZE, AchievementCategory.READING, icon = "⏰"),
+        Achievement("reading_time_10h", "Time Well Spent", "Accumulate 10 hours of reading", AchievementTier.SILVER, AchievementCategory.READING, icon = "⏳"),
+        Achievement("reading_time_50h", "Dedicated Reader", "Accumulate 50 hours of reading", AchievementTier.GOLD, AchievementCategory.READING, icon = "🕰️"),
+        Achievement("reading_time_100h", "Century Hours", "Accumulate 100 hours of reading", AchievementTier.PLATINUM, AchievementCategory.READING, icon = "⌛"),
+        Achievement("reading_time_500h", "Time Master", "Accumulate 500 hours of reading", AchievementTier.LEGENDARY, AchievementCategory.READING, icon = "⏱️"),
+        Achievement("reading_time_1000h", "Chronos", "Accumulate 1000 hours of reading", AchievementTier.MYTHIC, AchievementCategory.READING, icon = "🌌"),
+        Achievement("backlog_10", "Growing Pile", "Have 10 unread manga in backlog (library minus finished)", AchievementTier.BRONZE, AchievementCategory.LIBRARY, icon = "📑"),
+        Achievement("backlog_25", "Backlog Builder", "Have 25 unread manga in backlog", AchievementTier.SILVER, AchievementCategory.LIBRARY, icon = "📚"),
+        Achievement("backlog_50", "Pile of Shame", "Have 50 unread manga in backlog", AchievementTier.GOLD, AchievementCategory.LIBRARY, icon = "🗻"),
+        Achievement("backlog_100", "Infinite Backlog", "Have 100 unread manga in backlog", AchievementTier.PLATINUM, AchievementCategory.LIBRARY, icon = "🏔️"),
+        Achievement("backlog_250", "Hoarder's Guilt", "Have 250 unread manga in backlog", AchievementTier.LEGENDARY, AchievementCategory.LIBRARY, icon = "🌋"),
+        Achievement("backlog_cleared_10", "Backlog Slayer", "Clear 10 manga from backlog (finish backlog items)", AchievementTier.SILVER, AchievementCategory.LIBRARY, icon = "⚔️"),
+        Achievement("backlog_cleared_100", "Backlog Annihilator", "Clear 100 manga from backlog", AchievementTier.MYTHIC, AchievementCategory.LIBRARY, icon = "🔥"),
+        Achievement("negative_binge_guilt", "Binge Guilt", "Read 100 chapters in a day then not read for 3 days", AchievementTier.BRONZE, AchievementCategory.READING, isNegative = true, icon = "😓"),
+        Achievement("negative_abandoned", "Abandoned", "Add 50 manga to library but finish none", AchievementTier.BRONZE, AchievementCategory.LIBRARY, isNegative = true, icon = "💔"),
+        Achievement("negative_midnight_oil", "Burnt Out", "Read past 3 AM 5 times", AchievementTier.SILVER, AchievementCategory.SOCIAL, isNegative = true, icon = "🥱"),
+        Achievement("negative_spoiled", "Spoiler Alert", "Skip to last chapter without reading middle", AchievementTier.BRONZE, AchievementCategory.READING, isNegative = true, icon = "🤦"),
+        Achievement("negative_hoarder_shame", "Hoarder's Shame", "Library 500 but 0 finished", AchievementTier.SILVER, AchievementCategory.LIBRARY, isNegative = true, icon = "🫣"),
+        Achievement("negative_rage_quit", "Rage Quit", "Drop 10 manga without finishing", AchievementTier.BRONZE, AchievementCategory.READING, isNegative = true, icon = "😡"),
+        Achievement("negative_do_not_disturb", "Do Not Disturb", "Ignore 20 update notifications", AchievementTier.BRONZE, AchievementCategory.EXPLORATION, isNegative = true, icon = "🔕"),
+        Achievement("ultimate_ink_god", "Ink God", "Read 20,000 chapters", AchievementTier.ULTIMATE, AchievementCategory.READING, icon = "👁️"),
+        Achievement("ultimate_eternal_library", "Eternal Library", "Maintain library of 2000 manga", AchievementTier.ULTIMATE, AchievementCategory.LIBRARY, icon = "🏛️"),
+        Achievement("ultimate_time_dilation", "Time Dilation", "Accumulate 2000 hours reading", AchievementTier.ULTIMATE, AchievementCategory.READING, icon = "🌀"),
+        Achievement("ultimate_perfection", "Absolute Perfection", "Unlock 200 non-negative achievements", AchievementTier.ULTIMATE, AchievementCategory.SOCIAL, icon = "💫"),
+        Achievement("ultimate_secret_hunter_ultimate", "Ultimate Hunter", "Unlock 20 secret achievements", AchievementTier.ULTIMATE, AchievementCategory.SOCIAL, isSecret = true, icon = "🕶️"),
         // === SOCIAL / MISC ===
         Achievement("discord_rpc", "Discord Famous", "Enable Discord RPC", AchievementTier.BRONZE, AchievementCategory.SOCIAL, icon = "🎧"),
         Achievement("webhook", "Webhook Wizard", "Configure a webhook", AchievementTier.BRONZE, AchievementCategory.SOCIAL, icon = "🪝"),
         Achievement("moan_enabled", "Audible Joy", "Enable chapter completion moan", AchievementTier.BRONZE, AchievementCategory.SOCIAL, icon = "🔊"),
         Achievement("moan_legendary", "Legendary Moan", "Hear a legendary (10%) moan", AchievementTier.GOLD, AchievementCategory.SOCIAL, icon = "💎"),
         Achievement("mango_easter", "Mango Found", "Find the mango easter egg", AchievementTier.SILVER, AchievementCategory.SOCIAL, isSecret = true, icon = "🥭"),
+        Achievement("eh_browsed", "Forbidden Browsing", "Browse E-Hentai/ExHentai for the first time", AchievementTier.BRONZE, AchievementCategory.EXPLORATION, icon = "👀"),
+        Achievement("rotating_daily_read_5", "Daily Sprint", "Read 5 chapters today", AchievementTier.BRONZE, AchievementCategory.ROTATING, isRotating = true, icon = "🏃"),
+        Achievement("rotating_daily_read_15", "Daily Marathon", "Read 15 chapters today", AchievementTier.SILVER, AchievementCategory.ROTATING, isRotating = true, icon = "🏅"),
+        Achievement("rotating_daily_library_add_3", "Daily Collector", "Add 3 manga to library today", AchievementTier.BRONZE, AchievementCategory.ROTATING, isRotating = true, icon = "📥"),
+        Achievement("rotating_daily_finish_1", "Daily Finisher", "Finish a manga today", AchievementTier.SILVER, AchievementCategory.ROTATING, isRotating = true, icon = "✅"),
+        Achievement("rotating_daily_tracker_update_3", "Daily Tracker", "Update tracker 3 times today", AchievementTier.BRONZE, AchievementCategory.ROTATING, isRotating = true, icon = "📝"),
+        Achievement("rotating_daily_translate_2", "Daily Polyglot", "Translate 2 chapters today", AchievementTier.BRONZE, AchievementCategory.ROTATING, isRotating = true, icon = "🌐"),
+        Achievement("rotating_daily_streak_bonus", "Streak Keeper", "Read 2 days in a row this week", AchievementTier.BRONZE, AchievementCategory.ROTATING, isRotating = true, icon = "🔥"),
+        Achievement("rotating_daily_morning_read", "Morning Pages", "Read before 8 AM today", AchievementTier.BRONZE, AchievementCategory.ROTATING, isRotating = true, icon = "🌅"),
+        Achievement("rotating_daily_midnight_read", "Midnight Pages", "Read after 11 PM today", AchievementTier.BRONZE, AchievementCategory.ROTATING, isRotating = true, icon = "🌙"),
+        Achievement("rotating_daily_search_5", "Daily Explorer", "Search 5 times today", AchievementTier.BRONZE, AchievementCategory.ROTATING, isRotating = true, icon = "🔍"),
+        Achievement("rotating_weekly_read_30", "Weekly Grind", "Read 30 chapters this week", AchievementTier.SILVER, AchievementCategory.ROTATING, isRotating = true, icon = "📚"),
+        Achievement("rotating_weekly_read_75", "Weekly Binge", "Read 75 chapters this week", AchievementTier.GOLD, AchievementCategory.ROTATING, isRotating = true, icon = "💥"),
+        Achievement("rotating_weekly_library_10", "Weekly Curator", "Add 10 manga this week", AchievementTier.SILVER, AchievementCategory.ROTATING, isRotating = true, icon = "🗂️"),
+        Achievement("rotating_weekly_finish_3", "Weekly Completionist", "Finish 3 manga this week", AchievementTier.GOLD, AchievementCategory.ROTATING, isRotating = true, icon = "🏆"),
+        Achievement("rotating_weekly_translate_10", "Weekly Translator", "Translate 10 chapters this week", AchievementTier.GOLD, AchievementCategory.ROTATING, isRotating = true, icon = "🗣️"),
+        Achievement("rotating_weekly_reread_2", "Weekly Nostalgia", "Reread 2 manga this week", AchievementTier.SILVER, AchievementCategory.ROTATING, isRotating = true, icon = "🔁"),
+        Achievement("rotating_weekly_upload_cover_3", "Weekly Artist", "Set 3 custom covers this week", AchievementTier.BRONZE, AchievementCategory.ROTATING, isRotating = true, icon = "🎨"),
+        Achievement("rotating_weekly_category_2", "Weekly Organizer", "Create 2 categories this week", AchievementTier.BRONZE, AchievementCategory.ROTATING, isRotating = true, icon = "🗃️"),
+        Achievement("rotating_weekly_tracker_5", "Weekly Tracker Pro", "Update tracker status 5 times this week", AchievementTier.SILVER, AchievementCategory.ROTATING, isRotating = true, icon = "⭐"),
+        Achievement("rotating_weekly_backup", "Weekly Safety", "Create a backup this week", AchievementTier.BRONZE, AchievementCategory.ROTATING, isRotating = true, icon = "💾"),
+        Achievement("rotating_daily_genre_explore", "Genre Hopper", "Browse 3 different sources today", AchievementTier.BRONZE, AchievementCategory.ROTATING, isRotating = true, icon = "🧭"),
+        Achievement("rotating_weekly_upscale_20", "Weekly Sharpener", "Upscale 20 pages this week", AchievementTier.SILVER, AchievementCategory.ROTATING, isRotating = true, icon = "🔍"),
+        Achievement("rotating_daily_webtoon_5", "Webtoon Daily", "Read 5 webtoon chapters today", AchievementTier.BRONZE, AchievementCategory.ROTATING, isRotating = true, icon = "⬇️"),
+        Achievement("rotating_weekly_night_owl", "Owl Week", "Read after midnight 3 nights this week", AchievementTier.SILVER, AchievementCategory.ROTATING, isRotating = true, icon = "🦉"),
+        Achievement("rotating_daily_backlog_clear_1", "Backlog Chip", "Clear 1 backlog item today", AchievementTier.BRONZE, AchievementCategory.ROTATING, isRotating = true, icon = "⚔️"),
+        Achievement("rotating_weekly_ltr_3", "LTR Week", "Complete 3 manga in LTR mode this week", AchievementTier.SILVER, AchievementCategory.ROTATING, isRotating = true, icon = "➡️"),
+        Achievement("rotating_daily_data_saver_5", "Saver Daily", "Read 5 chapters with Data Saver today", AchievementTier.BRONZE, AchievementCategory.ROTATING, isRotating = true, icon = "📉"),
+        Achievement("rotating_weekly_data_saver_20", "Saver Weekly", "Read 20 chapters with Data Saver this week", AchievementTier.SILVER, AchievementCategory.ROTATING, isRotating = true, icon = "📊"),
+        Achievement("rotating_daily_extra_1", "Quick Read", "Read a one-shot today", AchievementTier.BRONZE, AchievementCategory.ROTATING, isRotating = true, icon = "🎯"),
+        Achievement("rotating_daily_extra_2", "Tag Explorer", "Search by tag today", AchievementTier.BRONZE, AchievementCategory.ROTATING, isRotating = true, icon = "🏷️"),
+        Achievement("rotating_daily_extra_3", "Feed Check", "Open Feed today", AchievementTier.BRONZE, AchievementCategory.ROTATING, isRotating = true, icon = "📰"),
+        Achievement("rotating_daily_extra_4", "Incognito Dash", "Read 2 chapters incognito today", AchievementTier.BRONZE, AchievementCategory.ROTATING, isRotating = true, icon = "🥷"),
+        Achievement("rotating_daily_extra_5", "Double Page Day", "Read a spread in double-page mode today", AchievementTier.BRONZE, AchievementCategory.ROTATING, isRotating = true, icon = "🖼️"),
+        Achievement("rotating_weekly_extra_1", "Source Taster", "Try a new source this week", AchievementTier.BRONZE, AchievementCategory.ROTATING, isRotating = true, icon = "🆕"),
+        Achievement("rotating_weekly_extra_2", "Merge Master Weekly", "Merge a manga this week", AchievementTier.BRONZE, AchievementCategory.ROTATING, isRotating = true, icon = "🔗"),
+        Achievement("rotating_weekly_extra_3", "Translation Sprint", "Translate a 10+ chapter manga this week", AchievementTier.GOLD, AchievementCategory.ROTATING, isRotating = true, icon = "📖"),
+        Achievement("rotating_weekly_extra_4", "Backlog Buster Weekly", "Clear 5 backlog items this week", AchievementTier.GOLD, AchievementCategory.ROTATING, isRotating = true, icon = "💣"),
+        Achievement("rotating_daily_extra_6", "Stagger Day", "Browse library in staggered grid today", AchievementTier.BRONZE, AchievementCategory.ROTATING, isRotating = true, icon = "🧱"),
+        Achievement("rotating_weekly_extra_5", "Ultimate Weekly", "Read every day this week", AchievementTier.PLATINUM, AchievementCategory.ROTATING, isRotating = true, icon = "🗓️"),
+        Achievement("rotating_daily_extra_7", "Cover Swap", "Update a cover today", AchievementTier.BRONZE, AchievementCategory.ROTATING, isRotating = true, icon = "🖌️"),
+        Achievement("rotating_weekly_extra_6", "Tracker Streak Weekly", "Score 2 trackers this week", AchievementTier.SILVER, AchievementCategory.ROTATING, isRotating = true, icon = "🌸"),
+        Achievement("rotating_daily_extra_8", "Webhook Today", "Trigger a webhook today", AchievementTier.BRONZE, AchievementCategory.ROTATING, isRotating = true, icon = "🪝"),
+        Achievement("rotating_daily_extra_9", "EH Daily", "Browse EH today", AchievementTier.BRONZE, AchievementCategory.ROTATING, isRotating = true, icon = "👁️"),
+        Achievement("rotating_weekly_extra_7", "Reading Time Weekly", "Accumulate 5h reading this week", AchievementTier.SILVER, AchievementCategory.ROTATING, isRotating = true, icon = "⏰"),
+        Achievement("rotating_weekly_extra_8", "Library Growth Weekly", "Grow library by 15 this week", AchievementTier.GOLD, AchievementCategory.ROTATING, isRotating = true, icon = "🌱"),
+        Achievement("rotating_daily_extra_10", "Perfect Day", "Read 10 chapters without skipping", AchievementTier.SILVER, AchievementCategory.ROTATING, isRotating = true, icon = "💯"),
+        Achievement("rotating_weekly_extra_9", "Perfect Week Challenges", "Complete all weekly dailies at least once", AchievementTier.LEGENDARY, AchievementCategory.ROTATING, isRotating = true, icon = "🌟"),
+        Achievement("rotating_daily_extra_11", "Lunch Break Daily", "Read at lunch today", AchievementTier.BRONZE, AchievementCategory.ROTATING, isRotating = true, icon = "🍱"),
+        Achievement("rotating_weekly_extra_10", "Manga Marathon Weekly", "Read a 50+ chapter series this week", AchievementTier.GOLD, AchievementCategory.ROTATING, isRotating = true, icon = "🏔️"),
         // === SECRET ACHIEVEMENTS ===
         Achievement("secret_houri", "Houri Hour", "Open the app at 03:33", AchievementTier.BRONZE, AchievementCategory.EXPLORATION, isSecret = true, icon = "🕒"),
         Achievement("secret_konami", "Konami Scholar", "Enter the Konami code in settings", AchievementTier.SILVER, AchievementCategory.EXPLORATION, isSecret = true, icon = "🎮"),
@@ -205,4 +290,8 @@ object Achievements {
     fun forId(id: String) = all.find { it.id == id }
     val secrets get() = all.filter { it.isSecret }
     val visible get() = all.filter { !it.isSecret }
+    val negatives get() = all.filter { it.isNegative }
+    val rotating get() = all.filter { it.isRotating }
+    val nonNegative get() = all.filter { !it.isNegative }
+    val countable get() = all.filter { it.countsTowardsProgress }
 }

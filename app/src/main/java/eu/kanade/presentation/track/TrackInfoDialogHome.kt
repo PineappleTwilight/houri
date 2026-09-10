@@ -105,8 +105,16 @@ fun TrackInfoDialogHome(
             )
         }
         // KMK <--
+        val mismatchIds = remember(trackItems) {
+            val chapterValues = trackItems.mapNotNull { it.track?.lastChapterRead }.distinct()
+            if (chapterValues.size > 1) {
+                val max = chapterValues.maxOrNull() ?: 0.0
+                trackItems.filter { it.track != null && kotlin.math.abs(it.track.lastChapterRead - max) > 0.01 }.map { it.tracker.id }.toSet()
+            } else emptySet()
+        }
         trackItems.forEach { item ->
             if (item.track != null) {
+                val isMismatched = item.tracker.id in mismatchIds
                 val supportsScoring = item.tracker.getScoreList().isNotEmpty()
                 val supportsReadingDates = item.tracker.supportsReadingDates
                 val supportsPrivate = item.tracker.supportsPrivateTracking
@@ -144,6 +152,7 @@ fun TrackInfoDialogHome(
                     private = item.track.private,
                     onTogglePrivate = { onTogglePrivate(item) }
                         .takeIf { supportsPrivate },
+                    isMismatched = isMismatched,
                 )
             } else {
                 TrackInfoItemEmpty(
@@ -175,6 +184,7 @@ private fun TrackInfoItem(
     onCopyLink: () -> Unit,
     private: Boolean,
     onTogglePrivate: (() -> Unit)?,
+    isMismatched: Boolean = false,
 ) {
     val context = LocalContext.current
     Column {
@@ -239,7 +249,12 @@ private fun TrackInfoItem(
             modifier = Modifier
                 .padding(top = 12.dp)
                 .clip(MaterialTheme.shapes.medium)
-                .background(MaterialTheme.colorScheme.surfaceContainerHighest)
+                .background(
+                    when {
+                        isMismatched -> MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.7f)
+                        else -> MaterialTheme.colorScheme.surfaceContainerHighest
+                    },
+                )
                 .padding(8.dp)
                 .clip(RoundedCornerShape(6.dp)),
         ) {

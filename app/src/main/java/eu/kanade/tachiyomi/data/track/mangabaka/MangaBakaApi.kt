@@ -242,10 +242,11 @@ class MangaBakaApi(
 
     suspend fun getAccessToken(code: String): MangaBakaOAuth {
         return withIOContext {
+            val verifier = persistedCodeVerifier().ifBlank { codeVerifier }
             val formBody = FormBody.Builder()
                 .add("client_id", CLIENT_ID)
                 .add("code", code)
-                .add("code_verifier", codeVerifier)
+                .add("code_verifier", verifier)
                 .add("code_challenge_method", "S256")
                 .add("grant_type", "authorization_code")
                 .add("redirect_uri", REDIRECT_URI)
@@ -259,7 +260,10 @@ class MangaBakaApi(
         }
     }
 
-    fun verifyOAuthState(state: String): Boolean = state == oauthStateParam
+    fun verifyOAuthState(state: String): Boolean {
+        val expected = persistedState().ifBlank { oauthStateParam }
+        return state == expected && expected.isNotBlank()
+    }
 
     private fun parseIsoDateAsLocalStartOfDay(isoDate: String?): Long? {
         return try {
@@ -290,6 +294,11 @@ class MangaBakaApi(
         private var codeVerifier: String = ""
         private var oauthStateParam: String = ""
 
+        private const val PREF_CODE_VERIFIER = "mangabaka_code_verifier"
+        private const val PREF_OAUTH_STATE = "mangabaka_oauth_state"
+
+        private fun preferenceStore() = try { mihon.app.di.globalAppGraph.preferenceStore } catch (_: Exception) { null }
+
         fun authUrl(): Uri = "$OAUTH_URL/authorize".toUri().buildUpon()
             .appendQueryParameter("client_id", CLIENT_ID)
             .appendQueryParameter("code_challenge", getPkceS256ChallengeCode())
@@ -316,12 +325,23 @@ class MangaBakaApi(
             oauthStateParam = Base64.getUrlEncoder()
                 .withoutPadding()
                 .encodeToString(bytes)
-
+            preferenceStore()?.getString(PREF_OAUTH_STATE, "")?.set(oauthStateParam)
             return oauthStateParam
+        }
+
+        fun persistedState(): String {
+            if (oauthStateParam.isNotBlank()) return oauthStateParam
+            return preferenceStore()?.getString(PREF_OAUTH_STATE, "")?.get().orEmpty()
+        }
+
+        fun persistedCodeVerifier(): String {
+            if (codeVerifier.isNotBlank()) return codeVerifier
+            return preferenceStore()?.getString(PREF_CODE_VERIFIER, "")?.get().orEmpty()
         }
 
         private fun getPkceS256ChallengeCode(): String {
             codeVerifier = eu.kanade.tachiyomi.util.PkceUtil.generateCodeVerifier()
+            preferenceStore()?.getString(PREF_CODE_VERIFIER, "")?.set(codeVerifier)
             val bytes = codeVerifier.toByteArray()
             val digest = java.security.MessageDigest.getInstance("SHA-256").digest(bytes)
             return Base64.getUrlEncoder().withoutPadding().encodeToString(digest)
