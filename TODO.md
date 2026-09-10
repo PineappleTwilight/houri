@@ -145,6 +145,11 @@
 - [ ] **Achievements**: Add daily/weekly rotating achievement pool
   - Unique achievements should be made for this (50-100)
   - If the user has already unlocked an achievement in the pool, it should be handled well
+- [ ] **Achievements**: Add new tier: ultimate
+  - These achievements should be near impossible to obtain
+- [ ] **Achievements**: Cool animated text colors/gradients for unlocked high tier achievements (toggleable, defaults to enabled
+  - Icons should also be animated too somehow
+  - Should be performance friendly but still cool
 
 ## Bugfixes
 - [x] Fix UI transition choppiness.
