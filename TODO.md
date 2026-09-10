@@ -138,6 +138,9 @@
   - Helps users who don't want it enabled to easily disable it before use
   - Current users should either re-onboard or toggle it in settings
   - Implemented 2026-09-09: `AchievementsStep` (Theme→Storage→**Achievements**→Permission→Guides) with three switches (system/toasts/sounds) bound to `AchievementPreferences`; re-onboard via Settings → Advanced → Onboarding guide, or toggle in Settings → Advanced → Achievements
+- [ ] **Achievements**: Add negative achievements that don't count towards the total unlocks and don't give any rank points
+- [ ] **Achievements**: Add backlog-related achievements
+- [ ] **Achievements**: Add LTR achievement to match parity with RTL achievement
 
 ## Bugfixes
 - [x] Fix UI transition choppiness.
@@ -340,6 +343,10 @@
   - Fixed 2026-09-09: `LibraryScreenModel.ACHIEVEMENTS_CATEGORY_ID=-100` synthetic category injected when `achievementsEnabled` (always visible, survives empty-library `ifEmpty` fallback); `LibraryTab` now bypasses `EmptyScreen` when achievements enabled and renders `AchievementsContent` for that tab; `LibraryTab.selectAchievements()` + `HomeScreen.openTab` wiring via Settings → View achievements
 - [x] **Achievements**: Overall analyze, harden, and improve.
   - Hardened 2026-09-09: `AchievementPreferences` synchronized increments/sets, id validation (exists + ≤64 chars), 300-unlock cap, timestamp trimming at 16k/200 entries, corrupted-string filtering, `isEnabled/hasCompletedOnboarding` helpers; `AchievementManager` synchronized thresholds, expanded library/tracker/reread/translation unlocks, `tryUnlockDirect` for manual, `wipe` double-confirm preserved; `AchievementStats` now includes `secretUnlocked` in `computeStats`; `AchievementNotifier/SoundPlayer` already gated by `achievementsEnabled`
+- [ ] **Achievements**: Ensure all achievements trigger properly
+  - Change achievements that require no user input and are enabled by default
+    - Example: enable e/exhentai -> browse e/exhentai for the first time
+- [ ] **App**: Fix and improve/harden data saver mode
 
 ## Chores
 - [x] Replace all Komikku icons/branding with houri icons/branding

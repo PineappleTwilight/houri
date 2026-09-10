@@ -22,23 +22,11 @@ kotlin {
         }
     }
 
-    applyDefaultHierarchyTemplate()
-
     sourceSets {
         commonMain {
             dependencies {
                 api(libs.moko.core)
             }
-        }
-        // Fix: Kotlin 2.2 warns "commonTest was configured but not added to any compilation"
-        // when using Android KMP + applyDefaultHierarchyTemplate without explicit
-        // androidUnitTest -> commonTest linkage. Explicitly connect the hierarchy.
-        commonTest {
-            dependencies {
-            }
-        }
-        androidUnitTest {
-            dependsOn(commonTest.get())
         }
     }
 
