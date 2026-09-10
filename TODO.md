@@ -399,7 +399,8 @@
   - This helps users save storage space if they know their device can't run MTL or if they just don't want it
 - [x] **Trackers**: Migrate komikku oauth clients to houri oauth clients
   - 2026-09-09: all redirect URIs verified as `houri://` (bangumi `houri://bangumi-auth`, mangabaka `houri://mangabaka-auth`, shikimori `houri://shikimori-auth`, MAL PKCE with `houri://myanimelist-auth`); CLIENT_IDs kept pending provider re-registration where needed, redirects already houri
-
+- [ ] **Google Drive**: Update oauth token
+- [ ] **MyAnimeList**: Update oauth token
 
 ## Drawing Board
 - [ ] **Anizen Port**: Multi-feed
