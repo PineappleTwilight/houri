@@ -4,6 +4,7 @@ import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
 import tachiyomi.core.common.preference.PreferenceStore
+import tachiyomi.domain.achievement.model.Achievements
 
 @SingleIn(AppScope::class)
 @Inject
