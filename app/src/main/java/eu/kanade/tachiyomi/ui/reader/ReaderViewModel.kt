@@ -1033,18 +1033,17 @@ class ReaderViewModel(
             }
             if (unfilteredChapterList.isNotEmpty() &&
                 unfilteredChapterList.all { it.read } &&
-                // KMK -->
                 !currentManga.rereading
-                // KMK <--
             ) {
+                val isPermanent = try { achievementManager.isPermanentStatus(currentManga.status) } catch (_: Exception) { true }
                 webhookNotifier.notify(
-                    WebhookEvent.MANGA_FINISHED,
+                    if (isPermanent) WebhookEvent.MANGA_FINISHED else WebhookEvent.MANGA_FINISHED,
                     mapOf("manga" to currentManga.title),
                     sourceId = currentManga.source,
                     mangaId = currentManga.id,
                 )
                 try {
-                    achievementManager.onMangaFinished()
+                    if (isPermanent) achievementManager.onMangaFinished() else achievementManager.onMangaCaughtUp()
                 } catch (_: Exception) {}
                 try {
                     achievementManager.onBacklogCleared(1)

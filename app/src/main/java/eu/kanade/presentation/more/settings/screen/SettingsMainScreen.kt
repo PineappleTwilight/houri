@@ -19,6 +19,7 @@ import androidx.compose.material.icons.outlined.Link
 import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Security
+import androidx.compose.material.icons.outlined.Star
 import androidx.compose.material.icons.outlined.Storage
 import androidx.compose.material.icons.outlined.Sync
 import androidx.compose.material3.LocalContentColor
@@ -269,6 +270,22 @@ object SettingsMainScreen : Screen() {
             icon = Icons.Outlined.Language,
             screen = SettingsYakuyomiScreen,
         ).takeIf { !eu.kanade.tachiyomi.BuildConfig.IS_NOMTL },
+        Item(
+            titleRes = KMR.strings.label_achievements,
+            subtitleRes = KMR.strings.achievements_unlocked_count,
+            formatSubtitle = {
+                val prefs = mihon.app.di.globalAppGraph.achievementPreferences
+                val unlocked = try {
+                    prefs.getUnlockedIds().size
+                } catch (_: Exception) {
+                    0
+                }
+                val total = tachiyomi.domain.achievement.model.Achievements.all.size
+                androidx.compose.runtime.remember(unlocked) { "$unlocked / $total unlocked" }
+            },
+            icon = Icons.Outlined.Star,
+            screen = SettingsAchievementsScreen,
+        ),
         // KMK <--
         Item(
             titleRes = MR.strings.pref_category_advanced,

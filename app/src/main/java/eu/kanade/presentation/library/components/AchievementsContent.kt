@@ -13,6 +13,8 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
@@ -37,6 +39,7 @@ import tachiyomi.presentation.core.util.collectAsState
 fun AchievementsContent(
     contentPadding: PaddingValues,
     modifier: Modifier = Modifier,
+    onLeaveAchievements: (() -> Unit)? = null,
 ) {
     val prefs = globalAppGraph.achievementPreferences
     val unlockedIds by prefs.unlockedAchievements().collectAsState()
@@ -55,6 +58,30 @@ fun AchievementsContent(
     val all = Achievements.all
 
     Column(modifier = modifier.padding(contentPadding)) {
+        if (onLeaveAchievements != null) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 4.dp, vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                androidx.compose.material3.IconButton(onClick = onLeaveAchievements) {
+                    androidx.compose.material3.Icon(
+                        imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
+                        contentDescription = stringResource(tachiyomi.i18n.MR.strings.action_bar_up_description),
+                    )
+                }
+                Text(
+                    text = stringResource(tachiyomi.i18n.MR.strings.label_library),
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.weight(1f),
+                )
+                androidx.compose.material3.TextButton(onClick = onLeaveAchievements) {
+                    Text(text = stringResource(tachiyomi.i18n.MR.strings.label_library))
+                }
+            }
+        }
         AchievementsHeader(stats = stats, unlocked = countableUnlocked, total = countableTotal, animationsEnabled = animationsEnabled, onToggleAnimations = { prefs.animationsEnabled().set(it) })
         if (rotatingPoolActive.isNotEmpty()) {
             Text(

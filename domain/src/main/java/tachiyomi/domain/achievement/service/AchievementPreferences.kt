@@ -18,6 +18,7 @@ class AchievementPreferences(
     fun unlockedAchievements() = preferenceStore.getString("pref_unlocked_achievements", "")
     fun organicChaptersRead() = preferenceStore.getLong("pref_organic_chapters_read", 0)
     fun mangaFinishedCount() = preferenceStore.getLong("pref_achievement_manga_finished", 0)
+    fun mangaCaughtUpCount() = preferenceStore.getLong("pref_achievement_manga_caught_up", 0)
     fun libraryMangaCount() = preferenceStore.getLong("pref_achievement_library_count", 0)
     fun achievementsData() = preferenceStore.getString("pref_achievements_data", "")
     fun unlockedTimestamps() = preferenceStore.getString("pref_achievement_timestamps", "")
@@ -33,14 +34,23 @@ class AchievementPreferences(
 
     @Synchronized
     fun incrementOrganicRead() {
+        if (suppressOrganicForImport) return
         val cur = organicChaptersRead().get()
         if (cur < 1_000_000L) organicChaptersRead().set(cur + 1)
     }
 
     @Synchronized
     fun incrementMangaFinished() {
+        if (suppressOrganicForImport) return
         val cur = mangaFinishedCount().get()
         if (cur < 1_000_000L) mangaFinishedCount().set(cur + 1)
+    }
+
+    @Synchronized
+    fun incrementMangaCaughtUp() {
+        if (suppressOrganicForImport) return
+        val cur = mangaCaughtUpCount().get()
+        if (cur < 1_000_000L) mangaCaughtUpCount().set(cur + 1)
     }
 
     @Synchronized
@@ -51,6 +61,7 @@ class AchievementPreferences(
     @Synchronized
     fun addReadingTimeMinutes(minutes: Long) {
         if (minutes <= 0) return
+        if (suppressOrganicForImport) return
         val cur = totalReadingTimeMinutes().get()
         totalReadingTimeMinutes().set((cur + minutes).coerceIn(0L, 10_000_000L))
     }
@@ -115,6 +126,9 @@ class AchievementPreferences(
         }.toMap()
     }
 
+    @Volatile
+    var suppressOrganicForImport: Boolean = false
+
     fun computeStats(totalAchievements: Int): tachiyomi.domain.achievement.model.AchievementStats {
         val ids = getUnlockedIds()
         val countableIds = ids.filter { tachiyomi.domain.achievement.model.Achievements.forId(it)?.countsTowardsProgress == true }
@@ -125,6 +139,7 @@ class AchievementPreferences(
         return tachiyomi.domain.achievement.model.AchievementStats(
             organicChaptersRead = organicChaptersRead().get().coerceAtLeast(0L),
             mangaFinished = mangaFinishedCount().get().coerceAtLeast(0L),
+            mangaCaughtUp = mangaCaughtUpCount().get().coerceAtLeast(0L),
             libraryCount = libraryMangaCount().get().coerceAtLeast(0L),
             totalAchievements = totalAchievements.coerceAtLeast(0),
             unlockedCount = unlocked,
@@ -140,6 +155,7 @@ class AchievementPreferences(
         unlockedAchievements().set("")
         organicChaptersRead().set(0)
         mangaFinishedCount().set(0)
+        mangaCaughtUpCount().set(0)
         libraryMangaCount().set(0)
         totalReadingTimeMinutes().set(0)
         backlogClearedCount().set(0)

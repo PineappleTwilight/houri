@@ -77,7 +77,12 @@ class BackupRestorer(
     }
 
     private suspend fun restoreFromFile(uri: Uri, options: RestoreOptions) {
-        val backup = BackupDecoder(context).decode(uri)
+        // Suppress organic achievement increments for DB imports — tracker/history counts should not inflate organic stats
+        val achievementPrefs = try { mihon.app.di.globalAppGraph.achievementPreferences } catch (_: Exception) { null }
+        val prevSuppress = achievementPrefs?.suppressOrganicForImport
+        try {
+            achievementPrefs?.suppressOrganicForImport = true
+            val backup = BackupDecoder(context).decode(uri)
 
         // Store source mapping for error messages
         val backupMaps = backup.backupSources
@@ -134,6 +139,9 @@ class BackupRestorer(
             if (options.libraryEntries) {
                 LibraryUpdateJob.startNow(context)
             }
+        }
+        } finally {
+            if (prevSuppress != null) achievementPrefs?.suppressOrganicForImport = prevSuppress
         }
     }
 

@@ -40,7 +40,7 @@ class AchievementNotifier(
                 .distinctUntilChanged()
                 .collect { current ->
                     val newly = current - lastSeen
-                    if (newly.isNotEmpty() && lastSeen.isNotEmpty()) {
+                    if (newly.isNotEmpty()) {
                         var delayMs = 0L
                         for (id in newly) {
                             val ach = Achievements.forId(id) ?: continue

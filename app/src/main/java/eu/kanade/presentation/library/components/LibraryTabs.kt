@@ -49,18 +49,32 @@ internal fun LibraryTabs(
         PrimaryScrollableTabRow(
             selectedTabIndex = currentPageIndex,
             edgePadding = 0.dp,
-            // TODO: use default when width is fixed upstream
-            // https://issuetracker.google.com/issues/242879624
             divider = {},
         ) {
             categories.forEachIndexed { index, category ->
+                val isAchievements = category.id == eu.kanade.tachiyomi.ui.library.LibraryScreenModel.ACHIEVEMENTS_CATEGORY_ID
+                val achievementsBadgeText = if (isAchievements) {
+                    try {
+                        val prefs = mihon.app.di.globalAppGraph.achievementPreferences
+                        val raw = prefs.unlockedAchievements().get()
+                        val unlockedSet = if (raw.isBlank()) emptySet() else raw.split(",").map { it.trim() }.filter { it.isNotBlank() }.toSet()
+                        val total = tachiyomi.domain.achievement.model.Achievements.countable.size
+                        val unlocked = unlockedSet.count { tachiyomi.domain.achievement.model.Achievements.forId(it)?.countsTowardsProgress == true }
+                        "$unlocked/$total"
+                    } catch (_: Exception) {
+                        null
+                    }
+                } else {
+                    null
+                }
                 Tab(
                     selected = currentPageIndex == index,
                     onClick = { onTabItemClick(index) },
                     text = {
                         TabText(
                             text = category.visualName,
-                            badgeCount = getItemCountForCategory(category),
+                            badgeCount = if (achievementsBadgeText == null) getItemCountForCategory(category) else null,
+                            badgeText = achievementsBadgeText,
                         )
                     },
                     unselectedContentColor = MaterialTheme.colorScheme.onSurface,

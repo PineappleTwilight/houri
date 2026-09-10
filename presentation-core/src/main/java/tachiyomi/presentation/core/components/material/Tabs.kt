@@ -11,8 +11,9 @@ import androidx.compose.ui.unit.sp
 import tachiyomi.presentation.core.components.Pill
 
 @Composable
-fun TabText(text: String, badgeCount: Int? = null) {
+fun TabText(text: String, badgeCount: Int? = null, badgeText: String? = null) {
     val pillAlpha = if (isSystemInDarkTheme()) 0.12f else 0.08f
+    val display = badgeText ?: badgeCount?.toString()
 
     Row(
         verticalAlignment = Alignment.CenterVertically,
@@ -22,9 +23,9 @@ fun TabText(text: String, badgeCount: Int? = null) {
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
-        if (badgeCount != null) {
+        if (display != null) {
             Pill(
-                text = "$badgeCount",
+                text = display,
                 color = MaterialTheme.colorScheme.onBackground.copy(alpha = pillAlpha),
                 fontSize = 10.sp,
             )

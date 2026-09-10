@@ -334,29 +334,7 @@ class LibraryScreenModel(
                             )
                         }
                     }
-                    .let { map ->
-                        val achievementsEnabled = try {
-                            mihon.app.di.globalAppGraph.achievementPreferences.achievementsEnabled().get()
-                        } catch (_: Exception) {
-                            true
-                        }
-                        if (achievementsEnabled) {
-                            val achCategory = Category(
-                                Companion.ACHIEVEMENTS_CATEGORY_ID,
-                                preferences.context.stringResource(tachiyomi.i18n.kmk.KMR.strings.label_achievements),
-                                order = 9999,
-                                flags = 0,
-                                hidden = false,
-                            )
-                            if (map.none { it.key.id == achCategory.id }) {
-                                map + (achCategory to emptyList())
-                            } else {
-                                map
-                            }
-                        } else {
-                            map
-                        }
-                    }
+                    .let { map -> map }
                     // KMK -->
                     .let { it to subcategoryMangaMap }
                 // KMK <--
@@ -1584,7 +1562,28 @@ class LibraryScreenModel(
         }
             .coercedActiveCategoryIndex
 
-        libraryPreferences.lastUsedCategory().set(newIndex)
+        // Don't persist the synthetic achievements category as last used — it has no manga and traps the user on restart.
+        val newCategoryId = mutableState.value.displayedCategories.getOrNull(index)?.id
+        if (newCategoryId != Companion.ACHIEVEMENTS_CATEGORY_ID) {
+            libraryPreferences.lastUsedCategory().set(newIndex)
+        }
+    }
+
+    fun leaveAchievements() {
+        val state = mutableState.value
+        val current = state.displayedCategories.getOrNull(state.coercedActiveCategoryIndex)
+        if (current?.id != Companion.ACHIEVEMENTS_CATEGORY_ID) return
+        val categories = state.displayedCategories
+        // Prefer the last real category the user was on; fall back to first non-achievements.
+        val saved = libraryPreferences.lastUsedCategory().get().coerceIn(0, categories.lastIndex.coerceAtLeast(0))
+        val savedIsAchievements = categories.getOrNull(saved)?.id == Companion.ACHIEVEMENTS_CATEGORY_ID
+        val fallback = categories.indexOfFirst { it.id != Companion.ACHIEVEMENTS_CATEGORY_ID }.coerceAtLeast(0)
+        val target = when {
+            !savedIsAchievements -> saved
+            fallback != -1 -> fallback
+            else -> 0
+        }.coerceIn(0, categories.lastIndex.coerceAtLeast(0))
+        updateActiveCategoryIndex(target)
     }
 
     // KMK -->

@@ -178,7 +178,6 @@ object SettingsAdvancedScreen : SearchableSettings {
                 },
             ),
             // KMK <--
-            getAchievementsGroup(),
             getBackgroundActivityGroup(),
             getDataGroup(),
             getNetworkGroup(networkPreferences = networkPreferences),
@@ -352,92 +351,6 @@ object SettingsAdvancedScreen : SearchableSettings {
                         userAgentPref.delete()
                         context.toast(MR.strings.requires_app_restart)
                     },
-                ),
-            ),
-        )
-    }
-
-    @Composable
-    private fun getAchievementsGroup(): Preference.PreferenceGroup {
-        val achievementPrefs = remember { globalAppGraph.achievementPreferences }
-        val enabled by achievementPrefs.achievementsEnabled().collectAsState()
-        val toastsEnabled by achievementPrefs.achievementToastsEnabled().collectAsState()
-        val soundsEnabled by achievementPrefs.achievementSoundsEnabled().collectAsState()
-        val context = LocalContext.current
-        val scope = rememberCoroutineScope()
-        var showWipeFirst by remember { mutableStateOf(false) }
-        var showWipeSecond by remember { mutableStateOf(false) }
-        if (showWipeFirst) {
-            AlertDialog(
-                onDismissRequest = { showWipeFirst = false },
-                title = { Text("Reset achievements?") },
-                text = { Text("This will wipe all achievement progress and stats. Are you sure?") },
-                confirmButton = {
-                    TextButton(onClick = {
-                        showWipeFirst = false
-                        showWipeSecond = true
-                    }) { Text("Yes, continue") }
-                },
-                dismissButton = { TextButton(onClick = { showWipeFirst = false }) { Text("Cancel") } },
-            )
-        }
-        if (showWipeSecond) {
-            AlertDialog(
-                onDismissRequest = { showWipeSecond = false },
-                title = { Text("Are you REALLY sure?") },
-                text = { Text("This cannot be undone. All ${tachiyomi.domain.achievement.model.Achievements.all.size} achievements will be locked again.") },
-                confirmButton = {
-                    TextButton(onClick = {
-                        showWipeSecond = false
-                        scope.launch {
-                            globalAppGraph.achievementManager.wipeWithConfirmation(true, true)
-                            context.toast("Achievements wiped")
-                        }
-                    }) { Text("Wipe everything") }
-                },
-                dismissButton = { TextButton(onClick = { showWipeSecond = false }) { Text("Cancel") } },
-            )
-        }
-        return Preference.PreferenceGroup(
-            title = "Achievements",
-            preferenceItems = persistentListOf(
-                Preference.PreferenceItem.SwitchPreference(
-                    preference = achievementPrefs.achievementsEnabled(),
-                    title = "Enable achievements",
-                    subtitle = if (enabled) "Achievements are enabled" else "Achievements disabled — no tracking or popups",
-                ),
-                Preference.PreferenceItem.SwitchPreference(
-                    preference = achievementPrefs.achievementToastsEnabled(),
-                    title = "Achievement popups",
-                    subtitle = if (toastsEnabled) "Show toast when you unlock an achievement" else "Toasts disabled",
-                    enabled = enabled,
-                ),
-                Preference.PreferenceItem.SwitchPreference(
-                    preference = achievementPrefs.achievementSoundsEnabled(),
-                    title = "Achievement sounds",
-                    subtitle = if (soundsEnabled) "Play a chime per tier (bronze→mythic)" else "Sounds muted",
-                    enabled = enabled,
-                ),
-                Preference.PreferenceItem.TextPreference(
-                    title = "View achievements",
-                    subtitle = "${achievementPrefs.getUnlockedIds().size} / ${tachiyomi.domain.achievement.model.Achievements.all.size} unlocked",
-                    onClick = {
-                        scope.launch {
-                            try {
-                                eu.kanade.tachiyomi.ui.library.LibraryTab.selectAchievements()
-                                eu.kanade.tachiyomi.ui.home.HomeScreen.openTab(eu.kanade.tachiyomi.ui.home.HomeScreen.Tab.Library(null))
-                            } catch (_: Exception) {
-                                context.toast("Open Library → Achievements tab to view all")
-                            }
-                        }
-                    },
-                    enabled = enabled,
-                ),
-                Preference.PreferenceItem.TextPreference(
-                    title = "Wipe achievement data",
-                    subtitle = "Double confirmation required",
-                    onClick = { showWipeFirst = true },
-                    enabled = enabled,
                 ),
             ),
         )

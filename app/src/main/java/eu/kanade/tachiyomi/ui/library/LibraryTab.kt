@@ -123,8 +123,6 @@ data object LibraryTab : Tab {
         val screenModel = rememberScreenModel { LibraryScreenModel() }
         val settingsScreenModel = rememberScreenModel { LibrarySettingsScreenModel() }
         val state by screenModel.state.collectAsState()
-        val achievementsEnabled by globalAppGraph.achievementPreferences.achievementsEnabled().collectAsState()
-        val isAchievementsTab = state.activeCategory?.id == LibraryScreenModel.ACHIEVEMENTS_CATEGORY_ID
 
         // KMK -->
         val useFolderLayout by settingsScreenModel.libraryPreferences.subcategoryFolderLayout().collectAsState()
@@ -316,7 +314,7 @@ data object LibraryTab : Tab {
                         if (it) tachiyomi.presentation.core.components.LibraryShimmerGrid()
                     }
                 }
-                state.searchQuery.isNullOrEmpty() && !state.hasActiveFilters && state.isLibraryEmpty && !achievementsEnabled -> {
+                state.searchQuery.isNullOrEmpty() && !state.hasActiveFilters && state.isLibraryEmpty -> {
                     val handler = LocalUriHandler.current
                     EmptyScreen(
                         stringRes = MR.strings.information_empty_library,
@@ -328,11 +326,6 @@ data object LibraryTab : Tab {
                                 onClick = { handler.openUri(GETTING_STARTED_URL) },
                             ),
                         ),
-                    )
-                }
-                isAchievementsTab && achievementsEnabled -> {
-                    AchievementsContent(
-                        contentPadding = contentPadding,
                     )
                 }
                 else -> {

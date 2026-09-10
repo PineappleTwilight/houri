@@ -115,6 +115,7 @@ class AchievementManager(
     @Synchronized
     fun onMangaFinished(): List<String> {
         if (!prefs.achievementsEnabled().get()) return emptyList()
+        if (prefs.suppressOrganicForImport) return emptyList()
         prefs.incrementMangaFinished()
         val count = prefs.mangaFinishedCount().get().coerceAtLeast(0L)
         val unlocked = mutableListOf<String>()
@@ -128,6 +129,33 @@ class AchievementManager(
         if (unlocked.isNotEmpty()) notifyIfNeeded(unlocked)
         checkUltimateProgress()
         return unlocked
+    }
+
+    @Synchronized
+    fun onMangaCaughtUp(): List<String> {
+        if (!prefs.achievementsEnabled().get()) return emptyList()
+        if (prefs.suppressOrganicForImport) return emptyList()
+        prefs.incrementMangaCaughtUp()
+        val count = prefs.mangaCaughtUpCount().get().coerceAtLeast(0L)
+        val unlocked = mutableListOf<String>()
+        if (count >= 1) tryUnlock("first_manga_caught_up", unlocked)
+        if (count >= 5) tryUnlock("five_manga_caught_up", unlocked)
+        if (count >= 10) tryUnlock("ten_manga_caught_up", unlocked)
+        if (count >= 20) tryUnlock("twenty_manga_caught_up", unlocked)
+        if (count >= 50) tryUnlock("fifty_manga_caught_up", unlocked)
+        if (unlocked.isNotEmpty()) notifyIfNeeded(unlocked)
+        checkUltimateProgress()
+        return unlocked
+    }
+
+    fun isPermanentStatus(status: Long): Boolean {
+        return when (status.toInt()) {
+            eu.kanade.tachiyomi.source.model.SManga.COMPLETED,
+            eu.kanade.tachiyomi.source.model.SManga.CANCELLED,
+            eu.kanade.tachiyomi.source.model.SManga.PUBLISHING_FINISHED,
+            eu.kanade.tachiyomi.source.model.SManga.LICENSED -> true
+            else -> false
+        }
     }
 
     @Synchronized
