@@ -152,6 +152,8 @@
   - Implemented 2026-09-10: `AchievementTier.ULTIMATE` (7th tier), 5 ultimate achievements (ink god 20k chapters, eternal library 2k manga, time dilation 2k h, absolute perfection 200 countable, ultimate hunter 20 secrets), `AchievementStats` rank "Ultimate" + `rankTier=ULTIMATE`, `AchievementSoundPlayer.ultimateWav` shimmer chime, duration 1200ms
 - [x] **Achievements**: Cool animated text colors/gradients for unlocked high tier achievements (toggleable, defaults to enabled
   - Implemented 2026-09-10: `AchievementTierAnimation` modular framework — `brushForTier` linear/sweep gradients per tier (silver→ultimate), `rememberTierProgress` infinite transition (perf-friendly, only for unlocked high tiers), `Modifier.tierAnimatedBackground`, `AchievementsContent` header toggle `animationsEnabled` (default true) + per-card `animatedModifier`, negative/secret excluded
+- [ ] **Achievements**: Progress tracker per-achievement
+- [ ] **Achievements**: Add achievements for "catching up" with manga
 
 ## Bugfixes
 - [x] Fix UI transition choppiness.
@@ -364,6 +366,11 @@
   - Implemented 2026-09-10: `UnifiedTrackerHelper` (mismatch detection), `TrackChapter.await` now syncs to preferred tracker (per-manga → per-category fallback via `TrackPreferences`), maxes chapter progress across trackers, auto-completes (`COMPLETED` when `lastChapterRead >= totalChapters`), `TrackInfoDialogHome` yellow `tertiaryContainer` highlight for mismatched chapter numbers
 - [x] **Library**: Remove empty subcategory chip introduced when achievements tab was added
   - Fixed 2026-09-10: `LibraryScreenModel.getSubcategoriesForCategory` now returns empty for `ACHIEVEMENTS_CATEGORY_ID=-100` and filters blank names; `LibraryContent` guards achievements tab + blank names; `LibraryTabs.LibrarySubcategoryTabs` filters blank names, uses `visibleSubcategories` for empty check/collapsed key/iteration, eliminating phantom chip
+- [ ] **Achievements**: Harden achievement tracking
+  - It would be nice to standardize this and have it be a psuedo-framework for easy wiring later
+- [ ] **App**: Fix flickering/jank when changing panel states
+- [ ] **Achievements**: Improve toasts
+- [ ] **Achievements**: Disable achievement chime by default
 
 ## Chores
 - [x] Replace all Komikku icons/branding with houri icons/branding
