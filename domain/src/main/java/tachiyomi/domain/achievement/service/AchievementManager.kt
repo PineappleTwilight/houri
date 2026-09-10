@@ -230,6 +230,16 @@ class AchievementManager(
         return out.isNotEmpty()
     }
 
+    @Synchronized
+    fun onJxlDecoded(): List<String> {
+        if (!prefs.achievementsEnabled().get()) return emptyList()
+        val unlocked = mutableListOf<String>()
+        tryUnlock("secret_jxl", unlocked)
+        if (unlocked.isNotEmpty()) notifyIfNeeded(unlocked)
+        checkUltimateProgress()
+        return unlocked
+    }
+
     private fun checkThresholds(count: Long): List<String> {
         val unlocked = mutableListOf<String>()
         if (count >= 1) tryUnlock("first_chapter", unlocked)

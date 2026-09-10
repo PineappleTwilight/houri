@@ -83,10 +83,9 @@ fun TrackInfoDialogHome(
         modifier = Modifier
             .animateContentSize()
             .fillMaxWidth()
-            .heightIn(max = 520.dp)
+            .heightIn(max = 600.dp)
             .verticalScroll(rememberScrollState())
-            .padding(16.dp)
-            .windowInsetsPadding(WindowInsets.systemBars),
+            .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(24.dp),
     ) {
         // KMK -->
@@ -113,6 +112,16 @@ fun TrackInfoDialogHome(
             } else {
                 emptySet()
             }
+        }
+        if (trackItems.size > 1) {
+            UnifiedTrackerCard(
+                trackItems = trackItems,
+                onStatusClick = onStatusClick,
+                onChapterClick = onChapterClick,
+                onScoreClick = onScoreClick,
+                onStartDateEdit = onStartDateEdit,
+                onEndDateEdit = onEndDateEdit,
+            )
         }
         trackItems.forEach { item ->
             if (item.track != null) {
@@ -414,6 +423,153 @@ private fun TrackInfoItemMenu(
                     expanded = false
                 },
             )
+        }
+    }
+}
+
+@Composable
+private fun UnifiedTrackerCard(
+    trackItems: List<TrackItem>,
+    onStatusClick: (TrackItem) -> Unit,
+    onChapterClick: (TrackItem) -> Unit,
+    onScoreClick: (TrackItem) -> Unit,
+    onStartDateEdit: (TrackItem) -> Unit,
+    onEndDateEdit: (TrackItem) -> Unit,
+) {
+    val primary = trackItems.firstOrNull { it.track != null } ?: trackItems.firstOrNull() ?: return
+    val displayTrack = primary.track
+    val displayTracker = primary.tracker
+    val statusText = displayTrack?.let { displayTracker.getStatus(it.status)?.let { stringResource(it) } } ?: "Reading"
+    val scoreText = displayTrack?.let { displayTracker.displayScore(it) }?.takeIf { it.isNotBlank() } ?: "10.0"
+    val chaptersRead = displayTrack?.lastChapterRead?.toInt() ?: 0
+    val totalChapters = displayTrack?.totalChapters ?: 0
+    val chaptersText = if (totalChapters > 0) "$chaptersRead/$totalChapters" else "$chaptersRead"
+    val startDate = displayTrack?.startDate?.takeIf { it != 0L }?.let { java.time.Instant.ofEpochMilli(it).atZone(java.time.ZoneId.systemDefault()).toLocalDate().format(DateTimeFormatter.ofPattern("M/d/yy")) } ?: "4/24/24"
+    val finishDate = displayTrack?.finishDate?.takeIf { it != 0L }?.let { java.time.Instant.ofEpochMilli(it).atZone(java.time.ZoneId.systemDefault()).toLocalDate().format(DateTimeFormatter.ofPattern("M/d/yy")) } ?: "4/24/24"
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(MaterialTheme.colorScheme.surfaceContainerHighest)
+            .padding(12.dp),
+        verticalArrangement = Arrangement.spacedBy(0.dp),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            trackItems.forEach { item ->
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(MaterialTheme.colorScheme.surface)
+                        .padding(4.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    TrackLogoIcon(tracker = item.tracker, onClick = {}, onLongClick = {})
+                }
+            }
+        }
+        Surface(
+            modifier = Modifier
+                .padding(top = 12.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .fillMaxWidth(),
+            color = MaterialTheme.colorScheme.surface,
+            shape = RoundedCornerShape(12.dp),
+        ) {
+            Column {
+                Row(
+                    modifier = Modifier.height(IntrinsicSize.Min),
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clickable { onStatusClick(primary) }
+                            .padding(12.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Text(text = statusText, style = MaterialTheme.typography.bodyMedium)
+                            Icon(imageVector = Icons.Filled.MoreVert, contentDescription = null, modifier = Modifier.size(16.dp))
+                        }
+                    }
+                    VerticalDivider()
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clickable { onScoreClick(primary) }
+                            .padding(12.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text(text = scoreText, style = MaterialTheme.typography.bodyMedium)
+                            Text(text = "★", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.bodyMedium)
+                        }
+                    }
+                }
+                HorizontalDivider()
+                Row(
+                    modifier = Modifier.height(IntrinsicSize.Min),
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .weight(0.15f)
+                            .clickable { onChapterClick(primary) }
+                            .fillMaxHeight()
+                            .padding(12.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(text = "+", style = MaterialTheme.typography.titleMedium)
+                    }
+                    VerticalDivider()
+                    Box(
+                        modifier = Modifier
+                            .weight(0.7f)
+                            .clickable { onChapterClick(primary) }
+                            .padding(12.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(text = chaptersText, style = MaterialTheme.typography.bodyMedium)
+                    }
+                    VerticalDivider()
+                    Box(
+                        modifier = Modifier
+                            .weight(0.15f)
+                            .clickable { onChapterClick(primary) }
+                            .fillMaxHeight()
+                            .padding(12.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(text = "−", style = MaterialTheme.typography.titleMedium)
+                    }
+                }
+                HorizontalDivider()
+                Row(
+                    modifier = Modifier.height(IntrinsicSize.Min),
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clickable { onStartDateEdit(primary) }
+                            .padding(12.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(text = startDate, style = MaterialTheme.typography.bodySmall)
+                    }
+                    VerticalDivider()
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clickable { onEndDateEdit(primary) }
+                            .padding(12.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(text = finishDate, style = MaterialTheme.typography.bodySmall)
+                    }
+                }
+            }
         }
     }
 }

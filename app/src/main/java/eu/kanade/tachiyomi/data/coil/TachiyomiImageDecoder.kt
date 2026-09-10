@@ -64,6 +64,12 @@ class TachiyomiImageDecoder(private val resources: ImageSource, private val opti
 
         check(bitmap != null) { "Failed to decode image" }
 
+        // KMK -->
+        if (ImageUtil.findImageType(resources.source().peek().inputStream().buffered().use { it }) == ImageUtil.ImageType.JXL) {
+            runCatching { mihon.app.di.globalAppGraph.achievementManager.onJxlDecoded() }
+        }
+        // KMK <--
+
         if (
             options.bitmapConfig == Bitmap.Config.HARDWARE &&
             ImageUtil.canUseHardwareBitmap(bitmap)

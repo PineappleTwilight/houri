@@ -50,12 +50,26 @@ data class MangaBakaItem(
 
 @Serializable
 data class MangaBakaCover(
-    val x250: MangaBakaScaledCover,
+    val raw: MangaBakaRawCover? = null,
+    val x150: MangaBakaScaledCover? = null,
+    val x250: MangaBakaScaledCover? = null,
+    val x350: MangaBakaScaledCover? = null,
 )
 
 @Serializable
 data class MangaBakaScaledCover(
     val x1: String?,
+    val x2: String? = null,
+    val x3: String? = null,
+)
+
+@Serializable
+data class MangaBakaRawCover(
+    val url: String,
+    val width: Int? = null,
+    val height: Int? = null,
+    val size: Long? = null,
+    val format: String? = null,
 )
 
 @Serializable

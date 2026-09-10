@@ -107,7 +107,13 @@ fun AdaptiveSheet(
             }
         }
     } else {
-        val anchoredDraggableState = remember { AnchoredDraggableState(initialValue = 1) }
+        val anchoredDraggableState = remember(density) {
+            AnchoredDraggableState(
+                initialValue = 1,
+                positionalThreshold = { distance -> distance * 0.5f },
+                velocityThreshold = { with(density) { 125.dp.toPx() } },
+            )
+        }
         val flingBehavior = AnchoredDraggableDefaults.flingBehavior(
             state = anchoredDraggableState,
             positionalThreshold = { with(density) { 56.dp.toPx() } },
@@ -150,8 +156,7 @@ fun AdaptiveSheet(
                                     anchoredDraggableState.preUpPostDownNestedScrollConnection(
                                         onFling = {
                                             scope.launch {
-                                                @Suppress("DEPRECATION")
-                                                anchoredDraggableState.settle(it)
+                                                anchoredDraggableState.settle(sheetAnimationSpec)
                                             }
                                         },
                                     )

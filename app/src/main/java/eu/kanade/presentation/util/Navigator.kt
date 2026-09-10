@@ -3,7 +3,7 @@ package eu.kanade.presentation.util
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.ContentTransform
-import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -75,20 +75,20 @@ fun DefaultNavigatorScreenTransition(
     navigator: Navigator,
     modifier: Modifier = Modifier,
 ) {
-    val duration = 200
-    val easing = FastOutSlowInEasing
+    val duration = 120
+    val easing = LinearOutSlowInEasing
     ScreenTransition(
         navigator = navigator,
         transition = {
             if (navigator.lastEvent != StackEvent.Pop) {
-                slideInHorizontally(tween(duration, easing = easing)) { it / 3 } +
+                slideInHorizontally(tween(duration, easing = easing)) { it / 6 } +
                     fadeIn(tween(duration, easing = easing)) togetherWith
-                    slideOutHorizontally(tween(duration, easing = easing)) { -it / 3 } +
+                    slideOutHorizontally(tween(duration, easing = easing)) { -it / 6 } +
                     fadeOut(tween(duration, easing = easing))
             } else {
-                slideInHorizontally(tween(duration, easing = easing)) { -it / 3 } +
+                slideInHorizontally(tween(duration, easing = easing)) { -it / 6 } +
                     fadeIn(tween(duration, easing = easing)) togetherWith
-                    slideOutHorizontally(tween(duration, easing = easing)) { it / 3 } +
+                    slideOutHorizontally(tween(duration, easing = easing)) { it / 6 } +
                     fadeOut(tween(duration, easing = easing))
             }
         },
@@ -105,15 +105,15 @@ fun ScreenTransition(
 ) {
     AnimatedContent(
         targetState = navigator.lastItem,
-        transitionSpec = { transition().using(androidx.compose.animation.SizeTransform(clip = false)) },
+        transitionSpec = { transition() },
         modifier = modifier.fillMaxSize().background(MaterialTheme.colorScheme.background),
         label = "screen-transition",
     ) { screen ->
         if (isPreviewBuildType) {
             logcat(LogPriority.ERROR) { "ScreenTransition: ${screen.key}" }
         }
-        val saveableKey = remember(screen.key, navigator.items.size) {
-            "screen-transition-${screen.key}-${navigator.items.size}-${System.identityHashCode(navigator)}"
+        val saveableKey = remember(screen.key) {
+            "screen-transition-${screen.key}"
         }
         navigator.saveableState(saveableKey, screen) {
             androidx.compose.foundation.layout.Box(

@@ -154,7 +154,15 @@ internal fun WebGpuViewer.maybeScheduleSpreadHeightMatch(
 
     val leftImage = (spread.left as? ImagePage.ImageSingle)?.image
     val rightImage = (spread.right as? ImagePage.ImageSingle)?.image
-    if (leftImage == null || rightImage == null) return
+    if (leftImage == null || rightImage == null) {
+        scope.launch {
+            kotlinx.coroutines.delay(200)
+            if (!isDestroyed && config.matchDoublePageHeights) {
+                maybeScheduleSpreadHeightMatch(anchorPage, spread, nextReaderPage)
+            }
+        }
+        return
+    }
     if (leftImage.height == rightImage.height) return
     if (leftImage.height < 8 || rightImage.height < 8) return
     if (leftImage.width < 8 || rightImage.width < 8) return
@@ -250,49 +258,81 @@ internal fun WebGpuViewer.scheduleSpreadHeightMatch(sourcePage: ViewerReaderPage
 private suspend fun WebGpuViewer.rescaleImageToHeight(bytes: ByteArray, targetHeight: Int): Image {
     require(targetHeight in 8..8192) { "targetHeight out of range: $targetHeight (must be >=8 to avoid gralloc 0x3b)" }
     if (bytes.size > 32 * 1024 * 1024) throw IllegalArgumentException("bytes too large for rescale: ${bytes.size}")
-    val dec = try {
-        ImageDecoder.new(bytes.inputStream())
-    } catch (e: Exception) {
-        throw Exception("rescale decoder init failed: ${e.message}", e)
-    }
-    val frame = try {
-        dec.decodeNext()
-    } catch (e: Exception) {
-        try {
-            dec.close()
-        } catch (_: Exception) {}
-        throw e
-    }
-    val srcWidth = frame.width
-    val srcHeight = frame.height
-    if (srcWidth < 8 || srcHeight < 8) {
-        try {
-            dec.close()
-        } catch (_: Exception) {}
-        throw IllegalArgumentException("src too small ${srcWidth}x$srcHeight (<8) to rescale, avoiding gralloc")
-    }
-    require(srcWidth in 1..8192 && srcHeight in 1..8192) { "src dimensions out of range: ${srcWidth}x$srcHeight" }
-
-    val srcBitmap = try {
-        createBitmap(srcWidth, srcHeight)
-    } catch (e: OutOfMemoryError) {
-        try {
-            dec.close()
-        } catch (_: Exception) {}
-        System.gc()
-        throw e
-    } catch (e: Exception) {
-        try {
-            dec.close()
-        } catch (_: Exception) {}
-        throw e
-    }
+    var dec: ImageDecoder? = null
+    var fallbackBitmap: Bitmap? = null
+    var srcWidth = 0
+    var srcHeight = 0
+    var frameImage: ByteBuffer? = null
+    var frameToClose: ImageDecoder? = null
     try {
-        frame.image.rewind()
-        srcBitmap.copyPixelsFromBuffer(frame.image)
+        dec = try {
+            ImageDecoder.new(bytes.inputStream())
+        } catch (e: Exception) {
+            null
+        }
+        if (dec != null && dec.pages > 0) {
+            val frame = try {
+                dec.decodeNext()
+            } catch (e: Exception) {
+                null
+            }
+            if (frame != null && frame.width >= 8 && frame.height >= 8) {
+                srcWidth = frame.width
+                srcHeight = frame.height
+                frameImage = frame.image
+                frameToClose = dec
+                dec = null
+            } else {
+                try { dec.close() } catch (_: Exception) {}
+                dec = null
+            }
+        }
+        if (frameImage == null) {
+            dec?.let { try { it.close() } catch (_: Exception) {} }
+            dec = null
+            val opts = android.graphics.BitmapFactory.Options().apply { inPreferredConfig = Bitmap.Config.ARGB_8888 }
+            fallbackBitmap = android.graphics.BitmapFactory.decodeByteArray(bytes, 0, bytes.size, opts)
+            if (fallbackBitmap != null) {
+                srcWidth = fallbackBitmap.width
+                srcHeight = fallbackBitmap.height
+            }
+        }
+        if (srcWidth < 8 || srcHeight < 8) {
+            frameToClose?.let { try { it.close() } catch (_: Exception) {} }
+            fallbackBitmap?.recycle()
+            throw IllegalArgumentException("src too small ${srcWidth}x$srcHeight (<8) to rescale, avoiding gralloc")
+        }
+        require(srcWidth in 1..8192 && srcHeight in 1..8192) { "src dimensions out of range: ${srcWidth}x$srcHeight" }
     } catch (e: Exception) {
-        srcBitmap.recycle()
+        frameToClose?.let { try { it.close() } catch (_: Exception) {} }
+        fallbackBitmap?.recycle()
         throw e
+    }
+
+    val srcBitmap: Bitmap = if (fallbackBitmap != null) {
+        fallbackBitmap.also { fallbackBitmap = null }
+    } else {
+        val bmp = try {
+            createBitmap(srcWidth, srcHeight)
+        } catch (e: OutOfMemoryError) {
+            frameToClose?.let { try { it.close() } catch (_: Exception) {} }
+            System.gc()
+            throw e
+        } catch (e: Exception) {
+            frameToClose?.let { try { it.close() } catch (_: Exception) {} }
+            throw e
+        }
+        try {
+            frameImage!!.rewind()
+            bmp.copyPixelsFromBuffer(frameImage!!)
+        } catch (e: Exception) {
+            bmp.recycle()
+            frameToClose?.let { try { it.close() } catch (_: Exception) {} }
+            throw e
+        } finally {
+            frameToClose?.let { try { it.close() } catch (_: Exception) {} }
+        }
+        bmp
     }
 
     val scaledWidth = (srcWidth.toFloat() * targetHeight / srcHeight)

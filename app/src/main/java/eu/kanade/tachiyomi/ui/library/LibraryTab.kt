@@ -115,7 +115,7 @@ data object LibraryTab : Tab {
         val lastNavClick = remember { longArrayOf(0L) }
         fun canNavigate(): Boolean {
             val now = System.currentTimeMillis()
-            if (now - lastNavClick[0] < 350) return false
+            if (now - lastNavClick[0] < 90) return false
             lastNavClick[0] = now
             return true
         }

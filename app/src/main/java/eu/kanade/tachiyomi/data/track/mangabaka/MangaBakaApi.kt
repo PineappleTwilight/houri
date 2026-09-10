@@ -195,7 +195,7 @@ class MangaBakaApi(
             title = item.chooseBestTitle()
             summary = item.description?.trim().orEmpty()
             score = item.rating?.toBigDecimal()?.setScale(2, RoundingMode.HALF_UP)?.toDouble() ?: -1.0
-            cover_url = item.cover.x250.x1.orEmpty()
+            cover_url = item.cover.raw?.url ?: item.cover.x350?.x1 ?: item.cover.x250?.x1 ?: item.cover.x150?.x1 ?: ""
             tracking_url = "$BASE_URL/${item.id}"
             start_date = item.published.startDate.orEmpty()
             publishing_status = item.status

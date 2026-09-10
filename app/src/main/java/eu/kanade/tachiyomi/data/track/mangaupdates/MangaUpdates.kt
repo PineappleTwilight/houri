@@ -87,9 +87,20 @@ class MangaUpdates(id: Long) : BaseTracker(id, "MangaUpdates"), DeletableTracker
         return try {
             val (series, rating) = api.getSeriesListItem(track)
             track.copyFrom(series, rating)
+            runCatching {
+                val rec = api.getSeries(track.remote_id)
+                track.total_chapters = rec.latestChapter ?: track.total_chapters
+            }
+            runCatching { mihon.app.di.globalAppGraph.achievementManager.onTrackerConnected(1) }
+            track
         } catch (e: Exception) {
             track.score = 0.0
             api.addSeriesToList(track, hasReadChapters)
+            runCatching {
+                val rec = api.getSeries(track.remote_id)
+                track.total_chapters = rec.latestChapter ?: 0
+            }
+            runCatching { mihon.app.di.globalAppGraph.achievementManager.onTrackerConnected(1) }
             track
         }
     }
@@ -103,7 +114,12 @@ class MangaUpdates(id: Long) : BaseTracker(id, "MangaUpdates"), DeletableTracker
 
     override suspend fun refresh(track: Track): Track {
         val (series, rating) = api.getSeriesListItem(track)
-        return track.copyFrom(series, rating)
+        track.copyFrom(series, rating)
+        runCatching {
+            val rec = api.getSeries(track.remote_id)
+            track.total_chapters = rec.latestChapter ?: track.total_chapters
+        }
+        return track
     }
 
     private fun Track.copyFrom(item: MUListItem, rating: MURating?): Track = apply {

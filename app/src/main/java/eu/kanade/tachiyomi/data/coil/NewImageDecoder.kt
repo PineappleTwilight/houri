@@ -54,6 +54,10 @@ class NewImageDecoder(private val resources: ImageSource, private val options: O
         val srcWidth = res.width
         val srcHeight = res.height
 
+        if (resources.source().peek().inputStream().use { tachiyomi.core.common.util.system.ImageUtil.findImageType(it) } == tachiyomi.core.common.util.system.ImageUtil.ImageType.JXL) {
+            runCatching { mihon.app.di.globalAppGraph.achievementManager.onJxlDecoded() }
+        }
+
         // newDecoder path: caller wants the raw DecodeResult (e.g. for custom rendering).
         // Hand it back as-is; sampling is the caller's responsibility.
         if (options.newDecoder) {

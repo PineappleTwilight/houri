@@ -721,19 +721,19 @@ class MangaScreen(
     @Volatile private var lastMangaNavTime: Long = 0L
     private fun Navigator.safePush(screen: Screen) {
         val now = System.currentTimeMillis()
-        if (now - lastMangaNavTime < 350) return
+        if (now - lastMangaNavTime < 90) return
         lastMangaNavTime = now
         push(screen)
     }
     private fun Navigator.safeReplace(screen: Screen) {
         val now = System.currentTimeMillis()
-        if (now - lastMangaNavTime < 350) return
+        if (now - lastMangaNavTime < 90) return
         lastMangaNavTime = now
         replace(screen)
     }
     private fun openChapter(context: Context, chapter: Chapter) {
         val now = System.currentTimeMillis()
-        if (now - lastOpenChapterTime < 500) return
+        if (now - lastOpenChapterTime < 200) return
         lastOpenChapterTime = now
         context.startActivity(ReaderActivity.newIntent(context, mangaId, chapter.id))
     }

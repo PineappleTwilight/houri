@@ -5,6 +5,8 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
@@ -60,8 +62,6 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
 import mihon.app.di.globalAppGraph
-import soup.compose.material.motion.animation.materialFadeThroughIn
-import soup.compose.material.motion.animation.materialFadeThroughOut
 import tachiyomi.domain.library.service.LibraryPreferences
 import tachiyomi.i18n.MR
 import tachiyomi.presentation.core.components.material.NavigationBar
@@ -76,7 +76,7 @@ object HomeScreen : Screen() {
     private val openTabEvent = Channel<Tab>()
     private val showBottomNavEvent = Channel<Boolean>()
 
-    private const val TAB_FADE_DURATION = 200
+    private const val TAB_FADE_DURATION = 90
     private const val TAB_NAVIGATOR_KEY = "HomeTabs"
 
     private val TABS = listOf(
@@ -162,19 +162,13 @@ object HomeScreen : Screen() {
                         AnimatedContent(
                             targetState = tabNavigator.current,
                             transitionSpec = {
-                                (
-                                    materialFadeThroughIn(
-                                        initialScale = 1f,
-                                        durationMillis = TAB_FADE_DURATION,
-                                    ) togetherWith
-                                        materialFadeThroughOut(durationMillis = TAB_FADE_DURATION)
-                                    ).using(androidx.compose.animation.SizeTransform(clip = false))
+                                fadeIn(tween(TAB_FADE_DURATION)) togetherWith fadeOut(tween(TAB_FADE_DURATION))
                             },
                             modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background),
                             label = "tabContent",
                             contentKey = { it.key },
                         ) {
-                            tabNavigator.saveableState(key = "currentTab", it) {
+                            tabNavigator.saveableState(key = "tab-${it.key}", it) {
                                 Box(
                                     modifier = Modifier
                                         .fillMaxSize()
@@ -250,7 +244,7 @@ object HomeScreen : Screen() {
             selected = selected,
             onClick = {
                 val now = System.currentTimeMillis()
-                if (now - lastClick[0] < 250) return@NavigationBarItem
+                if (now - lastClick[0] < 90) return@NavigationBarItem
                 lastClick[0] = now
                 if (!selected) {
                     tabNavigator.current = tab
@@ -287,7 +281,7 @@ object HomeScreen : Screen() {
             selected = selected,
             onClick = {
                 val now = System.currentTimeMillis()
-                if (now - lastClick[0] < 250) return@NavigationRailItem
+                if (now - lastClick[0] < 90) return@NavigationRailItem
                 lastClick[0] = now
                 if (!selected) {
                     tabNavigator.current = tab

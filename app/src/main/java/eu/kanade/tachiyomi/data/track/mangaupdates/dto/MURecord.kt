@@ -28,7 +28,7 @@ fun MURecord.toTrackSearch(id: Long): TrackSearch {
     return TrackSearch.create(id).apply {
         remote_id = this@toTrackSearch.seriesId ?: 0L
         title = this@toTrackSearch.title?.htmlDecode() ?: ""
-        total_chapters = 0
+        total_chapters = this@toTrackSearch.latestChapter ?: 0
         cover_url = this@toTrackSearch.image?.url?.original ?: ""
         summary = this@toTrackSearch.description?.htmlDecode() ?: ""
         tracking_url = this@toTrackSearch.url ?: ""
