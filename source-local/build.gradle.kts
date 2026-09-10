@@ -43,12 +43,6 @@ kotlin {
                 implementation(libs.injekt)
             }
         }
-        // Fix: connect unused commonTest to androidUnitTest to silence
-        // "commonTest was configured but not added to any Kotlin compilation" warning
-        val commonTest by getting
-        androidUnitTest {
-            dependsOn(commonTest)
-        }
     }
 
     @OptIn(ExperimentalKotlinGradlePluginApi::class)
