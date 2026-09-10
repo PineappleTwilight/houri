@@ -410,4 +410,19 @@
     <string name="achievements_empty">No achievements unlocked yet — start reading to earn your first!</string>
     <string name="achievements_unlocked_count">%1$d / %2$d unlocked</string>
     <string name="achievements_rank_prefix">Rank: %1$s</string>
+    <string name="pref_upscale_title">AI Upscaler</string>
+    <string name="pref_upscale_enabled">Enable AI upscaling</string>
+    <string name="pref_upscale_enabled_summary">Upscale low-resolution pages on device (Real-CUGAN / ESRGAN). Requires MTL enabled.</string>
+    <string name="pref_upscale_disabled_summary">AI upscaling is disabled</string>
+    <string name="pref_upscale_preset">Quality preset</string>
+    <string name="pref_upscale_preset_fast">Fast</string>
+    <string name="pref_upscale_preset_balanced">Balanced</string>
+    <string name="pref_upscale_preset_high">High</string>
+    <string name="pref_upscale_backend">Backend</string>
+    <string name="pref_upscale_model">Model</string>
+    <string name="pref_upscale_factor">Upscale factor</string>
+    <string name="pref_upscale_cache">Cache upscaled pages</string>
+    <string name="pref_upscale_cache_summary">Keep upscaled WEBP in cache (200 MB, 30d) to avoid re-processing</string>
+    <string name="pref_upscale_clear_cache">Clear upscaled cache</string>
+    <string name="pref_upscale_clear_cache_summary">Remove all cached upscaled pages</string>
 </resources>

@@ -25,6 +25,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Badge
@@ -442,11 +443,18 @@ private fun UnifiedTrackerCard(
     val primary = trackItems.firstOrNull { it.track != null } ?: trackItems.firstOrNull() ?: return
     val displayTrack = primary.track
     val displayTracker = primary.tracker
+    val isMismatched = remember(trackItems, primary) {
+        val chapterValues = trackItems.mapNotNull { it.track?.lastChapterRead }.distinct()
+        if (chapterValues.size > 1) {
+            val max = chapterValues.maxOrNull() ?: 0.0
+            primary.track != null && kotlin.math.abs(primary.track.lastChapterRead - max) > 0.01
+        } else false
+    }
     val statusText = displayTrack?.let { displayTracker.getStatus(it.status)?.let { stringResource(it) } } ?: "Reading"
     val scoreText = displayTrack?.let { displayTracker.displayScore(it) }?.takeIf { it.isNotBlank() } ?: "10.0"
     val chaptersRead = displayTrack?.lastChapterRead?.toInt() ?: 0
     val totalChapters = displayTrack?.totalChapters ?: 0
-    val chaptersText = if (totalChapters > 0) "$chaptersRead/$totalChapters" else "$chaptersRead"
+    val chaptersText = if (totalChapters > 0) "$chaptersRead/$totalChapters" else if (chaptersRead > 0) "$chaptersRead" else "0"
     val startDate = displayTrack?.startDate?.takeIf { it != 0L }?.let { java.time.Instant.ofEpochMilli(it).atZone(java.time.ZoneId.systemDefault()).toLocalDate().format(DateTimeFormatter.ofPattern("M/d/yy")) } ?: "4/24/24"
     val finishDate = displayTrack?.finishDate?.takeIf { it != 0L }?.let { java.time.Instant.ofEpochMilli(it).atZone(java.time.ZoneId.systemDefault()).toLocalDate().format(DateTimeFormatter.ofPattern("M/d/yy")) } ?: "4/24/24"
     Column(
@@ -479,7 +487,7 @@ private fun UnifiedTrackerCard(
                 .padding(top = 12.dp)
                 .clip(RoundedCornerShape(12.dp))
                 .fillMaxWidth(),
-            color = MaterialTheme.colorScheme.surface,
+            color = if (isMismatched) MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.7f) else MaterialTheme.colorScheme.surface,
             shape = RoundedCornerShape(12.dp),
         ) {
             Column {
@@ -489,6 +497,7 @@ private fun UnifiedTrackerCard(
                     Box(
                         modifier = Modifier
                             .weight(1f)
+                            .fillMaxHeight()
                             .clickable { onStatusClick(primary) }
                             .padding(12.dp),
                         contentAlignment = Alignment.Center,
@@ -502,6 +511,7 @@ private fun UnifiedTrackerCard(
                     Box(
                         modifier = Modifier
                             .weight(1f)
+                            .fillMaxHeight()
                             .clickable { onScoreClick(primary) }
                             .padding(12.dp),
                         contentAlignment = Alignment.Center,
@@ -519,8 +529,8 @@ private fun UnifiedTrackerCard(
                     Box(
                         modifier = Modifier
                             .weight(0.15f)
-                            .clickable { onChapterClick(primary) }
                             .fillMaxHeight()
+                            .clickable { onChapterClick(primary) }
                             .padding(12.dp),
                         contentAlignment = Alignment.Center,
                     ) {
@@ -530,6 +540,7 @@ private fun UnifiedTrackerCard(
                     Box(
                         modifier = Modifier
                             .weight(0.7f)
+                            .fillMaxHeight()
                             .clickable { onChapterClick(primary) }
                             .padding(12.dp),
                         contentAlignment = Alignment.Center,
@@ -540,8 +551,8 @@ private fun UnifiedTrackerCard(
                     Box(
                         modifier = Modifier
                             .weight(0.15f)
-                            .clickable { onChapterClick(primary) }
                             .fillMaxHeight()
+                            .clickable { onChapterClick(primary) }
                             .padding(12.dp),
                         contentAlignment = Alignment.Center,
                     ) {
@@ -555,6 +566,7 @@ private fun UnifiedTrackerCard(
                     Box(
                         modifier = Modifier
                             .weight(1f)
+                            .fillMaxHeight()
                             .clickable { onStartDateEdit(primary) }
                             .padding(12.dp),
                         contentAlignment = Alignment.Center,
@@ -565,11 +577,25 @@ private fun UnifiedTrackerCard(
                     Box(
                         modifier = Modifier
                             .weight(1f)
+                            .fillMaxHeight()
                             .clickable { onEndDateEdit(primary) }
                             .padding(12.dp),
                         contentAlignment = Alignment.Center,
                     ) {
                         Text(text = finishDate, style = MaterialTheme.typography.bodySmall)
+                    }
+                    VerticalDivider()
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clickable {
+                                onStartDateEdit(primary)
+                                onEndDateEdit(primary)
+                            }
+                            .padding(8.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(imageVector = Icons.Filled.Close, contentDescription = stringResource(MR.strings.action_remove), modifier = Modifier.size(16.dp))
                     }
                 }
             }
