@@ -168,7 +168,10 @@ object SettingsAchievementsScreen : SearchableSettings {
         val animationsEnabled by prefs.animationsEnabled().collectAsState()
         val all = remember { Achievements.all }
         var animationsReady by remember { mutableStateOf(false) }
-        LaunchedEffect(Unit) { delay(300); animationsReady = true }
+        LaunchedEffect(Unit) {
+            delay(300)
+            animationsReady = true
+        }
         val canAnimate = animationsEnabled && animationsReady
 
         return Preference.PreferenceGroup(

@@ -331,7 +331,9 @@ object DebugFunctions {
                     if (file.delete()) deleted++
                 }
             }
-            try { Runtime.getRuntime().exec("logcat -c").waitFor() } catch (_: Exception) {}
+            try {
+                Runtime.getRuntime().exec("logcat -c").waitFor()
+            } catch (_: Exception) {}
             "Cleared $deleted log files and logcat buffer"
         } catch (e: Exception) {
             "Failed to clear logs: ${e.message}"

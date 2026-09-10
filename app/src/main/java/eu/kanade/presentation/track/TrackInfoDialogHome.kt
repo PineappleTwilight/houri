@@ -127,54 +127,54 @@ fun TrackInfoDialogHome(
             )
         } else {
             trackItems.forEach { item ->
-            if (item.track != null) {
-                val isMismatched = item.tracker.id in mismatchIds
-                val supportsScoring = item.tracker.getScoreList().isNotEmpty()
-                val supportsReadingDates = item.tracker.supportsReadingDates
-                val supportsPrivate = item.tracker.supportsPrivateTracking
-                TrackInfoItem(
-                    title = item.track.title,
-                    tracker = item.tracker,
-                    status = item.tracker.getStatus(item.track.status),
-                    onStatusClick = { onStatusClick(item) },
-                    chapters = "${item.track.lastChapterRead.toInt()}".let {
-                        val totalChapters = item.track.totalChapters
-                        if (totalChapters > 0) {
-                            // Add known total chapter count
-                            "$it / $totalChapters"
-                        } else {
-                            it
-                        }
-                    },
-                    onChaptersClick = { onChapterClick(item) },
-                    score = item.tracker.displayScore(item.track)
-                        .takeIf { supportsScoring && item.track.score != 0.0 },
-                    onScoreClick = { onScoreClick(item) }
-                        .takeIf { supportsScoring },
-                    startDate = remember(item.track.startDate) { dateFormat.format(item.track.startDate.toLocalDate()) }
-                        .takeIf { supportsReadingDates && item.track.startDate != 0L },
-                    onStartDateClick = { onStartDateEdit(item) } // TODO
-                        .takeIf { supportsReadingDates },
-                    endDate = dateFormat.format(item.track.finishDate.toLocalDate())
-                        .takeIf { supportsReadingDates && item.track.finishDate != 0L },
-                    onEndDateClick = { onEndDateEdit(item) }
-                        .takeIf { supportsReadingDates },
-                    onNewSearch = { onNewSearch(item) },
-                    onOpenInBrowser = { onOpenInBrowser(item) },
-                    onRemoved = { onRemoved(item) },
-                    onCopyLink = { onCopyLink(item) },
-                    private = item.track.private,
-                    onTogglePrivate = { onTogglePrivate(item) }
-                        .takeIf { supportsPrivate },
-                    isMismatched = isMismatched,
-                )
-            } else {
-                TrackInfoItemEmpty(
-                    tracker = item.tracker,
-                    onNewSearch = { onNewSearch(item) },
-                )
+                if (item.track != null) {
+                    val isMismatched = item.tracker.id in mismatchIds
+                    val supportsScoring = item.tracker.getScoreList().isNotEmpty()
+                    val supportsReadingDates = item.tracker.supportsReadingDates
+                    val supportsPrivate = item.tracker.supportsPrivateTracking
+                    TrackInfoItem(
+                        title = item.track.title,
+                        tracker = item.tracker,
+                        status = item.tracker.getStatus(item.track.status),
+                        onStatusClick = { onStatusClick(item) },
+                        chapters = "${item.track.lastChapterRead.toInt()}".let {
+                            val totalChapters = item.track.totalChapters
+                            if (totalChapters > 0) {
+                                // Add known total chapter count
+                                "$it / $totalChapters"
+                            } else {
+                                it
+                            }
+                        },
+                        onChaptersClick = { onChapterClick(item) },
+                        score = item.tracker.displayScore(item.track)
+                            .takeIf { supportsScoring && item.track.score != 0.0 },
+                        onScoreClick = { onScoreClick(item) }
+                            .takeIf { supportsScoring },
+                        startDate = remember(item.track.startDate) { dateFormat.format(item.track.startDate.toLocalDate()) }
+                            .takeIf { supportsReadingDates && item.track.startDate != 0L },
+                        onStartDateClick = { onStartDateEdit(item) } // TODO
+                            .takeIf { supportsReadingDates },
+                        endDate = dateFormat.format(item.track.finishDate.toLocalDate())
+                            .takeIf { supportsReadingDates && item.track.finishDate != 0L },
+                        onEndDateClick = { onEndDateEdit(item) }
+                            .takeIf { supportsReadingDates },
+                        onNewSearch = { onNewSearch(item) },
+                        onOpenInBrowser = { onOpenInBrowser(item) },
+                        onRemoved = { onRemoved(item) },
+                        onCopyLink = { onCopyLink(item) },
+                        private = item.track.private,
+                        onTogglePrivate = { onTogglePrivate(item) }
+                            .takeIf { supportsPrivate },
+                        isMismatched = isMismatched,
+                    )
+                } else {
+                    TrackInfoItemEmpty(
+                        tracker = item.tracker,
+                        onNewSearch = { onNewSearch(item) },
+                    )
+                }
             }
-        }
         }
     }
 }
@@ -448,13 +448,21 @@ private fun UnifiedTrackerCard(
         if (chapterValues.size > 1) {
             val max = chapterValues.maxOrNull() ?: 0.0
             primary.track != null && kotlin.math.abs(primary.track.lastChapterRead - max) > 0.01
-        } else false
+        } else {
+            false
+        }
     }
     val statusText = displayTrack?.let { displayTracker.getStatus(it.status)?.let { stringResource(it) } } ?: "Reading"
     val scoreText = displayTrack?.let { displayTracker.displayScore(it) }?.takeIf { it.isNotBlank() } ?: "10.0"
     val chaptersRead = displayTrack?.lastChapterRead?.toInt() ?: 0
     val totalChapters = displayTrack?.totalChapters ?: 0
-    val chaptersText = if (totalChapters > 0) "$chaptersRead/$totalChapters" else if (chaptersRead > 0) "$chaptersRead" else "0"
+    val chaptersText = if (totalChapters > 0) {
+        "$chaptersRead/$totalChapters"
+    } else if (chaptersRead > 0) {
+        "$chaptersRead"
+    } else {
+        "0"
+    }
     val startDate = displayTrack?.startDate?.takeIf { it != 0L }?.let { java.time.Instant.ofEpochMilli(it).atZone(java.time.ZoneId.systemDefault()).toLocalDate().format(DateTimeFormatter.ofPattern("M/d/yy")) } ?: "4/24/24"
     val finishDate = displayTrack?.finishDate?.takeIf { it != 0L }?.let { java.time.Instant.ofEpochMilli(it).atZone(java.time.ZoneId.systemDefault()).toLocalDate().format(DateTimeFormatter.ofPattern("M/d/yy")) } ?: "4/24/24"
     Column(
