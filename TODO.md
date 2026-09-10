@@ -333,7 +333,7 @@
   - Fixed 2026-09-09: `TrackInfoDialogHome` now `heightIn(max=520.dp)` with constrained scroll to prevent full-screen empty expansion
 - [ ] **Library**: Fix achievements tab not showing up in the library
   - Confirmed at least when there's no library entries. May be present even if entries are added, should be comprehensively checked.
-
+- [ ] **Achievements**: Overall analyze, harden, and improve.
 
 ## Chores
 - [x] Replace all Komikku icons/branding with houri icons/branding
