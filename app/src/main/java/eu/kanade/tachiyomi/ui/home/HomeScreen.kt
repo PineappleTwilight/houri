@@ -153,7 +153,7 @@ object HomeScreen : Screen() {
                         }
                     },
                     contentWindowInsets = WindowInsets(0),
-                ) { contentPadding ->
+                    ) { contentPadding ->
                     Box(
                         modifier = Modifier
                             .padding(contentPadding)
@@ -168,8 +168,9 @@ object HomeScreen : Screen() {
                                         durationMillis = TAB_FADE_DURATION,
                                     ) togetherWith
                                         materialFadeThroughOut(durationMillis = TAB_FADE_DURATION)
-                                    )
+                                    ).using(androidx.compose.animation.SizeTransform(clip = false))
                             },
+                            modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background),
                             label = "tabContent",
                             contentKey = { it.key },
                         ) {

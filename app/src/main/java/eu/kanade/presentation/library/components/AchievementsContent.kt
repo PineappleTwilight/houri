@@ -17,6 +17,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -30,6 +31,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import mihon.app.di.globalAppGraph
 import tachiyomi.domain.achievement.model.Achievement
+import tachiyomi.domain.achievement.model.AchievementProgress
 import tachiyomi.domain.achievement.model.Achievements
 import tachiyomi.i18n.kmk.KMR
 import tachiyomi.presentation.core.i18n.stringResource
@@ -173,6 +175,18 @@ private fun StatChip(label: String, value: String) {
 
 @Composable
 private fun AchievementCard(achievement: Achievement, isUnlocked: Boolean, animationsEnabled: Boolean, progress: Float) {
+    val prefs = globalAppGraph.achievementPreferences
+    val hasProgress = !isUnlocked && AchievementProgress.hasProgress(achievement.id)
+    val progressValue = if (hasProgress) AchievementProgress.progressFor(achievement.id, prefs) else 0f
+    val progressLabel = if (hasProgress) AchievementProgress.labelFor(achievement.id, prefs) else null
+    val rotatingProgressPair = if (!isUnlocked && achievement.isRotating) {
+        try {
+            val pool = globalAppGraph.rotatingAchievementPool
+            val cur = pool.getProgress(achievement.id)
+            val label = "$cur"
+            cur to label
+        } catch (_: Exception) { null }
+    } else null
     val alpha = if (isUnlocked) 1f else 0.45f
     val tierColor = when (achievement.tier) {
         tachiyomi.domain.achievement.model.AchievementTier.BRONZE -> MaterialTheme.colorScheme.secondary
@@ -228,6 +242,23 @@ private fun AchievementCard(achievement: Achievement, isUnlocked: Boolean, anima
                     style = MaterialTheme.typography.labelSmall,
                     color = tierColor,
                 )
+                if (hasProgress && progressLabel != null) {
+                    LinearProgressIndicator(
+                        progress = { progressValue },
+                        modifier = Modifier.fillMaxWidth().height(6.dp),
+                    )
+                    Text(
+                        text = progressLabel,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                } else if (rotatingProgressPair != null) {
+                    Text(
+                        text = "Progress ${rotatingProgressPair.second}",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
                 if (achievement.isSecret) {
                     Text(
                         text = if (isUnlocked) "Secret • Unlocked" else "Secret",

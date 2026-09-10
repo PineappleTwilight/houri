@@ -152,8 +152,10 @@
   - Implemented 2026-09-10: `AchievementTier.ULTIMATE` (7th tier), 5 ultimate achievements (ink god 20k chapters, eternal library 2k manga, time dilation 2k h, absolute perfection 200 countable, ultimate hunter 20 secrets), `AchievementStats` rank "Ultimate" + `rankTier=ULTIMATE`, `AchievementSoundPlayer.ultimateWav` shimmer chime, duration 1200ms
 - [x] **Achievements**: Cool animated text colors/gradients for unlocked high tier achievements (toggleable, defaults to enabled
   - Implemented 2026-09-10: `AchievementTierAnimation` modular framework — `brushForTier` linear/sweep gradients per tier (silver→ultimate), `rememberTierProgress` infinite transition (perf-friendly, only for unlocked high tiers), `Modifier.tierAnimatedBackground`, `AchievementsContent` header toggle `animationsEnabled` (default true) + per-card `animatedModifier`, negative/secret excluded
-- [ ] **Achievements**: Progress tracker per-achievement
-- [ ] **Achievements**: Add achievements for "catching up" with manga
+- [x] **Achievements**: Progress tracker per-achievement
+  - Implemented 2026-09-10: `AchievementProgress` (threshold map + `progressFor`/`labelFor`/`hasProgress`, `currentFor` per prefs) + `LinearProgressIndicator` + `X/Y` label in both `AchievementsContent` + `SettingsAchievementsScreen` (shows `2/10` etc, hidden when unlocked or no threshold)
+- [x] **Achievements**: Add achievements for "catching up" with manga
+  - Implemented 2026-09-10: already had 5 `*_caught_up` achievements (1/5/10/20/50) + `prefs.mangaCaughtUpCount` + `manager.onMangaCaughtUp` + `ReaderViewModel` permanent-status branch (`onMangaCaughtUp` for ongoing, `onMangaFinished` for completed) + progress tracker wiring via `AchievementProgress`
 
 ## Bugfixes
 - [x] Fix UI transition choppiness.
@@ -366,11 +368,14 @@
   - Implemented 2026-09-10: `UnifiedTrackerHelper` (mismatch detection), `TrackChapter.await` now syncs to preferred tracker (per-manga → per-category fallback via `TrackPreferences`), maxes chapter progress across trackers, auto-completes (`COMPLETED` when `lastChapterRead >= totalChapters`), `TrackInfoDialogHome` yellow `tertiaryContainer` highlight for mismatched chapter numbers
 - [x] **Library**: Remove empty subcategory chip introduced when achievements tab was added
   - Fixed 2026-09-10: `LibraryScreenModel.getSubcategoriesForCategory` now returns empty for `ACHIEVEMENTS_CATEGORY_ID=-100` and filters blank names; `LibraryContent` guards achievements tab + blank names; `LibraryTabs.LibrarySubcategoryTabs` filters blank names, uses `visibleSubcategories` for empty check/collapsed key/iteration, eliminating phantom chip
-- [ ] **Achievements**: Harden achievement tracking
-  - It would be nice to standardize this and have it be a psuedo-framework for easy wiring later
-- [ ] **App**: Fix flickering/jank when changing panel states
-- [ ] **Achievements**: Improve toasts
-- [ ] **Achievements**: Disable achievement chime by default
+- [x] **Achievements**: Harden achievement tracking
+  - Implemented 2026-09-10: `AchievementEvent` sealed interface (OrganicChapterRead/ReadingTime/LibraryCount/MangaFinished/CaughtUp/Ltr/Backlog/Negative/EhBrowsed/DirectUnlock etc) + `AchievementDispatcher.dispatch(event)` centralized sync + `prefs.achievementsEnabled` gate, `@Inject` constructor for Metro, easy wiring for future call sites (`dispatcher.dispatchAsync(EhBrowsed)`)
+- [x] **App**: Fix flickering/jank when changing panel states
+  - Fixed 2026-09-10: `HomeScreen` `AnimatedContent` now `SizeTransform(clip=false)` + `Modifier.fillMaxSize().background(...)` on `AnimatedContent` itself (prevents transparent overlap flicker), `Navigator.ScreenTransition` now `transition().using(SizeTransform(clip=false))` + `modifier.fillMaxSize().background(...)` so shared panel transitions no longer flash underlying content; retains 250ms spam-tap debounce on rail/bar items
+- [x] **Achievements**: Improve toasts
+  - Implemented 2026-09-10: `AchievementNotifier.notifyNow` batches >3 unlocks into summary toast (`Unlocked 5: X, Y +3 more`) + staggered last-2 details, truncates description >80 chars, shows `ULTIMATE` tier label, `AchievementProgress`-aware grouping, preserves 900ms stagger and `achievementToastsEnabled` gate
+- [x] **Achievements**: Disable achievement chime by default
+  - Fixed 2026-09-10: `AchievementPreferences.achievementSoundsEnabled` default `false` (was `true`); `AchievementSoundPlayer.play` still gates on pref, user must opt-in via Settings → Achievements → Achievement sounds
 
 ## Chores
 - [x] Replace all Komikku icons/branding with houri icons/branding

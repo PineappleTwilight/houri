@@ -12,8 +12,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.EmojiEvents
 import androidx.compose.material3.AlertDialog
+import androidx.compose.foundation.layout.height
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -37,6 +39,7 @@ import kotlinx.collections.immutable.persistentListOf
 import kotlinx.coroutines.launch
 import mihon.app.di.globalAppGraph
 import tachiyomi.domain.achievement.model.Achievement
+import tachiyomi.domain.achievement.model.AchievementProgress
 import tachiyomi.domain.achievement.model.AchievementTier
 import tachiyomi.domain.achievement.model.Achievements
 import tachiyomi.i18n.kmk.KMR
@@ -262,6 +265,10 @@ object SettingsAchievementsScreen : SearchableSettings {
 
     @Composable
     private fun AchievementCardSimple(achievement: Achievement, isUnlocked: Boolean, animationsEnabled: Boolean, progress: Float) {
+        val prefs = globalAppGraph.achievementPreferences
+        val hasProgress = !isUnlocked && AchievementProgress.hasProgress(achievement.id)
+        val progressValue = if (hasProgress) AchievementProgress.progressFor(achievement.id, prefs) else 0f
+        val progressLabel = if (hasProgress) AchievementProgress.labelFor(achievement.id, prefs) else null
         val alpha = if (isUnlocked) 1f else 0.45f
         val tierColor = when (achievement.tier) {
             AchievementTier.BRONZE -> MaterialTheme.colorScheme.secondary
@@ -295,6 +302,10 @@ object SettingsAchievementsScreen : SearchableSettings {
                     Text(text = achievement.displayDescription, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 3)
                     androidx.compose.foundation.layout.Spacer(modifier = Modifier.padding(top = 4.dp))
                     Text(text = achievement.tier.name, style = MaterialTheme.typography.labelSmall, color = tierColor)
+                    if (hasProgress && progressLabel != null) {
+                        LinearProgressIndicator(progress = { progressValue }, modifier = Modifier.fillMaxWidth().height(6.dp))
+                        Text(text = progressLabel, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
                     if (achievement.isSecret) {
                         Text(text = if (isUnlocked) "Secret • Unlocked" else "Secret", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }

@@ -105,8 +105,8 @@ fun ScreenTransition(
 ) {
     AnimatedContent(
         targetState = navigator.lastItem,
-        transitionSpec = transition,
-        modifier = modifier,
+        transitionSpec = { transition().using(androidx.compose.animation.SizeTransform(clip = false)) },
+        modifier = modifier.fillMaxSize().background(MaterialTheme.colorScheme.background),
         label = "screen-transition",
     ) { screen ->
         if (isPreviewBuildType) {

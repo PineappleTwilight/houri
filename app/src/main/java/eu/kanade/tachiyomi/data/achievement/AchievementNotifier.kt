@@ -60,9 +60,28 @@ class AchievementNotifier(
 
     fun notifyNow(ids: List<String>) {
         if (!prefs.achievementsEnabled().get()) return
+        if (ids.isEmpty()) return
+        val valid = ids.mapNotNull { Achievements.forId(it) }
+        if (valid.isEmpty()) return
+        if (valid.size > 3) {
+            val summary = "Unlocked ${valid.size} achievements: " + valid.take(3).joinToString(", ") { it.displayTitle } + if (valid.size > 3) " +${valid.size - 3} more" else ""
+            handler.post {
+                if (prefs.achievementToastsEnabled().get()) {
+                    try { context.toast(summary, duration = Toast.LENGTH_LONG) } catch (_: Exception) {}
+                }
+                valid.forEach { soundPlayer.play(it.tier) }
+            }
+            var delayMs = 900L
+            for (ach in valid.takeLast(2)) {
+                handler.postDelayed({
+                    if (prefs.achievementToastsEnabled().get()) showToast(ach)
+                }, delayMs)
+                delayMs += 900
+            }
+            return
+        }
         var delayMs = 0L
-        for (id in ids) {
-            val ach = Achievements.forId(id) ?: continue
+        for (ach in valid) {
             handler.postDelayed({
                 if (prefs.achievementToastsEnabled().get()) showToast(ach)
                 soundPlayer.play(ach.tier)
@@ -74,16 +93,18 @@ class AchievementNotifier(
     private fun showToast(ach: tachiyomi.domain.achievement.model.Achievement) {
         if (!prefs.achievementsEnabled().get()) return
         if (!prefs.achievementToastsEnabled().get()) return
-        val tierLabel = when (ach.tier.name) {
-            "MYTHIC" -> "MYTHIC"
-            "LEGENDARY" -> "LEGENDARY"
-            "PLATINUM" -> "PLATINUM"
-            "GOLD" -> "GOLD"
-            "SILVER" -> "SILVER"
+        val tierLabel = when (ach.tier) {
+            tachiyomi.domain.achievement.model.AchievementTier.MYTHIC -> "MYTHIC"
+            tachiyomi.domain.achievement.model.AchievementTier.LEGENDARY -> "LEGENDARY"
+            tachiyomi.domain.achievement.model.AchievementTier.PLATINUM -> "PLATINUM"
+            tachiyomi.domain.achievement.model.AchievementTier.GOLD -> "GOLD"
+            tachiyomi.domain.achievement.model.AchievementTier.SILVER -> "SILVER"
+            tachiyomi.domain.achievement.model.AchievementTier.ULTIMATE -> "ULTIMATE"
             else -> "BRONZE"
         }
         val secretPrefix = if (ach.isSecret) "Secret Unlocked! " else ""
-        val msg = "${ach.displayIcon}  ${secretPrefix}${ach.displayTitle} [$tierLabel] — ${ach.displayDescription}"
+        val desc = if (ach.displayDescription.length > 80) ach.displayDescription.take(77) + "..." else ach.displayDescription
+        val msg = "${ach.displayIcon}  ${secretPrefix}${ach.displayTitle} [$tierLabel] — $desc"
         try {
             context.toast(msg, duration = Toast.LENGTH_LONG)
         } catch (_: Exception) {}
