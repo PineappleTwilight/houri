@@ -89,7 +89,7 @@ class MangaUpdates(id: Long) : BaseTracker(id, "MangaUpdates"), DeletableTracker
             track.copyFrom(series, rating)
             runCatching {
                 val rec = api.getSeries(track.remote_id)
-                track.total_chapters = rec.latestChapter ?: track.total_chapters
+                track.total_chapters = rec.latestChapter?.toLong() ?: track.total_chapters
             }
             runCatching { mihon.app.di.globalAppGraph.achievementManager.onTrackerConnected(1) }
             track
@@ -98,7 +98,7 @@ class MangaUpdates(id: Long) : BaseTracker(id, "MangaUpdates"), DeletableTracker
             api.addSeriesToList(track, hasReadChapters)
             runCatching {
                 val rec = api.getSeries(track.remote_id)
-                track.total_chapters = rec.latestChapter ?: 0
+                track.total_chapters = rec.latestChapter?.toLong() ?: 0L
             }
             runCatching { mihon.app.di.globalAppGraph.achievementManager.onTrackerConnected(1) }
             track
@@ -117,7 +117,7 @@ class MangaUpdates(id: Long) : BaseTracker(id, "MangaUpdates"), DeletableTracker
         track.copyFrom(series, rating)
         runCatching {
             val rec = api.getSeries(track.remote_id)
-            track.total_chapters = rec.latestChapter ?: track.total_chapters
+            track.total_chapters = rec.latestChapter?.toLong() ?: track.total_chapters
         }
         return track
     }

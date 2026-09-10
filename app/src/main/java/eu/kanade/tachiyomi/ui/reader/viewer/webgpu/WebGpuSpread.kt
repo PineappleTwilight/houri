@@ -283,12 +283,18 @@ private suspend fun WebGpuViewer.rescaleImageToHeight(bytes: ByteArray, targetHe
                 frameToClose = dec
                 dec = null
             } else {
-                try { dec.close() } catch (_: Exception) {}
+                try {
+                    dec.close()
+                } catch (_: Exception) {}
                 dec = null
             }
         }
         if (frameImage == null) {
-            dec?.let { try { it.close() } catch (_: Exception) {} }
+            dec?.let {
+                try {
+                    it.close()
+                } catch (_: Exception) {}
+            }
             dec = null
             val opts = android.graphics.BitmapFactory.Options().apply { inPreferredConfig = Bitmap.Config.ARGB_8888 }
             fallbackBitmap = android.graphics.BitmapFactory.decodeByteArray(bytes, 0, bytes.size, opts)
@@ -298,13 +304,21 @@ private suspend fun WebGpuViewer.rescaleImageToHeight(bytes: ByteArray, targetHe
             }
         }
         if (srcWidth < 8 || srcHeight < 8) {
-            frameToClose?.let { try { it.close() } catch (_: Exception) {} }
+            frameToClose?.let {
+                try {
+                    it.close()
+                } catch (_: Exception) {}
+            }
             fallbackBitmap?.recycle()
             throw IllegalArgumentException("src too small ${srcWidth}x$srcHeight (<8) to rescale, avoiding gralloc")
         }
         require(srcWidth in 1..8192 && srcHeight in 1..8192) { "src dimensions out of range: ${srcWidth}x$srcHeight" }
     } catch (e: Exception) {
-        frameToClose?.let { try { it.close() } catch (_: Exception) {} }
+        frameToClose?.let {
+            try {
+                it.close()
+            } catch (_: Exception) {}
+        }
         fallbackBitmap?.recycle()
         throw e
     }
@@ -315,11 +329,19 @@ private suspend fun WebGpuViewer.rescaleImageToHeight(bytes: ByteArray, targetHe
         val bmp = try {
             createBitmap(srcWidth, srcHeight)
         } catch (e: OutOfMemoryError) {
-            frameToClose?.let { try { it.close() } catch (_: Exception) {} }
+            frameToClose?.let {
+                try {
+                    it.close()
+                } catch (_: Exception) {}
+            }
             System.gc()
             throw e
         } catch (e: Exception) {
-            frameToClose?.let { try { it.close() } catch (_: Exception) {} }
+            frameToClose?.let {
+                try {
+                    it.close()
+                } catch (_: Exception) {}
+            }
             throw e
         }
         try {
@@ -327,10 +349,18 @@ private suspend fun WebGpuViewer.rescaleImageToHeight(bytes: ByteArray, targetHe
             bmp.copyPixelsFromBuffer(frameImage!!)
         } catch (e: Exception) {
             bmp.recycle()
-            frameToClose?.let { try { it.close() } catch (_: Exception) {} }
+            frameToClose?.let {
+                try {
+                    it.close()
+                } catch (_: Exception) {}
+            }
             throw e
         } finally {
-            frameToClose?.let { try { it.close() } catch (_: Exception) {} }
+            frameToClose?.let {
+                try {
+                    it.close()
+                } catch (_: Exception) {}
+            }
         }
         bmp
     }

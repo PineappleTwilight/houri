@@ -110,8 +110,10 @@ fun AdaptiveSheet(
         val anchoredDraggableState = remember(density) {
             AnchoredDraggableState(
                 initialValue = 1,
-                positionalThreshold = { distance -> distance * 0.5f },
+                positionalThreshold = { distance: Float -> distance * 0.5f },
                 velocityThreshold = { with(density) { 125.dp.toPx() } },
+                snapAnimationSpec = tween(),
+                decayAnimationSpec = androidx.compose.animation.core.exponentialDecay(),
             )
         }
         val flingBehavior = AnchoredDraggableDefaults.flingBehavior(
@@ -156,7 +158,8 @@ fun AdaptiveSheet(
                                     anchoredDraggableState.preUpPostDownNestedScrollConnection(
                                         onFling = {
                                             scope.launch {
-                                                anchoredDraggableState.settle(sheetAnimationSpec)
+                                                @Suppress("DEPRECATION")
+                                                anchoredDraggableState.settle(it)
                                             }
                                         },
                                     )
