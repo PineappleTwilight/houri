@@ -93,6 +93,24 @@ jobs:
           nasm --version
           ccache --version
 
+      - name: Install Android SDK CMake 3.22.1
+        run: |
+          echo "Installing cmake 3.22.1 via sdkmanager..."
+          SDKMGR="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          if [ ! -f "$SDKMGR" ]; then SDKMGR="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"; fi
+          if [ ! -f "$SDKMGR" ]; then SDKMGR=$(find "$ANDROID_HOME" -name sdkmanager -type f 2>/dev/null | head -n1); fi
+          if [ -f "$SDKMGR" ]; then
+            echo "Found sdkmanager at $SDKMGR"
+            yes | "$SDKMGR" --install "cmake;3.22.1" || yes | sudo "$SDKMGR" --install "cmake;3.22.1" || echo "sdkmanager install failed, will try alternative"
+            "$SDKMGR" --list | grep cmake || true
+          else
+            echo "sdkmanager not found, searching SDK..."
+            ls -R "$ANDROID_HOME" 2>/dev/null | head -n 50 || true
+            ls -R "$ANDROID_SDK_ROOT" 2>/dev/null | head -n 50 || true
+          fi
+          ls -d "$ANDROID_HOME/cmake/3.22.1" 2>/dev/null && echo "cmake 3.22.1 installed" || echo "cmake dir not found, checking alternatives"
+          ls -d "$ANDROID_SDK_ROOT/cmake/3.22.1" 2>/dev/null && echo "cmake 3.22.1 installed (SDK_ROOT)" || true
+
       - name: Setup ccache
         uses: hendrikmuhs/ccache-action@v1.2
         with:
