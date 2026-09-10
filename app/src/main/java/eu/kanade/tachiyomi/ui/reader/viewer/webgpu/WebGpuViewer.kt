@@ -117,7 +117,11 @@ open class WebGpuViewer(
 
     /** Read live: these pages are built before the surface has a size, and outlive a rotation. */
     internal fun viewportPageWidth(half: Boolean): Int {
-        val w = try { pager.state.width } catch (_: Exception) { 0 }
+        val w = try {
+            pager.state.width
+        } catch (_: Exception) {
+            0
+        }
         if (w < 8) return 8
         return if (half) (w / 2).coerceAtLeast(8) else w.coerceAtLeast(8)
     }
@@ -601,24 +605,27 @@ open class WebGpuViewer(
         try {
             val cid = page.page.chapter.chapter.id
             if (cid != null && cid != -1L) {
-                val offset = if (isContinuous) {
+                if (isContinuous) {
                     try {
                         val cont = pager as? ca.mpreg.webgpuviewer.ImageViewContinuous
                         val st = cont?.state
-                        st?.documentY ?: st?.scrollY ?: 0f
+                        if (st != null) {
+                            val pos = st.savePosition()
+                            val fraction = st.getFractionWithinPage()
+                            positionStore.savePosition(cid, page.page.index, pos.documentY, pos.scale, pos.offsetX, fraction)
+                        } else {
+                            positionStore.save(cid, page.page.index, 0f, 1f)
+                        }
                     } catch (_: Exception) {
-                        0f
+                        positionStore.save(cid, page.page.index, 0f, 1f)
                     }
                 } else {
-                    0f
+                    val zoom = try {
+                        val p = pager.state.getPage(0)
+                        p?.scale ?: 1f
+                    } catch (_: Exception) { 1f }
+                    positionStore.save(cid, page.page.index, 0f, zoom)
                 }
-                val zoom = try {
-                    val p = pager.state.getPage(0)
-                    p?.scale ?: 1f
-                } catch (_: Exception) {
-                    1f
-                }
-                positionStore.save(cid, page.page.index, offset, zoom)
             }
         } catch (_: Exception) {}
     }
@@ -644,25 +651,56 @@ open class WebGpuViewer(
         (currentPage as? ViewerReaderPage)?.let { reportPageSelected(it) }
         preloadPages(currentPage!!)
         if (stored != null && isContinuous) {
-            scope.launch(Dispatchers.Main) {
-                try {
-                    delay(300)
-                    val cont = pager as? ca.mpreg.webgpuviewer.ImageViewContinuous ?: return@launch
-                    val st = cont.state
-                    if (stored.offsetRatio != 0f) {
+            // Heavily improved restore: atomic position with pending queue, no arbitrary delay,
+            // handles both v2 documentY and legacy fraction, restores scale/offsetX together.
+            try {
+                val cont = pager as? ca.mpreg.webgpuviewer.ImageViewContinuous
+                val st = cont?.state
+                if (st != null) {
+                    when {
+                        stored.isV2 && stored.offsetRatio > 1f -> {
+                            val pos = ca.mpreg.webgpuviewer.viewer.ImageViewerContinuousState.ContinuousPosition(
+                                documentY = stored.offsetRatio,
+                                scale = stored.zoom,
+                                offsetX = stored.offsetX,
+                                pageIndexHint = stored.pageIndex,
+                                fractionWithinPage = stored.fraction,
+                            )
+                            st.restorePosition(pos, animate = false)
+                        }
+                        stored.isV2 -> {
+                            // small docY (top of document) still use v2 path
+                            val pos = ca.mpreg.webgpuviewer.viewer.ImageViewerContinuousState.ContinuousPosition(
+                                documentY = stored.offsetRatio,
+                                scale = stored.zoom,
+                                offsetX = stored.offsetX,
+                                pageIndexHint = stored.pageIndex,
+                                fractionWithinPage = stored.fraction,
+                            )
+                            st.restorePosition(pos, animate = false)
+                        }
+                        else -> {
+                            // legacy fraction 0..1 — restore by page+fraction
+                            if (stored.fraction.isFinite() && stored.fraction > 0f) {
+                                st.scrollToPage(stored.pageIndex, stored.fraction)
+                            }
+                            val maxOffsetX = maxOf(0f, (stored.zoom - 1f) / (2f * stored.zoom))
+                            st.scale = stored.zoom.coerceIn(st.minScale, st.maxScale)
+                            st.offsetX = stored.offsetX.coerceIn(-maxOffsetX, maxOffsetX)
+                        }
+                    }
+                    // If pages not yet available, restorePosition queues pending and will apply in captureRenderState
+                    scope.launch(Dispatchers.Main) {
                         try {
-                            st.scrollTo(stored.offsetRatio)
+                            // retry once after layout if still pending (e.g. width==0)
+                            kotlinx.coroutines.delay(100)
+                            if (st.getPage(0) == null) return@launch
+                            // ensure pending flushed
+                            pager.state.invalidate()
                         } catch (_: Exception) {}
                     }
-                    if (stored.zoom > 1f) {
-                        try {
-                            val p = pager.state.getPage(0)
-                            if (p != null) p.scale = stored.zoom.coerceIn(1f, 4f)
-                        } catch (_: Exception) {}
-                    }
-                    pager.state.invalidate()
-                } catch (_: Exception) {}
-            }
+                }
+            } catch (_: Exception) {}
         }
 
         pager.state.apply {
