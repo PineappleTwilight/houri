@@ -383,6 +383,7 @@
 - [ ] **Achievements**: Ensure all achievements trigger properly and are wired properly
 - [ ] **Image Decoder**: Fix JXL images loading infinitely
   - Nothing in logs to indicate issues
+- [ ] **Upscaler**: Properly wire and implement upscaler including preferences (dedicated settings page)
 
 ## Chores
 - [x] Replace all Komikku icons/branding with houri icons/branding
