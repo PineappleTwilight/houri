@@ -381,7 +381,8 @@
 - [ ] **Achievements**: Fix delay on entering/exit the achievements settings page
   - Note: This delay appears to be for all app transitions
 - [ ] **Achievements**: Ensure all achievements trigger properly and are wired properly
-- [ ] **Debug**: Fix debug logs loading infinitely
+- [ ] **Image Decoder**: Fix JXL images loading infinitely
+  - Nothing in logs to indicate issues
 
 ## Chores
 - [x] Replace all Komikku icons/branding with houri icons/branding
