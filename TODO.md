@@ -150,6 +150,9 @@
 - [ ] **Achievements**: Cool animated text colors/gradients for unlocked high tier achievements (toggleable, defaults to enabled
   - Icons should also be animated too somehow
   - Should be performance friendly but still cool
+  - Can also be creative, e.g. animated flames, black hole/void themed animations, and more
+  - Specific achievements should also have custom animations
+  - This should likely be a modular "framework" for future use and ease of implementing 
 
 ## Bugfixes
 - [x] Fix UI transition choppiness.
