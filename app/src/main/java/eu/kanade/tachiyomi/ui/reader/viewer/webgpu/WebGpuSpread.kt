@@ -154,10 +154,10 @@ internal fun WebGpuViewer.maybeScheduleSpreadHeightMatch(
 
     val leftImage = (spread.left as? ImagePage.ImageSingle)?.image
     val rightImage = (spread.right as? ImagePage.ImageSingle)?.image
-    if (leftImage == null || rightImage == null || leftImage.height == rightImage.height) return
+    if (leftImage == null || rightImage == null) return
+    if (leftImage.height == rightImage.height) return
     if (leftImage.height < 8 || rightImage.height < 8) return
     if (leftImage.width < 8 || rightImage.width < 8) return
-    if (pager.state.width < 8 || pager.state.height < 8) return
 
     // Deterministically scale the shorter side up to the taller side. This avoids
     // shrinking a large page down to a small partner (which produced tiny spreads on
@@ -176,13 +176,18 @@ internal fun WebGpuViewer.maybeScheduleSpreadHeightMatch(
 
     val sourcePage = when {
         shorterPage != null && shorterPage.spreadBytes != null && !shorterPage.rescaleInFlight -> shorterPage
-        // Fallback: if the shorter side's bytes are gone (evicted or already used),
-        // scale the taller side down to at least make heights equal rather than leave
-        // a persistent mismatch. Prefer partner for the fallback to keep anchor stable.
         nextReaderPage != null && nextReaderPage !== anchorPage &&
             nextReaderPage.spreadBytes != null && !nextReaderPage.rescaleInFlight -> nextReaderPage
         anchorPage.spreadBytes != null && !anchorPage.rescaleInFlight -> anchorPage
-        else -> return
+        else -> {
+            scope.launch {
+                kotlinx.coroutines.delay(120)
+                if (!isDestroyed && config.matchDoublePageHeights) {
+                    maybeScheduleSpreadHeightMatch(anchorPage, spread, nextReaderPage)
+                }
+            }
+            return
+        }
     }
 
     // If we fell back to scaling the taller side, adjust target to the shorter height.
