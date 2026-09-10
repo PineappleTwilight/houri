@@ -185,8 +185,12 @@ private fun AchievementCard(achievement: Achievement, isUnlocked: Boolean, anima
             val cur = pool.getProgress(achievement.id)
             val label = "$cur"
             cur to label
-        } catch (_: Exception) { null }
-    } else null
+        } catch (_: Exception) {
+            null
+        }
+    } else {
+        null
+    }
     val alpha = if (isUnlocked) 1f else 0.45f
     val tierColor = when (achievement.tier) {
         tachiyomi.domain.achievement.model.AchievementTier.BRONZE -> MaterialTheme.colorScheme.secondary

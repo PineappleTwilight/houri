@@ -43,6 +43,8 @@ class AchievementDispatcher @dev.zacsweers.metro.Inject constructor(
     }
 
     fun dispatchAsync(event: AchievementEvent) {
-        try { dispatch(event) } catch (_: Exception) {}
+        try {
+            dispatch(event)
+        } catch (_: Exception) {}
     }
 }

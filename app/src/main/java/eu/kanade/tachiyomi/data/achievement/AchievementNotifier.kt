@@ -67,7 +67,9 @@ class AchievementNotifier(
             val summary = "Unlocked ${valid.size} achievements: " + valid.take(3).joinToString(", ") { it.displayTitle } + if (valid.size > 3) " +${valid.size - 3} more" else ""
             handler.post {
                 if (prefs.achievementToastsEnabled().get()) {
-                    try { context.toast(summary, duration = Toast.LENGTH_LONG) } catch (_: Exception) {}
+                    try {
+                        context.toast(summary, duration = Toast.LENGTH_LONG)
+                    } catch (_: Exception) {}
                 }
                 valid.forEach { soundPlayer.play(it.tier) }
             }

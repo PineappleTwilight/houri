@@ -153,7 +153,7 @@ object HomeScreen : Screen() {
                         }
                     },
                     contentWindowInsets = WindowInsets(0),
-                    ) { contentPadding ->
+                ) { contentPadding ->
                     Box(
                         modifier = Modifier
                             .padding(contentPadding)
