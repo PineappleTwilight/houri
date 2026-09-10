@@ -390,6 +390,8 @@
 - [ ] **WebGPU Reader**: Fix double page not loading the second page
 - [ ] **Fill Info From Tracker**: Fix info not being applied and seemingly nowhere to assign trackers as definitive sources per category
 - [ ] **App**: Fix open folder button on merged entries not working
+- [ ] **Tracker**: Fix mangaupdates chapter count staying at 0 forever
+- [ ] **Achievements**: Ensure both legacy reader and webgpu have support for achievements
 
 ## Chores
 - [x] Replace all Komikku icons/branding with houri icons/branding
