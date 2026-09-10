@@ -156,9 +156,12 @@
   - Implemented 2026-09-10: `AchievementProgress` (threshold map + `progressFor`/`labelFor`/`hasProgress`, `currentFor` per prefs) + `LinearProgressIndicator` + `X/Y` label in both `AchievementsContent` + `SettingsAchievementsScreen` (shows `2/10` etc, hidden when unlocked or no threshold)
 - [x] **Achievements**: Add achievements for "catching up" with manga
   - Implemented 2026-09-10: already had 5 `*_caught_up` achievements (1/5/10/20/50) + `prefs.mangaCaughtUpCount` + `manager.onMangaCaughtUp` + `ReaderViewModel` permanent-status branch (`onMangaCaughtUp` for ongoing, `onMangaFinished` for completed) + progress tracker wiring via `AchievementProgress`
-- [ ] **Debug**: Add button to clear logs to the debug menu
-- [ ] **Debug**: Add more information to crash reports
-- [ ] **Webhook**: Wire achievement system into webhook connection
+- [x] **Debug**: Add button to clear logs to the debug menu
+  - Fixed 2026-09-11: `DebugFunctions.clearLogs()` (deletes `*log*.txt/.log` in `cacheDir` + `logcat -c`) auto-appears in DEBUG MENU
+- [x] **Debug**: Add more information to crash reports
+  - Fixed 2026-09-11: `CrashLogUtil.getDebugInfo()` now includes RAM (`avail/total/low/threshold`), storage (`free/total`), battery (`%`), locale/timezone, orientation, PID/thread
+- [x] **Webhook**: Wire achievement system into webhook connection
+  - Fixed 2026-09-11: `WebhookEvent.ACHIEVEMENT_UNLOCKED` + `WebhookPreferences.notifyOnAchievementUnlocked()` + `AchievementManager` webhook dispatch on `notifyIfNeeded` with `achievement_id/title/tier`
 - [ ] **WebGPU Reader**: Add page offset (mirrors legacy reader page offset feature)
 
 ## Bugfixes

@@ -43,6 +43,24 @@ class CrashLogUtil(
     }
 
     fun getDebugInfo(): String {
+        val activityManager = context.getSystemService(android.content.Context.ACTIVITY_SERVICE) as? android.app.ActivityManager
+        val memInfo = activityManager?.let {
+            val mi = android.app.ActivityManager.MemoryInfo()
+            it.getMemoryInfo(mi)
+            "RAM: ${mi.availMem / 1024 / 1024}MB avail / ${mi.totalMem / 1024 / 1024}MB total (low=${mi.lowMemory}, threshold=${mi.threshold / 1024 / 1024}MB)"
+        } ?: "RAM: unknown"
+        val storageInfo = try {
+            val free = context.cacheDir.freeSpace / 1024 / 1024
+            val total = context.cacheDir.totalSpace / 1024 / 1024
+            "Storage: ${free}MB free / ${total}MB total (cacheDir)"
+        } catch (_: Exception) { "Storage: unknown" }
+        val batteryInfo = try {
+            val bm = context.getSystemService(android.content.Context.BATTERY_SERVICE) as? android.os.BatteryManager
+            val level = bm?.getIntProperty(android.os.BatteryManager.BATTERY_PROPERTY_CAPACITY) ?: -1
+            if (level >= 0) "Battery: $level%" else "Battery: unknown"
+        } catch (_: Exception) { "Battery: unknown" }
+        val localeInfo = try { "Locale: ${java.util.Locale.getDefault()} / TimeZone: ${java.util.TimeZone.getDefault().id}" } catch (_: Exception) { "Locale: unknown" }
+        val orientationInfo = try { "Orientation: ${context.resources.configuration.orientation}" } catch (_: Exception) { "Orientation: unknown" }
         return """
             App ID: ${BuildConfig.APPLICATION_ID}
             App version: ${BuildConfig.VERSION_NAME} (${BuildConfig.COMMIT_SHA}, ${BuildConfig.VERSION_CODE}, ${BuildConfig.BUILD_TIME})
@@ -54,6 +72,12 @@ class CrashLogUtil(
             Device model: ${Build.MODEL}
             WebView: ${WebViewUtil.getVersion(context)}
             Current time: ${OffsetDateTime.now(ZoneId.systemDefault())}
+            $memInfo
+            $storageInfo
+            $batteryInfo
+            $localeInfo
+            $orientationInfo
+            Process: ${android.os.Process.myPid()} / Thread: ${Thread.currentThread().name}
         """.trimIndent()
     }
 

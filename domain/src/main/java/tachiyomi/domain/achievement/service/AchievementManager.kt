@@ -11,6 +11,7 @@ import tachiyomi.domain.achievement.model.Achievements
 class AchievementManager(
     private val prefs: AchievementPreferences,
     private val notifier: AchievementUnlockNotifier? = null,
+    private val webhookNotifier: eu.kanade.tachiyomi.data.webhook.WebhookNotifier? = null,
 ) {
     @Synchronized
     fun onOrganicChapterRead(totalRead: Long): List<String> {
@@ -270,7 +271,22 @@ class AchievementManager(
     }
 
     private fun notifyIfNeeded(unlocked: List<String>) {
-        if (unlocked.isNotEmpty()) notifier?.onUnlocked(unlocked)
+        if (unlocked.isNotEmpty()) {
+            notifier?.onUnlocked(unlocked)
+            webhookNotifier?.let { notifier ->
+                unlocked.forEach { id ->
+                    val ach = Achievements.forId(id)
+                    notifier.notify(
+                        event = eu.kanade.tachiyomi.data.webhook.WebhookEvent.ACHIEVEMENT_UNLOCKED,
+                        data = mapOf(
+                            "achievement_id" to id,
+                            "achievement_title" to (ach?.displayTitle ?: id),
+                            "achievement_tier" to (ach?.tier?.name ?: "UNKNOWN"),
+                        ),
+                    )
+                }
+            }
+        }
     }
 
     fun getStats(): AchievementStats = prefs.computeStats(Achievements.all.size)

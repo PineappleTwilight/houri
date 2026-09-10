@@ -49,6 +49,8 @@ class WebhookPreferences(
 
     fun notifyOnAppUpdated() = preferenceStore.getBoolean("pref_webhook_app_updated", true)
 
+    fun notifyOnAchievementUnlocked() = preferenceStore.getBoolean("pref_webhook_achievement_unlocked", true)
+
     fun excludedCategories() = preferenceStore.getStringSet(
         "pref_webhook_excluded_categories",
         emptySet(),
