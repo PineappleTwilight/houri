@@ -153,7 +153,8 @@ class AchievementManager(
             eu.kanade.tachiyomi.source.model.SManga.COMPLETED,
             eu.kanade.tachiyomi.source.model.SManga.CANCELLED,
             eu.kanade.tachiyomi.source.model.SManga.PUBLISHING_FINISHED,
-            eu.kanade.tachiyomi.source.model.SManga.LICENSED -> true
+            eu.kanade.tachiyomi.source.model.SManga.LICENSED,
+            -> true
             else -> false
         }
     }

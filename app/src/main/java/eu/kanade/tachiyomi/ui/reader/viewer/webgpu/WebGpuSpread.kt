@@ -253,13 +253,17 @@ private suspend fun WebGpuViewer.rescaleImageToHeight(bytes: ByteArray, targetHe
     val frame = try {
         dec.decodeNext()
     } catch (e: Exception) {
-        try { dec.close() } catch (_: Exception) {}
+        try {
+            dec.close()
+        } catch (_: Exception) {}
         throw e
     }
     val srcWidth = frame.width
     val srcHeight = frame.height
     if (srcWidth < 8 || srcHeight < 8) {
-        try { dec.close() } catch (_: Exception) {}
+        try {
+            dec.close()
+        } catch (_: Exception) {}
         throw IllegalArgumentException("src too small ${srcWidth}x$srcHeight (<8) to rescale, avoiding gralloc")
     }
     require(srcWidth in 1..8192 && srcHeight in 1..8192) { "src dimensions out of range: ${srcWidth}x$srcHeight" }
@@ -267,11 +271,15 @@ private suspend fun WebGpuViewer.rescaleImageToHeight(bytes: ByteArray, targetHe
     val srcBitmap = try {
         createBitmap(srcWidth, srcHeight)
     } catch (e: OutOfMemoryError) {
-        try { dec.close() } catch (_: Exception) {}
+        try {
+            dec.close()
+        } catch (_: Exception) {}
         System.gc()
         throw e
     } catch (e: Exception) {
-        try { dec.close() } catch (_: Exception) {}
+        try {
+            dec.close()
+        } catch (_: Exception) {}
         throw e
     }
     try {

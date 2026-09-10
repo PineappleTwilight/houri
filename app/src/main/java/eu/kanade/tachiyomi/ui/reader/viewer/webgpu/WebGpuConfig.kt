@@ -107,7 +107,11 @@ class WebGpuConfig(
                         theme = it
                         automaticBackground = it == 3
                     },
-                    { try { imagePropertyChangedListener?.invoke() } catch (_: Exception) {} },
+                    {
+                        try {
+                            imagePropertyChangedListener?.invoke()
+                        } catch (_: Exception) {}
+                    },
                 )
         } catch (_: Exception) {}
 

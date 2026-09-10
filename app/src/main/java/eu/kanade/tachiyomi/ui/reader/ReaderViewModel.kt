@@ -1035,7 +1035,11 @@ class ReaderViewModel(
                 unfilteredChapterList.all { it.read } &&
                 !currentManga.rereading
             ) {
-                val isPermanent = try { achievementManager.isPermanentStatus(currentManga.status) } catch (_: Exception) { true }
+                val isPermanent = try {
+                    achievementManager.isPermanentStatus(currentManga.status)
+                } catch (_: Exception) {
+                    true
+                }
                 webhookNotifier.notify(
                     if (isPermanent) WebhookEvent.MANGA_FINISHED else WebhookEvent.MANGA_FINISHED,
                     mapOf("manga" to currentManga.title),

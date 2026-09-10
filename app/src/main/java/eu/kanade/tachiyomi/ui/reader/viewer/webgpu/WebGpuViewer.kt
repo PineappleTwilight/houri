@@ -227,12 +227,18 @@ open class WebGpuViewer(
                                 page.state = PageState.IDLE
                             }
                         }
-                    } catch (e: Exception) {
-                        logcat(LogPriority.ERROR, e) { "decodeReaderPage: ${e.message}" }
+                    } catch (e: Throwable) {
+                        if (e is CancellationException) throw e
+                        val isLinkage = e is LinkageError || e is NoClassDefFoundError || e is UnsatisfiedLinkError
+                        logcat(LogPriority.ERROR, e) { "decodeReaderPage${if (isLinkage) " linkage" else ""}: ${e.message}" }
                         synchronized(lock) {
                             if (pageInCache(page) && !page.isDecoded && !page.imagePage.destroyed) {
                                 val oldImagePage = page.imagePage
-                                val errorMessage = e.message?.takeIf { it.isNotBlank() } ?: "Failed to decode image"
+                                val errorMessage = when {
+                                    isLinkage -> "Decoder not available on this device"
+                                    e.message?.isNotBlank() == true -> e.message!!
+                                    else -> "Failed to decode image"
+                                }
                                 page.imagePage = ErrorPage(this@WebGpuViewer, errorMessage, page.spreadPosition)
                                 page.state = PageState.IDLE
                                 oldImagePage.cleanup()
@@ -623,7 +629,9 @@ open class WebGpuViewer(
                     val zoom = try {
                         val p = pager.state.getPage(0)
                         p?.scale ?: 1f
-                    } catch (_: Exception) { 1f }
+                    } catch (_: Exception) {
+                        1f
+                    }
                     positionStore.save(cid, page.page.index, 0f, zoom)
                 }
             }

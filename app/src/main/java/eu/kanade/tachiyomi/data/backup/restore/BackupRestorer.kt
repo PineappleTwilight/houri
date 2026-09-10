@@ -78,68 +78,72 @@ class BackupRestorer(
 
     private suspend fun restoreFromFile(uri: Uri, options: RestoreOptions) {
         // Suppress organic achievement increments for DB imports — tracker/history counts should not inflate organic stats
-        val achievementPrefs = try { mihon.app.di.globalAppGraph.achievementPreferences } catch (_: Exception) { null }
+        val achievementPrefs = try {
+            mihon.app.di.globalAppGraph.achievementPreferences
+        } catch (_: Exception) {
+            null
+        }
         val prevSuppress = achievementPrefs?.suppressOrganicForImport
         try {
             achievementPrefs?.suppressOrganicForImport = true
             val backup = BackupDecoder(context).decode(uri)
 
-        // Store source mapping for error messages
-        val backupMaps = backup.backupSources
-        sourceMapping = backupMaps.associate { it.sourceId to it.name }
+            // Store source mapping for error messages
+            val backupMaps = backup.backupSources
+            sourceMapping = backupMaps.associate { it.sourceId to it.name }
 
-        if (options.libraryEntries) {
-            restoreAmount += backup.backupManga.size
-        }
-        if (options.categories) {
-            restoreAmount += 1
-        }
-        // SY -->
-        if (options.savedSearchesFeeds) {
-            restoreAmount += 1
-        }
-        // SY <--
-        if (options.appSettings) {
-            restoreAmount += 1
-        }
-        if (options.extensionStores) {
-            restoreAmount += backup.backupExtensionStores.size
-        }
-        if (options.sourceSettings) {
-            restoreAmount += 1
-        }
-
-        coroutineScope {
+            if (options.libraryEntries) {
+                restoreAmount += backup.backupManga.size
+            }
             if (options.categories) {
-                restoreCategories(backup.backupCategories)
+                restoreAmount += 1
             }
             // SY -->
             if (options.savedSearchesFeeds) {
-                restoreSavedSearches(
-                    backup.backupSavedSearches,
-                    // KMK -->
-                    backup.backupFeeds,
-                    // KMK <--
-                )
+                restoreAmount += 1
             }
             // SY <--
             if (options.appSettings) {
-                restoreAppPreferences(backup.backupPreferences, backup.backupCategories.takeIf { options.categories })
-            }
-            if (options.sourceSettings) {
-                restoreSourcePreferences(backup.backupSourcePreferences)
-            }
-            if (options.libraryEntries) {
-                restoreManga(backup.backupManga, if (options.categories) backup.backupCategories else emptyList())
+                restoreAmount += 1
             }
             if (options.extensionStores) {
-                restoreExtensionStores(backup.backupExtensionStores)
+                restoreAmount += backup.backupExtensionStores.size
+            }
+            if (options.sourceSettings) {
+                restoreAmount += 1
             }
 
-            if (options.libraryEntries) {
-                LibraryUpdateJob.startNow(context)
+            coroutineScope {
+                if (options.categories) {
+                    restoreCategories(backup.backupCategories)
+                }
+                // SY -->
+                if (options.savedSearchesFeeds) {
+                    restoreSavedSearches(
+                        backup.backupSavedSearches,
+                        // KMK -->
+                        backup.backupFeeds,
+                        // KMK <--
+                    )
+                }
+                // SY <--
+                if (options.appSettings) {
+                    restoreAppPreferences(backup.backupPreferences, backup.backupCategories.takeIf { options.categories })
+                }
+                if (options.sourceSettings) {
+                    restoreSourcePreferences(backup.backupSourcePreferences)
+                }
+                if (options.libraryEntries) {
+                    restoreManga(backup.backupManga, if (options.categories) backup.backupCategories else emptyList())
+                }
+                if (options.extensionStores) {
+                    restoreExtensionStores(backup.backupExtensionStores)
+                }
+
+                if (options.libraryEntries) {
+                    LibraryUpdateJob.startNow(context)
+                }
             }
-        }
         } finally {
             if (prevSuppress != null) achievementPrefs?.suppressOrganicForImport = prevSuppress
         }
