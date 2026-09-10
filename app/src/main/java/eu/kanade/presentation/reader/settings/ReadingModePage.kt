@@ -51,7 +51,7 @@ internal fun ReadingModePage(screenModel: ReaderSettingsScreenModel) {
             else -> manga?.readingMode?.toInt() ?: default
         },
     )
-    if (resolved == ReadingMode.LEFT_TO_RIGHT || resolved == ReadingMode.RIGHT_TO_LEFT) {
+    if (resolved == ReadingMode.LEFT_TO_RIGHT || resolved == ReadingMode.RIGHT_TO_LEFT || resolved == ReadingMode.VERTICAL) {
         val dualPageView by screenModel.preferences.dualPageView().collectAsState()
         SettingsChipRow(MR.strings.pref_dual_page_view) {
             ReaderPreferences.DualPageView.entries.map {

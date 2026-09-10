@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -83,7 +84,8 @@ fun TrackInfoDialogHome(
         modifier = Modifier
             .animateContentSize()
             .fillMaxWidth()
-            .heightIn(max = 600.dp)
+            .wrapContentHeight()
+            .heightIn(max = 520.dp)
             .verticalScroll(rememberScrollState())
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(24.dp),
@@ -122,8 +124,8 @@ fun TrackInfoDialogHome(
                 onStartDateEdit = onStartDateEdit,
                 onEndDateEdit = onEndDateEdit,
             )
-        }
-        trackItems.forEach { item ->
+        } else {
+            trackItems.forEach { item ->
             if (item.track != null) {
                 val isMismatched = item.tracker.id in mismatchIds
                 val supportsScoring = item.tracker.getScoreList().isNotEmpty()
@@ -171,6 +173,7 @@ fun TrackInfoDialogHome(
                     onNewSearch = { onNewSearch(item) },
                 )
             }
+        }
         }
     }
 }

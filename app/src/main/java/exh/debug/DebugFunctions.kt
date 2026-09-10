@@ -320,4 +320,21 @@ object DebugFunctions {
         val context = globalAppGraph.context
         LibraryUpdateJob.stop(context)
     }
+
+    fun clearLogs(): String {
+        return try {
+            val context = globalAppGraph.context
+            val cacheDir = context.cacheDir
+            var deleted = 0
+            cacheDir.listFiles()?.forEach { file ->
+                if (file.name.contains("log", ignoreCase = true) || file.name.endsWith(".txt") || file.name.endsWith(".log")) {
+                    if (file.delete()) deleted++
+                }
+            }
+            try { Runtime.getRuntime().exec("logcat -c").waitFor() } catch (_: Exception) {}
+            "Cleared $deleted log files and logcat buffer"
+        } catch (e: Exception) {
+            "Failed to clear logs: ${e.message}"
+        }
+    }
 }

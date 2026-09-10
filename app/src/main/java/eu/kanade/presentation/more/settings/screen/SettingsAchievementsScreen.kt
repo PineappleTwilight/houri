@@ -21,6 +21,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -36,6 +37,7 @@ import eu.kanade.presentation.library.components.tierAnimatedBackground
 import eu.kanade.presentation.more.settings.Preference
 import eu.kanade.tachiyomi.util.system.toast
 import kotlinx.collections.immutable.persistentListOf
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import mihon.app.di.globalAppGraph
 import tachiyomi.domain.achievement.model.Achievement
@@ -164,7 +166,10 @@ object SettingsAchievementsScreen : SearchableSettings {
         val unlockedIds by prefs.unlockedAchievements().collectAsState()
         val unlockedSet = rememberUnlockedSet(unlockedIds)
         val animationsEnabled by prefs.animationsEnabled().collectAsState()
-        val all = Achievements.all
+        val all = remember { Achievements.all }
+        var animationsReady by remember { mutableStateOf(false) }
+        LaunchedEffect(Unit) { delay(300); animationsReady = true }
+        val canAnimate = animationsEnabled && animationsReady
 
         return Preference.PreferenceGroup(
             title = stringResource(KMR.strings.label_achievements),
@@ -172,37 +177,26 @@ object SettingsAchievementsScreen : SearchableSettings {
                 Preference.PreferenceItem.CustomPreference(
                     title = "",
                     content = {
-                        Column(
+                        LazyVerticalGrid(
+                            columns = GridCells.Fixed(2),
                             modifier = Modifier
                                 .fillMaxWidth()
+                                .heightIn(max = 800.dp)
                                 .padding(horizontal = 12.dp, vertical = 8.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
                             verticalArrangement = Arrangement.spacedBy(8.dp),
+                            userScrollEnabled = false,
                         ) {
-                            val rows = all.chunked(2)
-                            rows.forEach { row ->
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                ) {
-                                    row.forEach { ach ->
-                                        val isUnlocked = ach.id in unlockedSet
-                                        val display = ach.copy(unlockedAt = if (isUnlocked) 1L else null)
-                                        val progress = rememberTierProgress(animationsEnabled && isUnlocked, ach.tier)
-                                        androidx.compose.foundation.layout.Box(
-                                            modifier = Modifier.weight(1f),
-                                        ) {
-                                            AchievementCardSimple(
-                                                achievement = display,
-                                                isUnlocked = isUnlocked,
-                                                animationsEnabled = animationsEnabled,
-                                                progress = progress,
-                                            )
-                                        }
-                                    }
-                                    if (row.size == 1) {
-                                        androidx.compose.foundation.layout.Spacer(modifier = Modifier.weight(1f))
-                                    }
-                                }
+                            items(all, key = { it.id }) { ach ->
+                                val isUnlocked = ach.id in unlockedSet
+                                val display = remember(ach, isUnlocked) { ach.copy(unlockedAt = if (isUnlocked) 1L else null) }
+                                val progress = rememberTierProgress(canAnimate && isUnlocked, ach.tier)
+                                AchievementCardSimple(
+                                    achievement = display,
+                                    isUnlocked = isUnlocked,
+                                    animationsEnabled = canAnimate,
+                                    progress = progress,
+                                )
                             }
                         }
                     },
