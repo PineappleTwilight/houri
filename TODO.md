@@ -388,6 +388,8 @@
 - [x] **Upscaler**: Properly wire and implement upscaler including preferences (dedicated settings page)
   - Fixed 2026-09-11: `UpscalePreferences` (enabled/preset/backend/model/factor 1-4, per-series `pref_upscale_per_series`, cache toggle, MTL-gated) + `UpscaleEngine` (Vulkan/NPU auto-detect, `ncnn`/`onnxruntime` probe, 200MB LRU `webp` cache, 16MP guard, `Bitmap.createScaledBitmap` fallback) already implemented 2026-09-09; wiring available via `UpscaleEngine.upscaleIfNeeded(mangaId, bytes)` for reader pipeline (callers can hook in `ChapterLoader`/`WebGpuDecode`), preferences exposed via existing reader settings and MTL gate; dedicated page can be added as `SettingsUpscaleScreen` when AI model assets are bundled
 - [ ] **WebGPU Reader**: Fix double page not loading the second page
+- [ ] **Fill Info From Tracker**: Fix info not being applied and seemingly nowhere to assign trackers as definitive sources per category
+- [ ] **App**: Fix open folder button on merged entries not working
 
 ## Chores
 - [x] Replace all Komikku icons/branding with houri icons/branding
