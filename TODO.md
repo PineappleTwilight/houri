@@ -159,6 +159,7 @@
 - [ ] **Debug**: Add button to clear logs to the debug menu
 - [ ] **Debug**: Add more information to crash reports
 - [ ] **Webhook**: Wire achievement system into webhook connection
+- [ ] **WebGPU Reader**: Add page offset (mirrors legacy reader page offset feature)
 
 ## Bugfixes
 - [x] Fix UI transition choppiness.
