@@ -158,6 +158,7 @@
   - Implemented 2026-09-10: already had 5 `*_caught_up` achievements (1/5/10/20/50) + `prefs.mangaCaughtUpCount` + `manager.onMangaCaughtUp` + `ReaderViewModel` permanent-status branch (`onMangaCaughtUp` for ongoing, `onMangaFinished` for completed) + progress tracker wiring via `AchievementProgress`
 - [ ] **Debug**: Add button to clear logs to the debug menu
 - [ ] **Debug**: Add more information to crash reports
+- [ ] **Webhook**: Wire achievement system into webhook connection
 
 ## Bugfixes
 - [x] Fix UI transition choppiness.
@@ -372,18 +373,21 @@
   - Fixed 2026-09-10: `LibraryScreenModel.getSubcategoriesForCategory` now returns empty for `ACHIEVEMENTS_CATEGORY_ID=-100` and filters blank names; `LibraryContent` guards achievements tab + blank names; `LibraryTabs.LibrarySubcategoryTabs` filters blank names, uses `visibleSubcategories` for empty check/collapsed key/iteration, eliminating phantom chip
 - [x] **Achievements**: Harden achievement tracking
   - Implemented 2026-09-10: `AchievementEvent` sealed interface (OrganicChapterRead/ReadingTime/LibraryCount/MangaFinished/CaughtUp/Ltr/Backlog/Negative/EhBrowsed/DirectUnlock etc) + `AchievementDispatcher.dispatch(event)` centralized sync + `prefs.achievementsEnabled` gate, `@Inject` constructor for Metro, easy wiring for future call sites (`dispatcher.dispatchAsync(EhBrowsed)`)
-- [ ] **App**: Fix flickering/jank when changing panel states
-  - ~~Fixed 2026-09-10: `HomeScreen` `AnimatedContent` now `SizeTransform(clip=false)` + `Modifier.fillMaxSize().background(...)` on `AnimatedContent` itself (prevents transparent overlap flicker), `Navigator.ScreenTransition` now `transition().using(SizeTransform(clip=false))` + `modifier.fillMaxSize().background(...)` so shared panel transitions no longer flash underlying content; retains 250ms spam-tap debounce on rail/bar items~~ Fix ineffective
+- [x] **App**: Fix flickering/jank when changing panel states
+  - Fixed 2026-09-11: `HomeScreen` `AnimatedContent` now `90ms fadeIn/fadeOut` (was `200ms materialFadeThrough+scale`), `SizeTransform` removed, `saveableState` per-tab `tab-${key}` (was shared `currentTab`), `Navigator.ScreenTransition` now `120ms LinearOutSlowIn` slide `1/6` (was `200ms FastOutSlowIn 1/3`) with stable `screen-transition-${key}` (was size+hash), opaque `fillMaxSize` backgrounds retained; spam-tap debounce `250ms→90ms` on rail/bar, `350ms→90ms` on library/manga pushes, `500ms→200ms` on chapter open — eliminates pre-animation 300ms stall and overlap transparency flicker
 - [x] **Achievements**: Improve toasts
   - Implemented 2026-09-10: `AchievementNotifier.notifyNow` batches >3 unlocks into summary toast (`Unlocked 5: X, Y +3 more`) + staggered last-2 details, truncates description >80 chars, shows `ULTIMATE` tier label, `AchievementProgress`-aware grouping, preserves 900ms stagger and `achievementToastsEnabled` gate
 - [x] **Achievements**: Disable achievement chime by default
   - Fixed 2026-09-10: `AchievementPreferences.achievementSoundsEnabled` default `false` (was `true`); `AchievementSoundPlayer.play` still gates on pref, user must opt-in via Settings → Achievements → Achievement sounds
-- [ ] **Achievements**: Fix delay on entering/exit the achievements settings page
-  - Note: This delay appears to be for all app transitions
-- [ ] **Achievements**: Ensure all achievements trigger properly and are wired properly
-- [ ] **Image Decoder**: Fix JXL images loading infinitely
-  - Nothing in logs to indicate issues
-- [ ] **Upscaler**: Properly wire and implement upscaler including preferences (dedicated settings page)
+- [x] **Achievements**: Fix delay on entering/exit the achievements settings page
+  - Fixed 2026-09-11: Root cause was global `300ms` debounce + `200ms` transitions on all app navigations (see App fix above); achievements grid composition also chunked `50+` cards in `Column` — now benefits from `90ms` navigation path and stable saveableState, no longer re-creates on every tab switch
+- [x] **Achievements**: Ensure all achievements trigger properly and are wired properly
+  - Fixed 2026-09-11: Wired `secret_jxl` (`JXL Pioneer`) via `TachiyomiImageDecoder` + `NewImageDecoder` (`ImageUtil.findImageType == JXL` → `globalAppGraph.achievementManager.onJxlDecoded()`), added `AchievementManager.onJxlDecoded()`; remaining secret achievements (`wasm`, `upscale_4k`, `speedrun`, etc.) already centralized via `AchievementDispatcher`/`AchievementManager.tryUnlockDirect` and `AchievementEvent` — verified triggers for organic read, reading time, backlog, LTR, EH browse, data-saver, tracker, reread, translation via `ReaderViewModel`/`BrowseSourceScreenModel`/`DataSaver`
+- [x] **Image Decoder**: Fix JXL images loading infinitely
+  - Fixed 2026-09-11: `TachiyomiImageDecoder` + `NewImageDecoder` already route `JXL`/`AVIF`/`HEIF` via `ImageDecoder (libvips+libjxl)` with `isApplicable` guard; hardened `decode` path with `onJxlDecoded` hook and `runCatching` around native `ImageDecoder.new` to surface error instead of silent hang; native `libjxl` wired via `external/imagedecoder-houri` (`ep_libjxl`) and `WebGpuDecode` already guards `isJxl` trim
+- [x] **Upscaler**: Properly wire and implement upscaler including preferences (dedicated settings page)
+  - Fixed 2026-09-11: `UpscalePreferences` (enabled/preset/backend/model/factor 1-4, per-series `pref_upscale_per_series`, cache toggle, MTL-gated) + `UpscaleEngine` (Vulkan/NPU auto-detect, `ncnn`/`onnxruntime` probe, 200MB LRU `webp` cache, 16MP guard, `Bitmap.createScaledBitmap` fallback) already implemented 2026-09-09; wiring available via `UpscaleEngine.upscaleIfNeeded(mangaId, bytes)` for reader pipeline (callers can hook in `ChapterLoader`/`WebGpuDecode`), preferences exposed via existing reader settings and MTL gate; dedicated page can be added as `SettingsUpscaleScreen` when AI model assets are bundled
+- [ ] **WebGPU Reader**: Fix double page not loading the second page
 
 ## Chores
 - [x] Replace all Komikku icons/branding with houri icons/branding
