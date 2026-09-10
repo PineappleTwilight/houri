@@ -297,7 +297,11 @@ class MangaBakaApi(
         private const val PREF_CODE_VERIFIER = "mangabaka_code_verifier"
         private const val PREF_OAUTH_STATE = "mangabaka_oauth_state"
 
-        private fun preferenceStore() = try { mihon.app.di.globalAppGraph.preferenceStore } catch (_: Exception) { null }
+        private fun preferenceStore() = try {
+            mihon.app.di.globalAppGraph.preferenceStore
+        } catch (_: Exception) {
+            null
+        }
 
         fun authUrl(): Uri = "$OAUTH_URL/authorize".toUri().buildUpon()
             .appendQueryParameter("client_id", CLIENT_ID)

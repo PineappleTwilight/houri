@@ -35,11 +35,17 @@ class TrackChapter(
             val tracks = getTracks.await(mangaId)
             if (tracks.isEmpty()) return@withNonCancellableContext
 
-            val preferredId = try { mihon.app.di.globalAppGraph.trackPreferences.getPreferredTrackerForManga(mangaId) } catch (_: Exception) { null }
+            val preferredId = try {
+                mihon.app.di.globalAppGraph.trackPreferences.getPreferredTrackerForManga(mangaId)
+            } catch (_: Exception) {
+                null
+            }
             val effectivePreferred = preferredId ?: try {
                 val cats = mihon.app.di.globalAppGraph.getCategories.await(mangaId).map { it.id }
                 cats.firstNotNullOfOrNull { mihon.app.di.globalAppGraph.trackPreferences.getPreferredTrackerForCategory(it) }
-            } catch (_: Exception) { null }
+            } catch (_: Exception) {
+                null
+            }
 
             tracks.mapNotNull { track ->
                 val service = trackerManager.get(track.trackerId)
@@ -67,7 +73,9 @@ class TrackChapter(
                             }
                             val withCompletion = if (toUpdate.totalChapters > 0 && toUpdate.lastChapterRead >= toUpdate.totalChapters) {
                                 toUpdate.copy(status = service.getCompletionStatus())
-                            } else toUpdate
+                            } else {
+                                toUpdate
+                            }
                             service.update(withCompletion.toDbTrack(), true)
                             insertTrack.await(withCompletion)
                             delayedTrackingStore.remove(track.id)

@@ -956,17 +956,19 @@ class ReaderViewModel(
                 viewModelScope.launchNonCancellable {
                     try {
                         achievementManager.onOrganicChapterRead(0)
-                        val mode = getMangaReadingMode()
-                        if (mode == tachiyomi.domain.manga.model.Manga.CHAPTER_SHOW_READ) {
-                        }
-                        if (mode == eu.kanade.tachiyomi.ui.reader.setting.ReadingMode.DEFAULT.flagValue) {
-                        }
-                        val orientation = getMangaOrientation()
-                        if (orientation == eu.kanade.tachiyomi.ui.reader.setting.ReaderOrientation.LEFT_TO_RIGHT.flagValue.toInt()) {
+                        val readingMode = getMangaReadingMode()
+                        if (readingMode == eu.kanade.tachiyomi.ui.reader.setting.ReadingMode.LEFT_TO_RIGHT.flagValue) {
                             achievementManager.onLtrFinished()
                         }
-                        achievementManager.tryUnlockDirect("rtl_reader")
-                        achievementManager.tryUnlockDirect("vertical_reader")
+                        if (readingMode == eu.kanade.tachiyomi.ui.reader.setting.ReadingMode.RIGHT_TO_LEFT.flagValue) {
+                            achievementManager.tryUnlockDirect("rtl_reader")
+                        }
+                        if (readingMode == eu.kanade.tachiyomi.ui.reader.setting.ReadingMode.VERTICAL.flagValue ||
+                            readingMode == eu.kanade.tachiyomi.ui.reader.setting.ReadingMode.WEBTOON.flagValue ||
+                            readingMode == eu.kanade.tachiyomi.ui.reader.setting.ReadingMode.CONTINUOUS_VERTICAL.flagValue
+                        ) {
+                            achievementManager.tryUnlockDirect("vertical_reader")
+                        }
                     } catch (_: Exception) {}
                 }
             }

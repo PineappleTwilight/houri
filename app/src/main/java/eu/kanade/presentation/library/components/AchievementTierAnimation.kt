@@ -44,8 +44,8 @@ object AchievementTierAnimation {
     fun iconEffect(tier: AchievementTier, isNegative: Boolean): IconEffect {
         if (isNegative) return IconEffect.None
         return when (tier) {
-            AchievementTier.LEGENDARY -> IconEffect.Glow(Color(0xFFFF6B00))
-            AchievementTier.MYTHIC -> IconEffect.Pulse(Color(0xFFAA00FF))
+            AchievementTier.LEGENDARY -> IconEffect.Glow
+            AchievementTier.MYTHIC -> IconEffect.Pulse
             AchievementTier.ULTIMATE -> IconEffect.Flame
             else -> IconEffect.None
         }

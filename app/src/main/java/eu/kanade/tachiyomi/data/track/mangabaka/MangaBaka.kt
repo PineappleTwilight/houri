@@ -11,7 +11,9 @@ import eu.kanade.tachiyomi.data.track.model.TrackSearch
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.serialization.json.Json
+import logcat.LogPriority
 import mihon.app.di.globalAppGraph
+import tachiyomi.core.common.util.system.logcat
 import tachiyomi.i18n.MR
 import tachiyomi.domain.track.model.Track as DomainTrack
 
@@ -149,10 +151,14 @@ class MangaBaka(id: Long) : BaseTracker(id, "MangaBaka"), DeletableTracker {
             }
             scorePreference.set(scoreType)
             saveCredentials(currentUser.nickname ?: currentUser.preferredUsername ?: currentUser.id, oauth.accessToken)
-            try { mihon.app.di.globalAppGraph.preferenceStore.getString("mangabaka_code_verifier", "").delete() } catch (_: Exception) {}
-            try { mihon.app.di.globalAppGraph.preferenceStore.getString("mangabaka_oauth_state", "").delete() } catch (_: Exception) {}
+            try {
+                mihon.app.di.globalAppGraph.preferenceStore.getString("mangabaka_code_verifier", "").delete()
+            } catch (_: Exception) {}
+            try {
+                mihon.app.di.globalAppGraph.preferenceStore.getString("mangabaka_oauth_state", "").delete()
+            } catch (_: Exception) {}
         } catch (e: Exception) {
-            try { exh.log.xLogE("MangaBaka OAuth failed", e) } catch (_: Exception) {}
+            logcat(LogPriority.ERROR, e) { "MangaBaka OAuth failed" }
             logout()
             throw e
         }

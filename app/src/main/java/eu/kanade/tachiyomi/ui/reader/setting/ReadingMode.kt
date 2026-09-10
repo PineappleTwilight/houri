@@ -84,16 +84,27 @@ enum class ReadingMode(
             // native renderer crashes with an uncatchable SIGSEGV (null GPUTexture in createView)
             // when it cannot allocate GPU-visible memory. Fall back to the legacy pager viewers.
             // KMK <--
-            val useHighQualityRenderer = basePreferences.highQualityRenderer().get() &&
+            val wantsHighQuality = basePreferences.highQualityRenderer().get() &&
                 exh.yakuyomi.DeviceMemory.isWebGpuSupported(activity)
-            if (useHighQualityRenderer) {
-                return when (fromPreference(preference)) {
-                    LEFT_TO_RIGHT -> WebGpuViewer(activity, isReversed = false, isVertical = false)
-                    RIGHT_TO_LEFT -> WebGpuViewer(activity, isReversed = true, isVertical = false)
-                    VERTICAL -> WebGpuViewer(activity, isReversed = false, isVertical = true)
-                    WEBTOON -> WebGpuViewerContinuous(activity)
-                    CONTINUOUS_VERTICAL -> WebGpuViewerContinuous(activity)
-                    DEFAULT -> throw IllegalStateException("Preference value must be resolved: $preference")
+            if (wantsHighQuality) {
+                val isWebGpuAvailable = try {
+                    ca.mpreg.webgpuviewer.renderer.WebGpuRenderer.isAvailable
+                } catch (e: Throwable) {
+                    false
+                }
+                if (isWebGpuAvailable) {
+                    try {
+                        return when (fromPreference(preference)) {
+                            LEFT_TO_RIGHT -> WebGpuViewer(activity, isReversed = false, isVertical = false)
+                            RIGHT_TO_LEFT -> WebGpuViewer(activity, isReversed = true, isVertical = false)
+                            VERTICAL -> WebGpuViewer(activity, isReversed = false, isVertical = true)
+                            WEBTOON -> WebGpuViewerContinuous(activity)
+                            CONTINUOUS_VERTICAL -> WebGpuViewerContinuous(activity)
+                            DEFAULT -> throw IllegalStateException("Preference value must be resolved: $preference")
+                        }
+                    } catch (e: Throwable) {
+                        android.util.Log.w("ReadingMode", "WebGPU viewer failed, falling back to pager", e)
+                    }
                 }
             }
             // Mihon <--

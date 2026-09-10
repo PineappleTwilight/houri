@@ -110,7 +110,9 @@ fun TrackInfoDialogHome(
             if (chapterValues.size > 1) {
                 val max = chapterValues.maxOrNull() ?: 0.0
                 trackItems.filter { it.track != null && kotlin.math.abs(it.track.lastChapterRead - max) > 0.01 }.map { it.tracker.id }.toSet()
-            } else emptySet()
+            } else {
+                emptySet()
+            }
         }
         trackItems.forEach { item ->
             if (item.track != null) {

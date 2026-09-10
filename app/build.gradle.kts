@@ -353,7 +353,7 @@ dependencies {
 
     // Mihon -->
     implementation("ca.mpreg:webgpuviewer:0.0.0")
-    compileOnly("androidx.webgpu:webgpu:1.0.0-dev05")
+    implementation("androidx.webgpu:webgpu:1.0.0-dev05")
     implementation("ca.mpreg:imagedecoder:0.0.0")
     implementation(libs.kim)
     // Mihon <--

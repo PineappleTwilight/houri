@@ -362,6 +362,7 @@
   - Fixed 2026-09-10: Persist PKCE `code_verifier` + `state` in `PreferenceStore` (`mangabaka_code_verifier`/`mangabaka_oauth_state`) to survive process death between `authUrl()` and callback; `persistedCodeVerifier()`/`persistedState()` fallback, `verifyOAuthState` now checks persisted, `getAccessToken` uses persisted verifier, clear prefs on success, `MangaBaka.login` now logs and rethrows instead of silent logout
 - [x] **Unified Tracker**: Preferred tracker sync + mismatch indication ([#4](https://github.com/PineappleTwilight/houri/issues/4))
   - Implemented 2026-09-10: `UnifiedTrackerHelper` (mismatch detection), `TrackChapter.await` now syncs to preferred tracker (per-manga → per-category fallback via `TrackPreferences`), maxes chapter progress across trackers, auto-completes (`COMPLETED` when `lastChapterRead >= totalChapters`), `TrackInfoDialogHome` yellow `tertiaryContainer` highlight for mismatched chapter numbers
+- [ ] **Library**: Remove empty subcategory chip introduced when achievements tab was added
 
 ## Chores
 - [x] Replace all Komikku icons/branding with houri icons/branding
