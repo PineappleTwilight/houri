@@ -81,11 +81,12 @@ internal fun LibrarySubcategoryTabs(
     onSelectSubcategory: (Long?) -> Unit,
     showAllChip: Boolean = true,
 ) {
-    if (subcategories.isEmpty()) return
+    val visibleSubcategories = subcategories.filter { it.name.isNotBlank() }
+    if (visibleSubcategories.isEmpty()) return
 
     // Hold-tap the "All" chip to collapse the row into a single "+" chip; tap "+" to expand.
-    // Keyed on the subcategory list so the collapsed state resets when switching categories.
-    var collapsed by rememberSaveable(subcategories) { mutableStateOf(false) }
+    // Keyed on the visible subcategory list so the collapsed state resets when switching categories.
+    var collapsed by rememberSaveable(visibleSubcategories) { mutableStateOf(false) }
 
     Row(
         modifier = Modifier
@@ -111,7 +112,7 @@ internal fun LibrarySubcategoryTabs(
                 onLongClick = { collapsed = true },
             )
         }
-        subcategories.forEach { subcategory ->
+        visibleSubcategories.forEach { subcategory ->
             SubcategoryChip(
                 selected = selectedSubcategoryId == subcategory.id,
                 onClick = { onSelectSubcategory(subcategory.id) },

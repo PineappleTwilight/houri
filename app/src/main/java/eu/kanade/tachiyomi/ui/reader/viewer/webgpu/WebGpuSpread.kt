@@ -149,12 +149,15 @@ internal fun WebGpuViewer.maybeScheduleSpreadHeightMatch(
     spread: ImagePage.ImageSpread,
     nextReaderPage: ViewerReaderPage?,
 ) {
+    if (isDestroyed) return
     if (!config.matchDoublePageHeights) return
 
     val leftImage = (spread.left as? ImagePage.ImageSingle)?.image
     val rightImage = (spread.right as? ImagePage.ImageSingle)?.image
     if (leftImage == null || rightImage == null || leftImage.height == rightImage.height) return
-    if (leftImage.height <= 0 || rightImage.height <= 0) return
+    if (leftImage.height < 8 || rightImage.height < 8) return
+    if (leftImage.width < 8 || rightImage.width < 8) return
+    if (pager.state.width < 8 || pager.state.height < 8) return
 
     // Deterministically scale the shorter side up to the taller side. This avoids
     // shrinking a large page down to a small partner (which produced tiny spreads on
@@ -192,7 +195,15 @@ internal fun WebGpuViewer.maybeScheduleSpreadHeightMatch(
 }
 
 internal fun WebGpuViewer.scheduleSpreadHeightMatch(sourcePage: ViewerReaderPage, targetHeight: Int) {
-    synchronized(lock) { sourcePage.rescaleInFlight = true }
+    if (isDestroyed) return
+    if (targetHeight < 8 || targetHeight > 8192) {
+        synchronized(lock) { sourcePage.rescaleInFlight = false }
+        return
+    }
+    synchronized(lock) {
+        if (isDestroyed || sourcePage.rescaleInFlight) return
+        sourcePage.rescaleInFlight = true
+    }
 
     scope.launch(decodeDispatcher) {
         var scaledImage: Image? = null
@@ -232,14 +243,37 @@ internal fun WebGpuViewer.scheduleSpreadHeightMatch(sourcePage: ViewerReaderPage
 }
 
 private suspend fun WebGpuViewer.rescaleImageToHeight(bytes: ByteArray, targetHeight: Int): Image {
-    require(targetHeight in 1..8192) { "targetHeight out of range: $targetHeight" }
-    val dec = ImageDecoder.new(bytes.inputStream())
-    val frame = dec.decodeNext()
+    require(targetHeight in 8..8192) { "targetHeight out of range: $targetHeight (must be >=8 to avoid gralloc 0x3b)" }
+    if (bytes.size > 32 * 1024 * 1024) throw IllegalArgumentException("bytes too large for rescale: ${bytes.size}")
+    val dec = try {
+        ImageDecoder.new(bytes.inputStream())
+    } catch (e: Exception) {
+        throw Exception("rescale decoder init failed: ${e.message}", e)
+    }
+    val frame = try {
+        dec.decodeNext()
+    } catch (e: Exception) {
+        try { dec.close() } catch (_: Exception) {}
+        throw e
+    }
     val srcWidth = frame.width
     val srcHeight = frame.height
+    if (srcWidth < 8 || srcHeight < 8) {
+        try { dec.close() } catch (_: Exception) {}
+        throw IllegalArgumentException("src too small ${srcWidth}x$srcHeight (<8) to rescale, avoiding gralloc")
+    }
     require(srcWidth in 1..8192 && srcHeight in 1..8192) { "src dimensions out of range: ${srcWidth}x$srcHeight" }
 
-    val srcBitmap = createBitmap(srcWidth, srcHeight)
+    val srcBitmap = try {
+        createBitmap(srcWidth, srcHeight)
+    } catch (e: OutOfMemoryError) {
+        try { dec.close() } catch (_: Exception) {}
+        System.gc()
+        throw e
+    } catch (e: Exception) {
+        try { dec.close() } catch (_: Exception) {}
+        throw e
+    }
     try {
         frame.image.rewind()
         srcBitmap.copyPixelsFromBuffer(frame.image)

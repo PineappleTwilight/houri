@@ -116,7 +116,11 @@ open class WebGpuViewer(
     private val pairAspectTolerance = 0.1f
 
     /** Read live: these pages are built before the surface has a size, and outlive a rotation. */
-    internal fun viewportPageWidth(half: Boolean): Int = if (half) pager.state.width / 2 else pager.state.width
+    internal fun viewportPageWidth(half: Boolean): Int {
+        val w = try { pager.state.width } catch (_: Exception) { 0 }
+        if (w < 8) return 8
+        return if (half) (w / 2).coerceAtLeast(8) else w.coerceAtLeast(8)
+    }
 
     /** The half a spread opens on: right reading right-to-left, left otherwise. */
     private val anchorPosition get() = if (isReversed) SpreadPosition.RIGHT else SpreadPosition.LEFT

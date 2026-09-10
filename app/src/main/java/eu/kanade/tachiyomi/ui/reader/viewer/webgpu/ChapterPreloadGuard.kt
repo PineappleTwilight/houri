@@ -20,13 +20,34 @@ package eu.kanade.tachiyomi.ui.reader.viewer.webgpu
 class ChapterPreloadGuard {
 
     private val inFlight = HashSet<String>()
+    private val timestamps = HashMap<String, Long>()
 
     /**
      * Marks [key] as being preloaded. Returns true for the caller that won the right to
      * run, false for every concurrent duplicate while the key is in flight.
      */
     @Synchronized
-    fun tryBegin(key: String): Boolean = inFlight.add(key)
+    fun tryBegin(key: String): Boolean {
+        if (key.isBlank()) return false
+        if (key.length > 512) return false
+        // Harden: prevent unbounded growth from leaked keys (e.g. isDestroyed never cleared).
+        // Auto-expire keys older than 10s and cap at 32.
+        val now = System.currentTimeMillis()
+        if (inFlight.size >= 32) {
+            val expired = timestamps.filter { now - it.value > 10_000 }.keys
+            expired.forEach { k ->
+                inFlight.remove(k)
+                timestamps.remove(k)
+            }
+            if (inFlight.size >= 32) {
+                inFlight.clear()
+                timestamps.clear()
+            }
+        }
+        val added = inFlight.add(key)
+        if (added) timestamps[key] = now
+        return added
+    }
 
     @Synchronized
     fun isInFlight(key: String): Boolean = key in inFlight
@@ -35,14 +56,26 @@ class ChapterPreloadGuard {
     @Synchronized
     fun end(key: String) {
         inFlight.remove(key)
+        timestamps.remove(key)
     }
 
     @Synchronized
     fun tryBeginOrRequeueIfStale(key: String, isStale: () -> Boolean): Boolean {
+        if (key.isBlank() || key.length > 512) return false
         if (key in inFlight && isStale()) {
             inFlight.remove(key)
+            timestamps.remove(key)
         }
-        return inFlight.add(key)
+        val now = System.currentTimeMillis()
+        val added = inFlight.add(key)
+        if (added) timestamps[key] = now
+        return added
+    }
+
+    @Synchronized
+    fun clear() {
+        inFlight.clear()
+        timestamps.clear()
     }
 }
 // KMK <--

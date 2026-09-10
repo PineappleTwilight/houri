@@ -1589,7 +1589,8 @@ class LibraryScreenModel(
 
     // KMK -->
     fun getSubcategoriesForCategory(category: Category): List<Category> {
-        return state.value.libraryData.categories.filter { it.parentId == category.id }
+        if (category.id == Companion.ACHIEVEMENTS_CATEGORY_ID) return emptyList()
+        return state.value.libraryData.categories.filter { it.parentId == category.id && it.name.isNotBlank() }
     }
 
     fun selectSubcategory(subCategoryId: Long?) {

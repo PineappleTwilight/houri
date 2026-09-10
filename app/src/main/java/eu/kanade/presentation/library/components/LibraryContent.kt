@@ -107,10 +107,15 @@ fun LibraryContent(
         // KMK -->
         val currentCategory = categories.getOrNull(pagerState.currentPage.coerceAtMost(categories.lastIndex))
         val subcategories = remember(currentCategory) {
-            currentCategory
-                ?.let(getSubcategoriesForCategory)
-                .orEmpty()
-                .filterNot(Category::hidden)
+            if (currentCategory?.id == eu.kanade.tachiyomi.ui.library.LibraryScreenModel.ACHIEVEMENTS_CATEGORY_ID) {
+                emptyList()
+            } else {
+                currentCategory
+                    ?.let(getSubcategoriesForCategory)
+                    .orEmpty()
+                    .filterNot(Category::hidden)
+                    .filter { it.name.isNotBlank() }
+            }
         }
         // With the folder layout enabled, navigation happens through the folders
         if (showPageTabs && subcategories.isNotEmpty() && !useFolderLayout) {

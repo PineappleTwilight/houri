@@ -410,6 +410,12 @@ internal suspend fun WebGpuViewer.decodeReaderPage(page: ViewerReaderPage) {
         val backgroundColor = if (config.automaticBackground) null else readerBackgroundColor()
 
         val firstFrame = dec.decodeNext()
+        if (firstFrame.width <= 4 || firstFrame.height <= 4) {
+            try {
+                dec.close()
+            } catch (_: Exception) {}
+            throw Exception("Image too small ${firstFrame.width}x${firstFrame.height}, skipping GPU upload (avoids gralloc 0x3b on Adreno)")
+        }
 
         val imagePage = if (pageCount == 1) {
             val isJxl = dec.format == "jxl"
@@ -452,6 +458,12 @@ internal suspend fun WebGpuViewer.decodeReaderPage(page: ViewerReaderPage) {
                     invalidate()
                 }
                 val frame = dec.decodeNext()
+                if (frame.width <= 4 || frame.height <= 4) {
+                    try {
+                        dec.close()
+                    } catch (_: Exception) {}
+                    throw Exception("Frame too small ${frame.width}x${frame.height}, skipping GPU upload")
+                }
                 val image = Image(
                     frame.image,
                     frame.width,
@@ -461,6 +473,9 @@ internal suspend fun WebGpuViewer.decodeReaderPage(page: ViewerReaderPage) {
                 )
                 frames.add(Pair(image, frame.duration))
             }
+            try {
+                dec.close()
+            } catch (_: Exception) {}
 
             ImagePage.ImageSingle(frames)
         }

@@ -202,7 +202,7 @@ class ErrorPage(
         }
 
     override fun render(dst: GPUTexture, x: Float, y: Float, scale: Float) {
-        if (viewer.isDestroyed || dst.width <= 0 || dst.height <= 0) return
+        if (viewer.isDestroyed || dst.width < 8 || dst.height < 8) return
         val padding = try {
             with(viewer.pager.state.density) { 24.dp.toPx() }
         } catch (_: Exception) {
@@ -268,7 +268,7 @@ class ProgressPage(
         }
 
     override fun render(dst: GPUTexture, x: Float, y: Float, scale: Float) {
-        if (viewer.isDestroyed || dst.width <= 0 || dst.height <= 0) return
+        if (viewer.isDestroyed || dst.width < 8 || dst.height < 8) return
         // Its own footprint, so the page carries its background wherever a transition puts it.
         fillPage(dst, x, y, scale, backgroundColor)
         val cx = dst.width * (0.5f + scale * x)
@@ -278,7 +278,7 @@ class ProgressPage(
         } catch (_: Exception) {
             return
         }
-        if (full <= 0f) return
+        if (full <= 0f || full < 8f) return
         try {
             drawProgressRing(cx, cy, full)
             drawSpinningPineapple(cx, cy, full)
@@ -358,7 +358,7 @@ class TransitionPage(
         }
 
     override fun render(dst: GPUTexture, x: Float, y: Float, scale: Float) {
-        if (viewer.isDestroyed || dst.width <= 0 || dst.height <= 0) return
+        if (viewer.isDestroyed || dst.width < 8 || dst.height < 8) return
         // Its own footprint, so the page carries its background wherever a transition puts it.
         fillPage(dst, x, y, scale, backgroundColor)
         val lines: MutableList<String> = mutableListOf()

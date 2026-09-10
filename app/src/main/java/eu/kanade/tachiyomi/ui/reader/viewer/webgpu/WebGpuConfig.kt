@@ -99,14 +99,17 @@ class WebGpuConfig(
     // KMK <--
 
     init {
-        readerPreferences.readerTheme()
-            .register(
-                {
-                    theme = it
-                    automaticBackground = it == 3
-                },
-                { imagePropertyChangedListener?.invoke() },
-            )
+        // Harden: wrap each registration in try-catch to survive corrupted prefs or destroyed viewer.
+        try {
+            readerPreferences.readerTheme()
+                .register(
+                    {
+                        theme = it
+                        automaticBackground = it == 3
+                    },
+                    { try { imagePropertyChangedListener?.invoke() } catch (_: Exception) {} },
+                )
+        } catch (_: Exception) {}
 
         readerPreferences.imageScaleType()
             .register({ imageScaleType = it }, { imagePropertyChangedListener?.invoke() })
