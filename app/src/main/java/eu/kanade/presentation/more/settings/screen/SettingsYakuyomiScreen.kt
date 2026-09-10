@@ -328,7 +328,7 @@ object SettingsYakuyomiScreen : SearchableSettings {
                 modelFetchFailed = false
             } else {
                 fetchedModels = emptyList()
-                modelFetchFailed = endpoint != null
+                modelFetchFailed = true
             }
             fetchingModels = false
         }

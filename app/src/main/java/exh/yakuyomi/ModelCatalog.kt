@@ -89,7 +89,7 @@ object ModelCatalog {
         return try {
             callClient.newCall(req).execute().use { resp ->
                 if (!resp.isSuccessful) return@use emptyList()
-                val text = resp.body?.string() ?: return@use emptyList()
+                val text = resp.body.string()
                 if (text.isBlank()) return@use emptyList()
                 parseModelIds(text, isGemini)
             }

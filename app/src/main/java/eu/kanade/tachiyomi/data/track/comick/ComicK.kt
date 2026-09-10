@@ -146,7 +146,7 @@ class ComicK(id: Long) : BaseTracker(id, "ComicK"), DeletableTracker {
             title = remote.title,
             thumbnailUrl = remote.cover_url,
             description = remote.summary,
-            authors = remote.authors?.joinToString(", "),
+            authors = remote.authors.joinToString(", ").ifBlank { null },
         )
     }
 

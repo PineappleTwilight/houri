@@ -128,7 +128,7 @@ class MangaBaka(id: Long) : BaseTracker(id, "MangaBaka"), DeletableTracker {
             title = remote.title,
             thumbnailUrl = remote.cover_url,
             description = remote.summary,
-            authors = remote.authors?.joinToString(", "),
+            authors = remote.authors.joinToString(", ").ifBlank { null },
         )
     }
 
