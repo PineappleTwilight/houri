@@ -119,9 +119,10 @@ fun RoadmapScreen(
                         state.items.forEachIndexed { index, item ->
                             if (item.section != lastSection) {
                                 lastSection = item.section
-                                item(key = "section-$lastSection") {
+                                val header = item.section
+                                item(key = "section-$header") {
                                     Text(
-                                        text = lastSection,
+                                        text = header,
                                         style = MaterialTheme.typography.titleSmall,
                                         color = MaterialTheme.colorScheme.primary,
                                         modifier = Modifier.padding(
