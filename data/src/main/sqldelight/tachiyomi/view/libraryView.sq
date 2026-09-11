@@ -101,6 +101,14 @@ SELECT *
 FROM libraryView
 WHERE libraryView.favorite = 1;
 
+-- KMK --> fast-path count for boot badge / empty-check without materializing 1000+ LibraryManga rows
+libraryCount:
+SELECT count(*) FROM libraryView WHERE libraryView.favorite = 1;
+
+-- KMK --> paginated variant for large libraries (cursor = last _id)
+libraryPaginated:
+SELECT * FROM libraryView WHERE libraryView.favorite = 1 AND libraryView._id > :afterId ORDER BY libraryView._id LIMIT :limit;
+
 readMangaNonLibrary:
 SELECT *
 FROM libraryView

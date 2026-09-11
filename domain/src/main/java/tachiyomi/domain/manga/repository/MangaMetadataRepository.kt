@@ -21,6 +21,12 @@ interface MangaMetadataRepository {
 
     fun subscribeTitlesById(id: Long): Flow<List<SearchTitle>>
 
+    // KMK --> bulk for 1000+ library (avoids N+1 in LibraryScreenModel.filterLibrary)
+    suspend fun getTagsByIds(ids: Collection<Long>): Map<Long, List<SearchTag>>
+
+    suspend fun getTitlesByIds(ids: Collection<Long>): Map<Long, List<SearchTitle>>
+    // KMK <--
+
     suspend fun insertFlatMetadata(flatMetadata: FlatMetadata)
 
     suspend fun insertMetadata(metadata: RaisedSearchMetadata) = insertFlatMetadata(metadata.flatten())

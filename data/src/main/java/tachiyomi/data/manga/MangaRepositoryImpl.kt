@@ -64,7 +64,12 @@ class MangaRepositoryImpl(
     }
 
     override suspend fun getLibraryManga(): List<LibraryManga> {
-        return handler.awaitList { libraryViewQueries.library(MangaMapper::mapLibraryManga) }
+        return try {
+            handler.awaitList { libraryViewQueries.library(MangaMapper::mapLibraryManga) }
+        } catch (e: OutOfMemoryError) {
+            logcat(LogPriority.ERROR, e) { "OOM loading library (1000+ entries), returning empty guard" }
+            emptyList()
+        }
     }
 
     override fun getLibraryMangaAsFlow(): Flow<List<LibraryManga>> {

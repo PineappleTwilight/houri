@@ -1,0 +1,17 @@
+-- KMK -->
+-- Migration 52: Harden for 1000+ library scalability (boot ANR / OOM / N+1)
+-- LibraryView aggregates chapters+history per manga; bulk search needs IN queries.
+-- Existing partial index library_favorite_index already covers WHERE favorite=1,
+-- but grouping on chapters(manga_id) was probing 100k+ rows without covering
+-- bookmark/read/date columns. Add composite covering indexes and chase
+-- metadata IN queries.
+
+CREATE INDEX IF NOT EXISTS idx_chapters_manga_id_read ON chapters(manga_id, read);
+CREATE INDEX IF NOT EXISTS idx_chapters_manga_id_bookmark ON chapters(manga_id, bookmark);
+CREATE INDEX IF NOT EXISTS idx_chapters_manga_id_date_upload ON chapters(manga_id, date_upload);
+CREATE INDEX IF NOT EXISTS idx_chapters_manga_id_date_fetch ON chapters(manga_id, date_fetch);
+CREATE INDEX IF NOT EXISTS idx_chapters_manga_id_scanlator ON chapters(manga_id, scanlator);
+CREATE INDEX IF NOT EXISTS idx_history_chapter_id_last_read ON history(chapter_id, last_read);
+CREATE INDEX IF NOT EXISTS idx_mangas_favorite_source ON mangas(favorite, source);
+CREATE INDEX IF NOT EXISTS idx_mangas_favorite_date_added ON mangas(favorite, date_added);
+-- KMK <--

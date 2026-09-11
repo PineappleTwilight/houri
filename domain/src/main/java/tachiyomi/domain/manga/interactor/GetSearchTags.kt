@@ -12,4 +12,8 @@ class GetSearchTags(
     suspend fun await(mangaId: Long): List<SearchTag> {
         return mangaMetadataRepository.getTagsById(mangaId)
     }
+
+    suspend fun awaitBulk(mangaIds: Collection<Long>): Map<Long, List<SearchTag>> {
+        return mangaMetadataRepository.getTagsByIds(mangaIds)
+    }
 }

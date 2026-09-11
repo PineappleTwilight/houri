@@ -12,4 +12,8 @@ class GetSearchTitles(
     suspend fun await(mangaId: Long): List<SearchTitle> {
         return mangaMetadataRepository.getTitlesById(mangaId)
     }
+
+    suspend fun awaitBulk(mangaIds: Collection<Long>): Map<Long, List<SearchTitle>> {
+        return mangaMetadataRepository.getTitlesByIds(mangaIds)
+    }
 }

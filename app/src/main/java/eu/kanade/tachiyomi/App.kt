@@ -161,8 +161,8 @@ class App : Application(), DefaultLifecycleObserver, SingletonImageLoader.Factor
         graph.inject(this)
 
         // KMK -->
-        // Probe/backup the database file (plaintext or SQLCipher) before anything opens it
         ProcessLifecycleOwner.get().lifecycleScope.launchIO {
+            kotlinx.coroutines.delay(2000)
             val manager = if (globalAppGraph.securityPreferences.encryptDatabase().get()) {
                 DatabaseMaintenanceManager(this@App, CbzCrypto.DATABASE_NAME, CbzCrypto.getDecryptedPasswordSql())
             } else {
@@ -172,24 +172,25 @@ class App : Application(), DefaultLifecycleObserver, SingletonImageLoader.Factor
                 .onFailure { xLogE("Database startup maintenance failed", it) }
         }
 
-        // Clean up subcategories whose parent category no longer exists
         ProcessLifecycleOwner.get().lifecycleScope.launchIO {
+            kotlinx.coroutines.delay(500)
             runCatching { globalAppGraph.deleteOrphanedSubcategories.await() }
                 .onFailure { xLogE("Failed to delete orphaned subcategories", it) }
         }
 
-        // Preload the local LLM engine when the user opted in and a model is ready
         val yakuyomiPrefs = globalAppGraph.translationPreferences
         val localLlm = globalAppGraph.localLlmManager
         if (!BuildConfig.IS_NOMTL && yakuyomiPrefs.localLlmAutoStart().get() && localLlm.isLocalProvider()) {
             ProcessLifecycleOwner.get().lifecycleScope.launchIO {
+                kotlinx.coroutines.delay(5000)
                 runCatching { localLlm.start() }
                     .onFailure { xLogE("Failed to auto-start local LLM engine", it) }
             }
         }
-        // Start achievement unlock notifier (toasts + tier chimes)
-        runCatching { globalAppGraph.achievementNotifier.start() }
-            .onFailure { xLogE("Failed to start achievement notifier", it) }
+        ProcessLifecycleOwner.get().lifecycleScope.launchIO {
+            runCatching { globalAppGraph.achievementNotifier.start() }
+                .onFailure { xLogE("Failed to start achievement notifier", it) }
+        }
         // KMK <--
         // MetroInteropModule bridges Metro singletons to Injekt for extension backwards compat;
         // must be imported AFTER graph.inject() so Metro graph is built
@@ -296,11 +297,11 @@ class App : Application(), DefaultLifecycleObserver, SingletonImageLoader.Factor
 
         setAppCompatDelegateThemeMode(globalAppGraph.uiPreferences.themeMode().get())
 
-        // KMK -->
-        MangaCoverMetadata.load()
-        // KMK <--
+        ProcessLifecycleOwner.get().lifecycleScope.launchIO {
+            runCatching { MangaCoverMetadata.load() }
+                .onFailure { xLogE("Failed to load cover metadata", it) }
+        }
 
-        // Updates widget update
         with(this@App) {
             WidgetManager(globalAppGraph.getUpdates, globalAppGraph.securityPreferences).init(scope)
         }
@@ -381,21 +382,21 @@ class App : Application(), DefaultLifecycleObserver, SingletonImageLoader.Factor
                     .build(),
             )
 
+            val isLowRam = DeviceUtil.isLowRamDevice(this@App)
             memoryCache(
                 MemoryCache.Builder()
-                    .maxSizePercent(context)
+                    .maxSizePercent(context, if (isLowRam) 0.12 else 0.18)
                     .build(),
             )
 
             crossfade((300 * this@App.animatorDurationScale).toInt())
-            allowRgb565(DeviceUtil.isLowRamDevice(this@App))
+            allowRgb565(isLowRam)
             // KMK -->
             if (EHLogLevel.isExtraLogging()) logger(DebugLogger())
             // KMK <--
 
-            // Coil spawns a new thread for every image load by default
-            fetcherCoroutineContext(Dispatchers.IO.limitedParallelism(8))
-            decoderCoroutineContext(Dispatchers.IO.limitedParallelism(3))
+            fetcherCoroutineContext(Dispatchers.IO.limitedParallelism(if (isLowRam) 4 else 6))
+            decoderCoroutineContext(Dispatchers.IO.limitedParallelism(2))
         }
             .build()
     }

@@ -16,6 +16,11 @@ selectByMangaId:
 SELECT * FROM search_titles
 WHERE manga_id = ?;
 
+-- KMK --> bulk for 1000+ library search
+selectByMangaIds:
+SELECT * FROM search_titles
+WHERE manga_id IN :mangaIds;
+
 deleteByManga:
 DELETE FROM search_titles WHERE manga_id = ?;
 

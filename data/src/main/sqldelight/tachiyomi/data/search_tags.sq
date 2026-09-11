@@ -18,6 +18,11 @@ selectByMangaId:
 SELECT * FROM search_tags
 WHERE manga_id = ?;
 
+-- KMK --> bulk for 1000+ library search (avoids N+1 per-item queries in LibraryScreenModel.filterLibrary)
+selectByMangaIds:
+SELECT * FROM search_tags
+WHERE manga_id IN :mangaIds;
+
 deleteByManga:
 DELETE FROM search_tags WHERE manga_id = ?;
 

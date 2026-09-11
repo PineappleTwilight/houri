@@ -1310,6 +1310,12 @@ class LibraryScreenModel(
                 enableAst = libraryPreferences.librarySearchAstEnabled().get(),
             )
             val mangaWithMetaIds = getIdsOfFavoriteMangaWithMetadata.await()
+            val metaIdSet = mangaWithMetaIds.toHashSet()
+            val idsNeedingMeta = unfiltered
+                .filter { isMetadataSource(it.libraryManga.manga.source) && it.libraryManga.manga.id in metaIdSet }
+                .map { it.libraryManga.manga.id }
+            val tagsById = if (idsNeedingMeta.isNotEmpty()) getSearchTags.awaitBulk(idsNeedingMeta) else emptyMap()
+            val titlesById = if (idsNeedingMeta.isNotEmpty()) getSearchTitles.awaitBulk(idsNeedingMeta) else emptyMap()
             val tracks = if (loggedInTrackServices.isNotEmpty()) {
                 getTracks.await().groupBy { it.mangaId }
             } else {
@@ -1319,44 +1325,43 @@ class LibraryScreenModel(
                 .distinctBy { it.libraryManga.manga.source }
                 .fastMapNotNull { sourceManager.get(it.libraryManga.manga.source) }
                 .associateBy { it.id }
-            unfiltered.asFlow().cancellable().filter { item ->
-                val mangaId = item.libraryManga.manga.id
-                if (query.startsWith("id:", true)) {
-                    return@filter mangaId == query.substringAfter("id:").toLongOrNull()
-                }
-                val sourceId = item.libraryManga.manga.source
-                if (query.startsWith("src:", true)) {
-                    val querySource = query.substringAfter("src:")
-                    return@filter if (querySource.equals(LOCAL_SOURCE_ID_ALIAS, ignoreCase = true)) {
-                        sourceId == LocalSource.ID
+            withIOContext {
+                unfiltered.filter { item ->
+                    val mangaId = item.libraryManga.manga.id
+                    if (query.startsWith("id:", true)) {
+                        return@filter mangaId == query.substringAfter("id:").toLongOrNull()
+                    }
+                    val sourceId = item.libraryManga.manga.source
+                    if (query.startsWith("src:", true)) {
+                        val querySource = query.substringAfter("src:")
+                        return@filter if (querySource.equals(LOCAL_SOURCE_ID_ALIAS, ignoreCase = true)) {
+                            sourceId == LocalSource.ID
+                        } else {
+                            sourceId == querySource.toLongOrNull()
+                        }
+                    }
+                    if (isMetadataSource(sourceId) && mangaId in metaIdSet) {
+                        filterManga(
+                            queries = parsedQuery,
+                            libraryManga = item.libraryManga,
+                            tracks = tracks[mangaId],
+                            source = sources[sourceId],
+                            checkGenre = false,
+                            searchTags = tagsById[mangaId],
+                            searchTitles = titlesById[mangaId],
+                            loggedInTrackServices = loggedInTrackServices,
+                        )
                     } else {
-                        sourceId == querySource.toLongOrNull()
+                        filterManga(
+                            queries = parsedQuery,
+                            libraryManga = item.libraryManga,
+                            tracks = tracks[mangaId],
+                            source = sources[sourceId],
+                            loggedInTrackServices = loggedInTrackServices,
+                        )
                     }
                 }
-                if (isMetadataSource(sourceId) && mangaWithMetaIds.binarySearch(mangaId) >= 0) {
-                    val tags = getSearchTags.await(mangaId)
-                    val titles = getSearchTitles.await(mangaId)
-                    filterManga(
-                        queries = parsedQuery,
-                        libraryManga = item.libraryManga,
-                        tracks = tracks[mangaId],
-                        source = sources[sourceId],
-                        checkGenre = false,
-                        searchTags = tags,
-                        searchTitles = titles,
-                        loggedInTrackServices = loggedInTrackServices,
-                    )
-                } else {
-                    // No meta? Filter using title
-                    filterManga(
-                        queries = parsedQuery,
-                        libraryManga = item.libraryManga,
-                        tracks = tracks[mangaId],
-                        source = sources[sourceId],
-                        loggedInTrackServices = loggedInTrackServices,
-                    )
-                }
-            }.toList()
+            }
         } else {
             unfiltered
         }
