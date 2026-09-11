@@ -21,11 +21,21 @@ class CreateCategoryWithName(
         }
 
     suspend fun await(name: String, parentId: Long = 0L): Result = withNonCancellableContext {
+        val trimmed = name.trim()
+        if (trimmed.isEmpty()) return@withNonCancellableContext Result.InternalError(IllegalArgumentException("Category name blank"))
+        if (trimmed.length > 50) return@withNonCancellableContext Result.InternalError(IllegalArgumentException("Category name too long"))
         val categories = categoryRepository.getAll()
-        val nextOrder = categories.maxOfOrNull { it.order }?.plus(1) ?: 0
+        if (categories.any { it.name.equals(trimmed, ignoreCase = true) && it.parentId == parentId }) {
+            return@withNonCancellableContext Result.InternalError(IllegalArgumentException("Duplicate category name under same parent"))
+        }
+        if (parentId != 0L) {
+            val parent = categories.find { it.id == parentId } ?: return@withNonCancellableContext Result.InternalError(IllegalArgumentException("Parent not found"))
+            if (parent.parentId != 0L) return@withNonCancellableContext Result.InternalError(IllegalArgumentException("Only one level of subcategories allowed"))
+        }
+        val nextOrder = categories.filter { it.parentId == parentId }.maxOfOrNull { it.order }?.plus(1) ?: 0
         val newCategory = Category(
             id = 0,
-            name = name,
+            name = trimmed,
             order = nextOrder,
             flags = initialFlags,
             // KMK -->

@@ -17,25 +17,31 @@ class DeleteCategory(
 ) {
 
     suspend fun await(categoryId: Long) = withNonCancellableContext {
+        val all = try { categoryRepository.getAll() } catch (_: Exception) { emptyList() }
+        val toDelete = buildSet {
+            add(categoryId)
+            addAll(tachiyomi.domain.category.service.CategoryTreeHandler.descendants(categoryId, all))
+        }
         try {
             // KMK -->
-            // Subcategory manga links rely on FK cascade, so children must be removed with the parent.
-            categoryRepository.getSubcategories(categoryId).forEach { subcategory ->
-                categoryRepository.delete(subcategory.id)
+            toDelete.sortedDescending().forEach { id ->
+                try { categoryRepository.delete(id) } catch (_: Exception) {}
             }
             // KMK <--
-            categoryRepository.delete(categoryId)
+        } catch (e: Exception) {
+            logcat(LogPriority.ERROR, e)
+            return@withNonCancellableContext Result.InternalError(e)
+        }
         } catch (e: Exception) {
             logcat(LogPriority.ERROR, e)
             return@withNonCancellableContext Result.InternalError(e)
         }
 
-        val categories = categoryRepository.getAll()
-        val updates = categories.mapIndexed { index, category ->
-            CategoryUpdate(
-                id = category.id,
-                order = index.toLong(),
-            )
+        val categories = categoryRepository.getAll().filterNot { it.id in toDelete }
+        val updates = categories.groupBy { it.parentId }.flatMap { (_, group) ->
+            group.sortedBy { it.order }.mapIndexed { index, category ->
+                CategoryUpdate(id = category.id, order = index.toLong())
+            }
         }
 
         val defaultCategory = libraryPreferences.defaultCategory().get()
@@ -54,11 +60,11 @@ class DeleteCategory(
             libraryPreferences.filterCategoriesExclude(),
             // KMK <--
         )
-        val categoryIdString = categoryId.toString()
+        val toRemove = toDelete.map { it.toString() }.toSet()
         categoryPreferences.forEach { preference ->
             val ids = preference.get()
-            if (categoryIdString !in ids) return@forEach
-            preference.set(ids.minus(categoryIdString))
+            val filtered = ids - toRemove
+            if (filtered.size != ids.size) preference.set(filtered)
         }
 
         try {

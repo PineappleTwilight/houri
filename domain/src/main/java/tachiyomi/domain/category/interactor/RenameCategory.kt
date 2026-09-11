@@ -14,9 +14,17 @@ class RenameCategory(
 ) {
 
     suspend fun await(categoryId: Long, name: String) = withNonCancellableContext {
+        val trimmed = name.trim()
+        if (trimmed.isEmpty()) return@withNonCancellableContext Result.InternalError(IllegalArgumentException("Category name blank"))
+        if (trimmed.length > 50) return@withNonCancellableContext Result.InternalError(IllegalArgumentException("Name too long"))
+        val all = categoryRepository.getAll()
+        val target = all.find { it.id == categoryId }
+        if (target != null && all.any { it.id != categoryId && it.parentId == target.parentId && it.name.equals(trimmed, ignoreCase = true) }) {
+            return@withNonCancellableContext Result.InternalError(IllegalArgumentException("Duplicate name under same parent"))
+        }
         val update = CategoryUpdate(
             id = categoryId,
-            name = name,
+            name = trimmed,
         )
 
         try {

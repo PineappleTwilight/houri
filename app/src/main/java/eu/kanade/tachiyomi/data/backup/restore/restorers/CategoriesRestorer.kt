@@ -19,40 +19,57 @@ class CategoriesRestorer(
             var nextOrder = dbCategories.maxOfOrNull { it.order }?.plus(1) ?: 0
 
             // KMK -->
-            // Restored rows get fresh ids, so parent references from the backup file
-            // have to be remapped instead of being copied verbatim
             val restoredIdsByBackupId = mutableMapOf<Long, Long>()
             val pendingParents = mutableMapOf<Long, Long>()
+            val allCurrent = (dbCategories + handler.awaitList { categoriesQueries.getCategories(tachiyomi.data.category.CategoryMapper::mapCategory) }).distinctBy { it.id }
+            val existingNamesByParent = allCurrent.groupBy { it.parentId }.mapValues { e -> e.value.map { it.name.lowercase() }.toMutableSet() }
 
             val categories = backupCategories
                 .sortedBy { it.order }
-                .map {
-                    val dbCategory = dbCategoriesByName[it.name]
+                .mapNotNull {
+                    val trimmed = it.name.trim().take(50)
+                    if (trimmed.isEmpty()) return@mapNotNull null
+                    val dbCategory = dbCategoriesByName[trimmed] ?: dbCategoriesByName[it.name]
                     if (dbCategory != null) {
                         if (it.id != 0L) restoredIdsByBackupId[it.id] = dbCategory.id
-                        return@map dbCategory
+                        if (it.parentId != 0L && dbCategory.parentId == 0L) pendingParents[dbCategory.id] = it.parentId
+                        return@mapNotNull dbCategory
                     }
+                    val intendedParentBackupId = it.parentId
+                    val intendedParentId = if (intendedParentBackupId == 0L) 0L else restoredIdsByBackupId[intendedParentBackupId]
+                    val effectiveParentId = when {
+                        intendedParentBackupId == 0L -> 0L
+                        intendedParentId == null -> 0L
+                        else -> intendedParentId
+                    }
+                    val siblings = existingNamesByParent.getOrPut(effectiveParentId) { mutableSetOf() }
+                    if (siblings.contains(trimmed.lowercase())) return@mapNotNull dbCategories.find { c -> c.name.equals(trimmed, true) && c.parentId == effectiveParentId }
+                    val orderForParent = (allCurrent.filter { c -> c.parentId == effectiveParentId }.maxOfOrNull { c.order } ?: -1) + 1
                     val order = nextOrder++
                     val newId = handler.awaitOneExecutable {
                         categoriesQueries.insert(
-                            it.name,
-                            order,
+                            trimmed,
+                            orderForParent,
                             it.flags,
-                            // KMK -->
                             hidden = if (it.hidden) 1L else 0L,
                             parentId = 0L,
-                            // KMK <--
                         )
                         categoriesQueries.selectLastInsertedRowId()
                     }
+                    siblings.add(trimmed.lowercase())
                     if (it.id != 0L) restoredIdsByBackupId[it.id] = newId
                     if (it.parentId != 0L) pendingParents[newId] = it.parentId
-                    it.toCategory(newId).copy(order = order)
+                    it.toCategory(newId).copy(order = orderForParent, parentId = 0L, name = trimmed)
                 }
 
+            val byIdAfterInsert = handler.awaitList { categoriesQueries.getCategories(tachiyomi.data.category.CategoryMapper::mapCategory) }.associateBy { it.id }
             pendingParents.forEach { (categoryId, backupParentId) ->
-                // Parents missing from both the backup and the library promote to top level
                 val parentId = restoredIdsByBackupId[backupParentId] ?: return@forEach
+                val cat = byIdAfterInsert[categoryId] ?: return@forEach
+                val parent = byIdAfterInsert[parentId] ?: return@forEach
+                if (parent.parentId != 0L) return@forEach
+                if (parentId == categoryId) return@forEach
+                if (tachiyomi.domain.category.service.CategoryTreeHandler.descendants(categoryId, byIdAfterInsert.values.toList()).contains(parentId)) return@forEach
                 handler.await {
                     categoriesQueries.update(
                         name = null,
@@ -64,6 +81,7 @@ class CategoriesRestorer(
                     )
                 }
             }
+            handler.await { categoriesQueries.deleteOrphanedSubcategories() }
             // KMK <--
 
             libraryPreferences.categorizedDisplaySettings().set(

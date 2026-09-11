@@ -613,22 +613,17 @@ class LibraryScreenModel(
                 var showSystemCategory = false
                 // KMK <--
                 val categoriesById = categories.associateBy { it.id }
-                // Items assigned directly to each category
                 val directCache = mutableMapOf</* Category.id */ Long, MutableList</* LibraryItem */ Long>>()
-                // Items assigned to the root of each category's tree ("All" view)
                 val treeCache = mutableMapOf</* Root category.id */ Long, MutableList</* LibraryItem */ Long>>()
                 forEach { item ->
                     item.libraryManga.categories.forEach { categoryId ->
-                        // KMK -->
                         if (categoryId == UNCATEGORIZED_ID) {
                             showSystemCategory = true
                         }
-                        // KMK <--
                         directCache.getOrPut(categoryId) { mutableListOf() }.add(item.id)
-                        val rootId = categoriesById[categoryId]
-                            ?.takeIf { it.parentId != 0L }
-                            ?.parentId
-                            ?: categoryId
+                        val rootId = categoriesById[categoryId]?.let { cat ->
+                            if (cat.parentId == 0L) cat.id else tachiyomi.domain.category.service.CategoryTreeHandler.rootIdFor(cat, categoriesById)
+                        } ?: categoryId
                         treeCache.getOrPut(rootId) { mutableListOf() }.add(item.id)
                     }
                 }
