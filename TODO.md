@@ -164,6 +164,7 @@
   - Fixed 2026-09-11: `WebhookEvent.ACHIEVEMENT_UNLOCKED` + `WebhookPreferences.notifyOnAchievementUnlocked()` + `AchievementManager` webhook dispatch on `notifyIfNeeded` with `achievement_id/title/tier`
 - [x] **WebGPU Reader**: Add page offset (mirrors legacy reader page offset feature)
   - Fixed 2026-09-11: `ReaderPreferences.webgpuPageOffset` (-50..50, default 0, KMK) + `WebGpuConfig.pageOffset` + `WebGpuViewer.applyPageOffset()` (translationX = width*offset/100*0.5, layout listener + flow collect) + `ReadingModePage` slider + KMR strings `pref_webgpu_page_offset`
+- [ ] **AI Upscaler**: Add simple upscaling algorithms that nomtl builds can use, such as bicubic and more.
 
 ## Bugfixes
 - [x] Fix UI transition choppiness.
@@ -410,9 +411,11 @@
   - Fixed 2026-09-11: Added `UnifiedTrackerCard` to `TrackInfoDialogHome` — top row of 5 tracker icons, single compact card with `Reading ▽ | 10.0 ★`, `+ 100/100 −`, `4/24/24` dates, matching example image; shown when `trackItems.size > 1`
 - [x] **WebGPU Reader**: Fix double page view option disappearing when reading mode is set to "paged vertical"
   - Fixed 2026-09-11: `ReadingModePage` now shows `dualPageView` chips for `VERTICAL` (was `LEFT_TO_RIGHT || RIGHT_TO_LEFT` only) so paged vertical can enable dual-page
+- [x] **All Readers**: Add JXL OOM downsampling
 - [ ] **Crash Handler**: Remove timezone data (developers don't need the user's timezone and it is kinda creepy)
 - [ ] **WebGPU Reader**: Remove redundant double page settings
   - The mihon ported "Dual Page View" option with the "none, when wide, always" choices should be the removed redundancy
+- [ ] **Webhooks**: Fix achievement events not being listed in webhook preferences
 
 ## Chores
 - [x] Replace all Komikku icons/branding with houri icons/branding
