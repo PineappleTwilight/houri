@@ -6,6 +6,14 @@ on:
     branches:
       - master
 
+  workflow_dispatch:
+    inputs:
+      clear-native-cache:
+        description: 'Bust native .cxx cache (poisoned empty meson arg / chmod)'
+        required: false
+        default: false
+        type: boolean
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   # MUST NOT cancel in-progress runs: check-version pushes the release tag, then
@@ -225,15 +233,28 @@ jobs:
           max-size: 2G
           verbose: 1
 
-      - name: Cache native build
+      - name: Clean stale native cache (bust poisoned .cxx)
+        run: |
+          echo "Checking for poisoned native cache..."
+          if [ "${{ inputs.clear-native-cache }}" == "true" ]; then
+              echo "Manual bust requested via workflow_dispatch, removing .cxx"
+              rm -rf external/imagedecoder-houri/library/.cxx
+            elif [ -d "external/imagedecoder-houri/library/.cxx" ]; then
+            if grep -rq 'meson ""' external/imagedecoder-houri/library/.cxx 2>/dev/null; then
+              echo "Detected stale empty meson arg, removing .cxx"
+              rm -rf external/imagedecoder-houri/library/.cxx
+            fi
+            if grep -rq 'cross-file=$' external/imagedecoder-houri/library/.cxx 2>/dev/null; then
+              echo "Empty cross-file detected, cleaning .cxx"
+              rm -rf external/imagedecoder-houri/library/.cxx
+            fi
+          fi
+
+      - name: Cache native build (.cxx only, exact match)
         uses: actions/cache@v4
         with:
-          path: |
-            external/imagedecoder-houri/library/.cxx
-            ~/.ccache
-          key: ${{ runner.os }}-native-${{ hashFiles('external/imagedecoder-houri/library/src/main/cpp/CMakeLists.txt', 'external/imagedecoder-houri/library/src/main/cpp/cmake/**', 'gradle/libs.versions.toml') }}
-          restore-keys: |
-            ${{ runner.os }}-native-
+          path: external/imagedecoder-houri/library/.cxx
+          key: ${{ runner.os }}-native-${{ hashFiles('external/imagedecoder-houri/library/src/main/cpp/CMakeLists.txt', 'external/imagedecoder-houri/library/src/main/cpp/cmake/**', 'gradle/libs.versions.toml', 'external/imagedecoder-houri/**') }}
 
       - name: Write google-services.json
         env:

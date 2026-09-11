@@ -17,6 +17,12 @@ on:
       - '!i18n-sy/src/commonMain/moko-resources/**/plurals.xml'
   # Dispatch or Manual triggers
   workflow_dispatch:
+    inputs:
+      clear-native-cache:
+        description: 'Bust native .cxx cache (poisoned empty meson arg / chmod)'
+        required: false
+        default: false
+        type: boolean
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
@@ -107,15 +113,38 @@ jobs:
           max-size: 2G
           verbose: 1
 
-      - name: Cache native build
+      - name: Clean stale native cache (bust poisoned .cxx from empty meson arg / chmod)
+        run: |
+          echo "Checking for poisoned native cache..."
+          if [ "${{ inputs.clear-native-cache }}" == "true" ]; then
+              echo "Manual bust requested via workflow_dispatch, removing .cxx"
+              rm -rf external/imagedecoder-houri/library/.cxx
+            elif [ -d "external/imagedecoder-houri/library/.cxx" ]; then
+            if grep -rq 'meson ""' external/imagedecoder-houri/library/.cxx 2>/dev/null; then
+              echo "Detected stale empty meson arg in .cxx, removing poisoned cache"
+              rm -rf external/imagedecoder-houri/library/.cxx
+            fi
+            if grep -rq 'cmake -E chmod' external/imagedecoder-houri/library/src/main/cpp/CMakeLists.txt 2>/dev/null; then
+              echo "Old CMakeLists still has cmake -E chmod, but cache may be stale"
+            fi
+            # If CMakeCache exists but source hash changed, the cache action would have restored stale .cxx via restore-keys.
+            # We bust it by checking if the cached CMakeCache's cross-file is empty (previous bug).
+            if grep -rq 'cross-file=' external/imagedecoder-houri/library/.cxx 2>/dev/null | grep -q 'cross-file=$'; then
+              echo "Empty cross-file arg detected, cleaning .cxx"
+              rm -rf external/imagedecoder-houri/library/.cxx
+            fi
+          fi
+          echo "Native cache clean check done"
+
+      - name: Cache native build (.cxx only, no restore-keys fallback to avoid poisoned cache)
         uses: actions/cache@v4
         with:
-          path: |
-            external/imagedecoder-houri/library/.cxx
-            ~/.ccache
-          key: ${{ runner.os }}-native-${{ hashFiles('external/imagedecoder-houri/library/src/main/cpp/CMakeLists.txt', 'external/imagedecoder-houri/library/src/main/cpp/cmake/**', 'gradle/libs.versions.toml') }}
-          restore-keys: |
-            ${{ runner.os }}-native-
+          path: external/imagedecoder-houri/library/.cxx
+          key: ${{ runner.os }}-native-${{ hashFiles('external/imagedecoder-houri/library/src/main/cpp/CMakeLists.txt', 'external/imagedecoder-houri/library/src/main/cpp/cmake/**', 'gradle/libs.versions.toml', 'external/imagedecoder-houri/**') }}
+          # No restore-keys — exact match only. Stale .cxx with old CMakeCache (empty meson "" or chmod errors)
+          # previously poisoned Linux CI via prefix fallback (e.g. Linux-native-). Exact match forces clean build
+          # when source changes (e.g. 20a5e30 chmod fix, c7af74c meson fix). ccache is cached separately via
+          # hendrikmuhs/ccache-action and does not need .cxx fallback.
 
       - name: Set up gradle
         uses: gradle/actions/setup-gradle@3f131e8634966bd73d06cc69884922b02e6faf92 # v6
