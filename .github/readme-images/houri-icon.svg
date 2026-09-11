@@ -1,19 +1,30 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 432 432" width="200" height="200">
-  <!-- Pineapple body -->
-  <path fill="#FFD54F" d="M216,280 C256,280 290,256 290,216 C290,176 256,152 216,152 C176,152 142,176 142,216 C142,256 176,280 216,280 Z"/>
-  <!-- Cross-hatch lines -->
-  <g stroke="#FFA000" stroke-width="2" fill="none">
-    <line x1="170" y1="170" x2="262" y2="258"/>
-    <line x1="178" y1="162" x2="270" y2="250"/>
-    <line x1="162" y1="178" x2="254" y2="266"/>
-    <line x1="262" y1="170" x2="170" y2="258"/>
-    <line x1="270" y1="178" x2="178" y2="266"/>
-    <line x1="254" y1="162" x2="162" y2="250"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 108 108" width="200" height="200" role="img" aria-label="Houri icon">
+  <!-- Background matches adaptive icon -->
+  <rect width="108" height="108" rx="22" fill="#12211A"/>
+  <g transform="translate(54 54) scale(0.93) translate(-54 -54)">
+    <!-- Crown leaves -->
+    <path d="M34,32 C40,36 46,41 50,48 C42,46 36,40 34,32 Z" fill="#1E7A4E"/>
+    <path d="M74,32 C68,36 62,41 58,48 C66,46 72,40 74,32 Z" fill="#1E7A4E"/>
+    <path d="M43,25 C47,30 51,37 53,46 C46,41 42,33 43,25 Z" fill="#2AA065"/>
+    <path d="M65,25 C61,30 57,37 55,46 C62,41 66,33 65,25 Z" fill="#2AA065"/>
+    <path d="M54,20 C57,26 58,34 54,46 C50,34 51,26 54,20 Z" fill="#43C083"/>
+    <!-- Body -->
+    <path d="M54,44 C64,44 72,54 72,65 C72,79 63,88 54,88 C45,88 36,79 36,65 C36,54 44,44 54,44 Z" fill="#F6B93B"/>
+    <!-- Cross-hatch clipped to body -->
+    <clipPath id="bodyClip">
+      <path d="M54,44 C64,44 72,54 72,65 C72,79 63,88 54,88 C45,88 36,79 36,65 C36,54 44,44 54,44 Z"/>
+    </clipPath>
+    <g clip-path="url(#bodyClip)" stroke="#E29B1E" stroke-width="2.5" stroke-linecap="round" fill="none">
+      <path d="M6,-14 L102,82"/>
+      <path d="M6,-4 L102,92"/>
+      <path d="M6,6 L102,102"/>
+      <path d="M6,16 L102,112"/>
+      <path d="M6,26 L102,122"/>
+      <path d="M6,90 L102,-6"/>
+      <path d="M6,102 L102,6"/>
+      <path d="M6,114 L102,18"/>
+      <path d="M6,126 L102,30"/>
+      <path d="M6,138 L102,42"/>
+    </g>
   </g>
-  <!-- Crown leaves -->
-  <path fill="#4CAF50" d="M216,152 C216,152 200,110 196,90 C196,90 212,100 216,120 Z"/>
-  <path fill="#388E3C" d="M216,152 C216,152 232,110 236,90 C236,90 220,100 216,120 Z"/>
-  <path fill="#66BB6A" d="M216,152 C216,152 184,118 174,102 C174,102 196,108 212,128 Z"/>
-  <path fill="#43A047" d="M216,152 C216,152 248,118 258,102 C258,102 236,108 220,128 Z"/>
-  <path fill="#2E7D32" d="M216,152 C216,152 216,100 216,80 C216,80 216,100 216,120 Z"/>
 </svg>

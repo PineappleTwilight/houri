@@ -25,23 +25,27 @@ A free and open source manga reader, forked from Komikku (itself based on Tachiy
 ## Features
 
 ### Houri's unique features:
-- Pineapple-themed UI and branding.
+- Pineapple-themed UI and branding (adaptive icon with monochrome variant).
 - **Library subcategories** — hierarchical categories with an optional Android home-screen-style folder layout, a virtual "All" view, subcategory reordering, per-subcategory library refresh, orphan cleanup, and full backup/restore support.
 - **Enhanced E-Hentai/ExHentai** — automatic censorship status detection (censored / decensored / uncensored) and mosaic vs. full marking, shown as dedicated tags with matching sort/filter options and colors.
 - **Smart Scanlator filter & chapter deduplication** — deduplicate chapters by scanlator with advanced controls: chapter count ranges, per-scanlator enable/disable, coverage view, and a quick toggle from the manga details menu.
-- **Extra trackers** — MangaBaka, Anime-Planet, and ComicK in addition to the built-in trackers, with cookie-based auth storage.
+- **Extra trackers** — MangaBaka, Anime-Planet, ComicK, and Hikka in addition to the built-in trackers, with cookie-based auth storage and raw cover support.
 - **Webhooks** — send app events (chapter started/finished, manga finished, library update finished, backup created) to Discord webhooks or generic JSON endpoints, including series covers, reading time, and a test button.
 - **Improved Discord RPC** — richer reading presence that respects subcategory filtering.
 - **Mihon backports** — the latest reader, experimental decoder, and in-app updater (with a download progress bar).
-- **Chapter completion moan** — optional, randomized (gacha-style 60/30/10) audio when finishing a chapter, with support for user-provided sound packs and configurable placement.
-- **AI-powered translation & grammar fixing** — opt-in hybrid pipeline (on-device detection, OCR, inpainting, typesetting) with cloud LLM translation and an English grammar/vocab fixer.
-- **Manga rereading support** — track rereads with full tracker wiring.
-- **Library improvements** — article-ignoring sort (Yokai-style, "A Sign of Affection" sorts under S), a staggered library grid, and custom cover image cropping.
+- **Chapter completion moan** — optional, randomized (gacha-style 60/30/10) audio when finishing a chapter, with support for user-provided sound packs and configurable 50/50 placement.
+- **AI-powered translation & grammar fixing** — opt-in hybrid pipeline (on-device NCNN detection, ONNX OCR, AOT-GAN inpainting, Canvas typesetting) with cloud LLM translation (Gemini/OpenRouter/custom) and an English grammar/vocab fixer; per-page WEBP cache and breadcrumb notes for consistency.
+- **Manga rereading support** — track rereads with full tracker wiring and per-manga reread counts.
+- **Library improvements** — article-ignoring sort (Yokai-style, "A Sign of Affection" sorts under S), a staggered library grid, custom cover image cropping, and source/language badges.
 - **Censor lewd mangas** — blur thumbnails and redact names, tags, and descriptions (works in the library, catalogue, and manga details).
 - **Source-level manga filtering** — set default filters per source, including per-sort defaults.
 - **Heavily improved Feed** — a much more capable feed, opt-in by default.
 - **Hardened database** — startup integrity checks, automatic restore from rolling backups, corrupt-file quarantine, and SQLCipher encryption support.
-- **Reader fixes for e-ink / ereaders** — corrected double-page rendering and scaling, RTL/LTR progress bar inversion, and other rendering fixes.
+- **Reader fixes for e-ink / ereaders** — deterministic double-page height matching, corrected scaling and RTL/LTR progress bar inversion, page offset for WebGPU, and other rendering fixes.
+- **Achievements** — collectible rank system (Novice → Ultimate) with 50+ achievements, negative/shame, backlog, reading-time, and daily/weekly rotating pools, per-achievement progress and animated tier gradients.
+- **Per-category reader settings** — categories and subcategories can override reader settings (inherits parent by default, first-matching-category priority for multi-category manga).
+- **On-device AI upscaling** — optional Real-CUGAN / Real-ESRGAN / Waifu2x via NCNN/ONNX Runtime with Vulkan/NPU auto-detect, per-series toggle, presets and 200 MB LRU cache (MTL-gated).
+- **WebAssembly engine for extensions** — J2V8 + WASM runtime for site WASM bundles (keygen/auth via `WebAssembly.Memory/Table`), LRU module cache and standalone fallback, used for MangaBaka auth and other site WASM.
 - All features from Komikku, Mihon, and TachiyomiSY.
 
 
