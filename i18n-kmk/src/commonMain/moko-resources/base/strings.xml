@@ -425,4 +425,6 @@
     <string name="pref_upscale_cache_summary">Keep upscaled WEBP in cache (200 MB, 30d) to avoid re-processing</string>
     <string name="pref_upscale_clear_cache">Clear upscaled cache</string>
     <string name="pref_upscale_clear_cache_summary">Remove all cached upscaled pages</string>
+    <string name="pref_webgpu_page_offset">WebGPU page offset</string>
+    <string name="pref_webgpu_page_offset_summary">Horizontal offset for paged pages (-50% left, 50% right). Mirrors legacy pager offset.</string>
 </resources>

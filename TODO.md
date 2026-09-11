@@ -162,7 +162,8 @@
   - Fixed 2026-09-11: `CrashLogUtil.getDebugInfo()` now includes RAM (`avail/total/low/threshold`), storage (`free/total`), battery (`%`), locale/timezone, orientation, PID/thread
 - [x] **Webhook**: Wire achievement system into webhook connection
   - Fixed 2026-09-11: `WebhookEvent.ACHIEVEMENT_UNLOCKED` + `WebhookPreferences.notifyOnAchievementUnlocked()` + `AchievementManager` webhook dispatch on `notifyIfNeeded` with `achievement_id/title/tier`
-- [ ] **WebGPU Reader**: Add page offset (mirrors legacy reader page offset feature)
+- [x] **WebGPU Reader**: Add page offset (mirrors legacy reader page offset feature)
+  - Fixed 2026-09-11: `ReaderPreferences.webgpuPageOffset` (-50..50, default 0, KMK) + `WebGpuConfig.pageOffset` + `WebGpuViewer.applyPageOffset()` (translationX = width*offset/100*0.5, layout listener + flow collect) + `ReadingModePage` slider + KMR strings `pref_webgpu_page_offset`
 
 ## Bugfixes
 - [x] Fix UI transition choppiness.

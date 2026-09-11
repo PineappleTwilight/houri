@@ -384,6 +384,18 @@ private fun WebGpuViewerSettings(screenModel: ReaderSettingsScreenModel) {
 
     val viewer by screenModel.viewerFlow.collectAsState()
 
+    // KMK -->
+    val webgpuPageOffset by screenModel.preferences.webgpuPageOffset().collectAsState()
+    SliderItem(
+        value = webgpuPageOffset,
+        valueRange = ReaderPreferences.WEBGPU_PAGE_OFFSET_MIN..ReaderPreferences.WEBGPU_PAGE_OFFSET_MAX,
+        label = stringResource(KMR.strings.pref_webgpu_page_offset),
+        valueString = "$webgpuPageOffset%",
+        onChange = { screenModel.preferences.webgpuPageOffset().set(it) },
+        pillColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+    )
+    // KMK <--
+
     val isDual = (viewer as? WebGpuViewer)?.isDualPageMode() == true
 
     if (isDual) {

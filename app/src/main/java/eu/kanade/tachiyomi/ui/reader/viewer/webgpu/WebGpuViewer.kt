@@ -279,6 +279,21 @@ open class WebGpuViewer(
      */
     val config = WebGpuConfig(this, scope, readerPreferences)
 
+    // KMK -->
+    private fun applyPageOffset() {
+        try {
+            val offset = config.pageOffset
+            if (offset == 0) {
+                pager.translationX = 0f
+                return
+            }
+            val w = if (pager.width > 0) pager.width else activity.resources.displayMetrics.widthPixels
+            pager.translationX = w * offset / 100f * 0.5f
+        } catch (_: Exception) {
+        }
+    }
+    // KMK <--
+
     var viewerChapters: ViewerChapters? = null
 
     val pages: List<ReaderPage>? get() = (currentPage as? ViewerReaderPage)?.page?.chapter?.pages
@@ -524,6 +539,13 @@ open class WebGpuViewer(
             } catch (_: Exception) {
             }
         }
+        pager.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> applyPageOffset() }
+        scope.launch {
+            try {
+                readerPreferences.webgpuPageOffset().changes().collect { applyPageOffset() }
+            } catch (_: Exception) {}
+        }
+        applyPageOffset()
         // KMK <--
     }
 

@@ -65,6 +65,9 @@ class WebGpuConfig(
     var continuousMinWidth = 1
         private set
 
+    var pageOffset = 0
+        private set
+
     // KMK -->
     var matchDoublePageHeights = readerPreferences.dualPageMatchHeights().get()
         private set
@@ -197,6 +200,12 @@ class WebGpuConfig(
         readerPreferences.continuousMinWidth()
             .register(
                 { continuousMinWidth = it },
+                { imagePropertyChangedListener?.invoke() },
+            )
+
+        readerPreferences.webgpuPageOffset()
+            .register(
+                { pageOffset = it },
                 { imagePropertyChangedListener?.invoke() },
             )
 

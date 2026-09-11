@@ -207,6 +207,10 @@ class ReaderPreferences(
 
     fun continuousMinWidth() = preferenceStore.getInt("webgpu_continuous_minwidth", 100)
 
+    // KMK -->
+    fun webgpuPageOffset() = preferenceStore.getInt("webgpu_page_offset", 0)
+    // KMK <--
+
     // endregion
     // Mihon <--
 
@@ -340,6 +344,11 @@ class ReaderPreferences(
     companion object {
         const val WEBTOON_PADDING_MIN = 0
         const val WEBTOON_PADDING_MAX = 25
+
+        // KMK -->
+        const val WEBGPU_PAGE_OFFSET_MIN = -50
+        const val WEBGPU_PAGE_OFFSET_MAX = 50
+        // KMK <--
 
         const val MILLI_CONVERSION = 100
 
