@@ -15,6 +15,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -35,7 +36,6 @@ import tachiyomi.domain.library.model.LibraryManga
 import tachiyomi.presentation.core.components.material.PullRefresh
 import tachiyomi.presentation.core.components.material.padding
 import tachiyomi.presentation.core.util.LocalCensorEnabled
-import androidx.compose.runtime.CompositionLocalProvider
 import tachiyomi.presentation.core.util.collectAsState
 import kotlin.time.Duration.Companion.seconds
 
@@ -78,116 +78,116 @@ fun LibraryContent(
                 end = contentPadding.calculateEndPadding(LocalLayoutDirection.current),
             ),
         ) {
-        val pagerState = rememberPagerState(currentPage) { categories.size }
+            val pagerState = rememberPagerState(currentPage) { categories.size }
 
-        val scope = rememberCoroutineScope()
-        var isRefreshing by remember(pagerState.currentPage) { mutableStateOf(false) }
+            val scope = rememberCoroutineScope()
+            var isRefreshing by remember(pagerState.currentPage) { mutableStateOf(false) }
 
-        if (showPageTabs && categories.isNotEmpty() && (categories.size > 1 || !categories.first().isSystemCategory)) {
-            LaunchedEffect(categories) {
-                // KMK -->
-                val targetPage = when {
-                    categories.isEmpty() -> 0
-                    activeCategoryIndex != pagerState.currentPage -> activeCategoryIndex.coerceAtMost(categories.size - 1)
-                    pagerState.currentPage >= categories.size -> categories.size - 1
-                    else -> pagerState.currentPage
-                }
-                if (targetPage != pagerState.currentPage) {
-                    pagerState.scrollToPage(targetPage)
-                }
-                // KMK <--
-            }
-            LibraryTabs(
-                categories = categories,
-                pagerState = pagerState,
-                getItemCountForCategory = getItemCountForCategory,
-                onTabItemClick = {
-                    scope.launch {
-                        pagerState.animateScrollToPage(it)
+            if (showPageTabs && categories.isNotEmpty() && (categories.size > 1 || !categories.first().isSystemCategory)) {
+                LaunchedEffect(categories) {
+                    // KMK -->
+                    val targetPage = when {
+                        categories.isEmpty() -> 0
+                        activeCategoryIndex != pagerState.currentPage -> activeCategoryIndex.coerceAtMost(categories.size - 1)
+                        pagerState.currentPage >= categories.size -> categories.size - 1
+                        else -> pagerState.currentPage
                     }
-                },
-            )
-        }
-
-        // KMK -->
-        val currentCategory = categories.getOrNull(pagerState.currentPage.coerceAtMost(categories.lastIndex))
-        val subcategories = remember(currentCategory) {
-            if (currentCategory?.id == eu.kanade.tachiyomi.ui.library.LibraryScreenModel.ACHIEVEMENTS_CATEGORY_ID) {
-                emptyList()
-            } else {
-                currentCategory
-                    ?.let(getSubcategoriesForCategory)
-                    .orEmpty()
-                    .filterNot(Category::hidden)
-                    .filter { it.name.isNotBlank() }
-            }
-        }
-        // With the folder layout enabled, navigation happens through the folders
-        if (showPageTabs && subcategories.isNotEmpty() && !useFolderLayout) {
-            LibrarySubcategoryTabs(
-                subcategories = subcategories,
-                selectedSubcategoryId = activeSubCategoryId,
-                onSelectSubcategory = onSelectSubcategory,
-                showAllChip = showAllChip,
-            )
-        }
-        if (useFolderLayout) {
-            val activeFolder = subcategories.firstOrNull { it.id == activeSubCategoryId }
-            if (activeFolder != null) {
-                FolderNavigationHeader(
-                    folderName = activeFolder.name,
-                    onBack = { onSelectSubcategory(null) },
+                    if (targetPage != pagerState.currentPage) {
+                        pagerState.scrollToPage(targetPage)
+                    }
+                    // KMK <--
+                }
+                LibraryTabs(
+                    categories = categories,
+                    pagerState = pagerState,
+                    getItemCountForCategory = getItemCountForCategory,
+                    onTabItemClick = {
+                        scope.launch {
+                            pagerState.animateScrollToPage(it)
+                        }
+                    },
                 )
             }
-        }
-        // KMK <--
 
-        PullRefresh(
-            refreshing = isRefreshing,
-            enabled = selection.isEmpty(),
-            onRefresh = {
-                val started = onRefresh()
-                if (!started) return@PullRefresh
-                scope.launch {
-                    // Fake refresh status but hide it after a second as it's a long running task
-                    isRefreshing = true
-                    delay(1.seconds)
-                    isRefreshing = false
+            // KMK -->
+            val currentCategory = categories.getOrNull(pagerState.currentPage.coerceAtMost(categories.lastIndex))
+            val subcategories = remember(currentCategory) {
+                if (currentCategory?.id == eu.kanade.tachiyomi.ui.library.LibraryScreenModel.ACHIEVEMENTS_CATEGORY_ID) {
+                    emptyList()
+                } else {
+                    currentCategory
+                        ?.let(getSubcategoriesForCategory)
+                        .orEmpty()
+                        .filterNot(Category::hidden)
+                        .filter { it.name.isNotBlank() }
                 }
-            },
-        ) {
-            LibraryPager(
-                state = pagerState,
-                contentPadding = PaddingValues(bottom = contentPadding.calculateBottomPadding()),
-                hasActiveFilters = hasActiveFilters,
-                selection = selection,
-                searchQuery = searchQuery,
-                onGlobalSearchClicked = onGlobalSearchClicked,
-                getCategoryForPage = { page -> categories[page] },
-                getDisplayMode = getDisplayMode,
-                getColumnsForOrientation = getColumnsForOrientation,
-                getItemsForCategory = getItemsForCategory,
-                onClickManga = { category, manga ->
-                    if (selection.isNotEmpty()) {
-                        onToggleSelection(category, manga)
-                    } else {
-                        onClickManga(manga.manga.id)
+            }
+            // With the folder layout enabled, navigation happens through the folders
+            if (showPageTabs && subcategories.isNotEmpty() && !useFolderLayout) {
+                LibrarySubcategoryTabs(
+                    subcategories = subcategories,
+                    selectedSubcategoryId = activeSubCategoryId,
+                    onSelectSubcategory = onSelectSubcategory,
+                    showAllChip = showAllChip,
+                )
+            }
+            if (useFolderLayout) {
+                val activeFolder = subcategories.firstOrNull { it.id == activeSubCategoryId }
+                if (activeFolder != null) {
+                    FolderNavigationHeader(
+                        folderName = activeFolder.name,
+                        onBack = { onSelectSubcategory(null) },
+                    )
+                }
+            }
+            // KMK <--
+
+            PullRefresh(
+                refreshing = isRefreshing,
+                enabled = selection.isEmpty(),
+                onRefresh = {
+                    val started = onRefresh()
+                    if (!started) return@PullRefresh
+                    scope.launch {
+                        // Fake refresh status but hide it after a second as it's a long running task
+                        isRefreshing = true
+                        delay(1.seconds)
+                        isRefreshing = false
                     }
                 },
-                onLongClickManga = onToggleRangeSelection,
-                onClickContinueReading = onContinueReadingClicked,
-                // KMK -->
-                useFolderLayout = useFolderLayout,
-                activeSubCategoryId = activeSubCategoryId,
-                getFolderData = getFolderData,
-                onSelectSubcategory = { onSelectSubcategory(it) },
-                // KMK <--
-            )
-        }
+            ) {
+                LibraryPager(
+                    state = pagerState,
+                    contentPadding = PaddingValues(bottom = contentPadding.calculateBottomPadding()),
+                    hasActiveFilters = hasActiveFilters,
+                    selection = selection,
+                    searchQuery = searchQuery,
+                    onGlobalSearchClicked = onGlobalSearchClicked,
+                    getCategoryForPage = { page -> categories[page] },
+                    getDisplayMode = getDisplayMode,
+                    getColumnsForOrientation = getColumnsForOrientation,
+                    getItemsForCategory = getItemsForCategory,
+                    onClickManga = { category, manga ->
+                        if (selection.isNotEmpty()) {
+                            onToggleSelection(category, manga)
+                        } else {
+                            onClickManga(manga.manga.id)
+                        }
+                    },
+                    onLongClickManga = onToggleRangeSelection,
+                    onClickContinueReading = onContinueReadingClicked,
+                    // KMK -->
+                    useFolderLayout = useFolderLayout,
+                    activeSubCategoryId = activeSubCategoryId,
+                    getFolderData = getFolderData,
+                    onSelectSubcategory = { onSelectSubcategory(it) },
+                    // KMK <--
+                )
+            }
 
-        LaunchedEffect(pagerState.currentPage) {
-            onChangeCurrentPage(pagerState.currentPage)
-        }
+            LaunchedEffect(pagerState.currentPage) {
+                onChangeCurrentPage(pagerState.currentPage)
+            }
         }
     }
 }

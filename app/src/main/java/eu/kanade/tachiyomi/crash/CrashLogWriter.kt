@@ -34,7 +34,10 @@ object CrashLogWriter {
     private fun render(r: CrashReport): String = buildString {
         appendLine(r.debugInfo)
         appendLine()
-        r.extensionsInfo?.let { appendLine(it); appendLine() }
+        r.extensionsInfo?.let {
+            appendLine(it)
+            appendLine()
+        }
         appendLine("Thread: ${r.threadName} @ ${r.timestampMs}")
         appendLine("Exception: ${r.type}: ${r.message ?: ""}")
         appendLine(r.stackTrace)

@@ -1,7 +1,6 @@
 package eu.kanade.tachiyomi.data.track
 
 import tachiyomi.domain.track.model.Track
-import tachiyomi.domain.track.service.TrackPreferences
 
 /**
  * Coordinates tracker sync for the unified-tracker feature (pref per-manga/per-category
@@ -28,5 +27,5 @@ object TrackerSyncCoordinator {
         return preferred.lastChapterRead != max
     }
 
-    fun maxProgress(tracks: List<Track>): Long = tracks.maxOfOrNull { it.lastChapterRead } ?: 0L
+    fun maxProgress(tracks: List<Track>): Double = tracks.maxOfOrNull { it.lastChapterRead } ?: 0.0
 }

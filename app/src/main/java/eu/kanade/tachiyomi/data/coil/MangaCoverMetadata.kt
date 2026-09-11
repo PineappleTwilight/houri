@@ -156,13 +156,13 @@ object MangaCoverMetadata {
     fun savePrefs() {
         val ratioCopy = MangaCover.coverRatioMap.toMap()
         if (ratioCopy.size > 2000) {
-            val trimmed = ratioCopy.entries.sortedBy { it.key }.takeLast(2000).toMap()
+            val trimmed = ratioCopy.entries.sortedBy { it.key }.takeLast(2000).associate { it.key to it.value }
             MangaCover.coverRatioMap.clear()
             MangaCover.coverRatioMap.putAll(trimmed)
         }
         val colorCopy = MangaCover.dominantCoverColorMap.toMap()
         if (colorCopy.size > 2000) {
-            val trimmed = colorCopy.entries.sortedBy { it.key }.takeLast(2000).toMap()
+            val trimmed = colorCopy.entries.sortedBy { it.key }.takeLast(2000).associate { it.key to it.value }
             MangaCover.dominantCoverColorMap.clear()
             MangaCover.dominantCoverColorMap.putAll(trimmed)
         }

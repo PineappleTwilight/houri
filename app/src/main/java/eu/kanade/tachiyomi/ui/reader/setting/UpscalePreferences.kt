@@ -29,6 +29,7 @@ class UpscalePreferences(
 
     @Volatile
     private var cachedPerSeriesIds: Set<Long>? = null
+
     @Volatile
     private var cachedPerSeriesRaw: String? = null
 

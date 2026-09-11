@@ -11,8 +11,8 @@ import kotlinx.collections.immutable.ImmutableSet
 import tachiyomi.core.common.preference.TriState
 import tachiyomi.domain.library.service.LibraryPreferences
 import tachiyomi.domain.manga.model.Manga
-import tachiyomi.domain.track.model.Track
 import tachiyomi.domain.manga.model.applyFilter
+import tachiyomi.domain.track.model.Track
 
 /**
  * Single-responsibility handler extracted from [eu.kanade.tachiyomi.ui.library.LibraryScreenModel.applyFilters]
@@ -66,7 +66,7 @@ class LibraryFilterHandler(
 
     private suspend fun applyDownloadedFilter(item: LibraryItem, filter: TriState, cache: Map<Long, List<Manga>>): Boolean {
         return applyFilter(filter) {
-            item.libraryManga.manga.isLocal() ||
+            item.libraryManga.manga.source == 0L ||
                 item.downloadCount > 0 ||
                 if (isMergedSourceId(item.libraryManga.manga.source)) {
                     cache[item.libraryManga.manga.id].orEmpty().sumOf { m -> downloadManager.getDownloadCount(m) } > 0
@@ -131,5 +131,3 @@ class LibraryFilterHandler(
         val skipOutsideReleasePeriod: Boolean,
     )
 }
-
-private fun tachiyomi.domain.manga.model.Manga.isLocal(): Boolean = tachiyomi.source.local.isLocal(this)
