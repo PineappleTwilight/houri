@@ -411,6 +411,8 @@
 - [x] **WebGPU Reader**: Fix double page view option disappearing when reading mode is set to "paged vertical"
   - Fixed 2026-09-11: `ReadingModePage` now shows `dualPageView` chips for `VERTICAL` (was `LEFT_TO_RIGHT || RIGHT_TO_LEFT` only) so paged vertical can enable dual-page
 - [ ] **Crash Handler**: Remove timezone data (developers don't need the user's timezone and it is kinda creepy)
+- [ ] **WebGPU Reader**: Remove redundant double page settings
+  - The mihon ported "Dual Page View" option with the "none, when wide, always" choices should be the removed redundancy
 
 ## Chores
 - [x] Replace all Komikku icons/branding with houri icons/branding
