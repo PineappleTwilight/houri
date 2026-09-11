@@ -638,11 +638,23 @@ open class WebGpuViewer(
         } catch (_: Exception) {}
     }
 
+    private var isIdle = true
+    private var awaitingIdleViewerChapters: ViewerChapters? = null
+
     /**
      * Tells this viewer to set the given [chapters] as active. If the pager is currently idle,
      * it sets the chapters immediately, otherwise they are saved and set when it becomes idle.
+     * Mirrors [eu.kanade.tachiyomi.ui.reader.viewer.pager.PagerViewer.setChapters] for modular parity.
      */
     override fun setChapters(chapters: ViewerChapters) {
+        if (!isIdle) {
+            awaitingIdleViewerChapters = chapters
+            return
+        }
+        setChaptersInternal(chapters)
+    }
+
+    private fun setChaptersInternal(chapters: ViewerChapters) {
         val pages = chapters.currChapter.pages ?: return
 
         this.viewerChapters = chapters

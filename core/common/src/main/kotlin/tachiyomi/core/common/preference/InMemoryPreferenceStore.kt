@@ -2,9 +2,10 @@ package tachiyomi.core.common.preference
 
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 
 /**
@@ -88,6 +89,8 @@ class InMemoryPreferenceStore(
         private var data: T?,
         private val defaultValue: T,
     ) : Preference<T> {
+        private val state = MutableStateFlow(get())
+
         override fun key(): String = key
 
         override fun get(): T = data ?: defaultValue()
@@ -96,18 +99,20 @@ class InMemoryPreferenceStore(
 
         override fun delete() {
             data = null
+            state.value = defaultValue
         }
 
         override fun defaultValue(): T = defaultValue
 
-        override fun changes(): Flow<T> = flow { data }
+        override fun changes(): Flow<T> = state.asStateFlow()
 
         override fun stateIn(scope: CoroutineScope): StateFlow<T> {
-            return changes().stateIn(scope, SharingStarted.Eagerly, get())
+            return state.stateIn(scope, SharingStarted.Eagerly, get())
         }
 
         override fun set(value: T) {
             data = value
+            state.value = value
         }
     }
 }

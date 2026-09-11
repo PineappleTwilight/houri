@@ -67,6 +67,12 @@ data class MangaCover(
         }
 
     companion object {
+        // KMK -->
+        const val MIN_COVER_RATIO = 0.5f
+        const val MAX_COVER_RATIO = 3f
+        const val DEFAULT_COVER_RATIO = 2f / 3f
+        // KMK <--
+
         /**
          * [vibrantCoverColorMap] store color generated while browsing library.
          * It always empty at beginning each time app starts, then add more color while browsing.

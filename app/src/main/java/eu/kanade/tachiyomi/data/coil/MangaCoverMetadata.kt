@@ -124,14 +124,11 @@ object MangaCoverMetadata {
 
         val bitmap = when {
             bufferedSource != null -> BitmapFactory.decodeStream(bufferedSource.inputStream(), null, options)
-            // if the file exists and the there was still an error then the file is corrupted
             file?.exists() == true -> BitmapFactory.decodeFile(file.path, options)
-            else -> {
-                return
-            }
-        }
+            else -> return
+        } ?: return
 
-        if (bitmap != null) {
+        try {
             Palette.from(bitmap).generate {
                 if (it == null) return@generate
                 if (mangaCover.isMangaFavorite) {
@@ -142,9 +139,12 @@ object MangaCoverMetadata {
                 val color = it.getBestColor() ?: return@generate
                 mangaCover.vibrantCoverColor = color
             }
+        } finally {
+            if (!bitmap.isRecycled) bitmap.recycle()
         }
         if (mangaCover.isMangaFavorite && options.outWidth != -1 && options.outHeight != -1) {
-            mangaCover.ratio = options.outWidth / options.outHeight.toFloat()
+            val raw = options.outWidth / options.outHeight.toFloat()
+            mangaCover.ratio = raw.coerceIn(MangaCover.MIN_COVER_RATIO, MangaCover.MAX_COVER_RATIO)
         }
     }
 
@@ -154,10 +154,20 @@ object MangaCoverMetadata {
     }
 
     fun savePrefs() {
-        val mapCopy = MangaCover.coverRatioMap.toMap()
-        preferences.coverRatios().set(mapCopy.map { "${it.key}|${it.value}" }.toSet())
-        val mapColorCopy = MangaCover.dominantCoverColorMap.toMap()
-        preferences.coverColors().set(mapColorCopy.map { "${it.key}|${it.value.first}|${it.value.second}" }.toSet())
+        val ratioCopy = MangaCover.coverRatioMap.toMap()
+        if (ratioCopy.size > 2000) {
+            val trimmed = ratioCopy.entries.sortedBy { it.key }.takeLast(2000).toMap()
+            MangaCover.coverRatioMap.clear()
+            MangaCover.coverRatioMap.putAll(trimmed)
+        }
+        val colorCopy = MangaCover.dominantCoverColorMap.toMap()
+        if (colorCopy.size > 2000) {
+            val trimmed = colorCopy.entries.sortedBy { it.key }.takeLast(2000).toMap()
+            MangaCover.dominantCoverColorMap.clear()
+            MangaCover.dominantCoverColorMap.putAll(trimmed)
+        }
+        preferences.coverRatios().set(MangaCover.coverRatioMap.map { "${it.key}|${it.value}" }.toSet())
+        preferences.coverColors().set(MangaCover.dominantCoverColorMap.map { "${it.key}|${it.value.first}|${it.value.second}" }.toSet())
     }
 
     private const val SUB_SAMPLE = 4

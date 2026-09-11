@@ -86,20 +86,59 @@ class RotatingAchievementPool(
         } ?: 0
     }
 
-    private fun rotatingThreshold(id: String): Int = when {
-        id.contains("read_5") -> 5
-        id.contains("read_15") -> 15
-        id.contains("read_30") -> 30
-        id.contains("read_75") -> 75
-        id.contains("library_add_3") -> 3
-        id.contains("library_10") -> 10
-        id.contains("finish_1") -> 1
-        id.contains("finish_3") -> 3
-        id.contains("translate_2") -> 2
-        id.contains("translate_10") -> 10
-        id.contains("tracker_update_3") -> 3
-        id.contains("search_5") -> 5
-        else -> 1
+    private fun rotatingThreshold(id: String): Int = when (id) {
+        "rotating_daily_read_15" -> 15
+        "rotating_weekly_read_30" -> 30
+        "rotating_weekly_read_75" -> 75
+        "rotating_weekly_library_10" -> 10
+        "rotating_weekly_finish_3" -> 3
+        "rotating_weekly_translate_10" -> 10
+        "rotating_weekly_upscale_20" -> 20
+        "rotating_weekly_data_saver_20" -> 20
+        "rotating_daily_tracker_update_3" -> 3
+        "rotating_weekly_tracker_5" -> 5
+        "rotating_weekly_night_owl" -> 3
+        "rotating_weekly_reread_2" -> 2
+        "rotating_weekly_ltr_3" -> 3
+        "rotating_weekly_category_2" -> 2
+        "rotating_weekly_upload_cover_3" -> 3
+        "rotating_daily_read_5",
+        "rotating_daily_library_add_3",
+        "rotating_daily_translate_2",
+        "rotating_daily_search_5",
+        "rotating_daily_finish_1",
+        "rotating_daily_backlog_clear_1",
+        "rotating_daily_morning_read",
+        "rotating_daily_midnight_read",
+        "rotating_daily_streak_bonus",
+        "rotating_daily_webtoon_5",
+        "rotating_daily_data_saver_5",
+        "rotating_daily_genre_explore",
+        "rotating_daily_extra_1",
+        "rotating_daily_extra_2",
+        "rotating_daily_extra_3",
+        "rotating_daily_extra_4",
+        "rotating_daily_extra_5",
+        "rotating_daily_extra_6",
+        "rotating_daily_extra_7",
+        "rotating_daily_extra_8",
+        "rotating_daily_extra_9",
+        "rotating_daily_extra_10",
+        "rotating_daily_extra_11",
+        "rotating_weekly_extra_1",
+        "rotating_weekly_extra_2",
+        -> 1
+        else -> when {
+            id.endsWith("_read_5") -> 5
+            id.endsWith("_read_15") -> 15
+            id.endsWith("_read_30") -> 30
+            id.endsWith("_read_75") -> 75
+            id.endsWith("_translate_10") -> 10
+            id.endsWith("_translate_2") -> 2
+            id.contains("upscale_20") -> 20
+            id.contains("data_saver_20") -> 20
+            else -> 1
+        }
     }
 
     fun refreshIfNeeded() {

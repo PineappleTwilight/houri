@@ -37,10 +37,9 @@ internal object LibraryStaggeredGridDefaults {
     val HORIZONTAL_SPACER = 4.dp
     val VERTICAL_SPACER = 4.dp
 
-    /** Keeps extreme covers from breaking the masonry flow. */
-    const val MIN_COVER_RATIO = 0.5f
-    const val MAX_COVER_RATIO = 3f
-    const val DEFAULT_COVER_RATIO = 2f / 3f
+    const val MIN_COVER_RATIO = tachiyomi.domain.manga.model.MangaCover.MIN_COVER_RATIO
+    const val MAX_COVER_RATIO = tachiyomi.domain.manga.model.MangaCover.MAX_COVER_RATIO
+    const val DEFAULT_COVER_RATIO = tachiyomi.domain.manga.model.MangaCover.DEFAULT_COVER_RATIO
 }
 
 /**
@@ -62,6 +61,10 @@ internal fun LibraryStaggeredGrid(
     // evicted, then jumps to the real value when the cover reloads - reflowing the whole
     // masonry below it, which reads as entries swapping places when scrolling back up.
     val coverRatios = remember { mutableStateMapOf<Long, Float>() }
+    if (coverRatios.size > 800) {
+        val toRemove = coverRatios.size - 600
+        coverRatios.keys.take(toRemove).forEach { coverRatios.remove(it) }
+    }
     LazyVerticalStaggeredGrid(
         columns = if (columns == 0) StaggeredGridCells.Adaptive(128.dp) else StaggeredGridCells.Fixed(columns),
         modifier = Modifier.fillMaxSize(),

@@ -47,12 +47,11 @@ import eu.kanade.presentation.manga.components.MangaCover
 import eu.kanade.presentation.manga.components.MangaCoverHide
 import eu.kanade.presentation.manga.components.RatioSwitchToPanorama
 import exh.debug.DebugToggles
-import mihon.app.di.globalAppGraph
 import tachiyomi.i18n.MR
 import tachiyomi.i18n.kmk.KMR
 import tachiyomi.presentation.core.components.BadgeGroup
 import tachiyomi.presentation.core.i18n.stringResource
-import tachiyomi.presentation.core.util.collectAsState
+import tachiyomi.presentation.core.util.LocalCensorEnabled
 import tachiyomi.presentation.core.util.selectedBackground
 import tachiyomi.domain.manga.model.MangaCover as MangaCoverModel
 
@@ -95,8 +94,8 @@ fun MangaCompactGridItem(
     isLewd: Boolean = false,
     // KMK <--
 ) {
-    // KMK -->
-    val censorEnabled by globalAppGraph.uiPreferences.censorLewdManga().collectAsState()
+    // KMK --> modular: censor state via CompositionLocal, not per-item globalAppGraph collector (was 202 collectors)
+    val censorEnabled = LocalCensorEnabled.current
     val shouldCensor = censorEnabled && isLewd
     val displayTitle = if (shouldCensor && title != null) stringResource(KMR.strings.censored_title) else title
     val bgColor = coverData.dominantCoverColors?.first?.let { Color(it) }.takeIf { libraryColored && !shouldCensor }
@@ -231,14 +230,12 @@ fun MangaComfortableGridItem(
     isLewd: Boolean = false,
     // KMK <--
 ) {
-    // KMK -->
-    val censorEnabled by globalAppGraph.uiPreferences.censorLewdManga().collectAsState()
+    val censorEnabled = LocalCensorEnabled.current
     val shouldCensor = censorEnabled && isLewd
     val displayTitle = if (shouldCensor) stringResource(KMR.strings.censored_title) else title
     val coverIsWide = coverRatio.floatValue <= RatioSwitchToPanorama
     val bgColor = coverData.dominantCoverColors?.first?.let { Color(it) }.takeIf { libraryColored && !shouldCensor }
     val onBgColor = coverData.dominantCoverColors?.second.takeIf { libraryColored && !shouldCensor }
-    // KMK <--
     GridItemSelectable(
         isSelected = isSelected,
         onClick = onClick,
@@ -247,7 +244,6 @@ fun MangaComfortableGridItem(
         Column {
             MangaGridCover(
                 cover = {
-                    // KMK -->
                     if (DebugToggles.HIDE_COVER_IMAGE_ONLY_SHOW_COLOR.enabled) {
                         MangaCoverHide.Book(
                             modifier = Modifier
@@ -262,7 +258,6 @@ fun MangaComfortableGridItem(
                                     .fillMaxWidth()
                                     .then(if (shouldCensor) Modifier.blur(16.dp) else Modifier),
                                 data = coverData,
-                                // KMK -->
                                 alpha = if (isSelected) GRID_SELECTED_COVER_ALPHA else coverAlpha,
                                 bgColor = bgColor ?: MaterialTheme.colorScheme.surface.takeIf { isSelected },
                                 tint = onBgColor,
@@ -270,16 +265,13 @@ fun MangaComfortableGridItem(
                                     val image = result.result.image
                                     coverRatio.floatValue = image.height.toFloat() / image.width
                                 },
-                                // KMK <--
                             )
                         } else {
-                            // KMK <--
                             MangaCover.Book(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .then(if (shouldCensor) Modifier.blur(16.dp) else Modifier),
                                 data = coverData,
-                                // KMK -->
                                 alpha = if (isSelected) GRID_SELECTED_COVER_ALPHA else coverAlpha,
                                 bgColor = bgColor ?: MaterialTheme.colorScheme.surface.takeIf { isSelected },
                                 tint = onBgColor,
@@ -292,7 +284,6 @@ fun MangaComfortableGridItem(
                                 } else {
                                     ContentScale.Crop
                                 },
-                                // KMK <--
                             )
                         }
                     }
@@ -449,13 +440,11 @@ fun MangaListItem(
     isLewd: Boolean = false,
     // KMK <--
 ) {
-    // KMK -->
-    val censorEnabled by globalAppGraph.uiPreferences.censorLewdManga().collectAsState()
+    val censorEnabled = LocalCensorEnabled.current
     val shouldCensor = censorEnabled && isLewd
     val displayTitle = if (shouldCensor) stringResource(KMR.strings.censored_title) else title
     val bgColor = coverData.dominantCoverColors?.first?.let { Color(it) }.takeIf { libraryColored && !shouldCensor }
     val onBgColor = coverData.dominantCoverColors?.second.takeIf { libraryColored && !shouldCensor }
-    // KMK <--
     Row(
         modifier = Modifier
             .selectedBackground(isSelected)
@@ -467,7 +456,6 @@ fun MangaListItem(
             .padding(horizontal = 16.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        // KMK -->
         if (DebugToggles.HIDE_COVER_IMAGE_ONLY_SHOW_COLOR.enabled) {
             MangaCoverHide.Square(
                 modifier = Modifier
@@ -476,18 +464,15 @@ fun MangaListItem(
                 tint = onBgColor,
             )
         } else {
-            // KMK <--
             MangaCover.Square(
                 modifier = Modifier
                     .fillMaxHeight()
                     .then(if (shouldCensor) Modifier.blur(16.dp) else Modifier),
                 data = coverData,
-                // KMK -->
                 alpha = coverAlpha,
                 bgColor = bgColor ?: MaterialTheme.colorScheme.surface.takeIf { isSelected },
                 tint = onBgColor,
                 size = MangaCover.Size.Big,
-                // KMK <--
             )
         }
         Text(

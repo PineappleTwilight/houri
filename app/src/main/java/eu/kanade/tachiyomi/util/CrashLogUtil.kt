@@ -27,14 +27,13 @@ class CrashLogUtil(
 
     suspend fun dumpLogs(exception: Throwable? = null) = withNonCancellableContext {
         try {
-            val file = context.createFileInCacheDir("houri_crash_logs.txt")
-
-            file.appendText(getDebugInfo() + "\n\n")
-            getExtensionsInfo()?.let { file.appendText("$it\n\n") }
-            exception?.let { file.appendText("$it\n\n") }
-
-            Runtime.getRuntime().exec("logcat *:E -d -v year -v zone -f ${file.absolutePath}").waitFor()
-
+            val report = eu.kanade.tachiyomi.crash.CrashReport.from(
+                throwable = exception ?: Throwable("Manual dump"),
+                thread = Thread.currentThread(),
+                debugInfo = getDebugInfo(),
+                extensionsInfo = getExtensionsInfo(),
+            )
+            val file = eu.kanade.tachiyomi.crash.CrashLogWriter.write(context, report)
             val uri = file.getUriCompat(context)
             context.startActivity(uri.toShareIntent(context, "text/plain"))
         } catch (e: Throwable) {
@@ -49,6 +48,14 @@ class CrashLogUtil(
             it.getMemoryInfo(mi)
             "RAM: ${mi.availMem / 1024 / 1024}MB avail / ${mi.totalMem / 1024 / 1024}MB total (low=${mi.lowMemory}, threshold=${mi.threshold / 1024 / 1024}MB)"
         } ?: "RAM: unknown"
+        val heapInfo = try {
+            val rt = Runtime.getRuntime()
+            val used = (rt.totalMemory() - rt.freeMemory()) / 1024 / 1024
+            val max = rt.maxMemory() / 1024 / 1024
+            "Heap: ${used}MB used / ${max}MB max (free=${rt.freeMemory() / 1024 / 1024}MB)"
+        } catch (_: Exception) {
+            "Heap: unknown"
+        }
         val storageInfo = try {
             val free = context.cacheDir.freeSpace / 1024 / 1024
             val total = context.cacheDir.totalSpace / 1024 / 1024
@@ -85,6 +92,7 @@ class CrashLogUtil(
             WebView: ${WebViewUtil.getVersion(context)}
             Current time: ${OffsetDateTime.now(ZoneId.systemDefault())}
             $memInfo
+            $heapInfo
             $storageInfo
             $batteryInfo
             $localeInfo
@@ -93,7 +101,7 @@ class CrashLogUtil(
         """.trimIndent()
     }
 
-    private fun getExtensionsInfo(): String? {
+    internal fun getExtensionsInfo(): String? {
         val availableExtensions = extensionManager.availableExtensionsFlow.value.associateBy { it.pkgName }
 
         val extensionInfoList = extensionManager.installedExtensionsFlow.value

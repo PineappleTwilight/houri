@@ -29,10 +29,32 @@ class GlobalExceptionHandler private constructor(
             encoder.encodeString(value.stackTraceToString())
     }
 
+    @Volatile
+    private var lastCrashMs = 0L
+
     override fun uncaughtException(thread: Thread, exception: Throwable) {
         logcat(priority = LogPriority.ERROR, throwable = exception)
-        launchActivity(applicationContext, activityToBeLaunched, exception)
-        defaultHandler.uncaughtException(thread, exception)
+        val now = System.currentTimeMillis()
+        val isCrashLoop = now - lastCrashMs < 3000
+        lastCrashMs = now
+        if (!isCrashLoop) {
+            try {
+                val report = CrashReport.from(
+                    throwable = exception,
+                    thread = thread,
+                    debugInfo = runCatching { eu.kanade.tachiyomi.util.CrashLogUtil(applicationContext).getDebugInfo() }.getOrDefault("debugInfo unavailable"),
+                    extensionsInfo = runCatching { eu.kanade.tachiyomi.util.CrashLogUtil(applicationContext).let { it.javaClass.getDeclaredMethod("getExtensionsInfo").apply { isAccessible = true }.invoke(it) as? String } }.getOrNull(),
+                )
+                val file = CrashLogWriter.write(applicationContext, report)
+                launchActivityWithReport(applicationContext, activityToBeLaunched, exception, file.absolutePath)
+            } catch (_: Exception) {
+                launchActivity(applicationContext, activityToBeLaunched, exception)
+            }
+        }
+        try {
+            defaultHandler.uncaughtException(thread, exception)
+        } catch (_: Exception) {
+        }
     }
 
     private fun launchActivity(
@@ -48,16 +70,35 @@ class GlobalExceptionHandler private constructor(
         applicationContext.startActivity(intent)
     }
 
+    private fun launchActivityWithReport(
+        applicationContext: Context,
+        activity: Class<*>,
+        exception: Throwable,
+        reportPath: String,
+    ) {
+        val intent = Intent(applicationContext, activity).apply {
+            putExtra(INTENT_EXTRA, Json.encodeToString(ThrowableSerializer, exception))
+            putExtra(INTENT_EXTRA_REPORT_PATH, reportPath)
+            addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK)
+            addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK)
+        }
+        applicationContext.startActivity(intent)
+    }
+
     companion object {
         private const val INTENT_EXTRA = "Throwable"
+        const val INTENT_EXTRA_REPORT_PATH = "crash_report_path"
 
         fun initialize(
             applicationContext: Context,
             activityToBeLaunched: Class<*>,
         ) {
+            val existing = Thread.getDefaultUncaughtExceptionHandler()
+            if (existing is GlobalExceptionHandler) return
+            val fallback = existing ?: Thread.UncaughtExceptionHandler { _, _ -> }
             val handler = GlobalExceptionHandler(
                 applicationContext,
-                Thread.getDefaultUncaughtExceptionHandler() as Thread.UncaughtExceptionHandler,
+                fallback,
                 activityToBeLaunched,
             )
             Thread.setDefaultUncaughtExceptionHandler(handler)
@@ -71,5 +112,7 @@ class GlobalExceptionHandler private constructor(
                 null
             }
         }
+
+        fun getReportPathFromIntent(intent: Intent): String? = intent.getStringExtra(INTENT_EXTRA_REPORT_PATH)
     }
 }

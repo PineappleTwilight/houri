@@ -100,18 +100,21 @@ class AchievementPreferences(
         return true
     }
 
+    @Synchronized
     fun isUnlocked(id: String): Boolean {
         val current = unlockedAchievements().get()
         if (current.isBlank()) return false
         return current.split(",").contains(id)
     }
 
+    @Synchronized
     fun getUnlockedIds(): Set<String> {
         val current = unlockedAchievements().get()
         if (current.isBlank()) return emptySet()
         return current.split(",").map { it.trim() }.filter { it.isNotBlank() && it.length <= 64 && Achievements.forId(it) != null }.toSet()
     }
 
+    @Synchronized
     fun getUnlockedWithTimestamps(): Map<String, Long> {
         val raw = unlockedTimestamps().get()
         if (raw.isBlank()) return emptyMap()
@@ -129,6 +132,7 @@ class AchievementPreferences(
     @Volatile
     var suppressOrganicForImport: Boolean = false
 
+    @Synchronized
     fun computeStats(totalAchievements: Int): tachiyomi.domain.achievement.model.AchievementStats {
         val ids = getUnlockedIds()
         val countableIds = ids.filter { tachiyomi.domain.achievement.model.Achievements.forId(it)?.countsTowardsProgress == true }

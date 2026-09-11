@@ -19,6 +19,7 @@ import eu.kanade.tachiyomi.network.await
 import eu.kanade.tachiyomi.source.online.HttpSource
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import logcat.LogPriority
 import mihon.app.di.globalAppGraph
@@ -68,10 +69,7 @@ class MangaCoverFetcher(
 ) : Fetcher {
 
     // KMK -->
-    private val scope by lazy { CoroutineScope(Dispatchers.IO) }
     private val uiPreferences = globalAppGraph.uiPreferences
-    private val themeCoverBased = uiPreferences.themeCoverBased().get()
-    private val preloadLibraryColor = uiPreferences.preloadLibraryColor().get()
     // KMK <--
 
     private val diskCacheKey: String
@@ -119,10 +117,9 @@ class MangaCoverFetcher(
         // KMK -->
         setRatioAndColorsInScope(mangaCover)
         // KMK <--
-        val source = UniFile.fromUri(options.context, uri.toUri())!!
-            .openInputStream()
-            .source()
-            .buffer()
+        val uniFile = UniFile.fromUri(options.context, uri.toUri())
+            ?: error("Invalid content URI: $uri")
+        val source = (uniFile.openInputStream() ?: error("Cannot open $uri")).source().buffer()
         return SourceFetchResult(
             source = ImageSource(source = source, fileSystem = FileSystem.SYSTEM),
             mimeType = "image/*",
@@ -221,8 +218,9 @@ class MangaCoverFetcher(
     }
 
     private fun newRequest(): Request {
+        val requestUrl = url ?: error("No cover URL")
         val request = Request.Builder().apply {
-            url(url!!)
+            url(requestUrl)
 
             val sourceHeaders = sourceLazy.value?.headers
             if (sourceHeaders != null) {
@@ -345,15 +343,19 @@ class MangaCoverFetcher(
         mangaCover: MangaCover,
         bufferedSource: BufferedSource? = null,
         ogFile: File? = null,
-        onlyFavorite: Boolean = !themeCoverBased,
+        onlyFavorite: Boolean = !uiPreferences.themeCoverBased().get(),
         force: Boolean = false,
     ) {
-        if (!preloadLibraryColor) return
-        scope.launch {
+        if (!uiPreferences.preloadLibraryColor().get()) return
+        FetcherScope.scope.launch {
             MangaCoverMetadata.setRatioAndColors(mangaCover, bufferedSource, ogFile, onlyFavorite, force)
         }
     }
     // KMK <--
+
+    private object FetcherScope {
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    }
 
     private enum class Type {
         File,

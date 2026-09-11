@@ -165,6 +165,7 @@ class ReaderViewModel(
     private val webhookPreferences: WebhookPreferences,
     private val achievementManager: tachiyomi.domain.achievement.service.AchievementManager,
     private val achievementPreferences: tachiyomi.domain.achievement.service.AchievementPreferences,
+    private val readerAchievementHandler: eu.kanade.tachiyomi.data.achievement.ReaderAchievementHandler,
     // KMK <--
 ) : ViewModel() {
 
@@ -954,22 +955,7 @@ class ReaderViewModel(
                     viewModelScope.launchNonCancellable { completeRereadIfNeeded.await(currentManga.id) }
                 }
                 viewModelScope.launchNonCancellable {
-                    try {
-                        achievementManager.onOrganicChapterRead(0)
-                        val readingMode = getMangaReadingMode()
-                        if (readingMode == eu.kanade.tachiyomi.ui.reader.setting.ReadingMode.LEFT_TO_RIGHT.flagValue) {
-                            achievementManager.onLtrFinished()
-                        }
-                        if (readingMode == eu.kanade.tachiyomi.ui.reader.setting.ReadingMode.RIGHT_TO_LEFT.flagValue) {
-                            achievementManager.tryUnlockDirect("rtl_reader")
-                        }
-                        if (readingMode == eu.kanade.tachiyomi.ui.reader.setting.ReadingMode.VERTICAL.flagValue ||
-                            readingMode == eu.kanade.tachiyomi.ui.reader.setting.ReadingMode.WEBTOON.flagValue ||
-                            readingMode == eu.kanade.tachiyomi.ui.reader.setting.ReadingMode.CONTINUOUS_VERTICAL.flagValue
-                        ) {
-                            achievementManager.tryUnlockDirect("vertical_reader")
-                        }
-                    } catch (_: Exception) {}
+                    readerAchievementHandler.onChapterRead(getMangaReadingMode())
                 }
             }
             // KMK <--
@@ -1041,17 +1027,12 @@ class ReaderViewModel(
                     true
                 }
                 webhookNotifier.notify(
-                    if (isPermanent) WebhookEvent.MANGA_FINISHED else WebhookEvent.MANGA_FINISHED,
+                    if (isPermanent) WebhookEvent.MANGA_FINISHED else WebhookEvent.MANGA_CAUGHT_UP,
                     mapOf("manga" to currentManga.title),
                     sourceId = currentManga.source,
                     mangaId = currentManga.id,
                 )
-                try {
-                    if (isPermanent) achievementManager.onMangaFinished() else achievementManager.onMangaCaughtUp()
-                } catch (_: Exception) {}
-                try {
-                    achievementManager.onBacklogCleared(1)
-                } catch (_: Exception) {}
+                readerAchievementHandler.onMangaCompleted(currentManga.status)
             }
         }
         // KMK <--
@@ -1133,10 +1114,8 @@ class ReaderViewModel(
 
             upsertHistory.await(HistoryUpdate(chapterId, endTime, sessionReadDuration))
             if (sessionReadDuration > 0) {
-                try {
-                    val minutes = (sessionReadDuration / 60000L).coerceAtLeast(1L)
-                    achievementManager.onReadingTimeMinutes(minutes)
-                } catch (_: Exception) {}
+                val minutes = (sessionReadDuration / 60000L).coerceAtLeast(1L)
+                readerAchievementHandler.onReadingTimeMinutes(minutes)
             }
             chapterReadStartTime = null
         }

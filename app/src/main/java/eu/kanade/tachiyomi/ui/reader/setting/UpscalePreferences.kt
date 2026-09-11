@@ -27,21 +27,38 @@ class UpscalePreferences(
 
     fun isMtlEnabled(): Boolean = !BuildConfig.IS_NOMTL && translationPreferences.enabled().get()
 
+    @Volatile
+    private var cachedPerSeriesIds: Set<Long>? = null
+    @Volatile
+    private var cachedPerSeriesRaw: String? = null
+
     fun isEnabledForManga(mangaId: Long): Boolean {
-        if (BuildConfig.IS_NOMTL) return false
-        if (!translationPreferences.enabled().get()) return false
+        if (!isMtlEnabled()) return false
         if (!enabled().get()) return false
         val perSeries = perSeriesEnabled().get()
         if (perSeries.isBlank()) return true
-        val enabledIds = perSeries.split(",").mapNotNull { it.toLongOrNull() }.toSet()
+        val enabledIds = getCachedPerSeriesIds(perSeries)
         return mangaId in enabledIds
     }
 
     fun setEnabledForManga(mangaId: Long, enabled: Boolean) {
         val perSeries = perSeriesEnabled().get()
-        val set = if (perSeries.isBlank()) mutableSetOf() else perSeries.split(",").mapNotNull { it.toLongOrNull() }.toMutableSet()
+        val set = getCachedPerSeriesIds(perSeries).toMutableSet()
         if (enabled) set.add(mangaId) else set.remove(mangaId)
-        perSeriesEnabled().set(set.joinToString(","))
+        val serialized = set.joinToString(",")
+        perSeriesEnabled().set(serialized)
+        cachedPerSeriesRaw = serialized
+        cachedPerSeriesIds = set.toSet()
+    }
+
+    private fun getCachedPerSeriesIds(raw: String): Set<Long> {
+        val cachedRaw = cachedPerSeriesRaw
+        val cached = cachedPerSeriesIds
+        if (cached != null && cachedRaw == raw) return cached
+        val parsed = raw.split(",").mapNotNull { it.trim().toLongOrNull() }.toSet()
+        cachedPerSeriesRaw = raw
+        cachedPerSeriesIds = parsed
+        return parsed
     }
 
     fun effectivePreset(): Preset = runCatching { Preset.valueOf(preset().get()) }.getOrDefault(Preset.BALANCED)

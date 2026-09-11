@@ -46,6 +46,7 @@ enum class WebhookEvent(val id: String, val title: String, val color: Long) {
     MANGA_MIGRATED("manga_migrated", "Manga migrated", 0x1ABC9C),
     APP_UPDATED("app_updated", "App updated", 0x95A5A6),
     ACHIEVEMENT_UNLOCKED("achievement_unlocked", "Achievement unlocked", 0xFFD700),
+    MANGA_CAUGHT_UP("manga_caught_up", "Manga caught up", 0x3498DB),
     // KMK <--
 }
 
@@ -99,6 +100,7 @@ class WebhookNotifier(
             WebhookEvent.MANGA_MIGRATED -> webhookPreferences.notifyOnMangaMigrated()
             WebhookEvent.APP_UPDATED -> webhookPreferences.notifyOnAppUpdated()
             WebhookEvent.ACHIEVEMENT_UNLOCKED -> webhookPreferences.notifyOnAchievementUnlocked()
+            WebhookEvent.MANGA_CAUGHT_UP -> webhookPreferences.notifyOnMangaFinished()
             // KMK <--
         }
         if (!enabledForEvent.get()) return
