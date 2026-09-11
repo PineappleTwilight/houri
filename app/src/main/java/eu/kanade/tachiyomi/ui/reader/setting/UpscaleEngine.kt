@@ -22,13 +22,31 @@ class UpscaleEngine(
     private val backendDetector by lazy { UpscaleBackendDetector(context) }
     private val cacheManager by lazy { UpscaleCacheManager(context.cacheDir) }
 
-    fun isAvailable(): Boolean = backendDetector.isAvailable()
+    fun isAvailable(): Boolean = if (prefs.isSimpleMode()) true else backendDetector.isAvailable()
 
     fun effectiveBackend(): UpscalePreferences.Backend =
         backendDetector.effectiveBackend(prefs.effectiveBackend())
 
     suspend fun upscaleIfNeeded(mangaId: Long, bytes: ByteArray): ByteArray? = withContext(Dispatchers.Default) {
-        if (BuildConfig.IS_NOMTL) return@withContext null
+        if (prefs.isSimpleMode()) {
+            if (!prefs.isEnabledForManga(mangaId)) return@withContext null
+            val factor = prefs.upscaleFactor().get().coerceIn(1f, 4f)
+            val algo = prefs.effectiveSimpleAlgo()
+            val cacheModel = "simple_${algo.name}"
+            if (prefs.cacheEnabled().get()) {
+                val key = cacheManager.cacheKey(bytes, factor, cacheModel)
+                cacheManager.getCached(key)?.let { return@withContext it }
+            }
+            val result = runCatching { runUpscaleSimple(bytes, factor, algo) }.getOrElse {
+                logcat(LogPriority.ERROR, it) { "Upscale failed" }
+                null
+            } ?: return@withContext null
+            if (prefs.cacheEnabled().get()) {
+                val key = cacheManager.cacheKey(bytes, factor, cacheModel)
+                cacheManager.putCached(key, result)
+            }
+            return@withContext result
+        }
         if (!translationPreferences.enabled().get()) return@withContext null
         if (!prefs.isEnabledForManga(mangaId)) return@withContext null
         val factor = prefs.upscaleFactor().get().coerceIn(1f, 4f)
@@ -63,6 +81,21 @@ class UpscaleEngine(
         val bmp = BitmapFactory.decodeByteArray(bytes, 0, bytes.size, opts) ?: return null
         val scale = UpscaleScalingStrategy.computeScale(factor, preset)
         val scaled = UpscaleScalingStrategy.upscaleBitmap(bmp, scale)
+        if (scaled == null) {
+            bmp.recycle()
+            return null
+        }
+        if (scaled != bmp) bmp.recycle()
+        val out = java.io.ByteArrayOutputStream()
+        scaled.compress(Bitmap.CompressFormat.WEBP_LOSSY, 90, out)
+        scaled.recycle()
+        return out.toByteArray()
+    }
+
+    private fun runUpscaleSimple(bytes: ByteArray, factor: Float, algo: UpscalePreferences.SimpleAlgo): ByteArray? {
+        val opts = BitmapFactory.Options().apply { inPreferredConfig = Bitmap.Config.ARGB_8888 }
+        val bmp = BitmapFactory.decodeByteArray(bytes, 0, bytes.size, opts) ?: return null
+        val scaled = UpscaleScalingStrategy.upscaleBitmapWithAlgo(bmp, factor, algo)
         if (scaled == null) {
             bmp.recycle()
             return null

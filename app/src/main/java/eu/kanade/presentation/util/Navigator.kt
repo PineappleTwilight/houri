@@ -75,7 +75,7 @@ fun DefaultNavigatorScreenTransition(
     navigator: Navigator,
     modifier: Modifier = Modifier,
 ) {
-    val duration = 120
+    val duration = 180
     val easing = LinearOutSlowInEasing
     ScreenTransition(
         navigator = navigator,

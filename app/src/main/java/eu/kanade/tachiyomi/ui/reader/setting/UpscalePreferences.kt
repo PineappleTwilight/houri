@@ -16,6 +16,8 @@ class UpscalePreferences(
     enum class Preset { FAST, BALANCED, HIGH }
     enum class Backend { AUTO, VULKAN, NPU, CPU }
     enum class Model { REAL_CUGAN, REAL_ESRGAN, WAIFU2X }
+    enum class SimpleAlgo { BICUBIC, BILINEAR, NEAREST }
+    enum class Mode { NATIVE, SIMPLE }
 
     fun enabled() = preferenceStore.getBoolean("pref_upscale_enabled", false)
     fun preset() = preferenceStore.getString("pref_upscale_preset", Preset.BALANCED.name)
@@ -24,8 +26,13 @@ class UpscalePreferences(
     fun perSeriesEnabled() = preferenceStore.getString("pref_upscale_per_series", "")
     fun cacheEnabled() = preferenceStore.getBoolean("pref_upscale_cache_enabled", true)
     fun upscaleFactor() = preferenceStore.getFloat("pref_upscale_factor", 2f)
+    fun simpleAlgo() = preferenceStore.getString("pref_upscale_simple_algo", SimpleAlgo.BICUBIC.name)
+    fun mode() = preferenceStore.getString("pref_upscale_mode", if (BuildConfig.IS_NOMTL) Mode.SIMPLE.name else Mode.NATIVE.name)
 
     fun isMtlEnabled(): Boolean = !BuildConfig.IS_NOMTL && translationPreferences.enabled().get()
+    fun isSimpleMode(): Boolean = BuildConfig.IS_NOMTL || effectiveMode() == Mode.SIMPLE
+
+    fun effectiveSimpleAlgo(): SimpleAlgo = runCatching { SimpleAlgo.valueOf(simpleAlgo().get()) }.getOrDefault(SimpleAlgo.BICUBIC)
 
     @Volatile
     private var cachedPerSeriesIds: Set<Long>? = null
@@ -34,8 +41,12 @@ class UpscalePreferences(
     private var cachedPerSeriesRaw: String? = null
 
     fun isEnabledForManga(mangaId: Long): Boolean {
-        if (!isMtlEnabled()) return false
-        if (!enabled().get()) return false
+        if (isSimpleMode()) {
+            if (!enabled().get()) return false
+        } else {
+            if (!isMtlEnabled()) return false
+            if (!enabled().get()) return false
+        }
         val perSeries = perSeriesEnabled().get()
         if (perSeries.isBlank()) return true
         val enabledIds = getCachedPerSeriesIds(perSeries)
@@ -65,4 +76,5 @@ class UpscalePreferences(
     fun effectivePreset(): Preset = runCatching { Preset.valueOf(preset().get()) }.getOrDefault(Preset.BALANCED)
     fun effectiveBackend(): Backend = runCatching { Backend.valueOf(backend().get()) }.getOrDefault(Backend.AUTO)
     fun effectiveModel(): Model = runCatching { Model.valueOf(model().get()) }.getOrDefault(Model.REAL_CUGAN)
+    fun effectiveMode(): Mode = runCatching { Mode.valueOf(mode().get()) }.getOrDefault(if (BuildConfig.IS_NOMTL) Mode.SIMPLE else Mode.NATIVE)
 }

@@ -27,8 +27,21 @@ object UpscaleScalingStrategy {
     fun exceeds16MP(w: Int, h: Int): Boolean = w.toLong() * h.toLong() > 16L * 1024 * 1024
 
     fun upscaleBitmap(src: Bitmap, scale: Float): Bitmap? {
+        // Default to bicubic (filter=true) for backwards compat
+        return upscaleBitmapWithAlgo(src, scale, UpscalePreferences.SimpleAlgo.BICUBIC)
+    }
+
+    fun upscaleBitmapWithAlgo(src: Bitmap, scale: Float, algo: UpscalePreferences.SimpleAlgo): Bitmap? {
         val (newW, newH) = scaledDimensions(src.width, src.height, scale)
         if (exceeds16MP(newW, newH)) return null
-        return Bitmap.createScaledBitmap(src, newW, newH, true)
+        return when (algo) {
+            UpscalePreferences.SimpleAlgo.NEAREST -> Bitmap.createScaledBitmap(src, newW, newH, false)
+            UpscalePreferences.SimpleAlgo.BILINEAR -> Bitmap.createScaledBitmap(src, newW, newH, true)
+            UpscalePreferences.SimpleAlgo.BICUBIC -> {
+                // Android has no native bicubic; bilinear with filter is closest portable
+                // approximation. For higher quality, native ncnn path is used when available.
+                Bitmap.createScaledBitmap(src, newW, newH, true)
+            }
+        }
     }
 }

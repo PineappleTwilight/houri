@@ -162,6 +162,11 @@ object SettingsWebhookScreen : SearchableSettings {
                         title = stringResource(KMR.strings.pref_webhook_app_updated),
                         enabled = enabled,
                     ),
+                    Preference.PreferenceItem.SwitchPreference(
+                        preference = webhookPreferences.notifyOnAchievementUnlocked(),
+                        title = stringResource(KMR.strings.pref_webhook_achievement_unlocked),
+                        enabled = enabled,
+                    ),
                     // KMK <--
                 ),
             ),

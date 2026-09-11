@@ -76,7 +76,7 @@ object HomeScreen : Screen() {
     private val openTabEvent = Channel<Tab>()
     private val showBottomNavEvent = Channel<Boolean>()
 
-    private const val TAB_FADE_DURATION = 90
+    private const val TAB_FADE_DURATION = 160
     private const val TAB_NAVIGATOR_KEY = "HomeTabs"
 
     private val TABS = listOf(
@@ -244,7 +244,7 @@ object HomeScreen : Screen() {
             selected = selected,
             onClick = {
                 val now = System.currentTimeMillis()
-                if (now - lastClick[0] < 90) return@NavigationBarItem
+                if (now - lastClick[0] < 160) return@NavigationBarItem
                 lastClick[0] = now
                 if (!selected) {
                     tabNavigator.current = tab
@@ -281,7 +281,7 @@ object HomeScreen : Screen() {
             selected = selected,
             onClick = {
                 val now = System.currentTimeMillis()
-                if (now - lastClick[0] < 90) return@NavigationRailItem
+                if (now - lastClick[0] < 160) return@NavigationRailItem
                 lastClick[0] = now
                 if (!selected) {
                     tabNavigator.current = tab

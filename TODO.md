@@ -164,7 +164,8 @@
   - Fixed 2026-09-11: `WebhookEvent.ACHIEVEMENT_UNLOCKED` + `WebhookPreferences.notifyOnAchievementUnlocked()` + `AchievementManager` webhook dispatch on `notifyIfNeeded` with `achievement_id/title/tier`
 - [x] **WebGPU Reader**: Add page offset (mirrors legacy reader page offset feature)
   - Fixed 2026-09-11: `ReaderPreferences.webgpuPageOffset` (-50..50, default 0, KMK) + `WebGpuConfig.pageOffset` + `WebGpuViewer.applyPageOffset()` (translationX = width*offset/100*0.5, layout listener + flow collect) + `ReadingModePage` slider + KMR strings `pref_webgpu_page_offset`
-- [ ] **AI Upscaler**: Add simple upscaling algorithms that nomtl builds can use, such as bicubic and more.
+- [x] **AI Upscaler**: Add simple upscaling algorithms that nomtl builds can use, such as bicubic and more.
+  - Fixed 2026-09-11: `UpscalePreferences.SimpleAlgo` (BICUBIC/BILINEAR/NEAREST) + `Mode` NATIVE/SIMPLE + `isSimpleMode()` + `UpscaleEngine` simple path via `UpscaleScalingStrategy.upscaleBitmapWithAlgo` (filter true/false, bicubic approximated via bilinear); `SettingsUpscalerScreen` mode toggle + simple algo picker visible to both MTL and no-MTL builds (no-MTL defaults to SIMPLE, MTL can switch to SIMPLE for lightweight bicubic without native ncnn/onnx)
 - [ ] **MTL**: Option to use remote URLs for inpainting and OCR models
 - [ ] **MTL**: Option to use entire MTL services such as [mangatranslator](https://mangatranslator.ai/)
   - Should fully support authentication and chapters should be cached permanently.
@@ -416,11 +417,14 @@
 - [x] **WebGPU Reader**: Fix double page view option disappearing when reading mode is set to "paged vertical"
   - Fixed 2026-09-11: `ReadingModePage` now shows `dualPageView` chips for `VERTICAL` (was `LEFT_TO_RIGHT || RIGHT_TO_LEFT` only) so paged vertical can enable dual-page
 - [x] **All Readers**: Add JXL OOM downsampling
-- [ ] **Crash Handler**: Remove timezone data (developers don't need the user's timezone and it is kinda creepy)
-- [ ] **WebGPU Reader**: Remove redundant double page settings
-  - The mihon ported "Dual Page View" option with the "none, when wide, always" choices should be the removed redundancy
-- [ ] **Webhooks**: Fix achievement events not being listed in webhook preferences
-- [ ] **App**: Improve UI responsiveness (currently feels too "snappy")
+- [x] **Crash Handler**: Remove timezone data (developers don't need the user's timezone and it is kinda creepy)
+  - Fixed 2026-09-11: `CrashLogUtil.getDebugInfo()` now `Locale` only (removed `TimeZone` id) and `Instant.now()` UTC instead of `OffsetDateTime.now(ZoneId.systemDefault())`
+- [x] **WebGPU Reader**: Remove redundant double page settings
+  - Fixed 2026-09-11: Removed Mihon-ported "Dual Page View" (`NEVER/ALWAYS/WIDE`) chip row from `ReadingModePage` — the legacy `dualPageSplit`/`dualPageRotate` toggles already handle dual-page
+- [x] **Webhooks**: Fix achievement events not being listed in webhook preferences
+  - Fixed 2026-09-11: Added `pref_webhook_achievement_unlocked` switch to `SettingsWebhookScreen` events group + `KMR` string, wired to existing `WebhookPreferences.notifyOnAchievementUnlocked()` and `WebhookNotifier.ACHIEVEMENT_UNLOCKED`
+- [x] **App**: Improve UI responsiveness (currently feels too "snappy")
+  - Fixed 2026-09-11: `HomeScreen.TAB_FADE_DURATION` `90→160`, nav debounce `90→160`, `Navigator.duration` `120→180` for less snappy, more natural transitions
 
 ## Chores
 - [x] Replace all Komikku icons/branding with houri icons/branding

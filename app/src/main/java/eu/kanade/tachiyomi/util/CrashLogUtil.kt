@@ -15,8 +15,7 @@ import eu.kanade.tachiyomi.util.system.toast
 import mihon.app.di.globalAppGraph
 import tachiyomi.core.common.util.lang.withNonCancellableContext
 import tachiyomi.core.common.util.lang.withUIContext
-import java.time.OffsetDateTime
-import java.time.ZoneId
+import java.time.Instant
 
 @Inject
 @SingleIn(AppScope::class)
@@ -71,7 +70,7 @@ class CrashLogUtil(
             "Battery: unknown"
         }
         val localeInfo = try {
-            "Locale: ${java.util.Locale.getDefault()} / TimeZone: ${java.util.TimeZone.getDefault().id}"
+            "Locale: ${java.util.Locale.getDefault()}"
         } catch (_: Exception) {
             "Locale: unknown"
         }
@@ -90,7 +89,7 @@ class CrashLogUtil(
             Device name: ${Build.DEVICE} (${Build.PRODUCT})
             Device model: ${Build.MODEL}
             WebView: ${WebViewUtil.getVersion(context)}
-            Current time: ${OffsetDateTime.now(ZoneId.systemDefault())}
+            Current time: ${Instant.now()}
             $memInfo
             $heapInfo
             $storageInfo
