@@ -165,6 +165,10 @@
 - [x] **WebGPU Reader**: Add page offset (mirrors legacy reader page offset feature)
   - Fixed 2026-09-11: `ReaderPreferences.webgpuPageOffset` (-50..50, default 0, KMK) + `WebGpuConfig.pageOffset` + `WebGpuViewer.applyPageOffset()` (translationX = width*offset/100*0.5, layout listener + flow collect) + `ReadingModePage` slider + KMR strings `pref_webgpu_page_offset`
 - [ ] **AI Upscaler**: Add simple upscaling algorithms that nomtl builds can use, such as bicubic and more.
+- [ ] **MTL**: Option to use remote URLs for inpainting and OCR models
+- [ ] **MTL**: Option to use entire MTL services such as [mangatranslator](https://mangatranslator.ai/)
+  - Should fully support authentication and chapters should be cached permanently.
+  - User should be given a screen to wipe cached TLs for specific manga (even ones already removed from the library)
 
 ## Bugfixes
 - [x] Fix UI transition choppiness.
