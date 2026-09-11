@@ -410,6 +410,7 @@
   - Fixed 2026-09-11: Added `UnifiedTrackerCard` to `TrackInfoDialogHome` — top row of 5 tracker icons, single compact card with `Reading ▽ | 10.0 ★`, `+ 100/100 −`, `4/24/24` dates, matching example image; shown when `trackItems.size > 1`
 - [x] **WebGPU Reader**: Fix double page view option disappearing when reading mode is set to "paged vertical"
   - Fixed 2026-09-11: `ReadingModePage` now shows `dualPageView` chips for `VERTICAL` (was `LEFT_TO_RIGHT || RIGHT_TO_LEFT` only) so paged vertical can enable dual-page
+- [ ] **Crash Handler**: Remove timezone data (developers don't need the user's timezone and it is kinda creepy)
 
 ## Chores
 - [x] Replace all Komikku icons/branding with houri icons/branding
