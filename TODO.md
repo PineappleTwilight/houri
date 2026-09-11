@@ -416,6 +416,7 @@
 - [ ] **WebGPU Reader**: Remove redundant double page settings
   - The mihon ported "Dual Page View" option with the "none, when wide, always" choices should be the removed redundancy
 - [ ] **Webhooks**: Fix achievement events not being listed in webhook preferences
+- [ ] **App**: Improve UI responsiveness (currently feels too "snappy")
 
 ## Chores
 - [x] Replace all Komikku icons/branding with houri icons/branding
