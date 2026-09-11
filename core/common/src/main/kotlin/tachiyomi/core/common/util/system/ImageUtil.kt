@@ -621,6 +621,22 @@ object ImageUtil {
         return options
     }
 
+    fun lowRamJxlMaxDimension(context: Context): Int {
+        return try {
+            if (eu.kanade.tachiyomi.util.system.DeviceUtil.isLowRamDevice(context)) 2048 else 4096
+        } catch (_: Exception) {
+            4096
+        }
+    }
+
+    fun lowRamSampleSize(srcWidth: Int, srcHeight: Int, cap: Int): Int {
+        val maxDim = max(srcWidth, srcHeight)
+        if (maxDim <= cap) return 1
+        var s = 1
+        while (maxDim / s > cap) s *= 2
+        return s
+    }
+
     /**
      * Creates random exif metadata used as padding to make
      * the size of files inside  CBZ archives unique

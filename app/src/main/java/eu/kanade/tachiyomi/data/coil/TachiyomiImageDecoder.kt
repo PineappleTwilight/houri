@@ -51,33 +51,49 @@ class TachiyomiImageDecoder(private val resources: ImageSource, private val opti
         val dstWidth = options.size.widthPx(options.scale) { srcWidth }
         val dstHeight = options.size.heightPx(options.scale) { srcHeight }
 
-        val sampleSize = DecodeUtils.calculateInSampleSize(
+        var sampleSize = DecodeUtils.calculateInSampleSize(
             srcWidth = srcWidth,
             srcHeight = srcHeight,
             dstWidth = dstWidth,
             dstHeight = dstHeight,
             scale = options.scale,
         )
+        val isJxl = ImageUtil.findImageType(resources.source().peek().inputStream().buffered().use { it }) == ImageUtil.ImageType.JXL
+        if (isJxl) {
+            val cap = ImageUtil.lowRamJxlMaxDimension(context)
+            val lowRamSample = ImageUtil.lowRamSampleSize(srcWidth, srcHeight, cap)
+            sampleSize = maxOf(sampleSize, lowRamSample)
+            val hardCap = 8192
+            if (maxOf(srcWidth, srcHeight) / sampleSize > hardCap) {
+                val hardSample = ImageUtil.lowRamSampleSize(srcWidth, srcHeight, hardCap)
+                sampleSize = maxOf(sampleSize, hardSample)
+            }
+        }
 
         var bitmap = decoder.decode(sampleSize = sampleSize)
         decoder.recycle()
 
         check(bitmap != null) { "Failed to decode image" }
 
-        // KMK -->
-        if (ImageUtil.findImageType(resources.source().peek().inputStream().buffered().use { it }) == ImageUtil.ImageType.JXL) {
+        if (isJxl) {
             runCatching { mihon.app.di.globalAppGraph.achievementManager.onJxlDecoded() }
         }
-        // KMK <--
 
-        if (
-            options.bitmapConfig == Bitmap.Config.HARDWARE &&
-            ImageUtil.canUseHardwareBitmap(bitmap)
-        ) {
+        val useHardware = options.bitmapConfig == Bitmap.Config.HARDWARE && ImageUtil.canUseHardwareBitmap(bitmap)
+        if (useHardware) {
             val hwBitmap = bitmap.copy(Bitmap.Config.HARDWARE, false)
             if (hwBitmap != null) {
                 bitmap.recycle()
                 bitmap = hwBitmap
+            }
+        } else if (isJxl && eu.kanade.tachiyomi.util.system.DeviceUtil.isLowRamDevice(context) && bitmap.config != Bitmap.Config.RGB_565) {
+            val estBytes = bitmap.width.toLong() * bitmap.height * 4
+            if (estBytes > 32L * 1024 * 1024) {
+                val rgb565 = bitmap.copy(Bitmap.Config.RGB_565, false)
+                if (rgb565 != null) {
+                    bitmap.recycle()
+                    bitmap = rgb565
+                }
             }
         }
 

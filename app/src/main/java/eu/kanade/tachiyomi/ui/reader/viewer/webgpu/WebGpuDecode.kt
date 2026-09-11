@@ -345,9 +345,11 @@ internal suspend fun WebGpuViewer.decodeReaderPage(page: ViewerReaderPage) {
             }
         }
 
+        val isLowRam = try { eu.kanade.tachiyomi.util.system.DeviceUtil.isLowRamDevice(mihon.app.di.globalAppGraph.context) } catch (_: Exception) { false }
+        val maxPageBytes = if (isLowRam) 40 * 1024 * 1024 else 80 * 1024 * 1024
         val decodeBytes: ByteArray? = try {
             val bytes = input.readBytes()
-            if (bytes.size > 80 * 1024 * 1024) throw Exception("Page too large: ${bytes.size} bytes >80MB")
+            if (bytes.size > maxPageBytes) throw Exception("Page too large: ${bytes.size} bytes >${maxPageBytes / (1024 * 1024)}MB")
             if (bytes.isEmpty()) null else bytes
         } catch (e: OutOfMemoryError) {
             System.gc()
@@ -356,6 +358,10 @@ internal suspend fun WebGpuViewer.decodeReaderPage(page: ViewerReaderPage) {
             null
         }
         if (decodeBytes == null) throw Exception("Failed to read page bytes")
+        val isJxlBytes = try { tachiyomi.core.common.util.system.ImageUtil.findImageType(decodeBytes.inputStream()) == tachiyomi.core.common.util.system.ImageUtil.ImageType.JXL } catch (_: Exception) { false }
+        if (isLowRam && isJxlBytes && decodeBytes.size > 16 * 1024 * 1024) {
+            throw Exception("JXL too large for low-RAM: ${decodeBytes.size} bytes >16MB (downsample via Tachiyomi decoder instead)")
+        }
         // Translation gate: only small-enough pages are sent to LLM/cache
         val translationBytes: ByteArray? = if (decodeBytes.size in 1..32 * 1024 * 1024) decodeBytes else null
 

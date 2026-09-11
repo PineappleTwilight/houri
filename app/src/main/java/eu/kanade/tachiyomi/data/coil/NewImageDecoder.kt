@@ -53,8 +53,8 @@ class NewImageDecoder(private val resources: ImageSource, private val options: O
 
         val srcWidth = res.width
         val srcHeight = res.height
-
-        if (resources.source().peek().inputStream().use { tachiyomi.core.common.util.system.ImageUtil.findImageType(it) } == tachiyomi.core.common.util.system.ImageUtil.ImageType.JXL) {
+        val isJxl = resources.source().peek().inputStream().use { ImageUtil.findImageType(it) } == ImageUtil.ImageType.JXL
+        if (isJxl) {
             runCatching { mihon.app.di.globalAppGraph.achievementManager.onJxlDecoded() }
         }
 
@@ -70,13 +70,25 @@ class NewImageDecoder(private val resources: ImageSource, private val options: O
         // Normal path: produce a Bitmap scaled to the requested output size.
         val dstWidth = options.size.widthPx(options.scale) { srcWidth }
         val dstHeight = options.size.heightPx(options.scale) { srcHeight }
-        val sampleSize = DecodeUtils.calculateInSampleSize(
+        var sampleSize = DecodeUtils.calculateInSampleSize(
             srcWidth = srcWidth,
             srcHeight = srcHeight,
             dstWidth = dstWidth,
             dstHeight = dstHeight,
             scale = options.scale,
         )
+        if (isJxl) {
+            val ctx = try { mihon.app.di.globalAppGraph.context } catch (_: Exception) { null }
+            if (ctx != null) {
+                val cap = ImageUtil.lowRamJxlMaxDimension(ctx)
+                val lowRamSample = ImageUtil.lowRamSampleSize(srcWidth, srcHeight, cap)
+                sampleSize = maxOf(sampleSize, lowRamSample)
+                val hardCap = 8192
+                if (maxOf(srcWidth, srcHeight) / sampleSize > hardCap) {
+                    sampleSize = maxOf(sampleSize, ImageUtil.lowRamSampleSize(srcWidth, srcHeight, hardCap))
+                }
+            }
+        }
 
         // Copy RGBA pixels from the native buffer into a full-resolution bitmap.
         // We must do this while `res` (and its native memory) is still alive.
@@ -86,7 +98,7 @@ class NewImageDecoder(private val resources: ImageSource, private val options: O
 
         // Downsample if needed. sampleSize is a power-of-two factor; the target
         // dimensions are src / sampleSize, matching BitmapFactory inSampleSize behaviour.
-        val bitmap = if (sampleSize > 1) {
+        var bitmap = if (sampleSize > 1) {
             val scaledWidth = (srcWidth / sampleSize).coerceAtLeast(1)
             val scaledHeight = (srcHeight / sampleSize).coerceAtLeast(1)
             val scaled = fullBitmap.scale(scaledWidth, scaledHeight)
@@ -94,6 +106,19 @@ class NewImageDecoder(private val resources: ImageSource, private val options: O
             scaled
         } else {
             fullBitmap
+        }
+        if (isJxl) {
+            val ctx2 = try { mihon.app.di.globalAppGraph.context } catch (_: Exception) { null }
+            if (ctx2 != null && eu.kanade.tachiyomi.util.system.DeviceUtil.isLowRamDevice(ctx2) && bitmap.config != android.graphics.Bitmap.Config.RGB_565) {
+                val estBytes = bitmap.width.toLong() * bitmap.height * 4
+                if (estBytes > 24L * 1024 * 1024) {
+                    val rgb565 = bitmap.copy(android.graphics.Bitmap.Config.RGB_565, false)
+                    if (rgb565 != null) {
+                        bitmap.recycle()
+                        bitmap = rgb565
+                    }
+                }
+            }
         }
 
         return DecodeResult(
