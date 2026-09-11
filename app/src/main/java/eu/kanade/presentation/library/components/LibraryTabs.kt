@@ -149,7 +149,7 @@ private fun SubcategoryChip(
 ) {
     FilterChip(
         selected = selected,
-        onClick = {},
+        onClick = onClick,
         label = {
             Text(
                 text = label,
@@ -157,7 +157,7 @@ private fun SubcategoryChip(
             )
         },
         modifier = if (onLongClick != null) {
-            Modifier.combinedClickable(onClick = onClick, onLongClick = onLongClick)
+            Modifier.combinedClickable(onClick = {}, onLongClick = onLongClick)
         } else {
             Modifier
         },
