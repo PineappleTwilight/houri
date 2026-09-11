@@ -377,10 +377,10 @@ internal suspend fun WebGpuViewer.decodeReaderPage(page: ViewerReaderPage) {
             }
         }
 
-        if (config.matchDoublePageHeights &&
-            page.spreadPosition != SpreadPosition.SINGLE &&
-            decodeBytes.size in 1..32 * 1024 * 1024
-        ) {
+        // Store bytes for height-matching regardless of SINGLE tag — pages decoded before
+        // viewport layout (width <8) may be tagged SINGLE initially but become LEFT/RIGHT
+        // after rotation/layout, and webp pages decoded via fallback need bytes for retry.
+        if (config.matchDoublePageHeights && decodeBytes.size in 1..32 * 1024 * 1024) {
             page.spreadBytes = decodeBytes
         } else {
             page.spreadBytes = null

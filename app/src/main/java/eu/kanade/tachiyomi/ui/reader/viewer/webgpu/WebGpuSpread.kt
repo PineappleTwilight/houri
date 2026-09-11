@@ -173,7 +173,6 @@ internal fun WebGpuViewer.maybeScheduleSpreadHeightMatch(
     val isLeftShorter = leftImage.height < rightImage.height
     val targetHeight = maxOf(leftImage.height, rightImage.height)
 
-    // Resolve which ViewerReaderPage backs the shorter side.
     val shorterPage: ViewerReaderPage? = when {
         isLeftShorter && anchorPage.spreadPosition == SpreadPosition.LEFT -> anchorPage
         isLeftShorter && nextReaderPage != null && nextReaderPage.spreadPosition == SpreadPosition.LEFT -> nextReaderPage
@@ -182,29 +181,25 @@ internal fun WebGpuViewer.maybeScheduleSpreadHeightMatch(
         else -> null
     }
 
-    val sourcePage = when {
-        shorterPage != null && shorterPage.spreadBytes != null && !shorterPage.rescaleInFlight -> shorterPage
-        nextReaderPage != null && nextReaderPage !== anchorPage &&
-            nextReaderPage.spreadBytes != null && !nextReaderPage.rescaleInFlight -> nextReaderPage
-        anchorPage.spreadBytes != null && !anchorPage.rescaleInFlight -> anchorPage
-        else -> {
-            scope.launch {
-                kotlinx.coroutines.delay(120)
-                if (!isDestroyed && config.matchDoublePageHeights) {
-                    maybeScheduleSpreadHeightMatch(anchorPage, spread, nextReaderPage)
-                }
+    if (shorterPage == null) {
+        scope.launch {
+            kotlinx.coroutines.delay(120)
+            if (!isDestroyed && config.matchDoublePageHeights) {
+                maybeScheduleSpreadHeightMatch(anchorPage, spread, nextReaderPage)
             }
-            return
         }
+        return
     }
-
-    // If we fell back to scaling the taller side, adjust target to the shorter height.
-    val resolvedTarget = if (sourcePage === shorterPage) {
-        targetHeight
-    } else {
-        minOf(leftImage.height, rightImage.height)
+    if (shorterPage.spreadBytes == null || shorterPage.rescaleInFlight) {
+        scope.launch {
+            kotlinx.coroutines.delay(120)
+            if (!isDestroyed && config.matchDoublePageHeights) {
+                maybeScheduleSpreadHeightMatch(anchorPage, spread, nextReaderPage)
+            }
+        }
+        return
     }
-    scheduleSpreadHeightMatch(sourcePage, resolvedTarget)
+    scheduleSpreadHeightMatch(shorterPage, targetHeight)
 }
 
 internal fun WebGpuViewer.scheduleSpreadHeightMatch(sourcePage: ViewerReaderPage, targetHeight: Int) {
