@@ -548,8 +548,23 @@ class MangaScreenModel(
             .allowHardware(false)
 
         val generatePalette: (Image) -> Unit = { image ->
-            val bitmap = image.asDrawable(context.resources).getBitmapOrNull()
-            if (bitmap != null) {
+            val rawBitmap = image.asDrawable(context.resources).getBitmapOrNull() ?: return@let
+            // Palette's getPixelsFromBitmap cannot read HARDWARE bitmaps (getSkBitmap abort -> SIGABRT
+            // when browsing extensions that load covers via HARDWARE). Copy to software first.
+            val bitmap = if (rawBitmap.config == android.graphics.Bitmap.Config.HARDWARE) {
+                try {
+                    val software = rawBitmap.copy(android.graphics.Bitmap.Config.ARGB_8888, false)
+                    // Do not recycle rawBitmap here — Coil may still own it; just use the copy
+                    software ?: return@let
+                } catch (_: Throwable) {
+                    return@let
+                }
+            } else {
+                rawBitmap
+            }
+            // Extra guard: recycled bitmaps also abort in getPixels
+            if (bitmap.isRecycled) return@let
+            try {
                 Palette.from(bitmap).generate {
                     screenModelScope.launchIO {
                         if (it == null) return@launchIO
@@ -570,6 +585,8 @@ class MangaScreenModel(
                         }
                     }
                 }
+            } catch (_: Throwable) {
+                // Never crash browse flow for palette failures (hardware, 16KB, OOM)
             }
         }
 

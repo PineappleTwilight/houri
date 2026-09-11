@@ -185,11 +185,11 @@ object SettingsAchievementsScreen : SearchableSettings {
                             columns = GridCells.Fixed(2),
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .heightIn(max = 800.dp)
+                                .height(800.dp)
                                 .padding(horizontal = 12.dp, vertical = 8.dp),
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                             verticalArrangement = Arrangement.spacedBy(8.dp),
-                            userScrollEnabled = false,
+                            userScrollEnabled = true,
                         ) {
                             items(all, key = { it.id }) { ach ->
                                 val isUnlocked = ach.id in unlockedSet

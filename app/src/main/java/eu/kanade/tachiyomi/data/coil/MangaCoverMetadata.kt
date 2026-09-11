@@ -122,14 +122,32 @@ object MangaCoverMetadata {
             ?: coverCache.getCustomCoverFile(mangaCover.mangaId).takeIf { it.exists() }
             ?: coverCache.getCoverFile(mangaCover.url)
 
-        val bitmap = when {
+        val rawBitmap = when {
             bufferedSource != null -> BitmapFactory.decodeStream(bufferedSource.inputStream(), null, options)
             file?.exists() == true -> BitmapFactory.decodeFile(file.path, options)
             else -> return
         } ?: return
 
+        // Palette's getPixelsFromBitmap cannot read HARDWARE bitmaps (getSkBitmap abort -> SIGABRT).
+        // This happens when browsing extensions that load covers via HARDWARE (e.g. Coil with
+        // hardware bitmaps). Copy to software ARGB_8888 first, or skip palette if copy fails.
+        val bitmapForPalette = if (rawBitmap.config == android.graphics.Bitmap.Config.HARDWARE) {
+            try {
+                val software = rawBitmap.copy(android.graphics.Bitmap.Config.ARGB_8888, false)
+                if (!rawBitmap.isRecycled) rawBitmap.recycle()
+                software ?: return
+            } catch (_: Throwable) {
+                try {
+                    if (!rawBitmap.isRecycled) rawBitmap.recycle()
+                } catch (_: Throwable) {}
+                return
+            }
+        } else {
+            rawBitmap
+        }
+
         try {
-            Palette.from(bitmap).generate {
+            Palette.from(bitmapForPalette).generate {
                 if (it == null) return@generate
                 if (mangaCover.isMangaFavorite) {
                     it.dominantSwatch?.let { swatch ->
@@ -139,8 +157,13 @@ object MangaCoverMetadata {
                 val color = it.getBestColor() ?: return@generate
                 mangaCover.vibrantCoverColor = color
             }
+        } catch (_: Throwable) {
+            // Palette can still throw for recycled/hardware edge cases (e.g. 16KB page size
+            // native load failure leaves a 1x1 placeholder). Never crash the browse flow.
         } finally {
-            if (!bitmap.isRecycled) bitmap.recycle()
+            try {
+                if (!bitmapForPalette.isRecycled) bitmapForPalette.recycle()
+            } catch (_: Throwable) {}
         }
         if (mangaCover.isMangaFavorite && options.outWidth != -1 && options.outHeight != -1) {
             val raw = options.outWidth / options.outHeight.toFloat()

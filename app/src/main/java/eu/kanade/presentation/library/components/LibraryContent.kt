@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.calculateEndPadding
 import androidx.compose.foundation.layout.calculateStartPadding
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.pager.rememberPagerState
@@ -27,6 +28,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.style.TextOverflow
 import eu.kanade.core.preference.PreferenceMutableState
+import eu.kanade.presentation.library.components.AchievementsContent
 import eu.kanade.tachiyomi.ui.library.LibraryItem
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -72,7 +74,7 @@ fun LibraryContent(
     val censorEnabled by mihon.app.di.globalAppGraph.uiPreferences.censorLewdManga().collectAsState()
     CompositionLocalProvider(LocalCensorEnabled provides censorEnabled) {
         Column(
-            modifier = Modifier.padding(
+            modifier = Modifier.fillMaxSize().padding(
                 top = contentPadding.calculateTopPadding(),
                 start = contentPadding.calculateStartPadding(LocalLayoutDirection.current),
                 end = contentPadding.calculateEndPadding(LocalLayoutDirection.current),
@@ -142,48 +144,60 @@ fun LibraryContent(
             }
             // KMK <--
 
-            PullRefresh(
-                refreshing = isRefreshing,
-                enabled = selection.isEmpty(),
-                onRefresh = {
-                    val started = onRefresh()
-                    if (!started) return@PullRefresh
-                    scope.launch {
-                        // Fake refresh status but hide it after a second as it's a long running task
-                        isRefreshing = true
-                        delay(1.seconds)
-                        isRefreshing = false
-                    }
-                },
-            ) {
-                LibraryPager(
-                    state = pagerState,
+            // KMK --> Achievements is a synthetic category (-100) that should render its own
+            // scrollable grid instead of the manga pager. Previously LibraryPager was always
+            // shown, so the achievements tab rendered an empty LibraryPagerEmptyScreen (cut off
+            // and not scrollable). Now we branch to the real achievements UI.
+            if (currentCategory?.id == eu.kanade.tachiyomi.ui.library.LibraryScreenModel.ACHIEVEMENTS_CATEGORY_ID) {
+                AchievementsContent(
                     contentPadding = PaddingValues(bottom = contentPadding.calculateBottomPadding()),
-                    hasActiveFilters = hasActiveFilters,
-                    selection = selection,
-                    searchQuery = searchQuery,
-                    onGlobalSearchClicked = onGlobalSearchClicked,
-                    getCategoryForPage = { page -> categories[page] },
-                    getDisplayMode = getDisplayMode,
-                    getColumnsForOrientation = getColumnsForOrientation,
-                    getItemsForCategory = getItemsForCategory,
-                    onClickManga = { category, manga ->
-                        if (selection.isNotEmpty()) {
-                            onToggleSelection(category, manga)
-                        } else {
-                            onClickManga(manga.manga.id)
+                    modifier = Modifier.fillMaxWidth().weight(1f),
+                )
+            } else {
+                PullRefresh(
+                    refreshing = isRefreshing,
+                    enabled = selection.isEmpty(),
+                    onRefresh = {
+                        val started = onRefresh()
+                        if (!started) return@PullRefresh
+                        scope.launch {
+                            // Fake refresh status but hide it after a second as it's a long running task
+                            isRefreshing = true
+                            delay(1.seconds)
+                            isRefreshing = false
                         }
                     },
-                    onLongClickManga = onToggleRangeSelection,
-                    onClickContinueReading = onContinueReadingClicked,
-                    // KMK -->
-                    useFolderLayout = useFolderLayout,
-                    activeSubCategoryId = activeSubCategoryId,
-                    getFolderData = getFolderData,
-                    onSelectSubcategory = { onSelectSubcategory(it) },
-                    // KMK <--
-                )
+                ) {
+                    LibraryPager(
+                        state = pagerState,
+                        contentPadding = PaddingValues(bottom = contentPadding.calculateBottomPadding()),
+                        hasActiveFilters = hasActiveFilters,
+                        selection = selection,
+                        searchQuery = searchQuery,
+                        onGlobalSearchClicked = onGlobalSearchClicked,
+                        getCategoryForPage = { page -> categories[page] },
+                        getDisplayMode = getDisplayMode,
+                        getColumnsForOrientation = getColumnsForOrientation,
+                        getItemsForCategory = getItemsForCategory,
+                        onClickManga = { category, manga ->
+                            if (selection.isNotEmpty()) {
+                                onToggleSelection(category, manga)
+                            } else {
+                                onClickManga(manga.manga.id)
+                            }
+                        },
+                        onLongClickManga = onToggleRangeSelection,
+                        onClickContinueReading = onContinueReadingClicked,
+                        // KMK -->
+                        useFolderLayout = useFolderLayout,
+                        activeSubCategoryId = activeSubCategoryId,
+                        getFolderData = getFolderData,
+                        onSelectSubcategory = { onSelectSubcategory(it) },
+                        // KMK <--
+                    )
+                }
             }
+            // KMK <--
 
             LaunchedEffect(pagerState.currentPage) {
                 onChangeCurrentPage(pagerState.currentPage)
