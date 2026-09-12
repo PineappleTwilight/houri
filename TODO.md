@@ -457,3 +457,6 @@
 
 ## Drawing Board
 - [ ] **Anizen Port**: Multi-feed
+- [ ] **New**: Insert Google's fruit fly brain scan into the app to allow a fruit fly to read manga with you
+  - He would demonstrate approval or dislike for whatever mangas he feels like
+  - Can possibly be used as a recommendation agent
