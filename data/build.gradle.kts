@@ -33,6 +33,7 @@ dependencies {
     implementation(projects.sourceApi)
     implementation(projects.domain)
     implementation(projects.core.common)
+    implementation(projects.core.concurrency)
 
     implementation(kotlinx.serialization.json)
     implementation(kotlinx.serialization.json.okio)

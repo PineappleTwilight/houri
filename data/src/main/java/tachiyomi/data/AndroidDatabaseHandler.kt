@@ -13,9 +13,9 @@ import dev.zacsweers.metro.ContributesBinding
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
 import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.withContext
+import mihon.core.concurrency.AppDispatchers
 
 @Inject
 @SingleIn(AppScope::class)
@@ -23,8 +23,9 @@ import kotlinx.coroutines.withContext
 class AndroidDatabaseHandler(
     val db: Database,
     private val driver: SqlDriver,
-    val queryDispatcher: CoroutineDispatcher = Dispatchers.IO,
-    val transactionDispatcher: CoroutineDispatcher = queryDispatcher,
+    appDispatchers: AppDispatchers,
+    val queryDispatcher: CoroutineDispatcher = appDispatchers.dbReader,
+    val transactionDispatcher: CoroutineDispatcher = appDispatchers.dbWriter,
 ) : DatabaseHandler {
 
     val suspendingTransactionId = ThreadLocal<Int>()
