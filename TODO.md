@@ -457,4 +457,3 @@
 
 ## Drawing Board
 - [ ] **Anizen Port**: Multi-feed
-- [ ] **New**: Lovense support (joke, never happening)
