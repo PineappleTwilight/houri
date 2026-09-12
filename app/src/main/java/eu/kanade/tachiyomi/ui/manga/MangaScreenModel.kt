@@ -548,45 +548,43 @@ class MangaScreenModel(
             .allowHardware(false)
 
         val generatePalette: (Image) -> Unit = generatePalette@{ image ->
-            val rawBitmap = image.asDrawable(context.resources).getBitmapOrNull() ?: return@generatePalette
-            // Palette's getPixelsFromBitmap cannot read HARDWARE bitmaps (getSkBitmap abort -> SIGABRT
-            // when browsing extensions that load covers via HARDWARE). Copy to software first.
-            val bitmap = if (rawBitmap.config == android.graphics.Bitmap.Config.HARDWARE) {
-                try {
-                    val software = rawBitmap.copy(android.graphics.Bitmap.Config.ARGB_8888, false)
-                    // Do not recycle rawBitmap here — Coil may still own it; just use the copy
-                    software ?: return@generatePalette
-                } catch (_: Throwable) {
-                    return@generatePalette
+            screenModelScope.launchIO {
+                val rawBitmap = image.asDrawable(context.resources).getBitmapOrNull() ?: return@launchIO
+                // Palette's getPixelsFromBitmap cannot read HARDWARE bitmaps (getSkBitmap abort -> SIGABRT
+                // when browsing extensions that load covers via HARDWARE). Copy to software first.
+                val bitmap = if (rawBitmap.config == android.graphics.Bitmap.Config.HARDWARE) {
+                    try {
+                        val software = rawBitmap.copy(android.graphics.Bitmap.Config.ARGB_8888, false)
+                        // Do not recycle rawBitmap here — Coil may still own it; just use the copy
+                        software ?: return@launchIO
+                    } catch (_: Throwable) {
+                        return@launchIO
+                    }
+                } else {
+                    rawBitmap
                 }
-            } else {
-                rawBitmap
-            }
-            // Extra guard: recycled bitmaps also abort in getPixels
-            if (bitmap.isRecycled) return@generatePalette
-            try {
-                Palette.from(bitmap).generate {
-                    screenModelScope.launchIO {
-                        if (it == null) return@launchIO
-                        val mangaCover = when (model) {
-                            is Manga -> model.asMangaCover()
-                            is MangaCover -> model
-                            else -> return@launchIO
-                        }
-                        if (mangaCover.isMangaFavorite) {
-                            it.dominantSwatch?.let { swatch ->
-                                mangaCover.dominantCoverColors = swatch.rgb to swatch.titleTextColor
-                            }
-                        }
-                        val vibrantColor = it.getBestColor() ?: return@launchIO
-                        mangaCover.vibrantCoverColor = vibrantColor
-                        updateSuccessState { state ->
-                            state.copy(seedColor = Color(vibrantColor))
+                // Extra guard: recycled bitmaps also abort in getPixels
+                if (bitmap.isRecycled) return@launchIO
+                try {
+                    val palette = Palette.from(bitmap).generate()
+                    val mangaCover = when (model) {
+                        is Manga -> model.asMangaCover()
+                        is MangaCover -> model
+                        else -> return@launchIO
+                    }
+                    if (mangaCover.isMangaFavorite) {
+                        palette.dominantSwatch?.let { swatch ->
+                            mangaCover.dominantCoverColors = swatch.rgb to swatch.titleTextColor
                         }
                     }
+                    val vibrantColor = palette.getBestColor() ?: return@launchIO
+                    mangaCover.vibrantCoverColor = vibrantColor
+                    updateSuccessState { state ->
+                        state.copy(seedColor = Color(vibrantColor))
+                    }
+                } catch (_: Throwable) {
+                    // Never crash browse flow for palette failures (hardware, 16KB, OOM)
                 }
-            } catch (_: Throwable) {
-                // Never crash browse flow for palette failures (hardware, 16KB, OOM)
             }
         }
 
