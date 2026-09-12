@@ -32,16 +32,32 @@ object SettingsUpscalerScreen : SearchableSettings {
         val isNomtl = eu.kanade.tachiyomi.BuildConfig.IS_NOMTL
         val isSimple = isNomtl || mode == "SIMPLE"
         val isMtlEnabled = remember(enabled, isSimple) {
-            try { prefs.isMtlEnabled() } catch (_: Exception) { false }
+            try {
+                prefs.isMtlEnabled()
+            } catch (_: Exception) {
+                false
+            }
         }
         val effBackend = remember(backend, isSimple) {
-            try { engine.effectiveBackend().name } catch (_: Exception) { backend }
+            try {
+                engine.effectiveBackend().name
+            } catch (_: Exception) {
+                backend
+            }
         }
         val cacheBytes = remember(cacheEnabled, enabled) {
-            try { engine.cacheSizeBytes() } catch (_: Exception) { 0L }
+            try {
+                engine.cacheSizeBytes()
+            } catch (_: Exception) {
+                0L
+            }
         }
         val cacheCount = remember(cacheEnabled, enabled) {
-            try { engine.cacheFileCount() } catch (_: Exception) { 0 }
+            try {
+                engine.cacheFileCount()
+            } catch (_: Exception) {
+                0
+            }
         }
 
         val items = buildList {
@@ -149,8 +165,11 @@ object SettingsUpscalerScreen : SearchableSettings {
                     subtitle = if (cacheEnabled) {
                         val mb = cacheBytes / (1024 * 1024)
                         val kb = (cacheBytes % (1024 * 1024)) / 1024
-                        if (cacheBytes == 0L) stringResource(KMR.strings.pref_upscale_cache_summary)
-                        else "Cached $cacheCount files • ${mb}MB ${kb}KB / 200MB • 30-day TTL"
+                        if (cacheBytes == 0L) {
+                            stringResource(KMR.strings.pref_upscale_cache_summary)
+                        } else {
+                            "Cached $cacheCount files • ${mb}MB ${kb}KB / 200MB • 30-day TTL"
+                        }
                     } else {
                         stringResource(KMR.strings.pref_upscale_cache_summary) + " (disabled)"
                     },

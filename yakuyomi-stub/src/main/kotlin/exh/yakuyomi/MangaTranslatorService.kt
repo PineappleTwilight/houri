@@ -214,7 +214,7 @@ class MangaTranslatorService(
             val h = dm.heightPixels
             val d = dm.densityDpi
             val ratio = dm.density
-            "$w×$h-$d-$d-${w}×$h-$ratio"
+            "$w×$h-$d-$d-$w×$h-$ratio"
         } catch (_: Exception) {
             "screen-unavailable"
         }
@@ -340,7 +340,9 @@ class MangaTranslatorService(
                                 "userNotFound" -> LoginResult.UnknownEmail
                                 else -> LoginResult.Unknown
                             }
-                        } catch (_: Exception) { LoginResult.Unknown }
+                        } catch (_: Exception) {
+                            LoginResult.Unknown
+                        }
                     }
                     403 -> LoginResult.BadPassword
                     429 -> LoginResult.RateLimited
@@ -414,7 +416,9 @@ class MangaTranslatorService(
             newCallClient().newCall(builder.build()).execute().use { resp ->
                 resp.code == 204 || resp.code == 200 || resp.code == 401 || resp.code == 403
             }
-        } catch (_: Exception) { false }
+        } catch (_: Exception) {
+            false
+        }
         // Always clear local state, matching extension's clearExtensionAuth()
         prefs.mangaTranslatorAccessToken().set("")
         // Do not clear email - keep for UI convenience, matching extension's email retention
@@ -439,10 +443,18 @@ class MangaTranslatorService(
             executeWithAuthRetry(req) { r ->
                 val txt = r.body.string().take(8192)
                 if (r.code == 200) {
-                    try { json.decodeFromString(IchigoUser.serializer(), txt) } catch (_: Exception) { null }
-                } else null
+                    try {
+                        json.decodeFromString(IchigoUser.serializer(), txt)
+                    } catch (_: Exception) {
+                        null
+                    }
+                } else {
+                    null
+                }
             }
-        } catch (_: Exception) { null }
+        } catch (_: Exception) {
+            null
+        }
     }
 
     // --- Translate ---
@@ -459,7 +471,9 @@ class MangaTranslatorService(
             val opts = android.graphics.BitmapFactory.Options().apply { inJustDecodeBounds = true }
             android.graphics.BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size, opts)
             if (opts.outWidth <= 0 || opts.outHeight <= 0 || opts.outWidth > 10000 || opts.outHeight > 10000) return null
-        } catch (_: Exception) { return null }
+        } catch (_: Exception) {
+            return null
+        }
 
         val sanitizedLang = sanitizeTargetLang(targetLang)
         val sanitizedModel = sanitizeModel(translationModel)
@@ -535,7 +549,11 @@ class MangaTranslatorService(
         var resp = callClient.newCall(request).execute()
         // Mirror extension's authenticatedFetch: on 401/403 with token, clear and retry once without stale token
         if ((resp.code == 401 || resp.code == 403) && accessToken().isNotBlank()) {
-            val bodyStr = try { resp.body.string() } catch (_: Exception) { "" }
+            val bodyStr = try {
+                resp.body.string()
+            } catch (_: Exception) {
+                ""
+            }
             resp.close()
             xLogW("MangaTranslator token appears stale (HTTP ${resp.code}), clearing and retrying once")
             clearAuth()

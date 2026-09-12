@@ -16,7 +16,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -32,6 +31,7 @@ import cafe.adriel.voyager.navigator.currentOrThrow
 import eu.kanade.tachiyomi.util.system.toast
 import kotlinx.coroutines.launch
 import mihon.app.di.globalAppGraph
+import tachiyomi.presentation.core.util.collectAsState
 
 object SettingsMangaTranslatorAuthScreen : Screen {
     @Composable
@@ -42,8 +42,10 @@ object SettingsMangaTranslatorAuthScreen : Screen {
         val service = remember { globalAppGraph.mangaTranslatorService }
         val scope = rememberCoroutineScope()
 
-        val savedEmail by prefs.mangaTranslatorEmail().collectAsState()
-        val hasToken by prefs.mangaTranslatorAccessToken().collectAsState()
+        val savedEmailState = prefs.mangaTranslatorEmail().collectAsState()
+        val savedEmail = savedEmailState.value
+        val hasTokenState = prefs.mangaTranslatorAccessToken().collectAsState()
+        val hasToken = hasTokenState.value
         var email by remember { mutableStateOf(savedEmail) }
         var password by remember { mutableStateOf("") }
         var status by remember { mutableStateOf<String?>(null) }
@@ -132,7 +134,9 @@ object SettingsMangaTranslatorAuthScreen : Screen {
                                     prefs.mangaTranslatorEmail().set(email.trim())
                                     context.toast("Logged in")
                                 }
-                            } finally { busy = false }
+                            } finally {
+                                busy = false
+                            }
                         }
                     },
                 ) { Text(if (busy) "…" else "Log in") }
@@ -155,7 +159,9 @@ object SettingsMangaTranslatorAuthScreen : Screen {
                                     prefs.mangaTranslatorEmail().set(email.trim())
                                     context.toast("Signed up")
                                 }
-                            } finally { busy = false }
+                            } finally {
+                                busy = false
+                            }
                         }
                     },
                 ) { Text("Sign up") }
@@ -169,7 +175,9 @@ object SettingsMangaTranslatorAuthScreen : Screen {
                                 service.logout()
                                 status = "Logged out — anonymous mode"
                                 context.toast("Logged out")
-                            } finally { busy = false }
+                            } finally {
+                                busy = false
+                            }
                         }
                     },
                 ) { Text("Log out") }

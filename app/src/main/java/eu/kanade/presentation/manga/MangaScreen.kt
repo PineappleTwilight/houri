@@ -1775,14 +1775,23 @@ fun TranslateMangaInfoToggle(manga: tachiyomi.domain.manga.model.Manga) {
         }
     }
 }
+
 @Composable
 fun UpscaleMangaToggle(manga: tachiyomi.domain.manga.model.Manga) {
     val upscalePrefs = androidx.compose.runtime.remember { mihon.app.di.globalAppGraph.upscalePreferences }
     val store = androidx.compose.runtime.remember(manga.id) { mihon.app.di.globalAppGraph.upscaleMangaStore }
     val globalEnabled by upscalePrefs.enabled().collectAsState()
     val perMangaEnabled by store.getPreference(manga.id).collectAsState()
-    val isSimple = try { upscalePrefs.isSimpleMode() } catch (_: Exception) { true }
-    val mtlOk = try { upscalePrefs.isMtlEnabled() } catch (_: Exception) { false }
+    val isSimple = try {
+        upscalePrefs.isSimpleMode()
+    } catch (_: Exception) {
+        true
+    }
+    val mtlOk = try {
+        upscalePrefs.isMtlEnabled()
+    } catch (_: Exception) {
+        false
+    }
     val show = when {
         !globalEnabled -> false
         !isSimple && !mtlOk -> false

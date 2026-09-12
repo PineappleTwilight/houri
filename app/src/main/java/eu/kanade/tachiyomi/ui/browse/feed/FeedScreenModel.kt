@@ -31,12 +31,14 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
+import logcat.LogPriority
 import mihon.app.di.globalAppGraph
 import mihon.domain.manga.model.toDomainManga
 import tachiyomi.core.common.util.QuerySanitizer.sanitize
 import tachiyomi.core.common.util.lang.launchIO
 import tachiyomi.core.common.util.lang.launchNonCancellable
 import tachiyomi.core.common.util.lang.withIOContext
+import tachiyomi.core.common.util.system.logcat
 import tachiyomi.domain.manga.interactor.GetManga
 import tachiyomi.domain.manga.interactor.NetworkToLocalManga
 import tachiyomi.domain.source.interactor.CountFeedSavedSearchGlobal
@@ -230,7 +232,7 @@ open class FeedScreenModel(
             .mapNotNull { feed ->
                 val savedId = feed.savedSearch
                 if (savedId != null && savedId !in savedSearches) {
-                    tachiyomi.core.common.util.system.logcat(tachiyomi.core.common.util.system.LogPriority.WARN) {
+                    logcat(LogPriority.WARN) {
                         "Feed: dropping feed ${feed.id} referencing missing savedSearch $savedId"
                     }
                     return@mapNotNull null

@@ -134,7 +134,9 @@ class UpscaleEngine(
             try {
                 if (scaled != null && scaled !== bmp) scaled.recycle()
             } catch (_: Exception) {}
-            try { bmp.recycle() } catch (_: Exception) {}
+            try {
+                bmp.recycle()
+            } catch (_: Exception) {}
         }
     }
 
@@ -151,7 +153,9 @@ class UpscaleEngine(
             try {
                 if (scaled != null && scaled !== bmp) scaled.recycle()
             } catch (_: Exception) {}
-            try { bmp.recycle() } catch (_: Exception) {}
+            try {
+                bmp.recycle()
+            } catch (_: Exception) {}
         }
     }
 
