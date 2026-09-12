@@ -1,14 +1,23 @@
 package eu.kanade.presentation.more.settings.screen
 
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import eu.kanade.presentation.more.settings.Preference
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
 import mihon.app.di.globalAppGraph
 import tachiyomi.i18n.kmk.KMR
+import tachiyomi.presentation.core.components.material.padding
 import tachiyomi.presentation.core.i18n.stringResource
 import tachiyomi.presentation.core.util.collectAsState
 
@@ -59,6 +68,8 @@ object SettingsUpscalerScreen : SearchableSettings {
                 0
             }
         }
+        val modelManager = remember { globalAppGraph.upscaleModelManager }
+        val modelStatus by modelManager.status.collectAsState()
 
         val items = buildList {
             add(
@@ -182,6 +193,67 @@ object SettingsUpscalerScreen : SearchableSettings {
                     subtitle = if (cacheBytes > 0) "Clear $cacheCount files (${cacheBytes / 1024} KB)" else stringResource(KMR.strings.pref_upscale_clear_cache_summary),
                     onClick = { engine.clearCache() },
                     enabled = enabled && cacheEnabled,
+                ),
+            )
+            add(
+                Preference.PreferenceItem.CustomPreference(
+                    title = "Upscale models",
+                    content = {
+                        Column(modifier = Modifier.padding(horizontal = MaterialTheme.padding.medium, vertical = 8.dp)) {
+                            when (modelStatus.state) {
+                                eu.kanade.tachiyomi.ui.reader.setting.UpscaleModelManager.State.READY -> {
+                                    Text(text = "Models ready — ${modelStatus.downloadedBytes / (1024 * 1024)} MB", style = MaterialTheme.typography.bodyMedium)
+                                    Text(text = "Real-CUGAN / Real-ESRGAN / Waifu2x ready for Native mode", style = MaterialTheme.typography.bodySmall)
+                                }
+                                eu.kanade.tachiyomi.ui.reader.setting.UpscaleModelManager.State.DOWNLOADING -> {
+                                    val percent = (modelStatus.progress * 100).toInt()
+                                    Text(text = "Downloading $percent% — ${modelStatus.downloadedBytes / (1024 * 1024)}/${modelStatus.totalBytes / (1024 * 1024)} MB", style = MaterialTheme.typography.bodyMedium)
+                                    if (!modelStatus.currentFile.isNullOrBlank()) {
+                                        Text(text = "File: ${modelStatus.currentFile}", style = MaterialTheme.typography.bodySmall)
+                                    }
+                                    LinearProgressIndicator(progress = { modelStatus.progress }, modifier = Modifier.fillMaxWidth().padding(top = 4.dp))
+                                }
+                                eu.kanade.tachiyomi.ui.reader.setting.UpscaleModelManager.State.ERROR -> {
+                                    Text(text = modelStatus.error ?: "Download failed", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error)
+                                }
+                                else -> {
+                                    Text(text = "Models not installed — download to enable Native upscaling (Simple works without models)", style = MaterialTheme.typography.bodyMedium)
+                                    Text(text = "~21 MB total (Real-CUGAN + ESRGAN + Waifu2x)", style = MaterialTheme.typography.bodySmall)
+                                }
+                            }
+                        }
+                    },
+                ),
+            )
+            val modelActionTitle = when (modelStatus.state) {
+                eu.kanade.tachiyomi.ui.reader.setting.UpscaleModelManager.State.DOWNLOADING -> "Cancel download"
+                eu.kanade.tachiyomi.ui.reader.setting.UpscaleModelManager.State.READY -> "Redownload models"
+                else -> "Download models"
+            }
+            add(
+                Preference.PreferenceItem.TextPreference(
+                    title = modelActionTitle,
+                    subtitle = when (modelStatus.state) {
+                        eu.kanade.tachiyomi.ui.reader.setting.UpscaleModelManager.State.DOWNLOADING -> "Downloading ${modelStatus.currentFile ?: ""}"
+                        eu.kanade.tachiyomi.ui.reader.setting.UpscaleModelManager.State.ERROR -> modelStatus.error ?: "Tap to retry"
+                        else -> null
+                    },
+                    onClick = {
+                        when (modelStatus.state) {
+                            eu.kanade.tachiyomi.ui.reader.setting.UpscaleModelManager.State.DOWNLOADING -> modelManager.cancelDownload()
+                            eu.kanade.tachiyomi.ui.reader.setting.UpscaleModelManager.State.READY -> modelManager.startDownload(force = true)
+                            else -> modelManager.startDownload()
+                        }
+                    },
+                    enabled = enabled && !isSimple,
+                ),
+            )
+            add(
+                Preference.PreferenceItem.TextPreference(
+                    title = "Clear upscaler models",
+                    subtitle = "Remove downloaded ncnn upscaler weights",
+                    onClick = { modelManager.clearModels() },
+                    enabled = enabled && !isSimple && modelStatus.state != eu.kanade.tachiyomi.ui.reader.setting.UpscaleModelManager.State.DOWNLOADING,
                 ),
             )
             add(

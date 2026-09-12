@@ -372,6 +372,13 @@ object SettingsYakuyomiScreen : SearchableSettings {
         }
 
         val isLocalProvider = provider == "local"
+        val isMangatranslatorProvider = provider == "mangatranslator"
+
+        LaunchedEffect(provider) {
+            if (isMangatranslatorProvider && !prefs.enabled().get()) {
+                prefs.enabled().set(true)
+            }
+        }
 
         return Preference.PreferenceGroup(
             title = stringResource(KMR.strings.pref_yakuyomi_provider),
@@ -447,8 +454,8 @@ object SettingsYakuyomiScreen : SearchableSettings {
                         enabled = enabled,
                     ),
                 )
-                // KMK --> Cloud-only options are irrelevant while the local provider is selected.
-                if (!isLocalProvider) {
+                // KMK --> Cloud-only options are irrelevant while the local provider is selected, and entirely hidden for mangatranslator (separate system).
+                if (!isLocalProvider && !isMangatranslatorProvider) {
                     add(
                         Preference.PreferenceItem.EditTextPreference(
                             preference = prefs.apiKeyForProvider(provider),
@@ -481,6 +488,13 @@ object SettingsYakuyomiScreen : SearchableSettings {
                                 refreshTick = refreshTick + 1
                             },
                             enabled = enabled,
+                        ),
+                    )
+                }
+                if (isMangatranslatorProvider && enabled) {
+                    add(
+                        Preference.PreferenceItem.InfoPreference(
+                            title = "MangaTranslator manages its own API key & model — cloud API key / model and Fetch models are hidden. Use the MangaTranslator service section below to sign in.",
                         ),
                     )
                 }
