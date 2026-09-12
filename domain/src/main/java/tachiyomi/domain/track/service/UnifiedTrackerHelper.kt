@@ -3,25 +3,15 @@ package tachiyomi.domain.track.service
 import tachiyomi.domain.track.model.Track
 import kotlin.math.abs
 
+@Deprecated("Use TrackerProgressSync", ReplaceWith("TrackerProgressSync"))
 object UnifiedTrackerHelper {
-    fun hasMismatch(tracks: List<Track>): Boolean {
-        if (tracks.size < 2) return false
-        val values = tracks.map { it.lastChapterRead }.distinct()
-        return values.size > 1
-    }
+    fun hasMismatch(tracks: List<Track>): Boolean = TrackerProgressSync.hasMismatch(tracks)
 
-    fun mismatchedIds(tracks: List<Track>): Set<Long> {
-        if (tracks.size < 2) return emptySet()
-        val max = tracks.maxOf { it.lastChapterRead }
-        return tracks.filter { abs(it.lastChapterRead - max) > 0.01 }.map { it.trackerId }.toSet()
-    }
+    fun mismatchedIds(tracks: List<Track>): Set<Long> = TrackerProgressSync.mismatchedIds(tracks)
 
-    fun hasError(tracks: List<Track>, errorTrackerIds: Set<Long>): Boolean {
-        return errorTrackerIds.isNotEmpty()
-    }
+    fun hasError(tracks: List<Track>, errorTrackerIds: Set<Long>): Boolean =
+        TrackerProgressSync.hasError(tracks, errorTrackerIds)
 
-    fun preferredValue(tracks: List<Track>, preferredId: Long?): Double? {
-        if (preferredId == null) return null
-        return tracks.find { it.trackerId == preferredId }?.lastChapterRead
-    }
+    fun preferredValue(tracks: List<Track>, preferredId: Long?): Double? =
+        TrackerProgressSync.preferredValue(tracks, preferredId)
 }

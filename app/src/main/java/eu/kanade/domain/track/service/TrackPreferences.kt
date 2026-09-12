@@ -6,6 +6,7 @@ import dev.zacsweers.metro.SingleIn
 import eu.kanade.domain.track.model.AutoTrackState
 import eu.kanade.tachiyomi.data.track.Tracker
 import eu.kanade.tachiyomi.data.track.anilist.Anilist
+import kotlinx.serialization.json.Json
 import tachiyomi.core.common.preference.Preference
 import tachiyomi.core.common.preference.PreferenceStore
 import tachiyomi.core.common.preference.getEnum
@@ -66,68 +67,116 @@ class TrackPreferences(
 
     fun preferredTrackerForCategory() = preferenceStore.getString("pref_preferred_tracker_for_category", "")
 
-    fun getPreferredTrackerForManga(mangaId: Long): Long? {
-        val raw = preferredTrackerForManga().get()
-        if (raw.isBlank()) return null
-        return try {
-            val map = raw.split(";").associate {
-                val (k, v) = it.split(":", limit = 2)
-                k.toLong() to v.toLong()
+    private val preferredMapLock = Any()
+    private val preferredMapJson = Json { ignoreUnknownKeys = true }
+    private companion object {
+        const val PREFERRED_MAP_MAX_ENTRIES = 5000
+        const val PREFERRED_MAP_MAX_RAW_LENGTH = 100_000
+    }
+
+    private fun decodePreferredMap(raw: String): MutableMap<Long, Long> {
+        if (raw.isBlank()) return mutableMapOf()
+        val trimmed = raw.trim().take(PREFERRED_MAP_MAX_RAW_LENGTH)
+        if (trimmed.startsWith("{")) {
+            try {
+                val stringMap = preferredMapJson.decodeFromString<Map<String, Long>>(trimmed)
+                return stringMap.mapNotNull { (k, v) ->
+                    val key = k.toLongOrNull() ?: return@mapNotNull null
+                    if (key <= 0L || v <= 0L) return@mapNotNull null
+                    key to v
+                }.toMap().toMutableMap()
+            } catch (_: Exception) {
             }
-            map[mangaId]
+        }
+        return trimmed.split(";").mapNotNull { entry ->
+            if (entry.isBlank()) return@mapNotNull null
+            try {
+                val parts = entry.split(":", limit = 2)
+                if (parts.size != 2) return@mapNotNull null
+                val k = parts[0].trim().toLongOrNull() ?: return@mapNotNull null
+                val v = parts[1].trim().toLongOrNull() ?: return@mapNotNull null
+                if (k <= 0L || v <= 0L) return@mapNotNull null
+                k to v
+            } catch (_: Exception) {
+                null
+            }
+        }.take(PREFERRED_MAP_MAX_ENTRIES).toMap().toMutableMap()
+    }
+
+    private fun encodePreferredMap(map: Map<Long, Long>): String {
+        val filtered = map.entries
+            .filter { it.key > 0L && it.value > 0L }
+            .take(PREFERRED_MAP_MAX_ENTRIES)
+            .associate { it.key.toString() to it.value }
+        return try {
+            preferredMapJson.encodeToString(filtered)
         } catch (_: Exception) {
-            null
+            filtered.entries.joinToString(";") { "${it.key}:${it.value}" }
+        }
+    }
+
+    fun getPreferredTrackerForManga(mangaId: Long): Long? {
+        if (mangaId <= 0L) return null
+        synchronized(preferredMapLock) {
+            val raw = preferredTrackerForManga().get()
+            if (raw.isBlank()) return null
+            return try {
+                decodePreferredMap(raw)[mangaId]
+            } catch (_: Exception) {
+                null
+            }
         }
     }
 
     fun setPreferredTrackerForManga(mangaId: Long, trackerId: Long?) {
-        val raw = preferredTrackerForManga().get()
-        val map = try {
-            if (raw.isBlank()) {
-                mutableMapOf<Long, Long>()
-            } else {
-                raw.split(";").associate {
-                    val (k, v) = it.split(":", limit = 2)
-                    k.toLong() to v.toLong()
-                }.toMutableMap()
+        if (mangaId <= 0L) return
+        if (trackerId != null && trackerId <= 0L) return
+        synchronized(preferredMapLock) {
+            val raw = preferredTrackerForManga().get()
+            val map = try {
+                decodePreferredMap(raw)
+            } catch (_: Exception) {
+                mutableMapOf()
             }
-        } catch (_: Exception) {
-            mutableMapOf()
+            if (trackerId == null) map.remove(mangaId) else map[mangaId] = trackerId
+            if (map.size > PREFERRED_MAP_MAX_ENTRIES) {
+                val toRemove = map.size - PREFERRED_MAP_MAX_ENTRIES
+                map.entries.take(toRemove).forEach { map.remove(it.key) }
+            }
+            preferredTrackerForManga().set(encodePreferredMap(map))
         }
-        if (trackerId == null) map.remove(mangaId) else map[mangaId] = trackerId
-        preferredTrackerForManga().set(map.entries.joinToString(";") { "${it.key}:${it.value}" })
     }
 
     fun getPreferredTrackerForCategory(categoryId: Long): Long? {
-        val raw = preferredTrackerForCategory().get()
-        if (raw.isBlank()) return null
-        return try {
-            val map = raw.split(";").associate {
-                val (k, v) = it.split(":", limit = 2)
-                k.toLong() to v.toLong()
+        if (categoryId <= 0L) return null
+        synchronized(preferredMapLock) {
+            val raw = preferredTrackerForCategory().get()
+            if (raw.isBlank()) return null
+            return try {
+                decodePreferredMap(raw)[categoryId]
+            } catch (_: Exception) {
+                null
             }
-            map[categoryId]
-        } catch (_: Exception) {
-            null
         }
     }
 
     fun setPreferredTrackerForCategory(categoryId: Long, trackerId: Long?) {
-        val raw = preferredTrackerForCategory().get()
-        val map = try {
-            if (raw.isBlank()) {
-                mutableMapOf<Long, Long>()
-            } else {
-                raw.split(";").associate {
-                    val (k, v) = it.split(":", limit = 2)
-                    k.toLong() to v.toLong()
-                }.toMutableMap()
+        if (categoryId <= 0L) return
+        if (trackerId != null && trackerId <= 0L) return
+        synchronized(preferredMapLock) {
+            val raw = preferredTrackerForCategory().get()
+            val map = try {
+                decodePreferredMap(raw)
+            } catch (_: Exception) {
+                mutableMapOf()
             }
-        } catch (_: Exception) {
-            mutableMapOf()
+            if (trackerId == null) map.remove(categoryId) else map[categoryId] = trackerId
+            if (map.size > PREFERRED_MAP_MAX_ENTRIES) {
+                val toRemove = map.size - PREFERRED_MAP_MAX_ENTRIES
+                map.entries.take(toRemove).forEach { map.remove(it.key) }
+            }
+            preferredTrackerForCategory().set(encodePreferredMap(map))
         }
-        if (trackerId == null) map.remove(categoryId) else map[categoryId] = trackerId
-        preferredTrackerForCategory().set(map.entries.joinToString(";") { "${it.key}:${it.value}" })
     }
     // KMK <--
 }

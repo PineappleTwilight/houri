@@ -11,21 +11,19 @@ import tachiyomi.domain.track.model.Track
  * Single-responsibility: resolves the preferred tracker and syncs chapter progress
  * atomically, keeping the 3 call sites consistent. Pure logic, no Android deps.
  */
+@Deprecated("Use TrackerProgressSync", ReplaceWith("TrackerProgressSync", "tachiyomi.domain.track.service.TrackerProgressSync"))
 object TrackerSyncCoordinator {
 
     fun resolvePreferredTrack(
         tracks: List<Track>,
         preferredTrackerId: Long?,
-    ): Track? = tracks.find { it.trackerId == preferredTrackerId } ?: tracks.maxByOrNull { it.lastChapterRead }
+    ): Track? = tachiyomi.domain.track.service.TrackerProgressSync.resolvePreferredTrack(tracks, preferredTrackerId)
 
     fun shouldHighlightMismatch(
         tracks: List<Track>,
         preferredId: Long?,
-    ): Boolean {
-        val preferred = tracks.find { it.trackerId == preferredId } ?: return false
-        val max = tracks.maxOfOrNull { it.lastChapterRead } ?: return false
-        return preferred.lastChapterRead != max
-    }
+    ): Boolean = tachiyomi.domain.track.service.TrackerProgressSync.shouldHighlightMismatch(tracks, preferredId)
 
-    fun maxProgress(tracks: List<Track>): Double = tracks.maxOfOrNull { it.lastChapterRead } ?: 0.0
+    fun maxProgress(tracks: List<Track>): Double =
+        tachiyomi.domain.track.service.TrackerProgressSync.maxProgress(tracks)
 }

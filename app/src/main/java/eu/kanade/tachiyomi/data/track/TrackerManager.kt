@@ -60,6 +60,13 @@ class TrackerManager {
     val trackers: List<Tracker> =
         listOf(mdList, myAnimeList, aniList, kitsu, shikimori, bangumi, komga, mangaUpdates, kavita, suwayomi, hikka, mangaBaka, animePlanet, comicK)
 
+    init {
+        val ids = trackers.map { it.id }
+        check(ids.size == ids.toSet().size) { "Duplicate tracker IDs detected: $ids" }
+        check(ids.all { it > 0 }) { "Tracker IDs must be positive: $ids" }
+        check(ids.toSet() == TrackerId.all) { "TrackerManager ids $ids diverge from TrackerId.all ${TrackerId.all}" }
+    }
+
     fun loggedInTrackers() = trackers.filter { it.isLoggedIn }
 
     fun loggedInTrackersFlow() = combine(trackers.map { it.isLoggedInFlow }) {

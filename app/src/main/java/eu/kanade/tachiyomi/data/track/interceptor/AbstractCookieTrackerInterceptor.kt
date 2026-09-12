@@ -48,12 +48,10 @@ abstract class AbstractCookieTrackerInterceptor(
                     .flatten()
                     .filter { !it.hasExpired() }
                     .filter { cookie ->
-                        // Exact host match OR subdomain match for api.* vs bare domain.
-                        url.host == cookie.domain ||
+                        (url.host == cookie.domain) ||
                             url.host.endsWith(".${cookie.domain}") ||
-                            cookie.domain == url.host ||
-                            // Cookie built with baseUrl.host but request is subdomain
-                            cookie.domain == baseUrl.host && url.host.endsWith(".${baseUrl.host}")
+                            (cookie.domain == url.host) ||
+                            (cookie.domain == baseUrl.host && url.host.endsWith(".${baseUrl.host}"))
                     }
             }
         }

@@ -9,7 +9,7 @@ import eu.kanade.tachiyomi.data.database.models.Track
 import eu.kanade.tachiyomi.data.track.model.TrackMangaMetadata
 import eu.kanade.tachiyomi.data.track.model.TrackSearch
 import eu.kanade.tachiyomi.network.NetworkHelper
-import eu.kanade.tachiyomi.util.system.toast
+import eu.kanade.tachiyomi.data.track.core.TrackerException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import logcat.LogPriority
@@ -17,7 +17,6 @@ import mihon.app.di.AppGraph
 import mihon.app.di.globalAppGraph
 import okhttp3.OkHttpClient
 import tachiyomi.core.common.util.lang.withIOContext
-import tachiyomi.core.common.util.lang.withUIContext
 import tachiyomi.core.common.util.system.logcat
 import tachiyomi.domain.track.interactor.InsertTrack
 import tachiyomi.domain.track.model.Track as DomainTrack
@@ -85,7 +84,9 @@ abstract class BaseTracker(
         try {
             addTracks.bind(this, item, mangaId)
         } catch (e: Throwable) {
-            withUIContext { context.toast(e.message) }
+            val wrapped = if (e is TrackerException) e else TrackerException.NetworkError(id, e)
+            logcat(LogPriority.ERROR, wrapped) { "Failed to register track ${item.title} id=$id" }
+            throw wrapped
         }
     }
 
@@ -162,8 +163,13 @@ abstract class BaseTracker(
                 insertTrack.await(it)
             }
         } catch (e: Exception) {
-            logcat(LogPriority.ERROR, e) { "Failed to update remote track data id=$id" }
-            withUIContext { context.toast(e.message) }
+            val wrapped = when (e) {
+                is TrackerException -> e
+                is java.io.IOException -> TrackerException.NetworkError(id, e)
+                else -> TrackerException.NetworkError(id, e)
+            }
+            logcat(LogPriority.ERROR, wrapped) { "Failed to update remote track data id=$id name=$name" }
+            throw wrapped
         }
     }
 }

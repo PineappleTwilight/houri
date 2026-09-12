@@ -45,7 +45,7 @@ class Kitsu(id: Long) : BaseTracker(id, "Kitsu"), DeletableTracker {
     override fun getLogo() = R.drawable.brand_kitsu
 
     override fun getStatusList(): List<Long> {
-        return listOf(READING, COMPLETED, ON_HOLD, DROPPED, PLAN_TO_READ)
+        return listOf(READING, COMPLETED, ON_HOLD, DROPPED, PLAN_TO_READ, REREADING)
     }
 
     override fun getStatus(status: Long): StringResource? = when (status) {
@@ -54,12 +54,13 @@ class Kitsu(id: Long) : BaseTracker(id, "Kitsu"), DeletableTracker {
         COMPLETED -> MR.strings.completed
         ON_HOLD -> MR.strings.on_hold
         DROPPED -> MR.strings.dropped
+        REREADING -> MR.strings.repeating
         else -> null
     }
 
     override fun getReadingStatus(): Long = READING
 
-    override fun getRereadingStatus(): Long = -1
+    override fun getRereadingStatus(): Long = REREADING
 
     // KMK -->
     override val supportsRereadCount: Boolean = true
