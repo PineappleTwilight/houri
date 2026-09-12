@@ -447,6 +447,9 @@
   - Fixed 2026-09-11: `UnifiedTrackerCard` `+`/`−` now directly `scope.launch { trackItems.filter(track!=null).forEach { it.tracker.setRemoteLastChapterRead(it.track!!.toDbTrack(), newChapter) } }` (was `forEach { onChapterClick(it) }` pushing duplicate selectors); `TrackChapterSelectorScreen.Model.setChapter()` now also loops `globalAppGraph.getTracks.await(mangaId)` and syncs other trackers to same `newChapter` via `setRemoteLastChapterRead`, ensuring AniList/Kitsu/etc. stay in sync
 - [x] **Universal Tracker**: Fix being unable to bind another tracker into an entry
   - Fixed 2026-09-11: `TrackInfoItemEmpty` icon now `TrackLogoIcon(tracker, onClick = onNewSearch)` (was no-op); `UnifiedTrackerCard` icons already handle `onOpenInBrowser`/`onCopyLink`, and for untracked fallback `onNewSearch` via same path; discovered case (AniList icon press with no track) now opens `TrackerSearchScreen` via `Model.newSearch`
+- [ ] **AI Upscaler**: Add AI model download links
+- [ ] **AI Upscaler**: Ensure Vulkan and NPU backends are available and selectable
+  - Should be excluded if device doesn't support them
 
 ## Chores
 - [x] Replace all Komikku icons/branding with houri icons/branding
