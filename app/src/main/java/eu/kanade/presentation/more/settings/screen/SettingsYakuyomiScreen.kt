@@ -203,7 +203,6 @@ object SettingsYakuyomiScreen : SearchableSettings {
                     Preference.PreferenceItem.SwitchPreference(
                         preference = prefs.enabled(),
                         title = stringResource(KMR.strings.pref_yakuyomi_enabled),
-                        subtitle = stringResource(KMR.strings.pref_yakuyomi_enabled_summary),
                         enabled = !lowRam,
                     ),
                 )
@@ -845,6 +844,15 @@ object SettingsYakuyomiScreen : SearchableSettings {
     private fun getMangaTranslatorGroup(prefs: exh.yakuyomi.TranslationPreferences): Preference.PreferenceGroup {
         val enabled by prefs.enabled().collectAsState()
         val navigator = LocalNavigator.currentOrThrow
+        val email by prefs.mangaTranslatorEmail().collectAsState()
+        val token by prefs.mangaTranslatorAccessToken().collectAsState()
+        val legacyKey by prefs.mangaTranslatorApiKey().collectAsState()
+        val authSubtitle = when {
+            token.isNotBlank() && email.isNotBlank() -> "Logged in as $email — session active (like the extension)"
+            token.isNotBlank() -> "Logged in — session active (tap to manage)"
+            legacyKey.isNotBlank() -> "Migrated from API key — please log in again to use session auth"
+            else -> "Not logged in — anonymous (rate-limited). Tap to log in via ichigo.moe"
+        }
         return Preference.PreferenceGroup(
             title = "MangaTranslator service",
             preferenceItems = persistentListOf(
@@ -857,13 +865,13 @@ object SettingsYakuyomiScreen : SearchableSettings {
                 Preference.PreferenceItem.EditTextPreference(
                     preference = prefs.mangaTranslatorBaseUrl(),
                     title = stringResource(KMR.strings.pref_mangatranslator_base_url),
-                    subtitle = stringResource(KMR.strings.pref_mangatranslator_base_url_summary) + ": %s",
+                    subtitle = "%s",
                     enabled = enabled,
                 ),
-                Preference.PreferenceItem.EditTextPreference(
-                    preference = prefs.mangaTranslatorApiKey(),
-                    title = stringResource(KMR.strings.pref_mangatranslator_api_key),
-                    subtitle = stringResource(KMR.strings.pref_mangatranslator_api_key_summary),
+                Preference.PreferenceItem.TextPreference(
+                    title = "Account — MangaTranslator / ichigo.moe",
+                    subtitle = authSubtitle,
+                    onClick = { navigator.push(SettingsMangaTranslatorAuthScreen) },
                     enabled = enabled,
                 ),
                 Preference.PreferenceItem.SwitchPreference(

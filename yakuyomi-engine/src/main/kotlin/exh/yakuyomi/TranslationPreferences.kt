@@ -110,8 +110,15 @@ class TranslationPreferences(
     fun mangaTranslatorBaseUrl() =
         preferenceStore.getString("pref_yakuyomi_mangatranslator_base_url", "https://ichigo.moe")
 
+    @Deprecated("Migrated to mangaTranslatorAccessToken (session auth like the extension).")
     fun mangaTranslatorApiKey() =
         preferenceStore.getString(tachiyomi.core.common.preference.Preference.privateKey("pref_yakuyomi_mangatranslator_api_key"), "")
+
+    fun mangaTranslatorAccessToken() =
+        preferenceStore.getString(tachiyomi.core.common.preference.Preference.privateKey("pref_yakuyomi_mangatranslator_access_token"), "")
+
+    fun mangaTranslatorEmail() =
+        preferenceStore.getString("pref_yakuyomi_mangatranslator_email", "")
 
     fun mangaTranslatorCachePermanent() =
         preferenceStore.getBoolean("pref_yakuyomi_mangatranslator_cache_permanent", true)

@@ -410,8 +410,13 @@
     <string name="pref_mangatranslator_enabled_summary">Full remote translation via mangatranslator.ai-compatible API (sends page image, receives translated image)</string>
     <string name="pref_mangatranslator_base_url">MangaTranslator base URL</string>
     <string name="pref_mangatranslator_base_url_summary">API base, e.g. https://api.mangatranslator.ai</string>
-    <string name="pref_mangatranslator_api_key">MangaTranslator API key</string>
-    <string name="pref_mangatranslator_api_key_summary">Bearer token for the remote service — stored privately</string>
+    <string name="pref_mangatranslator_api_key">MangaTranslator API key (deprecated)</string>
+    <string name="pref_mangatranslator_api_key_summary">Deprecated — log in via Account instead (session like the extension)</string>
+    <string name="pref_mangatranslator_email">MangaTranslator email</string>
+    <string name="pref_mangatranslator_email_summary">Account email for ichigo.moe / mangatranslator.ai — session stored privately</string>
+    <string name="pref_mangatranslator_account">Account — MangaTranslator / ichigo.moe</string>
+    <string name="pref_mangatranslator_account_logged_in">Logged in as %s — session active (like the extension)</string>
+    <string name="pref_mangatranslator_account_anonymous">Not logged in — anonymous (rate-limited). Tap to log in</string>
     <string name="pref_mangatranslator_cache_permanent">Cache permanently per chapter</string>
     <string name="pref_mangatranslator_cache_permanent_summary">Keep translated pages forever alongside chapter files (not just 14-day temp cache) — clear per-manga via Manage cache</string>
     <string name="pref_mangatranslator_manage_cache">Manage per-manga translation cache</string>

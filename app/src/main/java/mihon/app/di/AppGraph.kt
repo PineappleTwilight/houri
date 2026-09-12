@@ -98,6 +98,7 @@ import exh.yakuyomi.GeminiNanoTranslator
 import exh.yakuyomi.LocalLlmDownloadManager
 import exh.yakuyomi.LocalLlmManager
 import exh.yakuyomi.MangaInfoTranslationStore
+import exh.yakuyomi.MangaTranslatorService
 import exh.yakuyomi.ModelManager
 import exh.yakuyomi.TranslateMangaStore
 import exh.yakuyomi.TranslationCache
@@ -470,6 +471,7 @@ interface AppGraph : ViewModelGraph {
     val localLlmManager: LocalLlmManager
     val localLlmDownloadManager: LocalLlmDownloadManager
     val mangaInfoTranslationStore: MangaInfoTranslationStore
+    val mangaTranslatorService: MangaTranslatorService
 
     /** Provides the manga title/description/tags grounding for the translation prompt. */
     @Provides
