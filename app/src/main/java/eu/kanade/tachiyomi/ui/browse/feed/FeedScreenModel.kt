@@ -16,7 +16,6 @@ import eu.kanade.tachiyomi.util.system.LocaleHelper
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
-import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.channels.Channel
@@ -51,8 +50,8 @@ import tachiyomi.domain.source.interactor.ReorderFeed
 import tachiyomi.domain.source.model.FeedSavedSearch
 import tachiyomi.domain.source.model.SavedSearch
 import tachiyomi.domain.source.service.SourceManager
+import mihon.core.concurrency.AppDispatchers
 import xyz.nulldev.ts.api.http.serializer.FilterSerializer
-import java.util.concurrent.Executors
 import tachiyomi.domain.manga.model.Manga as DomainManga
 
 /**
@@ -72,12 +71,13 @@ open class FeedScreenModel(
     // KMK -->
     private val reorderFeed: ReorderFeed = globalAppGraph.reorderFeed,
     // KMK <--
+    private val appDispatchers: AppDispatchers = globalAppGraph.appDispatchers,
 ) : StateScreenModel<FeedScreenState>(FeedScreenState()) {
 
     private val _events = Channel<Event>(Int.MAX_VALUE)
     val events = _events.receiveAsFlow()
 
-    private val coroutineDispatcher = Executors.newFixedThreadPool(1).asCoroutineDispatcher()
+    private val coroutineDispatcher = appDispatchers.backgroundOps
     var pushed: Boolean = false
 
     init {
@@ -382,7 +382,6 @@ open class FeedScreenModel(
     }
     override fun onDispose() {
         super.onDispose()
-        coroutineDispatcher.close()
     }
 
     // KMK -->

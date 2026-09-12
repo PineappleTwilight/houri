@@ -30,7 +30,6 @@ import exh.util.nullIfBlank
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
-import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.flow.collectLatest
@@ -65,8 +64,8 @@ import tachiyomi.domain.source.service.SourceManager
 import tachiyomi.i18n.kmk.KMR
 import tachiyomi.i18n.sy.SYMR
 import tachiyomi.source.local.isLocal
+import mihon.core.concurrency.AppDispatchers
 import xyz.nulldev.ts.api.http.serializer.FilterSerializer
-import java.util.concurrent.Executors
 import tachiyomi.domain.manga.model.Manga as DomainManga
 
 open class SourceFeedScreenModel(
@@ -88,13 +87,14 @@ open class SourceFeedScreenModel(
     private val extensionManager: ExtensionManager = globalAppGraph.extensionManager,
     sourcePreferences: SourcePreferences = globalAppGraph.sourcePreferences,
     // KMK <--
+    private val appDispatchers: AppDispatchers = globalAppGraph.appDispatchers,
 ) : StateScreenModel<SourceFeedState>(SourceFeedState()) {
 
     var source = sourceManager.getOrStub(sourceId)
 
     val sourceIsMangaDex = sourceId in mangaDexSourceIds
 
-    private val coroutineDispatcher = Executors.newFixedThreadPool(5).asCoroutineDispatcher()
+    private val coroutineDispatcher = appDispatchers.extensions
 
     val startExpanded by uiPreferences.expandFilters().asState(screenModelScope)
 
@@ -436,7 +436,6 @@ open class SourceFeedScreenModel(
 
     override fun onDispose() {
         super.onDispose()
-        coroutineDispatcher.close()
     }
 }
 
