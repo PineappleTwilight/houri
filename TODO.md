@@ -427,6 +427,12 @@
   - Fixed 2026-09-11: Added `pref_webhook_achievement_unlocked` switch to `SettingsWebhookScreen` events group + `KMR` string, wired to existing `WebhookPreferences.notifyOnAchievementUnlocked()` and `WebhookNotifier.ACHIEVEMENT_UNLOCKED`
 - [x] **App**: Improve UI responsiveness (currently feels too "snappy")
   - Fixed 2026-09-11: `HomeScreen.TAB_FADE_DURATION` `90→160`, nav debounce `90→160`, `Navigator.duration` `120→180` for less snappy, more natural transitions
+- [ ] **Universal Tracker**: Remove useless empty space below the card in the dialog
+- [ ] **Universal Tracker**: Map X button to remove the tracker from the manga entry
+- [ ] **Universal Tracker**: Make tapping the tracker icon open up the manga entry in the default browser
+- [ ] **Universal Tracker**: Implement finish date remove button
+- [ ] **Universal Tracker**: Make tap and hold the tracker icon copy the tracker url of the manga entry to the clipboard
+- [ ] **Universal Tracker**: Remove useless 3-dot button in the manga status box
 
 ## Chores
 - [x] Replace all Komikku icons/branding with houri icons/branding
