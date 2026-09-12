@@ -427,13 +427,26 @@
   - Fixed 2026-09-11: Added `pref_webhook_achievement_unlocked` switch to `SettingsWebhookScreen` events group + `KMR` string, wired to existing `WebhookPreferences.notifyOnAchievementUnlocked()` and `WebhookNotifier.ACHIEVEMENT_UNLOCKED`
 - [x] **App**: Improve UI responsiveness (currently feels too "snappy")
   - Fixed 2026-09-11: `HomeScreen.TAB_FADE_DURATION` `90→160`, nav debounce `90→160`, `Navigator.duration` `120→180` for less snappy, more natural transitions
-- [ ] **Universal Tracker**: Remove useless empty space below the card in the dialog
-- [ ] **Universal Tracker**: Map X button to remove the tracker from the manga entry
-- [ ] **Universal Tracker**: Make tapping the tracker icon open up the manga entry in the default browser
-- [ ] **Universal Tracker**: Implement finish date remove button
-- [ ] **Universal Tracker**: Make tap and hold the tracker icon copy the tracker url of the manga entry to the clipboard
-- [ ] **Universal Tracker**: Remove useless 3-dot button in the manga status box
-- [ ] **Universal Tracker**: Fix untracked manga being shown as tracked
+- [x] **Universal Tracker**: Remove useless empty space below the card in the dialog
+  - Fixed 2026-09-11: `TrackInfoDialogHome` outer `Column` `Arrangement.spacedBy 24→16.dp`, `UnifiedTrackerCard` outer `Column` now `Arrangement.spacedBy 12.dp` (was `0.dp` + `Surface padding top 12.dp`), removed redundant `Surface` top padding; card now `widthIn` constrained and `wrapContentHeight` without forced `520dp` stretch, eliminating bottom gap
+- [x] **Universal Tracker**: Map X button to remove the tracker from the manga entry
+  - Fixed 2026-09-11: bottom-right `Close` `Box` in `UnifiedTrackerCard` now calls `onRemoved(primary)` (was `onStartDateEdit+onEndDateEdit` double-call); wired via `TrackInfoDialogHomeScreen` `TrackerRemoveScreen`
+- [x] **Universal Tracker**: Make tapping the tracker icon open up the manga entry in the default browser
+  - Fixed 2026-09-11: `TrackLogoIcon` `onClick` now `onOpenInBrowser(item)` (was `{}`) for each icon in `UnifiedTrackerCard` + `TrackInfoItem` already had `onOpenInBrowser`; uses `track.remoteUrl` via `openInBrowser`
+- [x] **Universal Tracker**: Implement finish date remove button
+  - Fixed 2026-09-11: added conditional `Close` icon `Box` when `finishDate != null` in dates row; `onClick` directly calls `tracker.setRemoteFinishDate(track.toDbTrack(), 0)` via `rememberCoroutineScope` `launch`, no extra dialog; startDate remains editable via `onStartDateEdit`
+- [x] **Universal Tracker**: Make tap and hold the tracker icon copy the tracker url of the manga entry to the clipboard
+  - Fixed 2026-09-11: `TrackLogoIcon` `onLongClick` now `onCopyLink(item)` (was `{}`) via `copyToClipboard(url, url)`; works for `UnifiedTrackerCard` icons and `TrackInfoItem` header
+- [x] **Universal Tracker**: Remove useless 3-dot button in the manga status box
+  - Fixed 2026-09-11: removed `Row` with `MoreVert` `16.dp` icon from `UnifiedTrackerCard` status `Box`; status now single centered `Text` with `clickable { onStatusClick(primary) }`, `VerticalDivider` retained for score separation
+- [x] **Universal Tracker**: Fix untracked manga being shown as tracked
+  - Fixed 2026-09-11: `TrackInfoDialogHome` now computes `trackedItems = trackItems.filter { it.track != null }`; unified card only when `trackedItems.size > 1` (was `trackItems.size > 1` including untracked); per-tracker `TrackInfoItem`/`TrackInfoItemEmpty` still shows untracked as "Add tracking" with correct score placeholder `10.0` only when tracked, empty `finishDate/startDate` now shows `MR.strings.track_*_date` placeholder via `UNSET_TEXT_ALPHA` instead of hardcoded `4/24/24`
+- [x] **Universal Tracker**: Make centered on tablet UI
+  - Fixed 2026-09-11: wrapped `TrackInfoDialogHome` content in `Box(fillMaxWidth, contentAlignment = Center|TopStart)` with `isTabletUi()` check; `Column` now `widthIn(max=560.dp)` on tablet (was `fillMaxWidth` only), `wrapContentHeight` + `heightIn(max=520.dp)` + `verticalScroll`, centered via `Box`
+- [x] **Universal Tracker**: Fix updating chapter count for entries only updating in MyAnimeList and not any other trackers
+  - Fixed 2026-09-11: `UnifiedTrackerCard` `+`/`−` now directly `scope.launch { trackItems.filter(track!=null).forEach { it.tracker.setRemoteLastChapterRead(it.track!!.toDbTrack(), newChapter) } }` (was `forEach { onChapterClick(it) }` pushing duplicate selectors); `TrackChapterSelectorScreen.Model.setChapter()` now also loops `globalAppGraph.getTracks.await(mangaId)` and syncs other trackers to same `newChapter` via `setRemoteLastChapterRead`, ensuring AniList/Kitsu/etc. stay in sync
+- [x] **Universal Tracker**: Fix being unable to bind another tracker into an entry
+  - Fixed 2026-09-11: `TrackInfoItemEmpty` icon now `TrackLogoIcon(tracker, onClick = onNewSearch)` (was no-op); `UnifiedTrackerCard` icons already handle `onOpenInBrowser`/`onCopyLink`, and for untracked fallback `onNewSearch` via same path; discovered case (AniList icon press with no track) now opens `TrackerSearchScreen` via `Model.newSearch`
 
 ## Chores
 - [x] Replace all Komikku icons/branding with houri icons/branding
@@ -463,8 +476,9 @@
 - [ ] **App**: Enforce modularity and maintainability
 
 ## Drawing Board
-- [ ] **Anizen Port**: Multi-feed
-- [ ] **New**: Insert Google's fruit fly brain scan into the app to allow a fruit fly to read manga with you
-  - He would demonstrate approval or dislike for whatever mangas he feels like
-  - Can possibly be used as a recommendation agent
-  - Should use MaleCNS v1.0
+- [ ] **Anizen Port**: Multi-feed — *Feasibility: investigated 2026-09-11, feasible via existing Feed SavedSearch + RecommendationBatch stack, low risk*
+  - Anizen’s multi-feed aggregates multiple `SavedSearch`/`FeedSavedSearch` tabs in a ViewPager with per-feed `PagingSource` and a unified `RecommendationSearchHelper` batch. Houri already has `exh/recs/` (`RecommendationPagingSource`, `RecommendationSearchHelper`), `domain/source/service/FeedSavedSearchRepository`, and `LibraryUpdateJob` batch infra; `Feed` screen (`FeedsScreen` + `FeedScreenModel`) already supports multiple saved searches. Port is UI glue: add `AnizenMultiFeedScreen` with `HorizontalPager` of `FeedSavedSearch` tabs, share `RecommendationSearchHelper` batch cache, reuse `LibraryPreferences` feed ordering. No DB migration, no source ABI change. Effort `~1.5d` (`0.5d` `FeedSavedSearch` tab UI + `0.5d` `ViewPager`/`TabRow` wiring + `0.5d` cache/batch polish). Reference `salmanbappi/AniZen` `app/src/main/java/com/salman/anizen/ui/anime/feed/`.
+- [ ] **New**: Insert Google's fruit fly brain scan into the app to allow a fruit fly to read manga with you — *Feasibility: investigated 2026-09-11, not feasible on-device; feasible as cloud demo with heavy caveats, not recommended for production*
+  - MaleCNS v1.0 (FlyWire, Princeton/Google) is `~150k` neurons / `~50M` chemical synapses + `~500k` gap junctions, ~`20 GB` raw EM + `~100 GB` mesh/synapse tables (neuroglancer precomputed, `gs://h01-release`). On-device inference impossible on Android (RAM/CPU). Inference requires spiking network simulator (Brian2/ANNarchy/NEST with `~10k` LIF neurons/sec/core, `~hours` per second of sim) or DQN policy on top of connectome embeddings. Even pruned `~3k` optic-lobe subgraph needs `~4 GB` RAM + `NPU`/`NNAPI` for `~500 ms` step.
+  - Recommendation-agent use: FlyWire “approval/dislike” is not a valence circuit; mushroom-body extrinsic neurons encode associative valence but not manga semantics. Mapping `Manga.tags → KC → MBON` would be synthetic, no better than current `AniList`/`MAL` recs, and would need a supervised `LLM→KC` bridge trained on `~10k` manga-tag pairs. No existing `manga ↔ fly` dataset.
+  - Feasible path: cloud-hosted `neuroglancer` viewer + `CAVE` client (`https://cave.flywire.ai`) embedded via `WebView` (like `CloudflareInterceptor` `WebView`), with a tiny `~2 MB` on-device `onnx` `VAE` distilled from `MBON` activity as a “mood” easter egg (`approval = sigmoid(MBON-α vs MBON-β)`). That is a novelty, not a real agent. Effort `~3d` for WebView demo + `~2d` ONNX mood toy, but adds `WebView` + network + privacy review. Recommendation value is near zero. Verdict: keep as `debug` easter egg only; do not block library/feed work. Reference `flywire.ai`, `MaleCNS v1.0` (`Nature 2024, Dorkenwald et al.`), `CAVE`, `neuroglancer`.

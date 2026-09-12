@@ -146,11 +146,12 @@ data class TrackInfoDialogHomeScreen(
                             ),
                         )
                     },
-                    onChapterClick = {
+                    onChapterClick = { item ->
                         navigator.push(
                             TrackChapterSelectorScreen(
-                                track = it.track!!,
-                                serviceId = it.tracker.id,
+                                track = item.track!!,
+                                serviceId = item.tracker.id,
+                                mangaId = mangaId,
                             ),
                         )
                     },
@@ -468,6 +469,7 @@ private data class TrackStatusSelectorScreen(
 private data class TrackChapterSelectorScreen(
     private val track: Track,
     private val serviceId: Long,
+    private val mangaId: Long = 0L,
 ) : Screen() {
 
     @Composable
@@ -477,6 +479,8 @@ private data class TrackChapterSelectorScreen(
             Model(
                 track = track,
                 tracker = globalAppGraph.trackerManager.get(serviceId)!!,
+                mangaId = mangaId,
+                serviceId = serviceId,
             )
         }
         val state by screenModel.state.collectAsState()
@@ -496,6 +500,8 @@ private data class TrackChapterSelectorScreen(
     private class Model(
         private val track: Track,
         private val tracker: Tracker,
+        private val mangaId: Long = 0L,
+        private val serviceId: Long = 0L,
     ) : StateScreenModel<Model.State>(State(track.lastChapterRead.toInt())) {
 
         fun getRange(): Iterable<Int> {
@@ -513,7 +519,22 @@ private data class TrackChapterSelectorScreen(
 
         fun setChapter() {
             screenModelScope.launchNonCancellable {
-                tracker.setRemoteLastChapterRead(track.toDbTrack(), state.value.selection)
+                val newChapter = state.value.selection
+                tracker.setRemoteLastChapterRead(track.toDbTrack(), newChapter)
+                if (mangaId != 0L) {
+                    try {
+                        val allTracks = globalAppGraph.getTracks.await(mangaId)
+                        for (other in allTracks) {
+                            if (other.trackerId == serviceId) continue
+                            val otherTracker = globalAppGraph.trackerManager.get(other.trackerId) ?: continue
+                            if (!otherTracker.isLoggedIn) continue
+                            if (other.lastChapterRead != newChapter.toDouble()) {
+                                otherTracker.setRemoteLastChapterRead(other.toDbTrack(), newChapter)
+                            }
+                        }
+                    } catch (_: Exception) {
+                    }
+                }
             }
         }
 

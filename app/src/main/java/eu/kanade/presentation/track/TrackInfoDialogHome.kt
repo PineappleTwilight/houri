@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBars
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.layout.wrapContentSize
@@ -43,6 +44,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -54,13 +56,17 @@ import androidx.compose.ui.tooling.preview.PreviewLightDark
 import androidx.compose.ui.tooling.preview.PreviewParameter
 import androidx.compose.ui.unit.dp
 import dev.icerock.moko.resources.StringResource
+import eu.kanade.domain.track.model.toDbTrack
 import eu.kanade.presentation.components.DropdownMenu
 import eu.kanade.presentation.theme.TachiyomiPreviewTheme
 import eu.kanade.presentation.track.components.TrackLogoIcon
+import eu.kanade.presentation.util.isTabletUi
 import eu.kanade.tachiyomi.data.track.Tracker
 import eu.kanade.tachiyomi.ui.manga.track.TrackItem
 import eu.kanade.tachiyomi.util.lang.toLocalDate
 import eu.kanade.tachiyomi.util.system.copyToClipboard
+import kotlinx.coroutines.launch
+import mihon.app.di.globalAppGraph
 import tachiyomi.i18n.MR
 import tachiyomi.i18n.kmk.KMR
 import tachiyomi.presentation.core.i18n.stringResource
@@ -81,98 +87,110 @@ fun TrackInfoDialogHome(
     onCopyLink: (TrackItem) -> Unit,
     onTogglePrivate: (TrackItem) -> Unit,
 ) {
-    Column(
-        modifier = Modifier
-            .animateContentSize()
-            .fillMaxWidth()
-            .wrapContentHeight()
-            .heightIn(max = 520.dp)
-            .verticalScroll(rememberScrollState())
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(24.dp),
+    val isTablet = isTabletUi()
+    Box(
+        modifier = Modifier.fillMaxWidth(),
+        contentAlignment = if (isTablet) Alignment.Center else Alignment.TopStart,
     ) {
-        // KMK -->
-        val scoredTracks = trackItems
-            .mapNotNull { item -> item.track?.let { item.tracker to it } }
-            .filter { it.second.score != 0.0 }
-        if (scoredTracks.size > 1) {
-            Text(
-                text = stringResource(
-                    KMR.strings.track_normalized_score_summary,
-                    scoredTracks.map { (tracker, track) -> tracker.get10PointScore(track) }.average().toFloat(),
-                    scoredTracks.size,
-                ),
-                style = MaterialTheme.typography.bodySmall,
-                modifier = Modifier.fillMaxWidth(),
-            )
-        }
-        // KMK <--
-        val mismatchIds = remember(trackItems) {
-            val chapterValues = trackItems.mapNotNull { it.track?.lastChapterRead }.distinct()
-            if (chapterValues.size > 1) {
-                val max = chapterValues.maxOrNull() ?: 0.0
-                trackItems.filter { it.track != null && kotlin.math.abs(it.track.lastChapterRead - max) > 0.01 }.map { it.tracker.id }.toSet()
-            } else {
-                emptySet()
+        Column(
+            modifier = Modifier
+                .animateContentSize()
+                .then(if (isTablet) Modifier.widthIn(max = 560.dp) else Modifier.fillMaxWidth())
+                .wrapContentHeight()
+                .heightIn(max = 520.dp)
+                .verticalScroll(rememberScrollState())
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            // KMK -->
+            val scoredTracks = trackItems
+                .mapNotNull { item -> item.track?.let { item.tracker to it } }
+                .filter { it.second.score != 0.0 }
+            if (scoredTracks.size > 1) {
+                Text(
+                    text = stringResource(
+                        KMR.strings.track_normalized_score_summary,
+                        scoredTracks.map { (tracker, track) -> tracker.get10PointScore(track) }.average().toFloat(),
+                        scoredTracks.size,
+                    ),
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.fillMaxWidth(),
+                )
             }
-        }
-        if (trackItems.size > 1) {
-            UnifiedTrackerCard(
-                trackItems = trackItems,
-                onStatusClick = onStatusClick,
-                onChapterClick = onChapterClick,
-                onScoreClick = onScoreClick,
-                onStartDateEdit = onStartDateEdit,
-                onEndDateEdit = onEndDateEdit,
-            )
-        } else {
-            trackItems.forEach { item ->
-                if (item.track != null) {
-                    val isMismatched = item.tracker.id in mismatchIds
-                    val supportsScoring = item.tracker.getScoreList().isNotEmpty()
-                    val supportsReadingDates = item.tracker.supportsReadingDates
-                    val supportsPrivate = item.tracker.supportsPrivateTracking
-                    TrackInfoItem(
-                        title = item.track.title,
-                        tracker = item.tracker,
-                        status = item.tracker.getStatus(item.track.status),
-                        onStatusClick = { onStatusClick(item) },
-                        chapters = "${item.track.lastChapterRead.toInt()}".let {
-                            val totalChapters = item.track.totalChapters
-                            if (totalChapters > 0) {
-                                // Add known total chapter count
-                                "$it / $totalChapters"
-                            } else {
-                                it
-                            }
-                        },
-                        onChaptersClick = { onChapterClick(item) },
-                        score = item.tracker.displayScore(item.track)
-                            .takeIf { supportsScoring && item.track.score != 0.0 },
-                        onScoreClick = { onScoreClick(item) }
-                            .takeIf { supportsScoring },
-                        startDate = remember(item.track.startDate) { dateFormat.format(item.track.startDate.toLocalDate()) }
-                            .takeIf { supportsReadingDates && item.track.startDate != 0L },
-                        onStartDateClick = { onStartDateEdit(item) } // TODO
-                            .takeIf { supportsReadingDates },
-                        endDate = dateFormat.format(item.track.finishDate.toLocalDate())
-                            .takeIf { supportsReadingDates && item.track.finishDate != 0L },
-                        onEndDateClick = { onEndDateEdit(item) }
-                            .takeIf { supportsReadingDates },
-                        onNewSearch = { onNewSearch(item) },
-                        onOpenInBrowser = { onOpenInBrowser(item) },
-                        onRemoved = { onRemoved(item) },
-                        onCopyLink = { onCopyLink(item) },
-                        private = item.track.private,
-                        onTogglePrivate = { onTogglePrivate(item) }
-                            .takeIf { supportsPrivate },
-                        isMismatched = isMismatched,
-                    )
+            // KMK <--
+            val trackedItems = remember(trackItems) { trackItems.filter { it.track != null } }
+            val mismatchIds = remember(trackItems) {
+                val chapterValues = trackItems.mapNotNull { it.track?.lastChapterRead }.distinct()
+                if (chapterValues.size > 1) {
+                    val max = chapterValues.maxOrNull() ?: 0.0
+                    trackItems.filter { it.track != null && kotlin.math.abs(it.track.lastChapterRead - max) > 0.01 }.map { it.tracker.id }.toSet()
                 } else {
-                    TrackInfoItemEmpty(
-                        tracker = item.tracker,
-                        onNewSearch = { onNewSearch(item) },
-                    )
+                    emptySet()
+                }
+            }
+            // Unified card only when 2+ actually tracked entries; otherwise show per-tracker rows.
+            // Fixes: untracked manga being shown as tracked, and empty space below card when only 1 tracked.
+            if (trackedItems.size > 1) {
+                UnifiedTrackerCard(
+                    trackItems = trackedItems,
+                    onStatusClick = onStatusClick,
+                    onChapterClick = onChapterClick,
+                    onScoreClick = onScoreClick,
+                    onStartDateEdit = onStartDateEdit,
+                    onEndDateEdit = onEndDateEdit,
+                    onRemoved = onRemoved,
+                    onOpenInBrowser = onOpenInBrowser,
+                    onCopyLink = onCopyLink,
+                )
+            } else {
+                trackItems.forEach { item ->
+                    if (item.track != null) {
+                        val isMismatched = item.tracker.id in mismatchIds
+                        val supportsScoring = item.tracker.getScoreList().isNotEmpty()
+                        val supportsReadingDates = item.tracker.supportsReadingDates
+                        val supportsPrivate = item.tracker.supportsPrivateTracking
+                        TrackInfoItem(
+                            title = item.track.title,
+                            tracker = item.tracker,
+                            status = item.tracker.getStatus(item.track.status),
+                            onStatusClick = { onStatusClick(item) },
+                            chapters = "${item.track.lastChapterRead.toInt()}".let {
+                                val totalChapters = item.track.totalChapters
+                                if (totalChapters > 0) {
+                                    // Add known total chapter count
+                                    "$it / $totalChapters"
+                                } else {
+                                    it
+                                }
+                            },
+                            onChaptersClick = { onChapterClick(item) },
+                            score = item.tracker.displayScore(item.track)
+                                .takeIf { supportsScoring && item.track.score != 0.0 },
+                            onScoreClick = { onScoreClick(item) }
+                                .takeIf { supportsScoring },
+                            startDate = remember(item.track.startDate) { dateFormat.format(item.track.startDate.toLocalDate()) }
+                                .takeIf { supportsReadingDates && item.track.startDate != 0L },
+                            onStartDateClick = { onStartDateEdit(item) } // TODO
+                                .takeIf { supportsReadingDates },
+                            endDate = dateFormat.format(item.track.finishDate.toLocalDate())
+                                .takeIf { supportsReadingDates && item.track.finishDate != 0L },
+                            onEndDateClick = { onEndDateEdit(item) }
+                                .takeIf { supportsReadingDates },
+                            onNewSearch = { onNewSearch(item) },
+                            onOpenInBrowser = { onOpenInBrowser(item) },
+                            onRemoved = { onRemoved(item) },
+                            onCopyLink = { onCopyLink(item) },
+                            private = item.track.private,
+                            onTogglePrivate = { onTogglePrivate(item) }
+                                .takeIf { supportsPrivate },
+                            isMismatched = isMismatched,
+                        )
+                    } else {
+                        TrackInfoItemEmpty(
+                            tracker = item.tracker,
+                            onNewSearch = { onNewSearch(item) },
+                        )
+                    }
                 }
             }
         }
@@ -355,7 +373,7 @@ private fun TrackInfoItemEmpty(
     Row(
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        TrackLogoIcon(tracker)
+        TrackLogoIcon(tracker, onClick = onNewSearch)
         TextButton(
             onClick = onNewSearch,
             modifier = Modifier
@@ -439,6 +457,9 @@ private fun UnifiedTrackerCard(
     onScoreClick: (TrackItem) -> Unit,
     onStartDateEdit: (TrackItem) -> Unit,
     onEndDateEdit: (TrackItem) -> Unit,
+    onRemoved: (TrackItem) -> Unit,
+    onOpenInBrowser: (TrackItem) -> Unit,
+    onCopyLink: (TrackItem) -> Unit,
 ) {
     val primary = trackItems.firstOrNull { it.track != null } ?: trackItems.firstOrNull() ?: return
     val displayTrack = primary.track
@@ -463,15 +484,16 @@ private fun UnifiedTrackerCard(
     } else {
         "0"
     }
-    val startDate = displayTrack?.startDate?.takeIf { it != 0L }?.let { java.time.Instant.ofEpochMilli(it).atZone(java.time.ZoneId.systemDefault()).toLocalDate().format(DateTimeFormatter.ofPattern("M/d/yy")) } ?: "4/24/24"
-    val finishDate = displayTrack?.finishDate?.takeIf { it != 0L }?.let { java.time.Instant.ofEpochMilli(it).atZone(java.time.ZoneId.systemDefault()).toLocalDate().format(DateTimeFormatter.ofPattern("M/d/yy")) } ?: "4/24/24"
+    val startDate = displayTrack?.startDate?.takeIf { it != 0L }?.let { java.time.Instant.ofEpochMilli(it).atZone(java.time.ZoneId.systemDefault()).toLocalDate().format(DateTimeFormatter.ofPattern("M/d/yy")) }
+    val finishDate = displayTrack?.finishDate?.takeIf { it != 0L }?.let { java.time.Instant.ofEpochMilli(it).atZone(java.time.ZoneId.systemDefault()).toLocalDate().format(DateTimeFormatter.ofPattern("M/d/yy")) }
+    val scope = rememberCoroutineScope()
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(16.dp))
             .background(MaterialTheme.colorScheme.surfaceContainerHighest)
             .padding(12.dp),
-        verticalArrangement = Arrangement.spacedBy(0.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -486,13 +508,16 @@ private fun UnifiedTrackerCard(
                         .padding(4.dp),
                     contentAlignment = Alignment.Center,
                 ) {
-                    TrackLogoIcon(tracker = item.tracker, onClick = {}, onLongClick = {})
+                    TrackLogoIcon(
+                        tracker = item.tracker,
+                        onClick = { onOpenInBrowser(item) },
+                        onLongClick = { onCopyLink(item) },
+                    )
                 }
             }
         }
         Surface(
             modifier = Modifier
-                .padding(top = 12.dp)
                 .clip(RoundedCornerShape(12.dp))
                 .fillMaxWidth(),
             color = if (isMismatched) MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.7f) else MaterialTheme.colorScheme.surface,
@@ -510,10 +535,7 @@ private fun UnifiedTrackerCard(
                             .padding(12.dp),
                         contentAlignment = Alignment.Center,
                     ) {
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            Text(text = statusText, style = MaterialTheme.typography.bodyMedium)
-                            Icon(imageVector = Icons.Filled.MoreVert, contentDescription = null, modifier = Modifier.size(16.dp))
-                        }
+                        Text(text = statusText, style = MaterialTheme.typography.bodyMedium)
                     }
                     VerticalDivider()
                     Box(
@@ -538,7 +560,17 @@ private fun UnifiedTrackerCard(
                         modifier = Modifier
                             .weight(0.15f)
                             .fillMaxHeight()
-                            .clickable { onChapterClick(primary) }
+                            .clickable {
+                                val newChapter = (displayTrack?.lastChapterRead?.toInt() ?: 0) + 1
+                                scope.launch {
+                                    trackItems.filter { it.track != null }.forEach { item ->
+                                        try {
+                                            item.tracker.setRemoteLastChapterRead(item.track!!.toDbTrack(), newChapter)
+                                        } catch (_: Exception) {
+                                        }
+                                    }
+                                }
+                            }
                             .padding(12.dp),
                         contentAlignment = Alignment.Center,
                     ) {
@@ -560,7 +592,17 @@ private fun UnifiedTrackerCard(
                         modifier = Modifier
                             .weight(0.15f)
                             .fillMaxHeight()
-                            .clickable { onChapterClick(primary) }
+                            .clickable {
+                                val newChapter = maxOf(0, (displayTrack?.lastChapterRead?.toInt() ?: 0) - 1)
+                                scope.launch {
+                                    trackItems.filter { it.track != null }.forEach { item ->
+                                        try {
+                                            item.tracker.setRemoteLastChapterRead(item.track!!.toDbTrack(), newChapter)
+                                        } catch (_: Exception) {
+                                        }
+                                    }
+                                }
+                            }
                             .padding(12.dp),
                         contentAlignment = Alignment.Center,
                     ) {
@@ -579,7 +621,11 @@ private fun UnifiedTrackerCard(
                             .padding(12.dp),
                         contentAlignment = Alignment.Center,
                     ) {
-                        Text(text = startDate, style = MaterialTheme.typography.bodySmall)
+                        Text(
+                            text = startDate ?: stringResource(MR.strings.track_started_reading_date),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = if (startDate == null) UNSET_TEXT_ALPHA else 1f),
+                        )
                     }
                     VerticalDivider()
                     Box(
@@ -590,20 +636,48 @@ private fun UnifiedTrackerCard(
                             .padding(12.dp),
                         contentAlignment = Alignment.Center,
                     ) {
-                        Text(text = finishDate, style = MaterialTheme.typography.bodySmall)
+                        Text(
+                            text = finishDate ?: stringResource(MR.strings.track_finished_reading_date),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = if (finishDate == null) UNSET_TEXT_ALPHA else 1f),
+                        )
+                    }
+                    if (finishDate != null) {
+                        VerticalDivider()
+                        Box(
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clickable {
+                                    scope.launch {
+                                        try {
+                                            primary.tracker.setRemoteFinishDate(primary.track!!.toDbTrack(), 0)
+                                        } catch (_: Exception) {
+                                        }
+                                    }
+                                }
+                                .padding(8.dp),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Close,
+                                contentDescription = stringResource(MR.strings.action_remove),
+                                modifier = Modifier.size(16.dp),
+                            )
+                        }
                     }
                     VerticalDivider()
                     Box(
                         modifier = Modifier
                             .size(40.dp)
-                            .clickable {
-                                onStartDateEdit(primary)
-                                onEndDateEdit(primary)
-                            }
+                            .clickable { onRemoved(primary) }
                             .padding(8.dp),
                         contentAlignment = Alignment.Center,
                     ) {
-                        Icon(imageVector = Icons.Filled.Close, contentDescription = stringResource(MR.strings.action_remove), modifier = Modifier.size(16.dp))
+                        Icon(
+                            imageVector = Icons.Filled.Close,
+                            contentDescription = stringResource(MR.strings.action_remove),
+                            modifier = Modifier.size(16.dp),
+                        )
                     }
                 }
             }
