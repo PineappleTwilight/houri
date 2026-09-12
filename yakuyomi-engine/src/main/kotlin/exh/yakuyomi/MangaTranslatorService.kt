@@ -272,11 +272,14 @@ class MangaTranslatorService(
 
     private fun accessToken(): String = prefs.mangaTranslatorAccessToken().get().trim()
 
+    private val spoofedUa = "Mozilla/5.0 (Linux; Android 16; SM-S928U Build/BP4A.251205.006) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/152.0.7977.87 Mobile Safari/537.36"
+
     private fun ichigoHeaders(): Map<String, String> {
         val headers = mutableMapOf(
             "Content-Type" to "application/json",
             "Client-Version" to "1.0.1",
             "X-Client-Version" to "1.0.1",
+            "User-Agent" to spoofedUa,
         )
         val token = accessToken()
         if (token.isNotBlank() && token.length in 16..2048) {
@@ -285,7 +288,7 @@ class MangaTranslatorService(
         return headers
     }
 
-    private fun newCallClient(): OkHttpClient = client.newBuilder()
+    private fun newCallClient(): OkHttpClient = OkHttpClient.Builder()
         .callTimeout(60, TimeUnit.SECONDS)
         .connectTimeout(15, TimeUnit.SECONDS)
         .readTimeout(60, TimeUnit.SECONDS)
@@ -306,6 +309,8 @@ class MangaTranslatorService(
             .post(body.toRequestBody("application/json".toMediaType()))
             .header("Content-Type", "application/json")
             .header("Client-Version", "1.0.1")
+            .header("X-Client-Version", "1.0.1")
+            .header("User-Agent", spoofedUa)
             .build()
         return try {
             newCallClient().newCall(req).execute().use { resp ->
@@ -320,10 +325,8 @@ class MangaTranslatorService(
                                 prefs.mangaTranslatorEmail().set(e)
                             }
                         } catch (_: Exception) {
-                            // Even if body parse fails, treat as success if 200 (extension does same, but we require token)
                         }
                         if (accessToken().isBlank()) {
-                            // Try to extract token loosely
                             val fallback = Regex(""""accessToken"\s*:\s*"([^"]+)"""").find(txt)?.groupValues?.getOrNull(1)
                             if (!fallback.isNullOrBlank()) {
                                 prefs.mangaTranslatorAccessToken().set(fallback)
@@ -333,24 +336,35 @@ class MangaTranslatorService(
                         LoginResult.Success
                     }
                     400 -> {
-                        try {
-                            val detail = Regex(""""kind"\s*:\s*"([^"]+)"""").find(txt)?.groupValues?.getOrNull(1)
-                            when (detail) {
-                                "emptyEmail" -> LoginResult.InvalidEmail
-                                "userNotFound" -> LoginResult.UnknownEmail
-                                else -> LoginResult.Unknown
+                        val lower = txt.lowercase()
+                        val detail = Regex(""""kind"\s*:\s*"([^"]+)"""").find(txt)?.groupValues?.getOrNull(1)?.lowercase()
+                        when {
+                            detail == "emptyEmail" -> LoginResult.InvalidEmail
+                            detail == "userNotFound" -> LoginResult.UnknownEmail
+                            lower.contains("invalidcredentials") || lower.contains("bad username") || lower.contains("invalid email") -> LoginResult.BadPassword
+                            else -> {
+                                xLogW("Ichigo login 400 unhandled: $txt")
+                                LoginResult.Unknown
                             }
-                        } catch (_: Exception) {
-                            LoginResult.Unknown
                         }
                     }
-                    403 -> LoginResult.BadPassword
+                    401, 403 -> {
+                        val lower = txt.lowercase()
+                        if (lower.contains("invalidcredentials") || lower.contains("bad username") || lower.contains("bad password") || lower.contains("invalid")) {
+                            LoginResult.BadPassword
+                        } else {
+                            LoginResult.BadPassword
+                        }
+                    }
                     429 -> LoginResult.RateLimited
-                    else -> LoginResult.Unknown
+                    else -> {
+                        xLogW("Ichigo login HTTP ${resp.code}: $txt")
+                        LoginResult.Unknown
+                    }
                 }
             }
         } catch (e: Exception) {
-            xLogD("Ichigo login failed: ${e.message}")
+            xLogW("Ichigo login failed: ${e.message}")
             LoginResult.Unknown
         }
     }
@@ -367,10 +381,12 @@ class MangaTranslatorService(
             .post(body.toRequestBody("application/json".toMediaType()))
             .header("Content-Type", "application/json")
             .header("Client-Version", "1.0.1")
+            .header("X-Client-Version", "1.0.1")
+            .header("User-Agent", spoofedUa)
             .build()
         return try {
             newCallClient().newCall(req).execute().use { resp ->
-                val txt = resp.body.string().take(4096)
+                val txt = resp.body.string().take(8192)
                 when (resp.code) {
                     201, 200 -> {
                         try {
@@ -389,16 +405,38 @@ class MangaTranslatorService(
                         SignupResult.Success
                     }
                     400 -> {
-                        val detail = Regex(""""kind"\s*:\s*"([^"]+)"""").find(txt)?.groupValues?.getOrNull(1)
-                        if (detail == "emptyEmail") SignupResult.InvalidEmail else SignupResult.Unknown
+                        val lower = txt.lowercase()
+                        val detail = Regex(""""kind"\s*:\s*"([^"]+)"""").find(txt)?.groupValues?.getOrNull(1)?.lowercase()
+                        when {
+                            detail == "emptyEmail" -> SignupResult.InvalidEmail
+                            lower.contains("invalid") || lower.contains("email") -> SignupResult.InvalidEmail
+                            else -> {
+                                xLogW("Ichigo signup 400: $txt")
+                                SignupResult.Unknown
+                            }
+                        }
                     }
-                    403 -> SignupResult.EmailTaken
+                    401, 403 -> {
+                        val lower = txt.lowercase()
+                        if (lower.contains("email taken") || lower.contains("already") || lower.contains("exists") || lower.contains("taken")) {
+                            SignupResult.EmailTaken
+                        } else {
+                            SignupResult.EmailTaken
+                        }
+                    }
+                    422 -> {
+                        xLogW("Ichigo signup 422: $txt")
+                        SignupResult.InvalidEmail
+                    }
                     429 -> SignupResult.RateLimited
-                    else -> SignupResult.Unknown
+                    else -> {
+                        xLogW("Ichigo signup HTTP ${resp.code}: $txt")
+                        SignupResult.Unknown
+                    }
                 }
             }
         } catch (e: Exception) {
-            xLogD("Ichigo signup failed: ${e.message}")
+            xLogW("Ichigo signup failed: ${e.message}")
             SignupResult.Unknown
         }
     }
@@ -411,6 +449,8 @@ class MangaTranslatorService(
             .post("{}".toRequestBody("application/json".toMediaType()))
             .header("Content-Type", "application/json")
             .header("Client-Version", "1.0.1")
+            .header("X-Client-Version", "1.0.1")
+            .header("User-Agent", spoofedUa)
         if (token.isNotBlank()) builder.header("Authorization", "Bearer $token")
         val ok = try {
             newCallClient().newCall(builder.build()).execute().use { resp ->
