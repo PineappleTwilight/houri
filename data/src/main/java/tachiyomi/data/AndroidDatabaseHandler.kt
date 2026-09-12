@@ -16,6 +16,7 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.withContext
 import mihon.core.concurrency.AppDispatchers
+import mihon.core.concurrency.AppDispatchersHolder
 
 @Inject
 @SingleIn(AppScope::class)
@@ -23,7 +24,7 @@ import mihon.core.concurrency.AppDispatchers
 class AndroidDatabaseHandler(
     val db: Database,
     private val driver: SqlDriver,
-    appDispatchers: AppDispatchers,
+    appDispatchers: AppDispatchers = AppDispatchersHolder.get(),
     val queryDispatcher: CoroutineDispatcher = appDispatchers.dbReader,
     val transactionDispatcher: CoroutineDispatcher = appDispatchers.dbWriter,
 ) : DatabaseHandler {
