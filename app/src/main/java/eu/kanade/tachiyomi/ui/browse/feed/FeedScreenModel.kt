@@ -227,7 +227,16 @@ open class FeedScreenModel(
         val savedSearches = getSavedSearchGlobalFeed.await()
             .associateBy { it.id }
         return feedSavedSearch
-            .map { it to savedSearches[it.savedSearch] }
+            .mapNotNull { feed ->
+                val savedId = feed.savedSearch
+                if (savedId != null && savedId !in savedSearches) {
+                    tachiyomi.core.common.util.system.logcat(tachiyomi.core.common.util.system.LogPriority.WARN) {
+                        "Feed: dropping feed ${feed.id} referencing missing savedSearch $savedId"
+                    }
+                    return@mapNotNull null
+                }
+                feed to savedSearches[savedId]
+            }
     }
 
     /**

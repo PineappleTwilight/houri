@@ -201,7 +201,17 @@ open class SourceFeedScreenModel(
                 },
                 SourceFeedUI.Browse(null),
             ) + feedSavedSearch
-                .map { SourceFeedUI.SourceSavedSearch(it, savedSearches[it.savedSearch]!!, null) }
+                .mapNotNull { feed ->
+                    val savedSearchId = feed.savedSearch ?: return@mapNotNull null
+                    val savedSearch = savedSearches[savedSearchId]
+                    if (savedSearch == null) {
+                        tachiyomi.core.common.util.system.logcat(tachiyomi.core.common.util.system.LogPriority.WARN) {
+                            "SourceFeed: dropping feed ${feed.id} referencing missing savedSearch $savedSearchId"
+                        }
+                        return@mapNotNull null
+                    }
+                    SourceFeedUI.SourceSavedSearch(feed, savedSearch, null)
+                }
             )
             .toImmutableList()
     }
