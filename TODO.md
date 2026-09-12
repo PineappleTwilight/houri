@@ -450,6 +450,9 @@
 - [ ] **AI Upscaler**: Add AI model download links
 - [ ] **AI Upscaler**: Ensure Vulkan and NPU backends are available and selectable
   - Should be excluded if device doesn't support them
+- [ ] **App**: Transition UI animations to a smoother system
+  - Current one looks jittery regardless of how fast/slow it is
+  - UI would be great if ran on a separate thread entirely
 
 ## Chores
 - [x] Replace all Komikku icons/branding with houri icons/branding
