@@ -732,6 +732,13 @@ private fun MangaScreenSmallImpl(
                     ) {
                         TranslateMangaInfoToggle(manga = state.manga)
                     }
+
+                    item(
+                        key = "upscale-toggle-${state.manga.id}",
+                        contentType = "upscale_toggle",
+                    ) {
+                        UpscaleMangaToggle(manga = state.manga)
+                    }
                     // KMK <--
 
                     // SY -->
@@ -1247,6 +1254,7 @@ private fun MangaScreenLargeImpl(
                         // KMK --> Tablet layout: off-device toggle available on nomtl as well.
                         TranslateMangaToggle(manga = state.manga)
                         TranslateMangaInfoToggle(manga = state.manga)
+                        UpscaleMangaToggle(manga = state.manga)
                         // KMK <--
                         // SY -->
                         metadataDescription?.invoke(
@@ -1767,6 +1775,53 @@ fun TranslateMangaInfoToggle(manga: tachiyomi.domain.manga.model.Manga) {
         }
     }
 }
+@Composable
+fun UpscaleMangaToggle(manga: tachiyomi.domain.manga.model.Manga) {
+    val upscalePrefs = androidx.compose.runtime.remember { mihon.app.di.globalAppGraph.upscalePreferences }
+    val store = androidx.compose.runtime.remember(manga.id) { mihon.app.di.globalAppGraph.upscaleMangaStore }
+    val globalEnabled by upscalePrefs.enabled().collectAsState()
+    val perMangaEnabled by store.getPreference(manga.id).collectAsState()
+    val isSimple = try { upscalePrefs.isSimpleMode() } catch (_: Exception) { true }
+    val mtlOk = try { upscalePrefs.isMtlEnabled() } catch (_: Exception) { false }
+    val show = when {
+        !globalEnabled -> false
+        !isSimple && !mtlOk -> false
+        else -> true
+    }
+    if (!show) return
+    val subtitle = if (!isSimple && !mtlOk) {
+        stringResource(tachiyomi.i18n.kmk.KMR.strings.pref_yakuyomi_enabled_summary)
+    } else {
+        stringResource(tachiyomi.i18n.kmk.KMR.strings.pref_upscale_manga_summary)
+    }
+    androidx.compose.foundation.layout.Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+        horizontalArrangement = androidx.compose.foundation.layout.Arrangement.SpaceBetween,
+    ) {
+        androidx.compose.foundation.layout.Column(modifier = Modifier.weight(1f)) {
+            androidx.compose.material3.Text(
+                text = stringResource(tachiyomi.i18n.kmk.KMR.strings.pref_upscale_manga),
+                style = androidx.compose.material3.MaterialTheme.typography.titleMedium,
+            )
+            androidx.compose.material3.Text(
+                text = subtitle,
+                style = androidx.compose.material3.MaterialTheme.typography.bodySmall,
+                color = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        androidx.compose.material3.Switch(
+            checked = perMangaEnabled,
+            enabled = globalEnabled && (isSimple || mtlOk),
+            onCheckedChange = {
+                store.setEnabled(manga.id, it)
+            },
+        )
+    }
+}
+
 // KMK <--
 
 // SY -->

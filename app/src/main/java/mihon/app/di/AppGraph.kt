@@ -85,6 +85,7 @@ import eu.kanade.tachiyomi.ui.main.MainActivity
 import eu.kanade.tachiyomi.ui.reader.ReaderActivity
 import eu.kanade.tachiyomi.ui.reader.setting.ReaderPreferences
 import eu.kanade.tachiyomi.ui.reader.setting.UpscaleEngine
+import eu.kanade.tachiyomi.ui.reader.setting.UpscaleMangaStore
 import eu.kanade.tachiyomi.ui.reader.setting.UpscalePreferences
 import eu.kanade.tachiyomi.ui.setting.track.BaseOAuthLoginActivity
 import eu.kanade.tachiyomi.ui.webview.WebViewActivity
@@ -300,6 +301,7 @@ interface AppGraph : ViewModelGraph {
     val achievementNotifier: eu.kanade.tachiyomi.data.achievement.AchievementNotifier
     val upscalePreferences: UpscalePreferences
     val upscaleEngine: UpscaleEngine
+    val upscaleMangaStore: UpscaleMangaStore
     // KMK <--
 
     // Domain
