@@ -12,7 +12,13 @@ import eu.kanade.tachiyomi.source.online.MetadataSource
 import eu.kanade.tachiyomi.ui.reader.setting.ReadingMode
 import exh.source.getMainSource
 import exh.source.isMergedSourceId
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import mihon.app.di.globalAppGraph
+import mihon.core.concurrency.AppDispatchersHolder
 import tachiyomi.data.DatabaseHandler
 import tachiyomi.data.MemoColumnAdapter
 import tachiyomi.domain.category.interactor.GetCategories
@@ -35,8 +41,15 @@ class MangaBackupCreator(
 ) {
 
     suspend operator fun invoke(mangas: List<Manga>, options: BackupOptions): List<BackupManga> {
-        return mangas.map {
-            backupManga(it, options)
+        val semaphore = Semaphore(4)
+        return coroutineScope {
+            mangas.map {
+                async(AppDispatchersHolder.get().backgroundOps) {
+                    semaphore.withPermit {
+                        backupManga(it, options)
+                    }
+                }
+            }.awaitAll()
         }
     }
 

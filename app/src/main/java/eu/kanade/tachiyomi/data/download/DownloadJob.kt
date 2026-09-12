@@ -21,13 +21,16 @@ import eu.kanade.tachiyomi.util.system.networkStateFlow
 import eu.kanade.tachiyomi.util.system.notificationBuilder
 import eu.kanade.tachiyomi.util.system.setForegroundSafely
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combineTransform
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.isActive
 import mihon.app.di.globalAppGraph
 import tachiyomi.domain.download.service.DownloadPreferences
+import kotlin.coroutines.coroutineContext
 
 /**
  * This worker is used to manage the downloader. The system can decide to stop the worker, in
@@ -79,8 +82,9 @@ class DownloadJob(private val context: Context, workerParams: WorkerParameters) 
                 .launchIn(this)
         }
 
-        // Keep the worker running when needed
-        while (active) {
+        // Keep the worker running when needed (suspending poll, no CPU spin)
+        while (active && coroutineContext.isActive) {
+            delay(1000)
             active = !isStopped && downloadManager.isRunning && networkCheck
         }
 

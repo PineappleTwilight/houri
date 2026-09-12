@@ -21,9 +21,14 @@ import eu.kanade.tachiyomi.data.library.LibraryUpdateJob
 import eu.kanade.tachiyomi.data.notification.Notifications
 import eu.kanade.tachiyomi.util.system.createFileInCacheDir
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
+import mihon.core.concurrency.AppDispatchersHolder
 import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.i18n.MR
 import tachiyomi.i18n.kmk.KMR
@@ -31,6 +36,8 @@ import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.atomic.AtomicInteger
 
 class BackupRestorer(
     private val context: Context,
@@ -49,9 +56,9 @@ class BackupRestorer(
     // KMK <--
 ) {
 
-    private var restoreAmount = 0
-    private var restoreProgress = 0
-    private val errors = mutableListOf<Pair<Date, String>>()
+    private val restoreAmount = AtomicInteger(0)
+    private val restoreProgress = AtomicInteger(0)
+    private val errors = CopyOnWriteArrayList<Pair<Date, String>>()
 
     /**
      * Mapping of source ID to source name from backup data
@@ -93,24 +100,24 @@ class BackupRestorer(
             sourceMapping = backupMaps.associate { it.sourceId to it.name }
 
             if (options.libraryEntries) {
-                restoreAmount += backup.backupManga.size
+                restoreAmount.addAndGet(backup.backupManga.size)
             }
             if (options.categories) {
-                restoreAmount += 1
+                restoreAmount.incrementAndGet()
             }
             // SY -->
             if (options.savedSearchesFeeds) {
-                restoreAmount += 1
+                restoreAmount.incrementAndGet()
             }
             // SY <--
             if (options.appSettings) {
-                restoreAmount += 1
+                restoreAmount.incrementAndGet()
             }
             if (options.extensionStores) {
-                restoreAmount += backup.backupExtensionStores.size
+                restoreAmount.addAndGet(backup.backupExtensionStores.size)
             }
             if (options.sourceSettings) {
-                restoreAmount += 1
+                restoreAmount.incrementAndGet()
             }
 
             coroutineScope {
@@ -154,12 +161,12 @@ class BackupRestorer(
         scope.ensureActive()
         categoriesRestorer(backupCategories)
 
-        restoreProgress += 1
+        restoreProgress.incrementAndGet()
         with(notifier) {
             showRestoreProgress(
                 context.stringResource(MR.strings.categories),
-                restoreProgress,
-                restoreAmount,
+                restoreProgress.get(),
+                restoreAmount.get(),
                 isSync,
             )
                 // KMK -->
@@ -181,12 +188,12 @@ class BackupRestorer(
         feedRestorer.restoreFeeds(backupFeeds)
         // KMK <--
 
-        restoreProgress += 1
+        restoreProgress.incrementAndGet()
         with(notifier) {
             showRestoreProgress(
                 context.stringResource(KMR.strings.saved_searches_feeds),
-                restoreProgress,
-                restoreAmount,
+                restoreProgress.get(),
+                restoreAmount.get(),
                 isSync,
             )
                 // KMK -->
@@ -200,25 +207,31 @@ class BackupRestorer(
         backupMangas: List<BackupManga>,
         backupCategories: List<BackupCategory>,
     ) = launch {
+        val semaphore = Semaphore(4)
         mangaRestorer.sortByNew(backupMangas)
-            .forEach {
-                ensureActive()
+            .map {
+                async(AppDispatchersHolder.get().backgroundOps) {
+                    semaphore.withPermit {
+                        ensureActive()
 
-                try {
-                    mangaRestorer.restore(it, backupCategories)
-                } catch (e: Exception) {
-                    val sourceName = sourceMapping[it.source] ?: it.source.toString()
-                    errors.add(Date() to "${it.title} [$sourceName]: ${e.message}")
-                }
+                        try {
+                            mangaRestorer.restore(it, backupCategories)
+                        } catch (e: Exception) {
+                            val sourceName = sourceMapping[it.source] ?: it.source.toString()
+                            errors.add(Date() to "${it.title} [$sourceName]: ${e.message}")
+                        }
 
-                restoreProgress += 1
-                with(notifier) {
-                    showRestoreProgress(it.title, restoreProgress, restoreAmount, isSync)
-                        // KMK -->
-                        .show(Notifications.ID_RESTORE_PROGRESS)
-                    // KMK <--
+                        val progress = restoreProgress.incrementAndGet()
+                        with(notifier) {
+                            showRestoreProgress(it.title, progress, restoreAmount.get(), isSync)
+                                // KMK -->
+                                .show(Notifications.ID_RESTORE_PROGRESS)
+                            // KMK <--
+                        }
+                    }
                 }
             }
+            .awaitAll()
     }
 
     private fun CoroutineScope.restoreAppPreferences(
@@ -231,12 +244,12 @@ class BackupRestorer(
             categories,
         )
 
-        restoreProgress += 1
+        restoreProgress.incrementAndGet()
         with(notifier) {
             showRestoreProgress(
                 context.stringResource(MR.strings.app_settings),
-                restoreProgress,
-                restoreAmount,
+                restoreProgress.get(),
+                restoreAmount.get(),
                 isSync,
             )
                 // KMK -->
@@ -249,12 +262,12 @@ class BackupRestorer(
         ensureActive()
         preferenceRestorer.restoreSource(preferences)
 
-        restoreProgress += 1
+        restoreProgress.incrementAndGet()
         with(notifier) {
             showRestoreProgress(
                 context.stringResource(MR.strings.source_settings),
-                restoreProgress,
-                restoreAmount,
+                restoreProgress.get(),
+                restoreAmount.get(),
                 isSync,
             )
                 // KMK -->
@@ -276,14 +289,14 @@ class BackupRestorer(
                     errors.add(Date() to "Error adding extension store: ${it.name} : ${e.message}")
                 }
 
-                restoreProgress += 1
+                restoreProgress.incrementAndGet()
                 // KMK -->
                 with(notifier) {
                     // KMK <--
                     showRestoreProgress(
                         context.stringResource(MR.strings.extensionStores),
-                        restoreProgress,
-                        restoreAmount,
+                        restoreProgress.get(),
+                        restoreAmount.get(),
                         isSync,
                     )
                         // KMK -->
