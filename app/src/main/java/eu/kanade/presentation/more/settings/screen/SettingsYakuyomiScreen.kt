@@ -873,11 +873,9 @@ object SettingsYakuyomiScreen : SearchableSettings {
         val navigator = LocalNavigator.currentOrThrow
         val email by prefs.mangaTranslatorEmail().collectAsState()
         val token by prefs.mangaTranslatorAccessToken().collectAsState()
-        val legacyKey by prefs.mangaTranslatorApiKey().collectAsState()
         val authSubtitle = when {
             token.isNotBlank() && email.isNotBlank() -> "Logged in as $email — session active (like the extension)"
             token.isNotBlank() -> "Logged in — session active (tap to manage)"
-            legacyKey.isNotBlank() -> "Migrated from API key — please log in again to use session auth"
             else -> "Not logged in — anonymous (rate-limited). Tap to log in via ichigo.moe"
         }
         return Preference.PreferenceGroup(

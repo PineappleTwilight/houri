@@ -657,7 +657,8 @@ private fun UnifiedTrackerCard(
                                 .clickable {
                                     scope.launch {
                                         try {
-                                            primary.tracker.setRemoteFinishDate(primary.track!!.toDbTrack(), 0)
+                                            val track = primary.track ?: return@clickable
+                                            primary.tracker.setRemoteFinishDate(track.toDbTrack(), 0)
                                         } catch (_: Exception) {
                                         }
                                     }
