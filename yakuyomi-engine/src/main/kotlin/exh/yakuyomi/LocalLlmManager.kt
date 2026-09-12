@@ -8,8 +8,8 @@ import android.provider.OpenableColumns
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
+import mihon.core.concurrency.AppDispatchersHolder
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -41,7 +41,7 @@ class LocalLlmManager(
     private val prefs: TranslationPreferences,
     private val downloadManager: LocalLlmDownloadManager,
 ) {
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    private val scope = CoroutineScope(SupervisorJob() + AppDispatchersHolder.get().default)
     private val backendMutex = Mutex()
 
     private val _running = MutableStateFlow(false)

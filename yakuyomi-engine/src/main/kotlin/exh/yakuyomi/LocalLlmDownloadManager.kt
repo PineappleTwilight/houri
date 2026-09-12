@@ -6,9 +6,9 @@ import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
 import exh.log.xLogW
+import mihon.core.concurrency.AppDispatchersHolder
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -66,7 +66,7 @@ class LocalLlmDownloadManager(
     }
 
     private val json = Json { ignoreUnknownKeys = true }
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val scope = CoroutineScope(SupervisorJob() + AppDispatchersHolder.get().io)
     private var downloadJob: Job? = null
 
     // Downloads use their own client: the shared one may have timeouts tuned for page

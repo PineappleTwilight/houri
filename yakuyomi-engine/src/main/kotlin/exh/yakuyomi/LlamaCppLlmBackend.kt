@@ -3,7 +3,7 @@ package exh.yakuyomi
 import com.llamatik.library.platform.GenStream
 import com.llamatik.library.platform.LlamaBridge
 import com.llamatik.library.platform.MultimodalBridge
-import kotlinx.coroutines.Dispatchers
+import mihon.core.concurrency.AppDispatchersHolder
 import kotlinx.coroutines.withContext
 import tachiyomi.core.common.util.system.logcat
 import java.io.File
@@ -121,7 +121,7 @@ class LlamaCppLlmBackend private constructor(
         }
     }
 
-    private val generateDispatcher = Dispatchers.Default.limitedParallelism(1)
+    private val generateDispatcher = AppDispatchersHolder.get().default.limitedParallelism(1)
 
     override suspend fun generate(request: LocalGenerateRequest): String? = withContext(generateDispatcher) {
         if (request.prompt.isBlank() || request.prompt.length > 20000) return@withContext null
@@ -187,7 +187,7 @@ class LlamaCppLlmBackend private constructor(
     }
 
     override suspend fun close() {
-        withContext(Dispatchers.IO) {
+        withContext(AppDispatchersHolder.get().io) {
             synchronized(lock) {
                 runCatching { if (visionReady.getAndSet(false)) MultimodalBridge.release() }
                 runCatching { if (textReady.getAndSet(false)) LlamaBridge.shutdown() }

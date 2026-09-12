@@ -14,7 +14,6 @@ import exh.util.DataSaver.Companion.getImage
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.DelicateCoroutinesApi
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.filter
@@ -22,6 +21,7 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.runInterruptible
 import kotlinx.coroutines.suspendCancellableCoroutine
 import mihon.app.di.globalAppGraph
+import mihon.core.concurrency.AppDispatchersHolder
 import tachiyomi.core.common.util.lang.launchIO
 import tachiyomi.core.common.util.lang.withIOContext
 import java.util.concurrent.PriorityBlockingQueue
@@ -44,7 +44,7 @@ internal class HttpPageLoader(
     // SY <--
 ) : PageLoader() {
 
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val scope = CoroutineScope(SupervisorJob() + AppDispatchersHolder.get().readers)
 
     /**
      * A queue used to manage requests one by one while allowing priorities.

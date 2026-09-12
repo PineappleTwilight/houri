@@ -1,7 +1,7 @@
 package exh.yakuyomi
 
+import mihon.core.concurrency.AppDispatchersHolder
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.buildJsonObject
@@ -83,7 +83,7 @@ class YakuyomiTranslator(
         isLenient = true
     }
 
-    override suspend fun translate(queries: List<String>): List<String> = withContext(Dispatchers.IO) {
+    override suspend fun translate(queries: List<String>): List<String> = withContext(AppDispatchersHolder.get().io) {
         if (queries.isEmpty()) return@withContext emptyList()
         if (apiKey.isBlank()) {
             if (offlineFallback) return@withContext queries.map { it.trim() }
@@ -117,7 +117,7 @@ class YakuyomiTranslator(
         alignTranslationLines(result, queries)
     }
 
-    private suspend fun callOpenAICompatible(prompt: String, apiKey: String, model: String, baseUrl: String, customHeaders: String): List<String>? = withContext(Dispatchers.IO) {
+    private suspend fun callOpenAICompatible(prompt: String, apiKey: String, model: String, baseUrl: String, customHeaders: String): List<String>? = withContext(AppDispatchersHolder.get().io) {
         try {
             val safeBase = sanitizeUrl(baseUrl)
             if (safeBase.isBlank()) throw TranslationException("Base URL not configured for this provider")
@@ -223,7 +223,7 @@ class YakuyomiTranslator(
         }
     }
 
-    private suspend fun callOpenRouter(prompt: String, apiKey: String, model: String): List<String>? = withContext(Dispatchers.IO) {
+    private suspend fun callOpenRouter(prompt: String, apiKey: String, model: String): List<String>? = withContext(AppDispatchersHolder.get().io) {
         try {
             val visionBytes = cappedVisionBytes()
             val useVision = isVisionModel() && visionBytes != null
@@ -305,7 +305,7 @@ class YakuyomiTranslator(
         }
     }
 
-    private suspend fun callGemini(prompt: String, apiKey: String, model: String): List<String>? = withContext(Dispatchers.IO) {
+    private suspend fun callGemini(prompt: String, apiKey: String, model: String): List<String>? = withContext(AppDispatchersHolder.get().io) {
         try {
             val raw = model.ifBlank { "gemini-1.5-flash" }
             val modelName = raw.substringAfterLast("/").substringBefore(":").trim()

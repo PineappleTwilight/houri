@@ -7,10 +7,10 @@ import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
 import exh.log.xLogD
 import exh.log.xLogE
+import mihon.core.concurrency.AppDispatchersHolder
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -53,7 +53,7 @@ class TranslationManager(
         val deferred: CompletableDeferred<ByteArray?>,
     )
 
-    private val workerScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val workerScope = CoroutineScope(SupervisorJob() + AppDispatchersHolder.get().io)
     private val pending = ConcurrentHashMap<Pair<Long, Long>, ConcurrentSkipListMap<Int, PendingTranslation>>()
     private val workers = ConcurrentHashMap<Pair<Long, Long>, kotlinx.coroutines.Job>()
 
@@ -253,7 +253,7 @@ class TranslationManager(
         chapterId: Long,
         imageBytes: ByteArray,
         pageIndex: Int,
-    ): ByteArray? = withContext(Dispatchers.IO) {
+    ): ByteArray? = withContext(AppDispatchersHolder.get().io) {
         if (!prefs.enabled().get() || isGated() || !perMangaStore.isEnabled(mangaId)) return@withContext null
         val targetLang = prefs.targetLang().get().ifBlank { "en" }
         val model = effectiveModel()
@@ -280,7 +280,7 @@ class TranslationManager(
         imageBytes: ByteArray,
         pageIndex: Int,
         sourceLangHint: String = "JA",
-    ): ByteArray? = withContext(Dispatchers.IO) {
+    ): ByteArray? = withContext(AppDispatchersHolder.get().io) {
         if (!prefs.enabled().get() || isGated() || !perMangaStore.isEnabled(mangaId)) return@withContext null
         val targetLang = prefs.targetLang().get().ifBlank { "en" }
         val model = effectiveModel()
