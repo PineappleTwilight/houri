@@ -57,6 +57,7 @@ dependencies {
 
     implementation(libs.metro.runtime)
     implementation(projects.core.metro)
+    implementation(projects.core.concurrency)
     implementation(libs.injekt)
 
     // SY -->

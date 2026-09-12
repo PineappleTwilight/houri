@@ -160,6 +160,10 @@ class App : Application(), DefaultLifecycleObserver, SingletonImageLoader.Factor
 
         graph.inject(this)
 
+        // KMK --> single AppDispatchers instance for GlobalScope helpers + DI
+        mihon.core.concurrency.AppDispatchersHolder.set(globalAppGraph.appDispatchers)
+        // KMK <--
+
         // KMK -->
         ProcessLifecycleOwner.get().lifecycleScope.launchIO {
             kotlinx.coroutines.delay(2000)
