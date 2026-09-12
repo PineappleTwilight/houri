@@ -1,14 +1,9 @@
 package eu.kanade.tachiyomi.di
 
 import android.app.Application
-import android.os.Build
 import androidx.core.content.ContextCompat
-import androidx.sqlite.db.SupportSQLiteDatabase
-import androidx.sqlite.db.framework.FrameworkSQLiteOpenHelperFactory
 import app.cash.sqldelight.db.SqlDriver
-import app.cash.sqldelight.driver.android.AndroidSqliteDriver
 import eu.kanade.domain.track.store.DelayedTrackingStore
-import eu.kanade.tachiyomi.core.security.SecurityPreferences
 import eu.kanade.tachiyomi.data.BackupRestoreStatus
 import eu.kanade.tachiyomi.data.LibraryUpdateStatus
 import eu.kanade.tachiyomi.data.SyncStatus
@@ -26,29 +21,16 @@ import eu.kanade.tachiyomi.extension.ExtensionManager
 import eu.kanade.tachiyomi.network.JavaScriptEngine
 import eu.kanade.tachiyomi.network.NetworkHelper
 import eu.kanade.tachiyomi.source.AndroidSourceManager
-import eu.kanade.tachiyomi.util.system.isDebugBuildType
 import exh.eh.EHentaiUpdateHelper
-import io.requery.android.database.sqlite.RequerySQLiteOpenHelperFactory
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.protobuf.ProtoBuf
-import mihon.core.archive.CbzCrypto
-import net.zetetic.database.sqlcipher.SupportOpenHelperFactory
 import nl.adaptivity.xmlutil.XmlDeclMode
 import nl.adaptivity.xmlutil.core.XmlVersion
 import nl.adaptivity.xmlutil.serialization.XML
 import tachiyomi.core.common.storage.AndroidStorageFolderProvider
 import tachiyomi.core.common.storage.UniFileTempFileManager
-import tachiyomi.data.AndroidDatabaseHandler
-import tachiyomi.data.Chapters
 import tachiyomi.data.Database
 import tachiyomi.data.DatabaseHandler
-import tachiyomi.data.DateColumnAdapter
-import tachiyomi.data.History
-import tachiyomi.data.Manga_recommendations
-import tachiyomi.data.Mangas
-import tachiyomi.data.MemoColumnAdapter
-import tachiyomi.data.StringListColumnAdapter
-import tachiyomi.data.UpdateStrategyColumnAdapter
 import tachiyomi.domain.source.service.SourceManager
 import tachiyomi.domain.storage.service.StorageManager
 import tachiyomi.source.local.image.LocalCoverManager
@@ -58,90 +40,16 @@ import uy.kohesive.injekt.api.InjektRegistrar
 import uy.kohesive.injekt.api.addSingleton
 import uy.kohesive.injekt.api.addSingletonFactory
 import uy.kohesive.injekt.api.get
-import uy.kohesive.injekt.injectLazy
-
-// SY -->
-private const val LEGACY_DATABASE_NAME = "tachiyomi.db"
-// SY <--
 
 class AppModule(val app: Application) : InjektModule {
-    // SY -->
-    private val securityPreferences: SecurityPreferences by injectLazy()
-    // SY <--
-
     override fun InjektRegistrar.registerInjectables() {
         addSingleton(app)
 
-        addSingletonFactory<SqlDriver> {
-            // SY -->
-            if (securityPreferences.encryptDatabase().get()) {
-                System.loadLibrary("sqlcipher")
-            }
-
-            // SY <--
-            AndroidSqliteDriver(
-                schema = Database.Schema,
-                context = app,
-                // SY -->
-                name = if (securityPreferences.encryptDatabase().get()) {
-                    CbzCrypto.DATABASE_NAME
-                } else {
-                    LEGACY_DATABASE_NAME
-                },
-                factory = if (securityPreferences.encryptDatabase().get()) {
-                    SupportOpenHelperFactory(CbzCrypto.getDecryptedPasswordSql(), null, false, 25)
-                } else if (isDebugBuildType && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                    // Support database inspector in Android Studio
-                    FrameworkSQLiteOpenHelperFactory()
-                } else {
-                    RequerySQLiteOpenHelperFactory()
-                },
-                // SY <--
-                callback = object : AndroidSqliteDriver.Callback(Database.Schema) {
-                    override fun onOpen(db: SupportSQLiteDatabase) {
-                        super.onOpen(db)
-                        setPragma(db, "foreign_keys = ON")
-                        setPragma(db, "journal_mode = WAL")
-                        // KMK -->
-                        // FULL keeps every committed transaction durable across power loss
-                        setPragma(db, "synchronous = FULL")
-                        // KMK <--
-                    }
-                    private fun setPragma(db: SupportSQLiteDatabase, pragma: String) {
-                        val cursor = db.query("PRAGMA $pragma")
-                        cursor.moveToFirst()
-                        cursor.close()
-                    }
-                },
-            )
-        }
-        addSingletonFactory {
-            Database(
-                driver = get(),
-                historyAdapter = History.Adapter(
-                    last_readAdapter = DateColumnAdapter,
-                ),
-                mangasAdapter = Mangas.Adapter(
-                    genreAdapter = StringListColumnAdapter,
-                    update_strategyAdapter = UpdateStrategyColumnAdapter,
-                    memoAdapter = MemoColumnAdapter,
-                    // KMK -->
-                    scanlator_priorityAdapter = StringListColumnAdapter,
-                    blacklisted_chaptersAdapter = StringListColumnAdapter,
-                    scanlator_range_rulesAdapter = StringListColumnAdapter,
-                    // KMK <--
-                ),
-                chaptersAdapter = Chapters.Adapter(
-                    memoAdapter = MemoColumnAdapter,
-                ),
-                // KMK -->
-                manga_recommendationsAdapter = Manga_recommendations.Adapter(
-                    resultsAdapter = MemoColumnAdapter,
-                ),
-                // KMK <--
-            )
-        }
-        addSingletonFactory<DatabaseHandler> { AndroidDatabaseHandler(get(), get()) }
+        // Single SQLite connection: delegate to Metro singletons (AppBindings,
+        // synchronous=NORMAL + WAL). Previously duplicated here with FULL.
+        addSingletonFactory<SqlDriver> { mihon.app.di.globalAppGraph.sqlDriver }
+        addSingletonFactory { mihon.app.di.globalAppGraph.database }
+        addSingletonFactory<DatabaseHandler> { mihon.app.di.globalAppGraph.databaseHandler }
 
         addSingletonFactory {
             Json {

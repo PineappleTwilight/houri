@@ -121,6 +121,7 @@ import mihon.domain.extension.repository.ExtensionStoreRepository
 import mihon.domain.migration.usecases.MigrateMangaUseCase
 import mihon.domain.source.interactor.UpdateMangaFromRemote
 import mihon.domain.upcoming.interactor.GetUpcomingManga
+import app.cash.sqldelight.db.SqlDriver
 import nl.adaptivity.xmlutil.serialization.XML
 import tachiyomi.core.common.preference.PreferenceStore
 import tachiyomi.data.Database
@@ -292,6 +293,7 @@ interface AppGraph : ViewModelGraph {
     // KMK -->
     // Accessors added while migrating remaining call sites off Injekt
     val protoBuf: ProtoBuf
+    val sqlDriver: SqlDriver
     val databaseHandler: DatabaseHandler
     val database: Database
     val mangaRepository: MangaRepository
