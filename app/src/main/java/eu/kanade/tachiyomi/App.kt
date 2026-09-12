@@ -399,8 +399,13 @@ class App : Application(), DefaultLifecycleObserver, SingletonImageLoader.Factor
             if (EHLogLevel.isExtraLogging()) logger(DebugLogger())
             // KMK <--
 
-            fetcherCoroutineContext(Dispatchers.IO.limitedParallelism(if (isLowRam) 4 else 6))
-            decoderCoroutineContext(Dispatchers.IO.limitedParallelism(2))
+            fetcherCoroutineContext(
+                mihon.core.concurrency.AppDispatchersHolder.get().io
+                    .limitedParallelism(if (isLowRam) 4 else 6),
+            )
+            decoderCoroutineContext(
+                mihon.core.concurrency.AppDispatchersHolder.get().io.limitedParallelism(2),
+            )
         }
             .build()
     }
