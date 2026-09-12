@@ -173,6 +173,7 @@
   - Fully supports authentication (Bearer token from `mangaTranslatorApiKey` → `effectiveApiKey` fallback, `access_cookie` sync equivalent) and chapters are cached permanently (`mangaTranslatorCachePermanent` pref, default true, `yakuyomi_saved` 256MB/40 chapters)
   - User can wipe cached TLs per manga via Settings → Translation → MangaTranslator → Manage per-manga translation cache (works for removed library entries)
 - [ ] **WebGPU Reader**: Port latest upstream [PR](https://github.com/mihonapp/mihon/pull/3933)
+- [ ] **AniList**: Implement upstream [PR](https://github.com/mihonapp/mihon/pull/3942)
 
 ## Bugfixes
 - [x] Fix UI transition choppiness.
