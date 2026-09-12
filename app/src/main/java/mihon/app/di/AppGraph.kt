@@ -110,6 +110,7 @@ import exh.yakuyomi.TranslationStatus
 import exh.yakuyomi.YakuyomiEngine
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.protobuf.ProtoBuf
+import mihon.core.concurrency.AppDispatchers
 import mihon.domain.chapter.interactor.FilterChaptersForDownload
 import mihon.domain.extension.interactor.AddExtensionStore
 import mihon.domain.extension.interactor.GetExtensionStoreCountAsFlow
@@ -285,6 +286,7 @@ interface AppGraph : ViewModelGraph {
     val googleDriveService: GoogleDriveService
     val webhookPreferences: WebhookPreferences
     val webhookNotifier: WebhookNotifier
+    val appDispatchers: AppDispatchers
     // KMK <--
 
     // KMK -->
