@@ -20,6 +20,7 @@ import tachiyomi.i18n.kmk.KMR
 import tachiyomi.presentation.core.components.material.padding
 import tachiyomi.presentation.core.i18n.stringResource
 import tachiyomi.presentation.core.util.collectAsState
+import androidx.compose.runtime.collectAsState as flowCollectAsState
 
 object SettingsUpscalerScreen : SearchableSettings {
     @ReadOnlyComposable
@@ -69,7 +70,7 @@ object SettingsUpscalerScreen : SearchableSettings {
             }
         }
         val modelManager = remember { globalAppGraph.upscaleModelManager }
-        val modelStatus by modelManager.status.collectAsState()
+        val modelStatus by modelManager.status.flowCollectAsState()
 
         val items = buildList {
             add(
