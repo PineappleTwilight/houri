@@ -655,9 +655,9 @@ private fun UnifiedTrackerCard(
                             modifier = Modifier
                                 .size(40.dp)
                                 .clickable {
+                                    val track = primary.track ?: return@clickable
                                     scope.launch {
                                         try {
-                                            val track = primary.track ?: return@clickable
                                             primary.tracker.setRemoteFinishDate(track.toDbTrack(), 0)
                                         } catch (_: Exception) {
                                         }

@@ -511,7 +511,7 @@ class TranslationManager(
             }
             // KMK <--
 
-            val currentBitmap = bitmap ?: return null
+            val currentBitmap = checkNotNull(bitmap)
             val result = try {
                 kotlinx.coroutines.withTimeout(90_000) { engine.translatePage(currentBitmap, translator, targetLang) }
             } catch (e: kotlinx.coroutines.TimeoutCancellationException) {

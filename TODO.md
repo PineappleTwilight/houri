@@ -480,6 +480,11 @@
 - [ ] **Google Drive**: Update oauth token
 - [ ] **MyAnimeList**: Update oauth token
 - [ ] **App**: Multithreading
+  - [ ] Dedicated thread for readers
+  - [ ] Dedicated thread for app UI
+  - [ ] Multithread extensions
+  - [ ] Multithread app background operations
+  - [ ] Multithread DB handling
 - [ ] **App**: Enforce modularity and maintainability
 
 ## Drawing Board
