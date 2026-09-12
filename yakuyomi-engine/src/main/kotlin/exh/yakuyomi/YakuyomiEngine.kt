@@ -6,7 +6,6 @@ import android.graphics.Typeface
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
-import mihon.core.concurrency.AppDispatchersHolder
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.launchIn
@@ -22,6 +21,7 @@ import li.joye.yakuyomi.engine.Ocr
 import li.joye.yakuyomi.engine.PageResult
 import li.joye.yakuyomi.engine.Pipeline
 import li.joye.yakuyomi.engine.Translator
+import mihon.core.concurrency.AppDispatchersHolder
 import tachiyomi.core.common.util.system.logcat
 import java.io.File
 

@@ -8,7 +8,6 @@ import android.provider.OpenableColumns
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
-import mihon.core.concurrency.AppDispatchersHolder
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -20,6 +19,7 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.builtins.MapSerializer
 import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.json.Json
+import mihon.core.concurrency.AppDispatchersHolder
 import tachiyomi.core.common.util.system.logcat
 import java.io.File
 

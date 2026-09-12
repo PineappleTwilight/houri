@@ -1,6 +1,5 @@
 package exh.yakuyomi
 
-import mihon.core.concurrency.AppDispatchersHolder
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
@@ -12,6 +11,7 @@ import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
 import li.joye.yakuyomi.engine.Translator
+import mihon.core.concurrency.AppDispatchersHolder
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
