@@ -3,6 +3,7 @@ package eu.kanade.tachiyomi.data.track.comick
 import eu.kanade.tachiyomi.BuildConfig
 import eu.kanade.tachiyomi.data.track.interceptor.AbstractCookieTrackerInterceptor
 import okhttp3.HttpUrl.Companion.toHttpUrl
+import okhttp3.Interceptor
 import okhttp3.Response
 import java.io.IOException
 

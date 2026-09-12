@@ -463,14 +463,16 @@ private fun UnifiedTrackerCard(
             val prefs = globalAppGraph.trackPreferences
             val mangaId = domainTracksForSync.firstOrNull()?.mangaId ?: 0L
             if (mangaId != 0L) prefs.getPreferredTrackerForManga(mangaId) else null
-        } catch (_: Exception) { null }
+        } catch (_: Exception) {
+            null
+        }
     }
     val resolved = remember(domainTracksForSync, preferredId) {
         TrackerProgressSync.resolvePreferredTrack(domainTracksForSync, preferredId)
     }
     val primary = remember(trackItems, resolved) {
-        resolved?.let { r -> trackItems.find { it.track?.trackerId == r.trackerId } } ?: trackItems.firstOrNull { it.track != null } ?: trackItems.firstOrNull() ?: return
-    }
+        resolved?.let { r -> trackItems.find { it.track?.trackerId == r.trackerId } } ?: trackItems.firstOrNull { it.track != null } ?: trackItems.firstOrNull()
+    } ?: return
     val displayTrack = primary.track
     val displayTracker = primary.tracker
     val isMismatched = remember(domainTracksForSync, preferredId) {

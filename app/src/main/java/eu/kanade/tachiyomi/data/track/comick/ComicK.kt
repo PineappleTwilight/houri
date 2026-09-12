@@ -14,6 +14,7 @@ import eu.kanade.tachiyomi.data.track.comick.ComicKApi.Companion.TYPE_UNFOLLOW
 import eu.kanade.tachiyomi.data.track.core.TrackerLoginMode
 import eu.kanade.tachiyomi.data.track.model.TrackMangaMetadata
 import eu.kanade.tachiyomi.data.track.model.TrackSearch
+import eu.kanade.tachiyomi.ui.setting.track.ComicKLoginActivity
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
 import tachiyomi.i18n.MR

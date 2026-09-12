@@ -62,4 +62,6 @@ class TemplateTracker(id: Long) : BaseTracker(id, "TemplateTracker") {
     }
 
     override fun hasNotStartedReading(status: Long): Boolean = status == 3L
+
+    override fun displayScore(track: DomainTrack): String = track.score.toInt().toString()
 }

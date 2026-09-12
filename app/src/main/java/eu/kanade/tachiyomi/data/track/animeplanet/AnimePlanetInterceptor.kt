@@ -3,6 +3,7 @@ package eu.kanade.tachiyomi.data.track.animeplanet
 import eu.kanade.tachiyomi.BuildConfig
 import eu.kanade.tachiyomi.data.track.interceptor.AbstractCookieTrackerInterceptor
 import okhttp3.HttpUrl.Companion.toHttpUrl
+import okhttp3.Interceptor
 import okhttp3.Response
 
 class AnimePlanetInterceptor(
