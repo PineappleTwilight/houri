@@ -6,11 +6,6 @@ import eu.kanade.tachiyomi.source.model.Page
 import eu.kanade.tachiyomi.ui.reader.model.ReaderPage
 import eu.kanade.tachiyomi.ui.reader.setting.ReaderPreferences
 import eu.kanade.tachiyomi.util.lang.compareToCaseInsensitiveNaturalOrder
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Deferred
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.async
-import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import mihon.app.di.globalAppGraph
@@ -70,21 +65,18 @@ internal class ArchivePageLoader(private val reader: ArchiveReader) : PageLoader
             .sortedWith { f1, f2 -> f1.name.compareToCaseInsensitiveNaturalOrder(f2.name) }
             .mapIndexed { i, entry ->
                 // SY -->
-                val imageBytesDeferred: Deferred<ByteArray>? =
+                val imageBytes: ByteArray? =
                     when (readerPreferences.archiveReaderMode().get()) {
                         ReaderPreferences.ArchiveReaderMode.LOAD_INTO_MEMORY -> {
-                            CoroutineScope(Dispatchers.IO).async {
-                                mutex.withLock {
-                                    reader.getInputStream(entry.name)!!.buffered().use { stream ->
-                                        stream.readBytes()
-                                    }
+                            mutex.withLock {
+                                reader.getInputStream(entry.name)!!.buffered().use { stream ->
+                                    stream.readBytes()
                                 }
                             }
                         }
 
                         else -> null
                     }
-                val imageBytes by lazy { runBlocking { imageBytesDeferred?.await() } }
                 // SY <--
                 ReaderPage(i).apply {
                     // SY -->

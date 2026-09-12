@@ -197,10 +197,11 @@ class MainActivity : BaseActivity() {
 
         super.onCreate(savedInstanceState)
 
-        val didMigration = if (isLaunch) {
-            Migrator.awaitAndRelease()
-        } else {
-            false
+        var didMigration by remember { mutableStateOf(false) }
+        if (isLaunch) {
+            LaunchedEffect(Unit) {
+                didMigration = Migrator.awaitAndRelease()
+            }
         }
 
         // Do not let the launcher create a new activity http://stackoverflow.com/questions/16283079
