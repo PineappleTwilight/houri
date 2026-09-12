@@ -63,6 +63,7 @@ internal class ArchivePageLoader(private val reader: ArchiveReader) : PageLoader
         val sorted = entries
             .filter { it.isFile && ImageUtil.isImage(it.name) { reader.getInputStream(it.name)!! } }
             .sortedWith { f1, f2 -> f1.name.compareToCaseInsensitiveNaturalOrder(f2.name) }
+            .toList()
         val pages = ArrayList<ReaderPage>(sorted.size)
         for ((i, entry) in sorted.withIndex()) {
             // SY -->
