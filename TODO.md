@@ -433,6 +433,7 @@
 - [ ] **Universal Tracker**: Implement finish date remove button
 - [ ] **Universal Tracker**: Make tap and hold the tracker icon copy the tracker url of the manga entry to the clipboard
 - [ ] **Universal Tracker**: Remove useless 3-dot button in the manga status box
+- [ ] **Universal Tracker**: Fix untracked manga being shown as tracked
 
 ## Chores
 - [x] Replace all Komikku icons/branding with houri icons/branding
@@ -466,3 +467,4 @@
 - [ ] **New**: Insert Google's fruit fly brain scan into the app to allow a fruit fly to read manga with you
   - He would demonstrate approval or dislike for whatever mangas he feels like
   - Can possibly be used as a recommendation agent
+  - Should use MaleCNS v1.0
