@@ -146,20 +146,23 @@ object MangaCoverMetadata {
             rawBitmap
         }
 
+        var palette: Palette? = null
         try {
-            Palette.from(bitmapForPalette).generate {
-                if (it == null) return@generate
+            palette = Palette.from(bitmapForPalette).generate()
+        } catch (_: Throwable) {
+        }
+        try {
+            if (palette != null) {
                 if (mangaCover.isMangaFavorite) {
-                    it.dominantSwatch?.let { swatch ->
+                    palette.dominantSwatch?.let { swatch ->
                         mangaCover.dominantCoverColors = swatch.rgb to swatch.titleTextColor
                     }
                 }
-                val color = it.getBestColor() ?: return@generate
-                mangaCover.vibrantCoverColor = color
+                palette.getBestColor()?.let { color ->
+                    mangaCover.vibrantCoverColor = color
+                }
             }
         } catch (_: Throwable) {
-            // Palette can still throw for recycled/hardware edge cases (e.g. 16KB page size
-            // native load failure leaves a 1x1 placeholder). Never crash the browse flow.
         } finally {
             try {
                 if (!bitmapForPalette.isRecycled) bitmapForPalette.recycle()
