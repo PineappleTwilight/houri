@@ -53,18 +53,20 @@ object SettingsYakuyomiScreen : SearchableSettings {
         val cache = remember { globalAppGraph.translationCache }
         val modelManager = remember { globalAppGraph.modelManager }
         val isNomtl = eu.kanade.tachiyomi.BuildConfig.IS_NOMTL
+        val provider by prefs.provider().collectAsState()
+        val isMangatranslator = provider == "mangatranslator"
 
         return listOfNotNull(
             getHeader(),
             getStatusOverview(),
-            getGeneralGroup(prefs),
+            getGeneralGroup(prefs, hideLocal = isMangatranslator),
             getProviderGroup(prefs),
-            getLocalLlmGroup().takeIf { !isNomtl },
-            getModelGroup(modelManager).takeIf { !isNomtl },
-            getRemoteModelGroup(prefs, modelManager),
+            getLocalLlmGroup().takeIf { !isNomtl && !isMangatranslator },
+            getModelGroup(modelManager).takeIf { !isNomtl && !isMangatranslator },
+            getRemoteModelGroup(prefs, modelManager).takeIf { !isMangatranslator },
             getMangaTranslatorGroup(prefs),
-            getBehaviorGroup(prefs, cache),
-            getAdvancedGroup(prefs).takeIf { !isNomtl },
+            getBehaviorGroup(prefs, cache, hideLocal = isMangatranslator),
+            getAdvancedGroup(prefs).takeIf { !isNomtl && !isMangatranslator },
             getSessionsGroup(),
         )
     }
@@ -192,7 +194,10 @@ object SettingsYakuyomiScreen : SearchableSettings {
     }
 
     @Composable
-    private fun getGeneralGroup(prefs: exh.yakuyomi.TranslationPreferences): Preference.PreferenceGroup {
+    private fun getGeneralGroup(
+        prefs: exh.yakuyomi.TranslationPreferences,
+        hideLocal: Boolean = false,
+    ): Preference.PreferenceGroup {
         val enabled by prefs.enabled().collectAsState()
         val context = LocalContext.current
         val lowRam = !exh.yakuyomi.DeviceMemory.isMtlSupported(context)
@@ -240,41 +245,49 @@ object SettingsYakuyomiScreen : SearchableSettings {
                         enabled = enabled,
                     ),
                 )
-                add(
-                    Preference.PreferenceItem.ListPreference(
-                        preference = prefs.fontFamily(),
-                        entries = persistentMapOf(
-                            "casual" to "Manga (Casual)",
-                            "sans-serif" to "Sans-serif",
-                            "sans-serif-condensed" to "Sans-serif Condensed",
-                            "serif" to "Serif",
-                            "serif-monospace" to "Serif Monospace",
-                            "monospace" to "Monospace",
-                            "cursive" to "Cursive",
-                            "default" to "System default",
+                if (!hideLocal) {
+                    add(
+                        Preference.PreferenceItem.ListPreference(
+                            preference = prefs.fontFamily(),
+                            entries = persistentMapOf(
+                                "casual" to "Manga (Casual)",
+                                "sans-serif" to "Sans-serif",
+                                "sans-serif-condensed" to "Sans-serif Condensed",
+                                "serif" to "Serif",
+                                "serif-monospace" to "Serif Monospace",
+                                "monospace" to "Monospace",
+                                "cursive" to "Cursive",
+                                "default" to "System default",
+                            ),
+                            title = stringResource(KMR.strings.pref_yakuyomi_font_family),
+                            subtitle = stringResource(KMR.strings.pref_yakuyomi_font_family_summary) + ": %s",
+                            enabled = enabled,
                         ),
-                        title = stringResource(KMR.strings.pref_yakuyomi_font_family),
-                        subtitle = stringResource(KMR.strings.pref_yakuyomi_font_family_summary) + ": %s",
-                        enabled = enabled,
-                    ),
-                )
-                add(
-                    Preference.PreferenceItem.ListPreference(
-                        preference = prefs.translationTextColor(),
-                        entries = persistentMapOf(
-                            0xFF000000.toInt() to "Black (default)",
-                            0xFFFFFFFF.toInt() to "White",
-                            0xFF0000FF.toInt() to "Blue",
-                            0xFFFF0000.toInt() to "Red",
-                            0xFF008000.toInt() to "Green",
-                            0xFFFF8C00.toInt() to "Orange",
-                            0xFF800080.toInt() to "Purple",
+                    )
+                    add(
+                        Preference.PreferenceItem.ListPreference(
+                            preference = prefs.translationTextColor(),
+                            entries = persistentMapOf(
+                                0xFF000000.toInt() to "Black (default)",
+                                0xFFFFFFFF.toInt() to "White",
+                                0xFF0000FF.toInt() to "Blue",
+                                0xFFFF0000.toInt() to "Red",
+                                0xFF008000.toInt() to "Green",
+                                0xFFFF8C00.toInt() to "Orange",
+                                0xFF800080.toInt() to "Purple",
+                            ),
+                            title = stringResource(KMR.strings.pref_yakuyomi_text_color),
+                            subtitle = stringResource(KMR.strings.pref_yakuyomi_text_color_summary) + ": %s",
+                            enabled = enabled,
                         ),
-                        title = stringResource(KMR.strings.pref_yakuyomi_text_color),
-                        subtitle = stringResource(KMR.strings.pref_yakuyomi_text_color_summary) + ": %s",
-                        enabled = enabled,
-                    ),
-                )
+                    )
+                } else {
+                    add(
+                        Preference.PreferenceItem.InfoPreference(
+                            title = "Local typesetting settings (font, color) are hidden while MangaTranslator is selected — it returns translated images directly and does not use on-device rendering.",
+                        ),
+                    )
+                }
             }.toPersistentList(),
         )
     }
@@ -894,6 +907,7 @@ object SettingsYakuyomiScreen : SearchableSettings {
     private fun getBehaviorGroup(
         prefs: exh.yakuyomi.TranslationPreferences,
         cache: exh.yakuyomi.TranslationCache,
+        hideLocal: Boolean = false,
     ): Preference.PreferenceGroup {
         val context = LocalContext.current
         val enabled by prefs.enabled().collectAsState()
@@ -902,42 +916,60 @@ object SettingsYakuyomiScreen : SearchableSettings {
         val cacheBytes = remember(cacheTick, cacheEnabled) { cache.sizeBytes() }
         return Preference.PreferenceGroup(
             title = "Behavior & Cache",
-            preferenceItems = persistentListOf(
-                Preference.PreferenceItem.SwitchPreference(
-                    preference = prefs.offlineFallback(),
-                    title = stringResource(KMR.strings.pref_yakuyomi_offline_fallback),
-                    subtitle = "Keep original art when the API call fails (otherwise pages are marked failed and retried)",
-                    enabled = enabled,
-                ),
-                Preference.PreferenceItem.SwitchPreference(
-                    preference = prefs.cacheEnabled(),
-                    title = stringResource(KMR.strings.pref_yakuyomi_cache_enabled),
-                    subtitle = "Cache translated pages per model (WEBP, 32MB cap, 30d expiry)",
-                    enabled = enabled,
-                ),
-                Preference.PreferenceItem.SwitchPreference(
-                    preference = prefs.autoTranslateOnDownload(),
-                    title = stringResource(KMR.strings.pref_yakuyomi_auto_download),
-                    subtitle = "Prewarm translation when chapters are downloaded (respects per-manga toggle)",
-                    enabled = enabled,
-                ),
-                Preference.PreferenceItem.SwitchPreference(
-                    preference = prefs.saveTranslatedPages(),
-                    title = "Save translated pages to chapter folder",
-                    subtitle = "Keep translated WEBP images alongside originals to avoid re-translating",
-                    enabled = enabled,
-                ),
-                Preference.PreferenceItem.TextPreference(
-                    title = "Clear translation cache",
-                    subtitle = "Current: ${cacheBytes / 1024} KB / 32768 KB",
-                    onClick = {
-                        cache.clearAll()
-                        cacheTick = cacheTick + 1
-                        context.toast("Translation cache cleared")
-                    },
-                    enabled = enabled,
-                ),
-            ),
+            preferenceItems = buildList {
+                if (!hideLocal) {
+                    add(
+                        Preference.PreferenceItem.SwitchPreference(
+                            preference = prefs.offlineFallback(),
+                            title = stringResource(KMR.strings.pref_yakuyomi_offline_fallback),
+                            subtitle = "Keep original art when the API call fails (otherwise pages are marked failed and retried)",
+                            enabled = enabled,
+                        ),
+                    )
+                    add(
+                        Preference.PreferenceItem.SwitchPreference(
+                            preference = prefs.cacheEnabled(),
+                            title = stringResource(KMR.strings.pref_yakuyomi_cache_enabled),
+                            subtitle = "Cache translated pages per model (WEBP, 32MB cap, 30d expiry)",
+                            enabled = enabled,
+                        ),
+                    )
+                    add(
+                        Preference.PreferenceItem.SwitchPreference(
+                            preference = prefs.autoTranslateOnDownload(),
+                            title = stringResource(KMR.strings.pref_yakuyomi_auto_download),
+                            subtitle = "Prewarm translation when chapters are downloaded (respects per-manga toggle)",
+                            enabled = enabled,
+                        ),
+                    )
+                    add(
+                        Preference.PreferenceItem.SwitchPreference(
+                            preference = prefs.saveTranslatedPages(),
+                            title = "Save translated pages to chapter folder",
+                            subtitle = "Keep translated WEBP images alongside originals to avoid re-translating",
+                            enabled = enabled,
+                        ),
+                    )
+                } else {
+                    add(
+                        Preference.PreferenceItem.InfoPreference(
+                            title = "On-device behavior & cache settings are hidden while MangaTranslator is selected — it manages its own remote cache and chapter-folder saving.",
+                        ),
+                    )
+                }
+                add(
+                    Preference.PreferenceItem.TextPreference(
+                        title = "Clear translation cache",
+                        subtitle = "Current: ${cacheBytes / 1024} KB / 32768 KB",
+                        onClick = {
+                            cache.clearAll()
+                            cacheTick = cacheTick + 1
+                            context.toast("Translation cache cleared")
+                        },
+                        enabled = enabled,
+                    ),
+                )
+            }.toPersistentList(),
         )
     }
 

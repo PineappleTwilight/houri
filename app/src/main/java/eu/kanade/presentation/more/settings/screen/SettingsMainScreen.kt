@@ -9,6 +9,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ChromeReaderMode
+import androidx.compose.material.icons.outlined.AutoFixHigh
 import androidx.compose.material.icons.outlined.Code
 import androidx.compose.material.icons.outlined.CollectionsBookmark
 import androidx.compose.material.icons.outlined.Explore
@@ -269,6 +270,12 @@ object SettingsMainScreen : Screen() {
             subtitleRes = KMR.strings.pref_yakuyomi_enabled_summary,
             icon = Icons.Outlined.Language,
             screen = SettingsYakuyomiScreen,
+        ),
+        Item(
+            titleRes = KMR.strings.pref_upscale_title,
+            subtitleRes = KMR.strings.pref_upscale_enabled_summary,
+            icon = Icons.Outlined.AutoFixHigh,
+            screen = SettingsUpscalerScreen,
         ),
         Item(
             titleRes = KMR.strings.label_achievements,
