@@ -4,8 +4,8 @@ import android.util.SparseArray
 import androidx.core.util.AtomicFile
 import androidx.core.util.forEach
 import exh.log.xLogD
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
@@ -14,9 +14,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import mihon.core.concurrency.AppDispatchersHolder
 import okio.BufferedSource
 import okio.buffer
 import okio.sink
@@ -25,7 +24,10 @@ import java.io.Closeable
 import java.io.File
 import java.io.FileNotFoundException
 import java.nio.ByteBuffer
+import java.util.concurrent.locks.ReentrantReadWriteLock
+import kotlin.concurrent.read
 import kotlin.concurrent.thread
+import kotlin.concurrent.write
 
 /**
  * In memory Int -> Obj lookup table implementation that
@@ -39,7 +41,7 @@ class MemAutoFlushingLookupTable<T>(
     file: File,
     private val serializer: EntrySerializer<T>,
     private val debounceTimeMs: Long = 3000,
-) : CoroutineScope by CoroutineScope(Dispatchers.IO + SupervisorJob()), Closeable {
+) : CoroutineScope by CoroutineScope(AppDispatchersHolder.get().io + SupervisorJob()), Closeable {
     /**
      * The context of this scope.
      * Context is encapsulated by the scope and used for implementation of coroutine builders that are extensions on the scope.
@@ -49,7 +51,8 @@ class MemAutoFlushingLookupTable<T>(
      */
 
     private val table = SparseArray<T>(INITIAL_SIZE)
-    private val mutex = Mutex(true)
+    private val rwLock = ReentrantReadWriteLock()
+    private val loadGate = CompletableDeferred<Unit>()
 
     // Used to debounce
     @Volatile
@@ -98,9 +101,9 @@ class MemAutoFlushingLookupTable<T>(
             } catch (e: FileNotFoundException) {
                 this@MemAutoFlushingLookupTable.xLogD("Lookup table not found!", e)
                 // Ignored
+            } finally {
+                if (!loadGate.isCompleted) loadGate.complete(Unit)
             }
-
-            mutex.unlock()
         }
     }
 
@@ -111,7 +114,7 @@ class MemAutoFlushingLookupTable<T>(
             delay(debounceTimeMs)
             if (id != writeCounter) return@launch
 
-            mutex.withLock {
+            rwLock.write {
                 // Second check inside of mutex to prevent dupe writes
                 if (id != writeCounter) return@launch
                 withContext(NonCancellable) {
@@ -146,16 +149,19 @@ class MemAutoFlushingLookupTable<T>(
     }
 
     suspend fun put(key: Int, value: T) {
-        mutex.withLock { table.put(key, value) }
+        loadGate.await()
+        rwLock.write { table.put(key, value) }
         tryWrite()
     }
 
     suspend fun get(key: Int): T? {
-        return mutex.withLock { table.get(key) }
+        loadGate.await()
+        return rwLock.read { table.get(key) }
     }
 
     suspend fun size(): Int {
-        return mutex.withLock { table.size() }
+        loadGate.await()
+        return rwLock.read { table.size() }
     }
 
     /**
