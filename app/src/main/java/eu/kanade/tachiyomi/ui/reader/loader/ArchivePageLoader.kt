@@ -60,32 +60,33 @@ internal class ArchivePageLoader(private val reader: ArchiveReader) : PageLoader
             return DirectoryPageLoader(UniFile.fromFile(tmpDir)!!).getPages()
         }
         // SY <--
-        entries
+        val sorted = entries
             .filter { it.isFile && ImageUtil.isImage(it.name) { reader.getInputStream(it.name)!! } }
             .sortedWith { f1, f2 -> f1.name.compareToCaseInsensitiveNaturalOrder(f2.name) }
-            .mapIndexed { i, entry ->
-                // SY -->
-                val imageBytes: ByteArray? =
-                    when (readerPreferences.archiveReaderMode().get()) {
-                        ReaderPreferences.ArchiveReaderMode.LOAD_INTO_MEMORY -> {
-                            mutex.withLock {
-                                reader.getInputStream(entry.name)!!.buffered().use { stream ->
-                                    stream.readBytes()
-                                }
+        val pages = ArrayList<ReaderPage>(sorted.size)
+        for ((i, entry) in sorted.withIndex()) {
+            // SY -->
+            val imageBytes: ByteArray? =
+                when (readerPreferences.archiveReaderMode().get()) {
+                    ReaderPreferences.ArchiveReaderMode.LOAD_INTO_MEMORY -> {
+                        mutex.withLock {
+                            reader.getInputStream(entry.name)!!.buffered().use { stream ->
+                                stream.readBytes()
                             }
                         }
-
-                        else -> null
                     }
-                // SY <--
-                ReaderPage(i).apply {
-                    // SY -->
-                    stream = { imageBytes?.copyOf()?.inputStream() ?: reader.getInputStream(entry.name)!! }
-                    // SY <--
-                    status = Page.State.Ready
+
+                    else -> null
                 }
+            // SY <--
+            pages += ReaderPage(i).apply {
+                // SY -->
+                stream = { imageBytes?.copyOf()?.inputStream() ?: reader.getInputStream(entry.name)!! }
+                // SY <--
+                status = Page.State.Ready
             }
-            .toList()
+        }
+        return pages
     }
 
     override suspend fun loadPage(page: ReaderPage) {

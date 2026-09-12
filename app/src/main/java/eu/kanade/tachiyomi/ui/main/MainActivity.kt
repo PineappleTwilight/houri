@@ -188,6 +188,7 @@ class MainActivity : BaseActivity() {
 
     private var runExhConfigureDialog by mutableStateOf(false)
     // SY <--
+    private var didMigration by mutableStateOf(false)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         val isLaunch = savedInstanceState == null
@@ -197,9 +198,8 @@ class MainActivity : BaseActivity() {
 
         super.onCreate(savedInstanceState)
 
-        var didMigration by remember { mutableStateOf(false) }
         if (isLaunch) {
-            LaunchedEffect(Unit) {
+            lifecycleScope.launchIO {
                 didMigration = Migrator.awaitAndRelease()
             }
         }
