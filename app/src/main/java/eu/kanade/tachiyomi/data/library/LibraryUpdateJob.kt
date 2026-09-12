@@ -28,7 +28,7 @@ import eu.kanade.tachiyomi.data.download.DownloadManager
 import eu.kanade.tachiyomi.data.notification.Notifications
 import eu.kanade.tachiyomi.data.sync.SyncDataJob
 import eu.kanade.tachiyomi.data.track.TrackStatus
-import eu.kanade.tachiyomi.data.track.TrackerManager
+import eu.kanade.tachiyomi.data.track.core.TrackerId
 import eu.kanade.tachiyomi.data.webhook.WebhookEvent
 import eu.kanade.tachiyomi.data.webhook.WebhookNotifier
 import eu.kanade.tachiyomi.source.model.SManga
@@ -453,7 +453,7 @@ class LibraryUpdateJob(private val context: Context, workerParams: WorkerParamet
                                         try {
                                             val tracks = getTracks.await(manga.id)
                                             if (tracks.isEmpty() ||
-                                                tracks.none { it.trackerId == TrackerManager.MDLIST }
+                                                tracks.none { it.trackerId == TrackerId.MDLIST }
                                             ) {
                                                 val track = mdList.createInitialTracker(manga)
                                                 insertTrack.await(mdList.refresh(track).toDomainTrack(false)!!)
@@ -666,8 +666,7 @@ class LibraryUpdateJob(private val context: Context, workerParams: WorkerParamet
                 // Get this manga's trackers from the database
                 val dbTracks = getTracks.await(manga.id)
 
-                // find the mdlist entry if its unfollowed the follow it
-                var tracker = dbTracks.firstOrNull { it.trackerId == TrackerManager.MDLIST }
+                var tracker = dbTracks.firstOrNull { it.trackerId == TrackerId.MDLIST }
                     ?: mdList.createInitialTracker(manga).toDomainTrack(idRequired = false)
 
                 if (tracker?.status == FollowStatus.UNFOLLOWED.long) {

@@ -1,7 +1,7 @@
 package exh.md.handlers
 
 import eu.kanade.tachiyomi.data.database.models.Track
-import eu.kanade.tachiyomi.data.track.TrackerManager
+import eu.kanade.tachiyomi.data.track.core.TrackerId
 import eu.kanade.tachiyomi.source.model.MetadataMangasPage
 import eu.kanade.tachiyomi.source.model.SManga
 import exh.md.dto.MangaDataDto
@@ -153,7 +153,7 @@ class FollowsHandler(
                 service.mangasRating(mangaId).ratings.asMdMap<PersonalRatingDto>()[mangaId]
             }
             val (followStatus, rating) = followStatusDef.await() to ratingDef.await()
-            Track.create(TrackerManager.MDLIST).apply {
+            Track.create(TrackerId.MDLIST).apply {
                 title = ""
                 status = followStatus.long
                 tracking_url = url

@@ -7,7 +7,12 @@ import eu.kanade.tachiyomi.data.track.anilist.Anilist
 import eu.kanade.tachiyomi.data.track.animeplanet.AnimePlanet
 import eu.kanade.tachiyomi.data.track.bangumi.Bangumi
 import eu.kanade.tachiyomi.data.track.comick.ComicK
+import eu.kanade.tachiyomi.data.track.core.TrackerAuthType
+import eu.kanade.tachiyomi.data.track.core.TrackerCapabilities
+import eu.kanade.tachiyomi.data.track.core.TrackerDefinition
 import eu.kanade.tachiyomi.data.track.core.TrackerId
+import eu.kanade.tachiyomi.data.track.core.TrackerLoginMode
+import eu.kanade.tachiyomi.data.track.core.TrackerRegistry
 import eu.kanade.tachiyomi.data.track.hikka.Hikka
 import eu.kanade.tachiyomi.data.track.kavita.Kavita
 import eu.kanade.tachiyomi.data.track.kitsu.Kitsu
@@ -65,6 +70,34 @@ class TrackerManager {
         check(ids.size == ids.toSet().size) { "Duplicate tracker IDs detected: $ids" }
         check(ids.all { it > 0 }) { "Tracker IDs must be positive: $ids" }
         check(ids.toSet() == TrackerId.all) { "TrackerManager ids $ids diverge from TrackerId.all ${TrackerId.all}" }
+        trackers.forEach { tracker ->
+            val authType = when (tracker.getLoginMode()) {
+                TrackerLoginMode.OAUTH -> TrackerAuthType.OAUTH
+                TrackerLoginMode.CREDENTIALS -> TrackerAuthType.BASIC
+                TrackerLoginMode.WEBVIEW_COOKIE -> TrackerAuthType.COOKIE
+                TrackerLoginMode.ENHANCED_NOOP -> TrackerAuthType.NONE
+            }
+            val capabilities = TrackerCapabilities(
+                supportsReadingDates = tracker.supportsReadingDates,
+                supportsPrivateTracking = tracker.supportsPrivateTracking,
+                supportsRereadCount = tracker.supportsRereadCount,
+                supportsScore = tracker.getScoreList().isNotEmpty(),
+                isEnhanced = tracker is EnhancedTracker,
+            )
+            val definition = TrackerDefinition(
+                id = tracker.id,
+                name = tracker.name,
+                logoRes = tracker.getLogo(),
+                authType = authType,
+                capabilities = capabilities,
+                factory = { tracker },
+            )
+            try {
+                TrackerRegistry.register(definition)
+            } catch (_: IllegalArgumentException) {
+            }
+        }
+        TrackerRegistry.validate()
     }
 
     fun loggedInTrackers() = trackers.filter { it.isLoggedIn }

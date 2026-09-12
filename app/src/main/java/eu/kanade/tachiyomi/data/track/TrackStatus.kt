@@ -4,12 +4,17 @@ import dev.icerock.moko.resources.StringResource
 import eu.kanade.tachiyomi.data.track.anilist.Anilist
 import eu.kanade.tachiyomi.data.track.animeplanet.AnimePlanet
 import eu.kanade.tachiyomi.data.track.bangumi.Bangumi
+import eu.kanade.tachiyomi.data.track.comick.ComicK
+import eu.kanade.tachiyomi.data.track.core.TrackerId
+import eu.kanade.tachiyomi.data.track.hikka.Hikka
+import eu.kanade.tachiyomi.data.track.kavita.Kavita
 import eu.kanade.tachiyomi.data.track.kitsu.Kitsu
 import eu.kanade.tachiyomi.data.track.komga.Komga
 import eu.kanade.tachiyomi.data.track.mangabaka.MangaBaka
 import eu.kanade.tachiyomi.data.track.mangaupdates.MangaUpdates
 import eu.kanade.tachiyomi.data.track.myanimelist.MyAnimeList
 import eu.kanade.tachiyomi.data.track.shikimori.Shikimori
+import eu.kanade.tachiyomi.data.track.suwayomi.Suwayomi
 import exh.md.utils.FollowStatus
 import tachiyomi.i18n.MR
 import tachiyomi.i18n.sy.SYMR
@@ -26,8 +31,10 @@ enum class TrackStatus(val int: Int, val res: StringResource) {
 
     companion object {
         fun parseTrackerStatus(trackerManager: TrackerManager, tracker: Long, status: Long): TrackStatus? {
+            // Framework: prefer TrackerId constants; fall back to manager fields for legacy call sites.
+            // This switch is now exhaustive for all 14 built-in trackers (+1 MDLIST).
             return when (tracker) {
-                trackerManager.mdList.id -> {
+                TrackerId.MDLIST, trackerManager.mdList.id -> {
                     when (FollowStatus.fromLong(status)) {
                         FollowStatus.UNFOLLOWED -> null
                         FollowStatus.READING -> READING
@@ -38,7 +45,7 @@ enum class TrackStatus(val int: Int, val res: StringResource) {
                         FollowStatus.RE_READING -> REPEATING
                     }
                 }
-                trackerManager.myAnimeList.id -> {
+                TrackerId.MYANIMELIST, trackerManager.myAnimeList.id -> {
                     when (status) {
                         MyAnimeList.READING -> READING
                         MyAnimeList.COMPLETED -> COMPLETED
@@ -49,7 +56,7 @@ enum class TrackStatus(val int: Int, val res: StringResource) {
                         else -> null
                     }
                 }
-                trackerManager.aniList.id -> {
+                TrackerId.ANILIST, trackerManager.aniList.id -> {
                     when (status) {
                         Anilist.READING -> READING
                         Anilist.COMPLETED -> COMPLETED
@@ -60,17 +67,18 @@ enum class TrackStatus(val int: Int, val res: StringResource) {
                         else -> null
                     }
                 }
-                trackerManager.kitsu.id -> {
+                TrackerId.KITSU, trackerManager.kitsu.id -> {
                     when (status) {
                         Kitsu.READING -> READING
                         Kitsu.COMPLETED -> COMPLETED
                         Kitsu.ON_HOLD -> PAUSED
                         Kitsu.PLAN_TO_READ -> PLAN_TO_READ
                         Kitsu.DROPPED -> DROPPED
+                        Kitsu.REREADING -> REPEATING
                         else -> null
                     }
                 }
-                trackerManager.shikimori.id -> {
+                TrackerId.SHIKIMORI, trackerManager.shikimori.id -> {
                     when (status) {
                         Shikimori.READING -> READING
                         Shikimori.COMPLETED -> COMPLETED
@@ -81,7 +89,7 @@ enum class TrackStatus(val int: Int, val res: StringResource) {
                         else -> null
                     }
                 }
-                trackerManager.bangumi.id -> {
+                TrackerId.BANGUMI, trackerManager.bangumi.id -> {
                     when (status) {
                         Bangumi.READING -> READING
                         Bangumi.COMPLETED -> COMPLETED
@@ -91,7 +99,7 @@ enum class TrackStatus(val int: Int, val res: StringResource) {
                         else -> READING
                     }
                 }
-                trackerManager.komga.id -> {
+                TrackerId.KOMGA, trackerManager.komga.id -> {
                     when (status) {
                         Komga.READING -> READING
                         Komga.COMPLETED -> COMPLETED
@@ -99,7 +107,7 @@ enum class TrackStatus(val int: Int, val res: StringResource) {
                         else -> null
                     }
                 }
-                trackerManager.mangaUpdates.id -> {
+                TrackerId.MANGA_UPDATES, trackerManager.mangaUpdates.id -> {
                     when (status) {
                         MangaUpdates.READING_LIST -> READING
                         MangaUpdates.COMPLETE_LIST -> COMPLETED
@@ -109,7 +117,7 @@ enum class TrackStatus(val int: Int, val res: StringResource) {
                         else -> null
                     }
                 }
-                trackerManager.mangaBaka.id -> {
+                TrackerId.MANGABAKA, trackerManager.mangaBaka.id -> {
                     when (status) {
                         MangaBaka.READING -> READING
                         MangaBaka.COMPLETED -> COMPLETED
@@ -120,7 +128,7 @@ enum class TrackStatus(val int: Int, val res: StringResource) {
                         else -> null
                     }
                 }
-                trackerManager.animePlanet.id -> {
+                TrackerId.ANIMEPLANET, trackerManager.animePlanet.id -> {
                     when (status) {
                         AnimePlanet.READING -> READING
                         AnimePlanet.COMPLETED -> COMPLETED
@@ -128,6 +136,42 @@ enum class TrackStatus(val int: Int, val res: StringResource) {
                         AnimePlanet.PLAN_TO_READ -> PLAN_TO_READ
                         AnimePlanet.DROPPED -> DROPPED
                         AnimePlanet.REREADING -> REPEATING
+                        else -> null
+                    }
+                }
+                TrackerId.HIKKA, trackerManager.hikka.id -> {
+                    when (status) {
+                        Hikka.READING -> READING
+                        Hikka.COMPLETED -> COMPLETED
+                        Hikka.ON_HOLD -> PAUSED
+                        Hikka.PLAN_TO_READ -> PLAN_TO_READ
+                        Hikka.DROPPED -> DROPPED
+                        Hikka.REREADING -> REPEATING
+                        else -> null
+                    }
+                }
+                TrackerId.COMICK, trackerManager.comicK.id -> {
+                    when (status) {
+                        ComicK.READING -> READING
+                        ComicK.COMPLETED -> COMPLETED
+                        ComicK.ON_HOLD -> PAUSED
+                        ComicK.PLAN_TO_READ -> PLAN_TO_READ
+                        ComicK.DROPPED -> DROPPED
+                        else -> null
+                    }
+                }
+                // Enhanced trackers (Kavita, Suwayomi) reuse same 2-state read/completed model as Komga
+                TrackerId.KAVITA, trackerManager.kavita.id -> {
+                    when (status) {
+                        Kavita.READING -> READING
+                        Kavita.COMPLETED -> COMPLETED
+                        else -> null
+                    }
+                }
+                TrackerId.SUWAYOMI, trackerManager.suwayomi.id -> {
+                    when (status) {
+                        Suwayomi.READING -> READING
+                        Suwayomi.COMPLETED -> COMPLETED
                         else -> null
                     }
                 }

@@ -1,6 +1,6 @@
 package eu.kanade.tachiyomi.data.track.kitsu.dto
 
-import eu.kanade.tachiyomi.data.track.TrackerManager
+import eu.kanade.tachiyomi.data.track.core.TrackerId
 import eu.kanade.tachiyomi.data.track.kitsu.KitsuApi
 import eu.kanade.tachiyomi.data.track.model.TrackSearch
 import kotlinx.serialization.Serializable
@@ -36,7 +36,7 @@ data class KitsuAlgoliaSearchItem(
     val endDate: Long?,
 ) {
     fun toTrack(): TrackSearch {
-        return TrackSearch.create(TrackerManager.KITSU).apply {
+        return TrackSearch.create(TrackerId.KITSU).apply {
             remote_id = this@KitsuAlgoliaSearchItem.id
             title = canonicalTitle
             total_chapters = chapterCount ?: 0

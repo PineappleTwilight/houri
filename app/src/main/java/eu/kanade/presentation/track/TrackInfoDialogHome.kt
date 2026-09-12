@@ -67,6 +67,7 @@ import eu.kanade.tachiyomi.util.lang.toLocalDate
 import eu.kanade.tachiyomi.util.system.copyToClipboard
 import kotlinx.coroutines.launch
 import mihon.app.di.globalAppGraph
+import tachiyomi.domain.track.service.TrackerProgressSync
 import tachiyomi.i18n.MR
 import tachiyomi.i18n.kmk.KMR
 import tachiyomi.presentation.core.i18n.stringResource
@@ -119,14 +120,9 @@ fun TrackInfoDialogHome(
             }
             // KMK <--
             val trackedItems = remember(trackItems) { trackItems.filter { it.track != null } }
-            val mismatchIds = remember(trackItems) {
-                val chapterValues = trackItems.mapNotNull { it.track?.lastChapterRead }.distinct()
-                if (chapterValues.size > 1) {
-                    val max = chapterValues.maxOrNull() ?: 0.0
-                    trackItems.filter { it.track != null && kotlin.math.abs(it.track.lastChapterRead - max) > 0.01 }.map { it.tracker.id }.toSet()
-                } else {
-                    emptySet()
-                }
+            val domainTracks = remember(trackItems) { trackItems.mapNotNull { it.track } }
+            val mismatchIds = remember(domainTracks) {
+                TrackerProgressSync.mismatchedIds(domainTracks)
             }
             // Unified card only when 2+ actually tracked entries; otherwise show per-tracker rows.
             // Fixes: untracked manga being shown as tracked, and empty space below card when only 1 tracked.
@@ -461,17 +457,24 @@ private fun UnifiedTrackerCard(
     onOpenInBrowser: (TrackItem) -> Unit,
     onCopyLink: (TrackItem) -> Unit,
 ) {
-    val primary = trackItems.firstOrNull { it.track != null } ?: trackItems.firstOrNull() ?: return
+    val domainTracksForSync = remember(trackItems) { trackItems.mapNotNull { it.track } }
+    val preferredId = remember(domainTracksForSync) {
+        try {
+            val prefs = globalAppGraph.trackPreferences
+            val mangaId = domainTracksForSync.firstOrNull()?.mangaId ?: 0L
+            if (mangaId != 0L) prefs.getPreferredTrackerForManga(mangaId) else null
+        } catch (_: Exception) { null }
+    }
+    val resolved = remember(domainTracksForSync, preferredId) {
+        TrackerProgressSync.resolvePreferredTrack(domainTracksForSync, preferredId)
+    }
+    val primary = remember(trackItems, resolved) {
+        resolved?.let { r -> trackItems.find { it.track?.trackerId == r.trackerId } } ?: trackItems.firstOrNull { it.track != null } ?: trackItems.firstOrNull() ?: return
+    }
     val displayTrack = primary.track
     val displayTracker = primary.tracker
-    val isMismatched = remember(trackItems, primary) {
-        val chapterValues = trackItems.mapNotNull { it.track?.lastChapterRead }.distinct()
-        if (chapterValues.size > 1) {
-            val max = chapterValues.maxOrNull() ?: 0.0
-            primary.track != null && kotlin.math.abs(primary.track.lastChapterRead - max) > 0.01
-        } else {
-            false
-        }
+    val isMismatched = remember(domainTracksForSync, preferredId) {
+        TrackerProgressSync.shouldHighlightMismatch(domainTracksForSync, preferredId)
     }
     val statusText = displayTrack?.let { displayTracker.getStatus(it.status)?.let { stringResource(it) } } ?: "Reading"
     val scoreText = displayTrack?.let { displayTracker.displayScore(it) }?.takeIf { it.isNotBlank() } ?: "10.0"
@@ -561,7 +564,8 @@ private fun UnifiedTrackerCard(
                             .weight(0.15f)
                             .fillMaxHeight()
                             .clickable {
-                                val newChapter = (displayTrack?.lastChapterRead?.toInt() ?: 0) + 1
+                                val base = TrackerProgressSync.maxProgress(domainTracksForSync).toInt()
+                                val newChapter = base + 1
                                 scope.launch {
                                     trackItems.filter { it.track != null }.forEach { item ->
                                         try {
@@ -593,7 +597,8 @@ private fun UnifiedTrackerCard(
                             .weight(0.15f)
                             .fillMaxHeight()
                             .clickable {
-                                val newChapter = maxOf(0, (displayTrack?.lastChapterRead?.toInt() ?: 0) - 1)
+                                val base = TrackerProgressSync.maxProgress(domainTracksForSync).toInt()
+                                val newChapter = maxOf(0, base - 1)
                                 scope.launch {
                                     trackItems.filter { it.track != null }.forEach { item ->
                                         try {

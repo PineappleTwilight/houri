@@ -1,6 +1,6 @@
 package eu.kanade.tachiyomi.data.track.kitsu.dto
 
-import eu.kanade.tachiyomi.data.track.TrackerManager
+import eu.kanade.tachiyomi.data.track.core.TrackerId
 import eu.kanade.tachiyomi.data.track.kitsu.Kitsu
 import eu.kanade.tachiyomi.data.track.kitsu.KitsuApi
 import eu.kanade.tachiyomi.data.track.kitsu.KitsuDateHelper
@@ -20,7 +20,7 @@ data class KitsuListSearchResult(
         val userDataAttrs = userData.attributes
         val manga = included[0].attributes
 
-        return TrackSearch.create(TrackerManager.KITSU).apply {
+        return TrackSearch.create(TrackerId.KITSU).apply {
             remote_id = included[0].id
             library_id = userData.id
             title = manga.canonicalTitle

@@ -36,14 +36,16 @@ class TrackChapter(
             val tracks = getTracks.await(mangaId)
             if (tracks.isEmpty()) return@withNonCancellableContext
 
+            val trackPrefs = try { mihon.app.di.globalAppGraph.trackPreferences } catch (_: Exception) { null }
+            val autoSync = try { trackPrefs?.autoSyncProgressFromTrackers()?.get() } catch (_: Exception) { true } ?: true
             val preferredId = try {
-                mihon.app.di.globalAppGraph.trackPreferences.getPreferredTrackerForManga(mangaId)
+                trackPrefs?.getPreferredTrackerForManga(mangaId)
             } catch (_: Exception) {
                 null
             }
-            val effectivePreferred = preferredId ?: try {
+            val effectivePreferred = if (!autoSync) null else preferredId ?: try {
                 val cats = mihon.app.di.globalAppGraph.getCategories.await(mangaId).map { it.id }
-                cats.firstNotNullOfOrNull { mihon.app.di.globalAppGraph.trackPreferences.getPreferredTrackerForCategory(it) }
+                cats.firstNotNullOfOrNull { trackPrefs?.getPreferredTrackerForCategory(it) }
             } catch (_: Exception) {
                 null
             }
