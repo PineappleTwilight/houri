@@ -5,6 +5,7 @@ import eu.kanade.tachiyomi.R
 import eu.kanade.tachiyomi.data.database.models.Track
 import eu.kanade.tachiyomi.data.track.BaseTracker
 import eu.kanade.tachiyomi.data.track.DeletableTracker
+import eu.kanade.tachiyomi.data.track.core.TrackerLoginMode
 import eu.kanade.tachiyomi.data.track.hikka.dto.HKOAuth
 import eu.kanade.tachiyomi.data.track.model.TrackSearch
 import kotlinx.collections.immutable.ImmutableList
@@ -168,6 +169,9 @@ class Hikka(id: Long) : BaseTracker(id, "Hikka"), DeletableTracker {
     // KMK -->
     override fun hasNotStartedReading(status: Long): Boolean = status == PLAN_TO_READ
     // KMK <--
+    override fun getLoginMode(): TrackerLoginMode = TrackerLoginMode.OAUTH
+
+    override fun getAuthUrl(): String? = HikkaApi.authUrl().toString()
 
     override fun logout() {
         super.logout()

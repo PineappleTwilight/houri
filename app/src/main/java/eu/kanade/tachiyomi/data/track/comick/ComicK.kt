@@ -11,6 +11,7 @@ import eu.kanade.tachiyomi.data.track.comick.ComicKApi.Companion.TYPE_ON_HOLD
 import eu.kanade.tachiyomi.data.track.comick.ComicKApi.Companion.TYPE_PLANNING
 import eu.kanade.tachiyomi.data.track.comick.ComicKApi.Companion.TYPE_READING
 import eu.kanade.tachiyomi.data.track.comick.ComicKApi.Companion.TYPE_UNFOLLOW
+import eu.kanade.tachiyomi.data.track.core.TrackerLoginMode
 import eu.kanade.tachiyomi.data.track.model.TrackMangaMetadata
 import eu.kanade.tachiyomi.data.track.model.TrackSearch
 import kotlinx.collections.immutable.ImmutableList
@@ -190,6 +191,11 @@ class ComicK(id: Long) : BaseTracker(id, "ComicK"), DeletableTracker {
     }
 
     override fun hasNotStartedReading(status: Long): Boolean = status == PLAN_TO_READ
+
+    override fun getLoginMode(): TrackerLoginMode = TrackerLoginMode.WEBVIEW_COOKIE
+
+    override fun createCookieLoginIntent(context: android.content.Context): android.content.Intent? =
+        ComicKLoginActivity.newIntent(context)
 
     override suspend fun delete(track: DomainTrack) {
         api.unfollowComic(track.remoteId)

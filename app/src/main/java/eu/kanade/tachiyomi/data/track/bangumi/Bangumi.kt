@@ -5,6 +5,7 @@ import eu.kanade.tachiyomi.R
 import eu.kanade.tachiyomi.data.database.models.Track
 import eu.kanade.tachiyomi.data.track.BaseTracker
 import eu.kanade.tachiyomi.data.track.bangumi.dto.BGMOAuth
+import eu.kanade.tachiyomi.data.track.core.TrackerLoginMode
 import eu.kanade.tachiyomi.data.track.model.TrackMangaMetadata
 import eu.kanade.tachiyomi.data.track.model.TrackSearch
 import kotlinx.collections.immutable.ImmutableList
@@ -153,4 +154,7 @@ class Bangumi(id: Long) : BaseTracker(id, "Bangumi") {
     // KMK -->
     override fun hasNotStartedReading(status: Long): Boolean = status == PLAN_TO_READ
     // KMK <--
+    override fun getLoginMode(): TrackerLoginMode = TrackerLoginMode.OAUTH
+
+    override fun getAuthUrl(): String? = BangumiApi.authUrl().toString()
 }

@@ -5,6 +5,7 @@ import eu.kanade.tachiyomi.R
 import eu.kanade.tachiyomi.data.database.models.Track
 import eu.kanade.tachiyomi.data.track.BaseTracker
 import eu.kanade.tachiyomi.data.track.EnhancedTracker
+import eu.kanade.tachiyomi.data.track.core.TrackerLoginMode
 import eu.kanade.tachiyomi.data.track.model.TrackSearch
 import eu.kanade.tachiyomi.source.ConfigurableSource
 import eu.kanade.tachiyomi.source.Source
@@ -145,4 +146,5 @@ class Kavita(id: Long) : BaseTracker(id, "Kavita"), EnhancedTracker {
     // KMK -->
     override fun hasNotStartedReading(status: Long): Boolean = status == UNREAD
     // KMK <--
+    override fun getLoginMode(): TrackerLoginMode = TrackerLoginMode.ENHANCED_NOOP
 }

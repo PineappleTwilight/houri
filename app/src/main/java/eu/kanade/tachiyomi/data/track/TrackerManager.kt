@@ -7,6 +7,7 @@ import eu.kanade.tachiyomi.data.track.anilist.Anilist
 import eu.kanade.tachiyomi.data.track.animeplanet.AnimePlanet
 import eu.kanade.tachiyomi.data.track.bangumi.Bangumi
 import eu.kanade.tachiyomi.data.track.comick.ComicK
+import eu.kanade.tachiyomi.data.track.core.TrackerId
 import eu.kanade.tachiyomi.data.track.hikka.Hikka
 import eu.kanade.tachiyomi.data.track.kavita.Kavita
 import eu.kanade.tachiyomi.data.track.kitsu.Kitsu
@@ -24,39 +25,39 @@ import kotlinx.coroutines.flow.combine
 class TrackerManager {
 
     companion object {
-        const val ANILIST = 2L
-        const val KITSU = 3L
-        const val KAVITA = 8L
-        const val HIKKA = 10L
-        const val MANGABAKA = 11L
-        // KMK -->
-        const val ANIMEPLANET = 61L
-        const val SUWAYOMI = 9L
-        const val COMICK = 63L
-        // KMK <--
-
-        // SY --> Mangadex from Neko
-        const val MDLIST = 60L
-        // SY <--
+        const val ANILIST = TrackerId.ANILIST
+        const val KITSU = TrackerId.KITSU
+        const val KAVITA = TrackerId.KAVITA
+        const val HIKKA = TrackerId.HIKKA
+        const val MANGABAKA = TrackerId.MANGABAKA
+        const val ANIMEPLANET = TrackerId.ANIMEPLANET
+        const val SUWAYOMI = TrackerId.SUWAYOMI
+        const val COMICK = TrackerId.COMICK
+        const val MDLIST = TrackerId.MDLIST
+        const val MYANIMELIST = TrackerId.MYANIMELIST
+        const val SHIKIMORI = TrackerId.SHIKIMORI
+        const val BANGUMI = TrackerId.BANGUMI
+        const val KOMGA = TrackerId.KOMGA
+        const val MANGA_UPDATES = TrackerId.MANGA_UPDATES
     }
 
-    val mdList = MdList(MDLIST)
+    val mdList = MdList(TrackerId.MDLIST)
 
-    val myAnimeList = MyAnimeList(1L)
-    val aniList = Anilist(ANILIST)
-    val kitsu = Kitsu(KITSU)
-    val shikimori = Shikimori(4L)
-    val bangumi = Bangumi(5L)
-    val komga = Komga(6L)
-    val mangaUpdates = MangaUpdates(7L)
-    val kavita = Kavita(KAVITA)
-    val suwayomi = Suwayomi(SUWAYOMI)
-    val hikka = Hikka(HIKKA)
-    val mangaBaka = MangaBaka(MANGABAKA)
-    val animePlanet = AnimePlanet(ANIMEPLANET)
-    val comicK = ComicK(COMICK)
+    val myAnimeList = MyAnimeList(TrackerId.MYANIMELIST)
+    val aniList = Anilist(TrackerId.ANILIST)
+    val kitsu = Kitsu(TrackerId.KITSU)
+    val shikimori = Shikimori(TrackerId.SHIKIMORI)
+    val bangumi = Bangumi(TrackerId.BANGUMI)
+    val komga = Komga(TrackerId.KOMGA)
+    val mangaUpdates = MangaUpdates(TrackerId.MANGA_UPDATES)
+    val kavita = Kavita(TrackerId.KAVITA)
+    val suwayomi = Suwayomi(TrackerId.SUWAYOMI)
+    val hikka = Hikka(TrackerId.HIKKA)
+    val mangaBaka = MangaBaka(TrackerId.MANGABAKA)
+    val animePlanet = AnimePlanet(TrackerId.ANIMEPLANET)
+    val comicK = ComicK(TrackerId.COMICK)
 
-    val trackers =
+    val trackers: List<Tracker> =
         listOf(mdList, myAnimeList, aniList, kitsu, shikimori, bangumi, komga, mangaUpdates, kavita, suwayomi, hikka, mangaBaka, animePlanet, comicK)
 
     fun loggedInTrackers() = trackers.filter { it.isLoggedIn }

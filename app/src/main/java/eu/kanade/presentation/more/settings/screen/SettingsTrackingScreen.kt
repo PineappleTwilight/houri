@@ -42,6 +42,7 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.core.net.toUri
 import dev.icerock.moko.resources.StringResource
 import eu.kanade.domain.track.model.AutoTrackState
 import eu.kanade.domain.track.service.TrackPreferences
@@ -49,11 +50,6 @@ import eu.kanade.presentation.more.settings.Preference
 import eu.kanade.tachiyomi.data.track.EnhancedTracker
 import eu.kanade.tachiyomi.data.track.Tracker
 import eu.kanade.tachiyomi.data.track.TrackerManager
-import eu.kanade.tachiyomi.data.track.anilist.AnilistApi
-import eu.kanade.tachiyomi.data.track.bangumi.BangumiApi
-import eu.kanade.tachiyomi.data.track.mangabaka.MangaBakaApi
-import eu.kanade.tachiyomi.data.track.myanimelist.MyAnimeListApi
-import eu.kanade.tachiyomi.data.track.shikimori.ShikimoriApi
 import eu.kanade.tachiyomi.util.system.openInBrowser
 import eu.kanade.tachiyomi.util.system.toast
 import kotlinx.collections.immutable.persistentListOf
@@ -160,66 +156,35 @@ object SettingsTrackingScreen : SearchableSettings {
             // SY <--
             Preference.PreferenceGroup(
                 title = stringResource(MR.strings.services),
-                preferenceItems = persistentListOf(
-                    Preference.PreferenceItem.TrackerPreference(
-                        tracker = trackerManager.myAnimeList,
-                        login = { context.openInBrowser(MyAnimeListApi.authUrl(), forceDefaultBrowser = true) },
-                        logout = { dialog = LogoutDialog(trackerManager.myAnimeList) },
-                    ),
-                    Preference.PreferenceItem.TrackerPreference(
-                        tracker = trackerManager.aniList,
-                        login = { context.openInBrowser(AnilistApi.authUrl(), forceDefaultBrowser = true) },
-                        logout = { dialog = LogoutDialog(trackerManager.aniList) },
-                    ),
-                    Preference.PreferenceItem.TrackerPreference(
-                        tracker = trackerManager.kitsu,
-                        login = { dialog = LoginDialog(trackerManager.kitsu, MR.strings.email) },
-                        logout = { dialog = LogoutDialog(trackerManager.kitsu) },
-                    ),
-                    Preference.PreferenceItem.TrackerPreference(
-                        tracker = trackerManager.mangaUpdates,
-                        login = { dialog = LoginDialog(trackerManager.mangaUpdates, MR.strings.username) },
-                        logout = { dialog = LogoutDialog(trackerManager.mangaUpdates) },
-                    ),
-                    Preference.PreferenceItem.TrackerPreference(
-                        tracker = trackerManager.shikimori,
-                        login = { context.openInBrowser(ShikimoriApi.authUrl(), forceDefaultBrowser = true) },
-                        logout = { dialog = LogoutDialog(trackerManager.shikimori) },
-                    ),
-                    Preference.PreferenceItem.TrackerPreference(
-                        tracker = trackerManager.bangumi,
-                        login = { context.openInBrowser(BangumiApi.authUrl(), forceDefaultBrowser = true) },
-                        logout = { dialog = LogoutDialog(trackerManager.bangumi) },
-                    ),
-                    Preference.PreferenceItem.TrackerPreference(
-                        tracker = trackerManager.mangaBaka,
-                        login = { context.openInBrowser(MangaBakaApi.authUrl(), forceDefaultBrowser = true) },
-                        logout = { dialog = LogoutDialog(trackerManager.mangaBaka) },
-                    ),
-                    Preference.PreferenceItem.TrackerPreference(
-                        tracker = trackerManager.animePlanet,
-                        // KMK -->
-                        login = {
-                            context.startActivity(
-                                eu.kanade.tachiyomi.ui.setting.track.AnimePlanetLoginActivity.newIntent(context),
+                preferenceItems = (
+                    trackerManager.trackers
+                        .filter { it.getLoginMode() != eu.kanade.tachiyomi.data.track.core.TrackerLoginMode.ENHANCED_NOOP }
+                        .filter { it.id != eu.kanade.tachiyomi.data.track.core.TrackerId.MDLIST }
+                        .map { tracker ->
+                            Preference.PreferenceItem.TrackerPreference(
+                                tracker = tracker,
+                                login = {
+                                    when (tracker.getLoginMode()) {
+                                        eu.kanade.tachiyomi.data.track.core.TrackerLoginMode.OAUTH -> {
+                                            tracker.getAuthUrl()?.let { url ->
+                                                context.openInBrowser(url.toUri(), forceDefaultBrowser = true)
+                                            }
+                                        }
+                                        eu.kanade.tachiyomi.data.track.core.TrackerLoginMode.CREDENTIALS -> {
+                                            dialog = LoginDialog(tracker, tracker.getUsernameLabel())
+                                        }
+                                        eu.kanade.tachiyomi.data.track.core.TrackerLoginMode.WEBVIEW_COOKIE -> {
+                                            tracker.createCookieLoginIntent(context)?.let { intent ->
+                                                context.startActivity(intent)
+                                            }
+                                        }
+                                        eu.kanade.tachiyomi.data.track.core.TrackerLoginMode.ENHANCED_NOOP -> Unit
+                                    }
+                                },
+                                logout = { dialog = LogoutDialog(tracker) },
                             )
-                        },
-                        // KMK <--
-                        logout = { dialog = LogoutDialog(trackerManager.animePlanet) },
-                    ),
-                    // KMK -->
-                    Preference.PreferenceItem.TrackerPreference(
-                        tracker = trackerManager.comicK,
-                        login = {
-                            context.startActivity(
-                                eu.kanade.tachiyomi.ui.setting.track.ComicKLoginActivity.newIntent(context),
-                            )
-                        },
-                        logout = { dialog = LogoutDialog(trackerManager.comicK) },
-                    ),
-                    // KMK <--
-                    Preference.PreferenceItem.InfoPreference(stringResource(MR.strings.tracking_info)),
-                ),
+                        } + listOf(Preference.PreferenceItem.InfoPreference(stringResource(MR.strings.tracking_info)))
+                    ).toImmutableList(),
             ),
             Preference.PreferenceGroup(
                 title = stringResource(MR.strings.enhanced_services),

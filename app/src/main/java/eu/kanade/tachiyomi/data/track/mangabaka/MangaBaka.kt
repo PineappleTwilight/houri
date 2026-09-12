@@ -5,6 +5,7 @@ import eu.kanade.tachiyomi.R
 import eu.kanade.tachiyomi.data.database.models.Track
 import eu.kanade.tachiyomi.data.track.BaseTracker
 import eu.kanade.tachiyomi.data.track.DeletableTracker
+import eu.kanade.tachiyomi.data.track.core.TrackerLoginMode
 import eu.kanade.tachiyomi.data.track.mangabaka.dto.MangaBakaOAuth
 import eu.kanade.tachiyomi.data.track.model.TrackMangaMetadata
 import eu.kanade.tachiyomi.data.track.model.TrackSearch
@@ -61,6 +62,10 @@ class MangaBaka(id: Long) : BaseTracker(id, "MangaBaka"), DeletableTracker {
     override fun displayScore(track: DomainTrack): String = track.score.toInt().toString()
 
     override fun hasNotStartedReading(status: Long): Boolean = status == PLAN_TO_READ
+
+    override fun getLoginMode(): TrackerLoginMode = TrackerLoginMode.OAUTH
+
+    override fun getAuthUrl(): String? = MangaBakaApi.authUrl().toString()
 
     override suspend fun update(
         track: Track,

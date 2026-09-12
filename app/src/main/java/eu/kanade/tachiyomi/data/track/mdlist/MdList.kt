@@ -5,6 +5,7 @@ import eu.kanade.domain.track.model.toDbTrack
 import eu.kanade.tachiyomi.R
 import eu.kanade.tachiyomi.data.database.models.Track
 import eu.kanade.tachiyomi.data.track.BaseTracker
+import eu.kanade.tachiyomi.data.track.core.TrackerLoginMode
 import eu.kanade.tachiyomi.data.track.model.TrackMangaMetadata
 import eu.kanade.tachiyomi.data.track.model.TrackSearch
 import eu.kanade.tachiyomi.source.model.SManga
@@ -210,4 +211,5 @@ class MdList(id: Long) : BaseTracker(id, "MDList") {
     // KMK -->
     override fun hasNotStartedReading(status: Long): Boolean = status == FollowStatus.PLAN_TO_READ.long
     // KMK <--
+    override fun getLoginMode(): TrackerLoginMode = TrackerLoginMode.ENHANCED_NOOP
 }

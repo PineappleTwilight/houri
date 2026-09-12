@@ -5,6 +5,7 @@ import eu.kanade.tachiyomi.R
 import eu.kanade.tachiyomi.data.database.models.Track
 import eu.kanade.tachiyomi.data.track.BaseTracker
 import eu.kanade.tachiyomi.data.track.DeletableTracker
+import eu.kanade.tachiyomi.data.track.core.TrackerLoginMode
 import eu.kanade.tachiyomi.data.track.mangaupdates.dto.MUListItem
 import eu.kanade.tachiyomi.data.track.mangaupdates.dto.MURating
 import eu.kanade.tachiyomi.data.track.mangaupdates.dto.copyTo
@@ -184,4 +185,5 @@ class MangaUpdates(id: Long) : BaseTracker(id, "MangaUpdates"), DeletableTracker
     // KMK -->
     override fun hasNotStartedReading(status: Long): Boolean = status == WISH_LIST
     // KMK <--
+    override fun getLoginMode(): TrackerLoginMode = TrackerLoginMode.CREDENTIALS
 }

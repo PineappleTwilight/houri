@@ -4,6 +4,7 @@ import androidx.annotation.CallSuper
 import androidx.annotation.DrawableRes
 import dev.icerock.moko.resources.StringResource
 import eu.kanade.tachiyomi.data.database.models.Track
+import eu.kanade.tachiyomi.data.track.core.TrackerLoginMode
 import eu.kanade.tachiyomi.data.track.model.TrackMangaMetadata
 import eu.kanade.tachiyomi.data.track.model.TrackSearch
 import kotlinx.collections.immutable.ImmutableList
@@ -98,4 +99,12 @@ interface Tracker {
 
     suspend fun setRemoteRereadCount(track: Track, rereadCount: Int)
     // KMK <--
+
+    fun getLoginMode(): TrackerLoginMode = TrackerLoginMode.CREDENTIALS
+
+    fun getAuthUrl(): String? = null
+
+    fun getUsernameLabel(): dev.icerock.moko.resources.StringResource = tachiyomi.i18n.MR.strings.username
+
+    fun createCookieLoginIntent(context: android.content.Context): android.content.Intent? = null
 }

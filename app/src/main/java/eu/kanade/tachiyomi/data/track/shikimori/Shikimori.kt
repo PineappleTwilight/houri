@@ -5,6 +5,7 @@ import eu.kanade.tachiyomi.R
 import eu.kanade.tachiyomi.data.database.models.Track
 import eu.kanade.tachiyomi.data.track.BaseTracker
 import eu.kanade.tachiyomi.data.track.DeletableTracker
+import eu.kanade.tachiyomi.data.track.core.TrackerLoginMode
 import eu.kanade.tachiyomi.data.track.model.TrackMangaMetadata
 import eu.kanade.tachiyomi.data.track.model.TrackSearch
 import eu.kanade.tachiyomi.data.track.shikimori.dto.SMOAuth
@@ -161,4 +162,7 @@ class Shikimori(id: Long) : BaseTracker(id, "Shikimori"), DeletableTracker {
     // KMK -->
     override fun hasNotStartedReading(status: Long): Boolean = status == PLAN_TO_READ
     // KMK <--
+    override fun getLoginMode(): TrackerLoginMode = TrackerLoginMode.OAUTH
+
+    override fun getAuthUrl(): String? = ShikimoriApi.authUrl().toString()
 }
