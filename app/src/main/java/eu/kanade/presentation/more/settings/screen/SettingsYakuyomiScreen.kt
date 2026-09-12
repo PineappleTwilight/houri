@@ -52,16 +52,19 @@ object SettingsYakuyomiScreen : SearchableSettings {
         val prefs = remember { globalAppGraph.translationPreferences }
         val cache = remember { globalAppGraph.translationCache }
         val modelManager = remember { globalAppGraph.modelManager }
+        val isNomtl = eu.kanade.tachiyomi.BuildConfig.IS_NOMTL
 
         return listOfNotNull(
             getHeader(),
             getStatusOverview(),
             getGeneralGroup(prefs),
             getProviderGroup(prefs),
-            getLocalLlmGroup(),
-            getModelGroup(modelManager),
+            getLocalLlmGroup().takeIf { !isNomtl },
+            getModelGroup(modelManager).takeIf { !isNomtl },
+            getRemoteModelGroup(prefs, modelManager),
+            getMangaTranslatorGroup(prefs),
             getBehaviorGroup(prefs, cache),
-            getAdvancedGroup(prefs),
+            getAdvancedGroup(prefs).takeIf { !isNomtl },
             getSessionsGroup(),
         )
     }
@@ -129,8 +132,16 @@ object SettingsYakuyomiScreen : SearchableSettings {
             resolvedLocalModel != null && globalAppGraph.localLlmDownloadManager.isDownloaded(resolvedLocalModel)
         }
 
+        val isNomtl = eu.kanade.tachiyomi.BuildConfig.IS_NOMTL
         val (dotColor, lines) = when {
             !enabled -> Color(0xFF9E9E9E) to listOf("MTL is off — enable it below to translate pages")
+            isNomtl -> {
+                val mt = prefs.mangaTranslatorEnabled().collectAsState().value
+                when {
+                    mt || provider == "mangatranslator" -> Color(0xFF4CAF50) to listOf("Off-device: MangaTranslator ready — no local engine needed")
+                    else -> Color(0xFFE53935) to listOf("No-MTL build — enable MangaTranslator for off-device translation")
+                }
+            }
             provider == "local" -> {
                 when {
                     loading -> Color(0xFFFFA726) to listOf("Local engine: starting…")
@@ -145,7 +156,11 @@ object SettingsYakuyomiScreen : SearchableSettings {
         val subtitle = buildString {
             append("MTL: ${if (enabled) "on" else "off"}")
             if (enabled && provider != "local") append(" · target ${targetLang.ifBlank { "en" }}")
-            if (!exh.yakuyomi.DeviceMemory.isMtlSupported(context)) append(" · low-RAM device (translation blocked)")
+            if (isNomtl) {
+                append(" · no-MTL build (off-device only)")
+            } else if (!exh.yakuyomi.DeviceMemory.isMtlSupported(context)) {
+                append(" · low-RAM device (translation blocked)")
+            }
         }
 
         return Preference.PreferenceGroup(
@@ -414,6 +429,7 @@ object SettingsYakuyomiScreen : SearchableSettings {
                             "nvidia_nim" to "NVIDIA NIM",
                             "custom_openai" to "Custom OpenAI",
                             "local" to "Local (On-device LLM)",
+                            "mangatranslator" to "MangaTranslator (remote)",
                         ),
                         title = stringResource(KMR.strings.pref_yakuyomi_provider),
                         enabled = enabled,
@@ -769,6 +785,98 @@ object SettingsYakuyomiScreen : SearchableSettings {
                         context.toast(modelsClearedText)
                     },
                     enabled = !lowRam && status.state != exh.yakuyomi.ModelManager.State.DOWNLOADING,
+                ),
+            ),
+        )
+    }
+
+    @Composable
+    private fun getRemoteModelGroup(
+        prefs: exh.yakuyomi.TranslationPreferences,
+        modelManager: exh.yakuyomi.ModelManager,
+    ): Preference.PreferenceGroup {
+        val enabled by prefs.enabled().collectAsState()
+        val context = LocalContext.current
+        val customActive = remember { modelManager.customUrlsActive() }
+        return Preference.PreferenceGroup(
+            title = "Remote model URLs",
+            preferenceItems = persistentListOf(
+                Preference.PreferenceItem.InfoPreference(
+                    title = "Use https URLs to override the built-in model manifest or individual OCR/detector/inpainter files. Leave blank to use the default GitHub releases. Requires re-download to take effect.",
+                ),
+                Preference.PreferenceItem.EditTextPreference(
+                    preference = prefs.modelManifestUrl(),
+                    title = stringResource(KMR.strings.pref_yakuyomi_model_manifest_url),
+                    subtitle = stringResource(KMR.strings.pref_yakuyomi_model_manifest_url_summary) + ": %s",
+                    enabled = enabled,
+                ),
+                Preference.PreferenceItem.EditTextPreference(
+                    preference = prefs.customOcrModelUrl(),
+                    title = stringResource(KMR.strings.pref_yakuyomi_model_ocr_url),
+                    subtitle = stringResource(KMR.strings.pref_yakuyomi_model_ocr_url_summary) + ": %s",
+                    enabled = enabled,
+                ),
+                Preference.PreferenceItem.EditTextPreference(
+                    preference = prefs.customInpainterModelUrl(),
+                    title = stringResource(KMR.strings.pref_yakuyomi_model_inpainter_url),
+                    subtitle = stringResource(KMR.strings.pref_yakuyomi_model_inpainter_url_summary) + ": %s",
+                    enabled = enabled,
+                ),
+                Preference.PreferenceItem.EditTextPreference(
+                    preference = prefs.customDetectorModelUrl(),
+                    title = stringResource(KMR.strings.pref_yakuyomi_model_detector_url),
+                    subtitle = stringResource(KMR.strings.pref_yakuyomi_model_detector_url_summary) + ": %s",
+                    enabled = enabled,
+                ),
+                Preference.PreferenceItem.TextPreference(
+                    title = "Re-download with custom URLs",
+                    subtitle = if (customActive) "Custom URLs are active — tap to fetch" else "Set a URL above, then tap to re-download",
+                    onClick = {
+                        modelManager.startDownload(force = true)
+                        context.toast("Downloading with custom URLs…")
+                    },
+                    enabled = enabled,
+                ),
+            ),
+        )
+    }
+
+    @Composable
+    private fun getMangaTranslatorGroup(prefs: exh.yakuyomi.TranslationPreferences): Preference.PreferenceGroup {
+        val enabled by prefs.enabled().collectAsState()
+        val navigator = LocalNavigator.currentOrThrow
+        return Preference.PreferenceGroup(
+            title = "MangaTranslator service",
+            preferenceItems = persistentListOf(
+                Preference.PreferenceItem.SwitchPreference(
+                    preference = prefs.mangaTranslatorEnabled(),
+                    title = stringResource(KMR.strings.pref_mangatranslator_enabled),
+                    subtitle = stringResource(KMR.strings.pref_mangatranslator_enabled_summary),
+                    enabled = enabled,
+                ),
+                Preference.PreferenceItem.EditTextPreference(
+                    preference = prefs.mangaTranslatorBaseUrl(),
+                    title = stringResource(KMR.strings.pref_mangatranslator_base_url),
+                    subtitle = stringResource(KMR.strings.pref_mangatranslator_base_url_summary) + ": %s",
+                    enabled = enabled,
+                ),
+                Preference.PreferenceItem.EditTextPreference(
+                    preference = prefs.mangaTranslatorApiKey(),
+                    title = stringResource(KMR.strings.pref_mangatranslator_api_key),
+                    subtitle = stringResource(KMR.strings.pref_mangatranslator_api_key_summary),
+                    enabled = enabled,
+                ),
+                Preference.PreferenceItem.SwitchPreference(
+                    preference = prefs.mangaTranslatorCachePermanent(),
+                    title = stringResource(KMR.strings.pref_mangatranslator_cache_permanent),
+                    subtitle = stringResource(KMR.strings.pref_mangatranslator_cache_permanent_summary),
+                    enabled = enabled,
+                ),
+                Preference.PreferenceItem.TextPreference(
+                    title = stringResource(KMR.strings.pref_mangatranslator_manage_cache),
+                    subtitle = stringResource(KMR.strings.pref_mangatranslator_manage_cache_summary),
+                    onClick = { navigator.push(SettingsMangaTranslatorCacheScreen) },
+                    enabled = enabled,
                 ),
             ),
         )

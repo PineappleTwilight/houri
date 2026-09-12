@@ -718,21 +718,19 @@ private fun MangaScreenSmallImpl(
                         )
                     }
 
-                    // KMK --> MTL toggles are compiled out on the no-MTL variant.
-                    if (!BuildConfig.IS_NOMTL) {
-                        item(
-                            key = "translate-toggle-${state.manga.id}",
-                            contentType = MangaScreenItem.TRANSLATE_TOGGLE,
-                        ) {
-                            TranslateMangaToggle(manga = state.manga)
-                        }
+                    // KMK --> Off-device MTL (MangaTranslator) is available even on no-MTL builds; keep toggles visible.
+                    item(
+                        key = "translate-toggle-${state.manga.id}",
+                        contentType = MangaScreenItem.TRANSLATE_TOGGLE,
+                    ) {
+                        TranslateMangaToggle(manga = state.manga)
+                    }
 
-                        item(
-                            key = "translate-manga-info-toggle-${state.manga.id}",
-                            contentType = MangaScreenItem.TRANSLATE_MANGA_INFO_TOGGLE,
-                        ) {
-                            TranslateMangaInfoToggle(manga = state.manga)
-                        }
+                    item(
+                        key = "translate-manga-info-toggle-${state.manga.id}",
+                        contentType = MangaScreenItem.TRANSLATE_MANGA_INFO_TOGGLE,
+                    ) {
+                        TranslateMangaInfoToggle(manga = state.manga)
                     }
                     // KMK <--
 
@@ -1246,11 +1244,9 @@ private fun MangaScreenLargeImpl(
                             onRereadClicked = onStartRereadingClick ?: onStopRereadingClick,
                             // KMK <--
                         )
-                        // KMK --> Tablet layout was missing the per-manga Translate toggle.
-                        if (!BuildConfig.IS_NOMTL) {
-                            TranslateMangaToggle(manga = state.manga)
-                            TranslateMangaInfoToggle(manga = state.manga)
-                        }
+                        // KMK --> Tablet layout: off-device toggle available on nomtl as well.
+                        TranslateMangaToggle(manga = state.manga)
+                        TranslateMangaInfoToggle(manga = state.manga)
                         // KMK <--
                         // SY -->
                         metadataDescription?.invoke(

@@ -398,6 +398,24 @@
     <string name="stats_top_manga">Top manga by reading time</string>
     <string name="pref_yakuyomi_llm_advanced">Advanced (llama.cpp)</string>
     <string name="pref_yakuyomi_engine_advanced">Advanced engine tuning</string>
+    <string name="pref_yakuyomi_model_manifest_url">Custom model manifest URL</string>
+    <string name="pref_yakuyomi_model_manifest_url_summary">Override https://raw.githubusercontent.com/joyeli/yakuyomi-engine/main/models.json — must be https</string>
+    <string name="pref_yakuyomi_model_ocr_url">Custom OCR model URL</string>
+    <string name="pref_yakuyomi_model_ocr_url_summary">Direct https URL to ocr_int8.onnx (overrides manifest entry)</string>
+    <string name="pref_yakuyomi_model_inpainter_url">Custom inpainter model URL</string>
+    <string name="pref_yakuyomi_model_inpainter_url_summary">Direct https URL to mit_aot inpaint model (overrides manifest entries)</string>
+    <string name="pref_yakuyomi_model_detector_url">Custom detector model URL</string>
+    <string name="pref_yakuyomi_model_detector_url_summary">Direct https URL to dbnet detector model (overrides manifest entries)</string>
+    <string name="pref_mangatranslator_enabled">Use MangaTranslator service</string>
+    <string name="pref_mangatranslator_enabled_summary">Full remote translation via mangatranslator.ai-compatible API (sends page image, receives translated image)</string>
+    <string name="pref_mangatranslator_base_url">MangaTranslator base URL</string>
+    <string name="pref_mangatranslator_base_url_summary">API base, e.g. https://api.mangatranslator.ai</string>
+    <string name="pref_mangatranslator_api_key">MangaTranslator API key</string>
+    <string name="pref_mangatranslator_api_key_summary">Bearer token for the remote service — stored privately</string>
+    <string name="pref_mangatranslator_cache_permanent">Cache permanently per chapter</string>
+    <string name="pref_mangatranslator_cache_permanent_summary">Keep translated pages forever alongside chapter files (not just 14-day temp cache) — clear per-manga via Manage cache</string>
+    <string name="pref_mangatranslator_manage_cache">Manage per-manga translation cache</string>
+    <string name="pref_mangatranslator_manage_cache_summary">Wipe translated pages for a specific manga — works even after removing it from library</string>
     <string name="pref_yakuyomi_engine_advanced_warning_title">Not recommended — unsupported</string>
     <string name="pref_yakuyomi_engine_advanced_warning">These are low-level engine tunables. Defaults are measured on real devices; changing them can break translation, degrade quality, or crash the engine. Only touch if you know what you\'re doing — this is not recommended or supported.</string>
     <!-- Achievements onboarding -->

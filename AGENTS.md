@@ -56,6 +56,10 @@ Before `git push`, confirm the current branch is not `master` or `main` (`git br
 - If `spotlessCheck` fails, run `spotlessApply` and re-run `spotlessCheck`.
 - On Cloud VM, export `ANDROID_HOME` and `JAVA_HOME` first (see [Cursor Cloud](#cursor-cloud-specific-instructions)).
 
+### Local properties
+
+- **NEVER** touch `local.properties` or `external/*/local.properties`. They contain the local Android SDK path (`sdk.dir`) and are `.gitignore`d. Changing them breaks the build on other machines/CI. If a Gradle sync fails due to SDK location, ask the user to fix their SDK instead of editing these files.
+
 ---
 
 ## Module layout

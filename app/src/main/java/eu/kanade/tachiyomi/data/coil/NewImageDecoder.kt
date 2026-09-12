@@ -78,7 +78,11 @@ class NewImageDecoder(private val resources: ImageSource, private val options: O
             scale = options.scale,
         )
         if (isJxl) {
-            val ctx = try { mihon.app.di.globalAppGraph.context } catch (_: Exception) { null }
+            val ctx = try {
+                mihon.app.di.globalAppGraph.context
+            } catch (_: Exception) {
+                null
+            }
             if (ctx != null) {
                 val cap = ImageUtil.lowRamJxlMaxDimension(ctx)
                 val lowRamSample = ImageUtil.lowRamSampleSize(srcWidth, srcHeight, cap)
@@ -108,7 +112,11 @@ class NewImageDecoder(private val resources: ImageSource, private val options: O
             fullBitmap
         }
         if (isJxl) {
-            val ctx2 = try { mihon.app.di.globalAppGraph.context } catch (_: Exception) { null }
+            val ctx2 = try {
+                mihon.app.di.globalAppGraph.context
+            } catch (_: Exception) {
+                null
+            }
             if (ctx2 != null && eu.kanade.tachiyomi.util.system.DeviceUtil.isLowRamDevice(ctx2) && bitmap.config != android.graphics.Bitmap.Config.RGB_565) {
                 val estBytes = bitmap.width.toLong() * bitmap.height * 4
                 if (estBytes > 24L * 1024 * 1024) {

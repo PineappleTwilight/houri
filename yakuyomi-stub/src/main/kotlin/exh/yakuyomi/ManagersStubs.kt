@@ -38,6 +38,7 @@ class ModelManager {
     fun startDownload(force: Boolean = false) = Unit
     fun cancelDownload() = Unit
     fun clearModels() = Unit
+    fun customUrlsActive(): Boolean = false
 }
 
 /** No-op stub of [LocalLlmDownloadManager] for the no-MTL APK variant. */

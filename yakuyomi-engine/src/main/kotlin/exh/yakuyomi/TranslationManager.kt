@@ -38,6 +38,7 @@ class TranslationManager(
     private val geminiNano: GeminiNanoTranslator,
     private val localLlm: LocalLlmManager,
     private val infoStore: MangaInfoTranslationStore,
+    private val mangaTranslator: MangaTranslatorService,
     private val mangaContextProvider: suspend (Long) -> String? = { null },
     // KMK <--
 ) {
@@ -230,6 +231,9 @@ class TranslationManager(
      * cache entries from mixing providers when the user toggles Gemini Nano on/off.
      */
     private suspend fun effectiveModel(): String {
+        if (prefs.mangaTranslatorEnabled().get() || prefs.provider().get().equals("mangatranslator", ignoreCase = true)) {
+            return "mangatranslator"
+        }
         if (prefs.geminiNanoEnabled().get() && geminiNano.isAvailable()) {
             return "gemini-nano"
         }
@@ -253,7 +257,7 @@ class TranslationManager(
         if (!prefs.enabled().get() || isGated() || !perMangaStore.isEnabled(mangaId)) return@withContext null
         val targetLang = prefs.targetLang().get().ifBlank { "en" }
         val model = effectiveModel()
-        if (prefs.saveTranslatedPages().get()) {
+        if (prefs.saveTranslatedPages().get() || prefs.mangaTranslatorCachePermanent().get()) {
             pageStore.loadIfExists(mangaId, chapterId, pageIndex)?.let { bytes ->
                 if (bytes.isNotEmpty()) return@withContext bytes
             }
@@ -282,8 +286,7 @@ class TranslationManager(
         val model = effectiveModel()
         val cacheEnabled = prefs.cacheEnabled().get()
 
-        // Prefer saved translated page to avoid re-translation
-        if (prefs.saveTranslatedPages().get()) {
+        if (prefs.saveTranslatedPages().get() || prefs.mangaTranslatorCachePermanent().get()) {
             pageStore.loadIfExists(mangaId, chapterId, pageIndex)?.let { bytes ->
                 if (bytes.isNotEmpty()) {
                     status.pageCached(mangaId, chapterId, pageIndex)
@@ -298,8 +301,7 @@ class TranslationManager(
                 try {
                     val bytes = f.readBytes()
                     if (bytes.isNotEmpty()) {
-                        // Ensure saved copy exists for future fast load
-                        if (prefs.saveTranslatedPages().get() && prefs.autoSaveWhileReading().get()) {
+                        if ((prefs.saveTranslatedPages().get() && prefs.autoSaveWhileReading().get()) || prefs.mangaTranslatorCachePermanent().get()) {
                             pageStore.save(mangaId, chapterId, pageIndex, bytes)
                         }
                         status.pageCached(mangaId, chapterId, pageIndex)
@@ -368,6 +370,42 @@ class TranslationManager(
         val mangaContext = mangaContextProvider(mangaId) ?: ""
 
         status.pageTranslating(mangaId, chapterId, pageIndex)
+
+        val useMangaTranslator = prefs.mangaTranslatorEnabled().get() || prefs.provider().get().equals("mangatranslator", true)
+        if (useMangaTranslator) {
+            try {
+                val webp = mangaTranslator.translateImageToWebP(imageBytes, targetLang, prefs.effectiveModel().takeIf { it.isNotBlank() })
+                if (webp != null && webp.isNotEmpty()) {
+                    if (cacheEnabled) {
+                        try {
+                            cache.put(pageHash, targetLang, model, webp)
+                        } catch (_: Exception) {}
+                    }
+                    try {
+                        if (prefs.mangaTranslatorCachePermanent().get() || prefs.saveTranslatedPages().get()) {
+                            pageStore.save(mangaId, chapterId, pageIndex, webp)
+                        }
+                    } catch (_: Exception) {}
+                    try {
+                        notes.appendFromTranslation(mangaId, chapterId, listOf("[mangatranslator]"))
+                    } catch (_: Exception) {}
+                    status.pageDone(mangaId, chapterId, pageIndex)
+                    return webp
+                } else {
+                    status.pageError(mangaId, chapterId, pageIndex, friendlyError("MangaTranslator returned empty result"))
+                    return null
+                }
+            } catch (e: TranslationException) {
+                xLogE("MangaTranslator failed", e)
+                status.pageError(mangaId, chapterId, pageIndex, friendlyError(e.message ?: "MangaTranslator error"))
+                return null
+            } catch (e: Exception) {
+                xLogE("MangaTranslator failed", e)
+                status.pageError(mangaId, chapterId, pageIndex, friendlyError(e.message ?: "MangaTranslator error"))
+                return null
+            }
+        }
+
         var bitmap: android.graphics.Bitmap? = null
         return try {
             if (imageBytes.size < 1024 || imageBytes.size > 30 * 1024 * 1024) {

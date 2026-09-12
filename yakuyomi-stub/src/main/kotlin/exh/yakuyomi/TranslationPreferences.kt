@@ -62,6 +62,21 @@ class TranslationPreferences(
     fun cacheEnabled() = preferenceStore.getBoolean("pref_yakuyomi_cache_enabled", true)
     fun customBaseUrl() = preferenceStore.getString("pref_yakuyomi_custom_base_url", "")
     fun customHeaders() = preferenceStore.getString("pref_yakuyomi_custom_headers", "")
+    fun modelManifestUrl() = preferenceStore.getString("pref_yakuyomi_model_manifest_url", "")
+    fun customOcrModelUrl() = preferenceStore.getString("pref_yakuyomi_ocr_model_url", "")
+    fun customInpainterModelUrl() = preferenceStore.getString("pref_yakuyomi_inpainter_model_url", "")
+    fun customDetectorModelUrl() = preferenceStore.getString("pref_yakuyomi_detector_model_url", "")
+    fun mangaTranslatorEnabled() = preferenceStore.getBoolean("pref_yakuyomi_mangatranslator_enabled", false)
+    fun mangaTranslatorBaseUrl() =
+        preferenceStore.getString("pref_yakuyomi_mangatranslator_base_url", "https://ichigo.moe")
+    fun mangaTranslatorApiKey() =
+        preferenceStore.getString(Preference.privateKey("pref_yakuyomi_mangatranslator_api_key"), "")
+    fun mangaTranslatorCachePermanent() =
+        preferenceStore.getBoolean("pref_yakuyomi_mangatranslator_cache_permanent", true)
+    fun mangaTranslatorClientUuid() =
+        preferenceStore.getString("pref_yakuyomi_mangatranslator_client_uuid", "")
+    fun mangaTranslatorFingerprint() =
+        preferenceStore.getString("pref_yakuyomi_mangatranslator_fingerprint", "")
     fun breadcrumbWindowSize() = preferenceStore.getInt("pref_yakuyomi_breadcrumb_window", 5)
     fun fontFamily() = preferenceStore.getString("pref_yakuyomi_font_family", "casual")
     fun translationTextColor() = preferenceStore.getInt("pref_yakuyomi_text_color", 0xFF000000.toInt())

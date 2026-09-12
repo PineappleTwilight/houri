@@ -50,6 +50,7 @@ data class ModelManifest(
 class ModelManager(
     private val context: Context,
     private val client: OkHttpClient,
+    private val prefs: TranslationPreferences? = null,
 ) {
     enum class State { NOT_INSTALLED, DOWNLOADING, READY, ERROR }
 
@@ -67,6 +68,24 @@ class ModelManager(
     companion object {
         private const val MANIFEST_URL =
             "https://raw.githubusercontent.com/joyeli/yakuyomi-engine/main/models.json"
+
+        private fun sanitizeCustomUrl(raw: String): String {
+            val t = raw.trim()
+            if (t.isBlank()) return ""
+            if (t.length > 2048) return ""
+            if (t.contains(" ") || t.contains("..") || t.contains("\n") || t.contains("\r")) return ""
+            val lower = t.lowercase()
+            if (!lower.startsWith("https://")) return ""
+            return try {
+                val uri = java.net.URI(t)
+                if (uri.scheme != "https") return ""
+                if (uri.host.isNullOrBlank()) return ""
+                if (uri.host.contains("..")) return ""
+                t
+            } catch (_: Exception) {
+                ""
+            }
+        }
 
         // Fallback when the manifest can't be fetched — pinned to models-v3.
         private val FALLBACK_MODELS = listOf(
@@ -248,12 +267,14 @@ class ModelManager(
     }
 
     private suspend fun refreshManifest() {
+        val customManifest = prefs?.let { sanitizeCustomUrl(it.modelManifestUrl().get()) } ?: ""
+        val manifestUrl = customManifest.ifBlank { MANIFEST_URL }
         val reqClient = client.newBuilder()
             .callTimeout(10, java.util.concurrent.TimeUnit.SECONDS)
             .build()
         repeat(2) { attempt ->
             try {
-                val request = Request.Builder().url(MANIFEST_URL).get().build()
+                val request = Request.Builder().url(manifestUrl).get().build()
                 reqClient.newCall(request).execute().use { resp ->
                     if (!resp.isSuccessful) return
                     val body = resp.body.string().take(200_000)
@@ -261,7 +282,9 @@ class ModelManager(
                     val manifest = json.decodeFromString<ModelManifest>(body)
                     if (manifest.models.isNotEmpty() && manifest.models.size < 20) {
                         val valid = manifest.models.filter { it.name.isNotBlank() && it.url.startsWith("https://") && it.size in 1024..500_000_000L && it.sha256.length == 64 }
-                        if (valid.size == manifest.models.size) models = valid
+                        if (valid.size == manifest.models.size) {
+                            models = applyCustomModelUrls(valid)
+                        }
                     }
                 }
                 return
@@ -269,6 +292,55 @@ class ModelManager(
                 if (attempt == 0) kotlinx.coroutines.delay(500)
             }
         }
+        if (models === FALLBACK_MODELS || models == FALLBACK_MODELS) {
+            models = applyCustomModelUrls(FALLBACK_MODELS)
+        }
+    }
+
+    private fun applyCustomModelUrls(base: List<RemoteModel>): List<RemoteModel> {
+        val p = prefs ?: return base
+        val ocrUrl = sanitizeCustomUrl(p.customOcrModelUrl().get())
+        val inpainterUrl = sanitizeCustomUrl(p.customInpainterModelUrl().get())
+        val detectorUrl = sanitizeCustomUrl(p.customDetectorModelUrl().get())
+        if (ocrUrl.isBlank() && inpainterUrl.isBlank() && detectorUrl.isBlank()) return base
+        return base.map { model ->
+            when (model.role) {
+                "ocr" -> if (ocrUrl.isNotBlank() && model.name == "ocr_int8.onnx") model.copy(url = ocrUrl) else model
+                "inpainter" -> if (inpainterUrl.isNotBlank()) {
+                    when {
+                        model.name == "mit_aot_fixed512.ncnn.param" && inpainterUrl.endsWith(".param") -> model.copy(url = inpainterUrl)
+                        model.name == "mit_aot_fixed512.ncnn.bin" && inpainterUrl.endsWith(".bin") -> model.copy(url = inpainterUrl)
+                        model.name == "mit_aot_fixed512.ncnn.param" && inpainterUrl.endsWith(".bin") -> model
+                        model.name == "mit_aot_fixed512.ncnn.bin" && inpainterUrl.endsWith(".param") -> model
+                        inpainterUrl.endsWith(".param") || inpainterUrl.endsWith(".bin") -> model
+                        else -> model
+                    }
+                } else {
+                    model
+                }
+                "detector" -> if (detectorUrl.isNotBlank()) {
+                    when {
+                        model.name == "dbnet_detect.ncnn.param" && detectorUrl.endsWith(".param") -> model.copy(url = detectorUrl)
+                        model.name == "dbnet_detect.ncnn.bin" && detectorUrl.endsWith(".bin") -> model.copy(url = detectorUrl)
+                        model.name == "dbnet_detect.ncnn.param" && detectorUrl.endsWith(".bin") -> model
+                        model.name == "dbnet_detect.ncnn.bin" && detectorUrl.endsWith(".param") -> model
+                        detectorUrl.endsWith(".param") || detectorUrl.endsWith(".bin") -> model
+                        else -> model
+                    }
+                } else {
+                    model
+                }
+                else -> model
+            }
+        }
+    }
+
+    fun customUrlsActive(): Boolean {
+        val p = prefs ?: return false
+        return sanitizeCustomUrl(p.modelManifestUrl().get()).isNotBlank() ||
+            sanitizeCustomUrl(p.customOcrModelUrl().get()).isNotBlank() ||
+            sanitizeCustomUrl(p.customInpainterModelUrl().get()).isNotBlank() ||
+            sanitizeCustomUrl(p.customDetectorModelUrl().get()).isNotBlank()
     }
 
     private fun downloadAndVerify(model: RemoteModel, onBytes: (Long) -> Unit) {

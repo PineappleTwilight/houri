@@ -141,7 +141,7 @@ class DomainModule : InjektModule {
         addFactory { NetworkToLocalManga(get()) }
         addFactory { UpdateManga(get(), get()) }
         addFactory { UpdateMangaNotes(get()) }
-        addFactory { SetMangaCategories(get()) }
+        addFactory { SetMangaCategories(get(), get()) }
         // KMK -->
         addFactory { StartRereading(get(), get(), get(), get(), get(), get(), get(), get()) }
         addFactory { StopRereading(get(), get(), get(), get(), get(), get(), get(), get()) }

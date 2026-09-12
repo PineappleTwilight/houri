@@ -16,16 +16,17 @@ class CategoriesRestorer(
         if (backupCategories.isNotEmpty()) {
             val dbCategories = getCategories.await()
             val dbCategoriesByName = dbCategories.associateBy { it.name }
-            var nextOrder = dbCategories.maxOfOrNull { it.order }?.plus(1) ?: 0
+            var nextOrder = dbCategories.maxOfOrNull { it.order }?.plus(1) ?: 0L
 
             // KMK -->
             val restoredIdsByBackupId = mutableMapOf<Long, Long>()
             val pendingParents = mutableMapOf<Long, Long>()
             val allCurrent = (dbCategories + handler.awaitList { categoriesQueries.getCategories(tachiyomi.data.category.CategoryMapper::mapCategory) }).distinctBy { it.id }
-            val existingNamesByParent = allCurrent.groupBy { it.parentId }.mapValues { e -> e.value.map { it.name.lowercase() }.toMutableSet() }
+            val existingNamesByParent = allCurrent.groupBy { it.parentId }.mapValues { e -> e.value.map { it.name.lowercase() }.toMutableSet() }.toMutableMap()
 
+            val nextOrderPerParent = mutableMapOf<Long, Long>()
             val categories = backupCategories
-                .sortedBy { it.order }
+                .sortedWith(compareBy<BackupCategory> { it.parentId != 0L }.thenBy { it.order })
                 .mapNotNull {
                     val trimmed = it.name.trim().take(50)
                     if (trimmed.isEmpty()) return@mapNotNull null
@@ -43,9 +44,19 @@ class CategoriesRestorer(
                         else -> intendedParentId
                     }
                     val siblings = existingNamesByParent.getOrPut(effectiveParentId) { mutableSetOf() }
-                    if (siblings.contains(trimmed.lowercase())) return@mapNotNull dbCategories.find { c -> c.name.equals(trimmed, true) && c.parentId == effectiveParentId }
-                    val orderForParent = (allCurrent.filter { c -> c.parentId == effectiveParentId }.maxOfOrNull { c.order } ?: -1) + 1
-                    val order = nextOrder++
+                    if (siblings.contains(trimmed.lowercase())) {
+                        val existing = (dbCategories + allCurrent).find { c -> c.name.equals(trimmed, true) && c.parentId == effectiveParentId }
+                        if (existing != null) {
+                            if (it.id != 0L) restoredIdsByBackupId[it.id] = existing.id
+                            return@mapNotNull existing
+                        }
+                        return@mapNotNull null
+                    }
+                    val baseMax = allCurrent.filter { c -> c.parentId == effectiveParentId }.maxOfOrNull { it.order } ?: -1L
+                    val perParentNext = nextOrderPerParent.getOrPut(effectiveParentId) { baseMax + 1 }
+                    val orderForParent = perParentNext
+                    nextOrderPerParent[effectiveParentId] = perParentNext + 1
+                    nextOrder++
                     val newId = handler.awaitOneExecutable {
                         categoriesQueries.insert(
                             trimmed,

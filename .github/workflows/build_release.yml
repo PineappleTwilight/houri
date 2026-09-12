@@ -344,6 +344,11 @@ jobs:
       - release-app
     environment: Primary
     steps:
+      - name: Clone repo (for notify script)
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 1
+
       - name: Send release announcement
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.RELEASE_DISCORD_WEBHOOK }}
@@ -354,64 +359,6 @@ jobs:
           PREV_TAG_NAME: ${{ needs.prepare-build.outputs.PREV_TAG_NAME }}
           TODO_COMPLETED: ${{ needs.prepare-build.outputs.TODO_COMPLETED }}
           TODO_OPEN: ${{ needs.prepare-build.outputs.TODO_OPEN }}
-        run: |
-          set -euo pipefail
-
-          if [ -z "$DISCORD_WEBHOOK_URL" ]; then
-            echo "RELEASE_DISCORD_WEBHOOK not set; skipping Discord announcement."
-            exit 0
-          fi
-
-          version_number="${VERSION_TAG#v}"
-
-          # Keep at least one bullet; trim the rest to stay under Discord's 2000-char content limit.
-          changes=$(printf '%s\n' "${CHANGELOG:-}" | awk '
-            {
-              if (over) { hidden++; next }
-              total += length($0) + 1
-              if (total > 1650 && shown >= 1) { over = 1; hidden++; next }
-              print; shown++
-            }
-            END { if (hidden > 0) printf "- *…and %d more*\n", hidden }
-          ')
-          [ -n "$changes" ] || changes="- No notable changes"
-
-          content=$(printf '# 🍍 Houri %s is out!\n\n### **What changed:**\n\n%s\n\ndetails can be found [here](%s)\n-# ||<@&1540511662824759336>||' \
-            "$version_number" "$changes" "$RELEASE_URL")
-
-          payload=$(jq -n \
-            --arg content "$content" \
-            --arg avatar_url "$AVATAR_URL" \
-            --arg prev_tag "$PREV_TAG_NAME" \
-            --arg todo_url "https://github.com/${{ github.repository }}/blob/master/TODO.md" \
-            --arg completed "$TODO_COMPLETED" \
-            --arg open "$TODO_OPEN" \
-            '{
-              username: "Houri Releases",
-              avatar_url: $avatar_url,
-              content: $content,
-              allowed_mentions: { parse: [], roles: ["1540511662824759336"] }
-            }
-            | ([ (if ($completed|length) > 0
-                  then { name: "✅ Checked off", value: $completed }
-                  else empty end),
-                 (if ($open|length) > 0
-                  then { name: "📋 Still open", value: $open }
-                  else empty end) ]) as $fields
-            | if ($fields|length) > 0
-              then . + { embeds: [{
-                    title: ("📋 TODO progress since " + $prev_tag),
-                    url: $todo_url,
-                    color: (if ($open|length) == 0 then 5763719 else 15714844 end),
-                    fields: $fields
-                  }] }
-              else . end')
-
-          echo "$payload"
-
-          curl --fail --silent --show-error --retry 3 --retry-delay 2 \
-            -H 'Content-Type: application/json' \
-            -H 'User-Agent: Houri-Release-Notifier/1.0 (GitHub Actions)' \
-            -d "$payload" \
-            "$DISCORD_WEBHOOK_URL"
-          echo "Discord announcement sent."
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_SERVER_URL: ${{ github.server_url }}
+        run: python3 .github/scripts/release_discord_notify.py

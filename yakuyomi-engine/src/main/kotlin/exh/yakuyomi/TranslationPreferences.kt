@@ -95,6 +95,33 @@ class TranslationPreferences(
 
     fun customHeaders() = preferenceStore.getString("pref_yakuyomi_custom_headers", "")
 
+    // --- Remote model URLs (KMK: Option to use remote URLs for inpainting and OCR models) ---
+    fun modelManifestUrl() = preferenceStore.getString("pref_yakuyomi_model_manifest_url", "")
+
+    fun customOcrModelUrl() = preferenceStore.getString("pref_yakuyomi_ocr_model_url", "")
+
+    fun customInpainterModelUrl() = preferenceStore.getString("pref_yakuyomi_inpainter_model_url", "")
+
+    fun customDetectorModelUrl() = preferenceStore.getString("pref_yakuyomi_detector_model_url", "")
+
+    // --- MangaTranslator remote service (KMK: Option to use entire MTL services such as mangatranslator.ai) ---
+    fun mangaTranslatorEnabled() = preferenceStore.getBoolean("pref_yakuyomi_mangatranslator_enabled", false)
+
+    fun mangaTranslatorBaseUrl() =
+        preferenceStore.getString("pref_yakuyomi_mangatranslator_base_url", "https://ichigo.moe")
+
+    fun mangaTranslatorApiKey() =
+        preferenceStore.getString(tachiyomi.core.common.preference.Preference.privateKey("pref_yakuyomi_mangatranslator_api_key"), "")
+
+    fun mangaTranslatorCachePermanent() =
+        preferenceStore.getBoolean("pref_yakuyomi_mangatranslator_cache_permanent", true)
+
+    fun mangaTranslatorClientUuid() =
+        preferenceStore.getString("pref_yakuyomi_mangatranslator_client_uuid", "")
+
+    fun mangaTranslatorFingerprint() =
+        preferenceStore.getString("pref_yakuyomi_mangatranslator_fingerprint", "")
+
     fun breadcrumbWindowSize() = preferenceStore.getInt("pref_yakuyomi_breadcrumb_window", 5)
 
     /**

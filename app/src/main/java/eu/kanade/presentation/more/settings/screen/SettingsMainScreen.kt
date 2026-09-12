@@ -263,13 +263,13 @@ object SettingsMainScreen : Screen() {
             screen = SettingsMangadexScreen,
         ),
         // SY <--
-        // KMK --> The MTL settings screen does not exist on the no-MTL variant.
+        // KMK --> Off-device MTL (MangaTranslator + remote model URLs) is available even on no-MTL builds.
         Item(
             titleRes = KMR.strings.pref_yakuyomi_enabled,
             subtitleRes = KMR.strings.pref_yakuyomi_enabled_summary,
             icon = Icons.Outlined.Language,
             screen = SettingsYakuyomiScreen,
-        ).takeIf { !eu.kanade.tachiyomi.BuildConfig.IS_NOMTL },
+        ),
         Item(
             titleRes = KMR.strings.label_achievements,
             subtitleRes = KMR.strings.achievements_unlocked_count,

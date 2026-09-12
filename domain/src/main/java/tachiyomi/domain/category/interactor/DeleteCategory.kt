@@ -17,27 +17,54 @@ class DeleteCategory(
 ) {
 
     suspend fun await(categoryId: Long) = withNonCancellableContext {
-        val all = try { categoryRepository.getAll() } catch (_: Exception) { emptyList() }
+        if (categoryId <= 0L) {
+            logcat(LogPriority.WARN) { "DeleteCategory: invalid categoryId $categoryId" }
+            return@withNonCancellableContext Result.InternalError(IllegalArgumentException("Invalid categoryId $categoryId"))
+        }
+        val all = try {
+            categoryRepository.getAll()
+        } catch (e: Exception) {
+            logcat(LogPriority.ERROR, e) { "DeleteCategory: getAll failed, proceeding with single-id delete" }
+            emptyList()
+        }
+        val descendants = tachiyomi.domain.category.service.CategoryTreeHandler.descendants(categoryId, all)
         val toDelete = buildSet {
             add(categoryId)
-            addAll(tachiyomi.domain.category.service.CategoryTreeHandler.descendants(categoryId, all))
+            addAll(descendants)
         }
-        try {
-            // KMK -->
-            toDelete.sortedDescending().forEach { id ->
-                try { categoryRepository.delete(id) } catch (_: Exception) {}
+        val depthById = run {
+            val byId = all.associateBy { it.id }
+            val depth = mutableMapOf<Long, Int>()
+            fun depthOf(id: Long): Int {
+                depth[id]?.let { return it }
+                val cat = byId[id] ?: return 0
+                val d = if (cat.parentId == 0L) 0 else depthOf(cat.parentId) + 1
+                depth[id] = d
+                return d
             }
-            // KMK <--
-        } catch (e: Exception) {
-            logcat(LogPriority.ERROR, e)
-            return@withNonCancellableContext Result.InternalError(e)
+            toDelete.forEach { depthOf(it) }
+            depth
         }
-        } catch (e: Exception) {
-            logcat(LogPriority.ERROR, e)
-            return@withNonCancellableContext Result.InternalError(e)
+        val deleteOrder = toDelete.sortedWith(compareByDescending<Long> { depthById[it] ?: 0 }.thenByDescending { it })
+        var anyDeleteFailed = false
+        for (id in deleteOrder) {
+            try {
+                categoryRepository.delete(id)
+            } catch (e: Exception) {
+                anyDeleteFailed = true
+                logcat(LogPriority.ERROR, e) { "DeleteCategory: failed to delete category $id" }
+            }
+        }
+        if (anyDeleteFailed) {
+            logcat(LogPriority.WARN) { "DeleteCategory: partial delete failure for $categoryId -> $toDelete" }
         }
 
-        val categories = categoryRepository.getAll().filterNot { it.id in toDelete }
+        val categories = try {
+            categoryRepository.getAll().filterNot { it.id in toDelete }
+        } catch (e: Exception) {
+            logcat(LogPriority.ERROR, e) { "DeleteCategory: getAll after delete failed" }
+            return@withNonCancellableContext Result.InternalError(e)
+        }
         val updates = categories.groupBy { it.parentId }.flatMap { (_, group) ->
             group.sortedBy { it.order }.mapIndexed { index, category ->
                 CategoryUpdate(id = category.id, order = index.toLong())
@@ -45,8 +72,12 @@ class DeleteCategory(
         }
 
         val defaultCategory = libraryPreferences.defaultCategory().get()
-        if (defaultCategory == categoryId.toInt()) {
-            libraryPreferences.defaultCategory().delete()
+        if (defaultCategory != null && defaultCategory != 0 && toDelete.contains(defaultCategory.toLong())) {
+            try {
+                libraryPreferences.defaultCategory().delete()
+            } catch (e: Exception) {
+                logcat(LogPriority.ERROR, e) { "DeleteCategory: failed to clear defaultCategory $defaultCategory" }
+            }
         }
 
         val categoryPreferences = listOf(

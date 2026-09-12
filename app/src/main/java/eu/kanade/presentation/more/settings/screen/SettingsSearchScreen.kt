@@ -307,8 +307,8 @@ private val settingScreens = listOfNotNull(
     SettingsEhScreen,
     SettingsMangadexScreen,
     // SY <--
-    // KMK --> The MTL settings screen does not exist on the no-MTL variant.
-    SettingsYakuyomiScreen.takeIf { !eu.kanade.tachiyomi.BuildConfig.IS_NOMTL },
+    // KMK --> Off-device MTL is available even on no-MTL builds.
+    SettingsYakuyomiScreen,
     // KMK <--
     SettingsAdvancedScreen,
 )

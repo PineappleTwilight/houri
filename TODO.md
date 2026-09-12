@@ -166,10 +166,12 @@
   - Fixed 2026-09-11: `ReaderPreferences.webgpuPageOffset` (-50..50, default 0, KMK) + `WebGpuConfig.pageOffset` + `WebGpuViewer.applyPageOffset()` (translationX = width*offset/100*0.5, layout listener + flow collect) + `ReadingModePage` slider + KMR strings `pref_webgpu_page_offset`
 - [x] **AI Upscaler**: Add simple upscaling algorithms that nomtl builds can use, such as bicubic and more.
   - Fixed 2026-09-11: `UpscalePreferences.SimpleAlgo` (BICUBIC/BILINEAR/NEAREST) + `Mode` NATIVE/SIMPLE + `isSimpleMode()` + `UpscaleEngine` simple path via `UpscaleScalingStrategy.upscaleBitmapWithAlgo` (filter true/false, bicubic approximated via bilinear); `SettingsUpscalerScreen` mode toggle + simple algo picker visible to both MTL and no-MTL builds (no-MTL defaults to SIMPLE, MTL can switch to SIMPLE for lightweight bicubic without native ncnn/onnx)
-- [ ] **MTL**: Option to use remote URLs for inpainting and OCR models
-- [ ] **MTL**: Option to use entire MTL services such as [mangatranslator](https://mangatranslator.ai/)
-  - Should fully support authentication and chapters should be cached permanently.
-  - User should be given a screen to wipe cached TLs for specific manga (even ones already removed from the library)
+- [x] **MTL**: Option to use remote URLs for inpainting and OCR models
+  - Implemented 2026-09-11: `TranslationPreferences.modelManifestUrl/customOcrModelUrl/customInpainterModelUrl/customDetectorModelUrl` (https-only, 2048 char, sanitized) + `ModelManager.applyCustomModelUrls()` overrides fallback/manifest entries per role + `customUrlsActive()` + `SettingsYakuyomiScreen.getRemoteModelGroup()` (manifest + 3 per-model EditText + Re-download button) — works on both mtl and nomtl via `i18n-kmk` strings
+- [x] **MTL**: Option to use entire MTL services such as [mangatranslator](https://mangatranslator.ai/)
+  - Implemented 2026-09-11 via JS reverse-engineering of Chrome extension `lepcfgkehgeiblekejomdmdklmjdmflp` (ichigo.moe `/translate` with `base64Images`/`targetLangCode`/`fingerprint`/`clientUuid`/`translationModel`, `Client-Version: 1.0.1`, Bearer auth, 429/401 handling, fingerprint via djb2 + canvas/hardware/screen hash): `MangaTranslatorService` (OkHttp, `ichigo.moe` default, `clientUuid`/`fingerprint` persisted in `TranslationPreferences`, per-manga permanent `TranslatedPageStore` cache + `TranslationCache` 14d, 60s timeout) + `TranslationManager` remote branch (early-return before local pipeline, saves to both caches, breadcrumb) + `SettingsMangaTranslatorCacheScreen` (lists `filesDir/yakuyomi_saved/<mangaId>` even for removed manga, per-manga Wipe + Clear All) + nomtl off-device wiring (stub `MangaTranslatorService`/`TranslatedPageStore`/`TranslationCache`/`TranslateMangaStore` functional, `SettingsYakuyomiScreen` now visible on nomtl with off-device-only groups, `MangaScreen` toggles always visible)
+  - Fully supports authentication (Bearer token from `mangaTranslatorApiKey` → `effectiveApiKey` fallback, `access_cookie` sync equivalent) and chapters are cached permanently (`mangaTranslatorCachePermanent` pref, default true, `yakuyomi_saved` 256MB/40 chapters)
+  - User can wipe cached TLs per manga via Settings → Translation → MangaTranslator → Manage per-manga translation cache (works for removed library entries)
 
 ## Bugfixes
 - [x] Fix UI transition choppiness.

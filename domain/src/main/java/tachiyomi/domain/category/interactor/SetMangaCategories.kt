@@ -13,17 +13,31 @@ class SetMangaCategories(
 ) {
 
     suspend fun await(mangaId: Long, categoryIds: List<Long>) {
+        if (mangaId <= 0L) {
+            logcat(LogPriority.WARN) { "SetMangaCategories: invalid mangaId $mangaId" }
+            return
+        }
         try {
             val filtered = categoryIds.filter { it != 0L }.distinct()
             if (filtered.isEmpty()) {
                 mangaRepository.setMangaCategories(mangaId, filtered)
                 return
             }
-            val byId = categoryRepository.getAll().associateBy { it.id }
+            val byId = try {
+                categoryRepository.getAll().associateBy { it.id }
+            } catch (e: Exception) {
+                logcat(LogPriority.ERROR, e) { "SetMangaCategories: getAll failed" }
+                mangaRepository.setMangaCategories(mangaId, filtered)
+                return
+            }
             val expanded = filtered.toMutableSet()
             for (id in filtered) {
-                val cat = byId[id] ?: continue
-                if (cat.parentId != 0L) expanded.add(cat.parentId)
+                var cur = byId[id] ?: continue
+                while (cur.parentId != 0L) {
+                    val parent = byId[cur.parentId] ?: break
+                    if (!expanded.add(parent.id)) break
+                    cur = parent
+                }
             }
             val validated = expanded.filter { byId.containsKey(it) }
             mangaRepository.setMangaCategories(mangaId, validated)
