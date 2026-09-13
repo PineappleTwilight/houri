@@ -11,7 +11,7 @@ class UiMotionTest {
 
     @Test
     fun `emphasized easing matches material 3 control points`() {
-        val emphasized = UiMotion.Emphasized as CubicBezierEasing
+        val emphasized = UiMotion.EMPHASIZED as CubicBezierEasing
 
         emphasized.a shouldBe 0.2f
         emphasized.b shouldBe 0f

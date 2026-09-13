@@ -80,10 +80,10 @@ fun navigatorTransition(pop: Boolean): AnimatedContentTransitionScope<Screen>.()
         { if (pop) -it / 6 else it / 6 }
     val exitOffset: AnimatedContentTransitionScope<Screen>.(Int) -> Int =
         { if (pop) it / 6 else -it / 6 }
-    slideInHorizontally(tween(UiMotion.ScreenEnter, easing = UiMotion.Emphasized), enterOffset) +
-        fadeIn(tween(UiMotion.ScreenEnter, easing = UiMotion.Emphasized)) togetherWith
-        slideOutHorizontally(tween(UiMotion.ScreenExit, easing = UiMotion.Emphasized), exitOffset) +
-        fadeOut(tween(UiMotion.ScreenExit, easing = UiMotion.Emphasized))
+    slideInHorizontally(tween(UiMotion.ScreenEnter, easing = UiMotion.EMPHASIZED), enterOffset) +
+        fadeIn(tween(UiMotion.ScreenEnter, easing = UiMotion.EMPHASIZED)) togetherWith
+        slideOutHorizontally(tween(UiMotion.ScreenExit, easing = UiMotion.EMPHASIZED), exitOffset) +
+        fadeOut(tween(UiMotion.ScreenExit, easing = UiMotion.EMPHASIZED))
 }
 
 @Composable

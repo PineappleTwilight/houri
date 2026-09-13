@@ -7,9 +7,6 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.togetherWith
-import eu.kanade.presentation.util.UiMotion
-import soup.compose.material.motion.animation.materialFadeThroughIn
-import soup.compose.material.motion.animation.materialFadeThroughOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.RowScope
@@ -48,6 +45,7 @@ import eu.kanade.domain.source.service.SourcePreferences
 import eu.kanade.domain.ui.UiPreferences
 import eu.kanade.domain.ui.model.NavigationRailAlignment
 import eu.kanade.presentation.util.Screen
+import eu.kanade.presentation.util.UiMotion
 import eu.kanade.presentation.util.isTabletUi
 import eu.kanade.tachiyomi.ui.browse.BrowseTab
 import eu.kanade.tachiyomi.ui.download.DownloadQueueScreen
@@ -63,6 +61,8 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
 import mihon.app.di.globalAppGraph
+import soup.compose.material.motion.animation.materialFadeThroughIn
+import soup.compose.material.motion.animation.materialFadeThroughOut
 import tachiyomi.domain.library.service.LibraryPreferences
 import tachiyomi.i18n.MR
 import tachiyomi.presentation.core.components.material.NavigationBar
@@ -138,8 +138,8 @@ object HomeScreen : Screen() {
                             AnimatedVisibility(
                                 visible = bottomNavVisible,
                                 // KMK -->
-                                enter = expandVertically(tween(UiMotion.NavBarDuration, easing = UiMotion.Emphasized)),
-                                exit = shrinkVertically(tween(UiMotion.NavBarDuration, easing = UiMotion.Emphasized)),
+                                enter = expandVertically(tween(UiMotion.NavBarDuration, easing = UiMotion.EMPHASIZED)),
+                                exit = shrinkVertically(tween(UiMotion.NavBarDuration, easing = UiMotion.EMPHASIZED)),
                                 // KMK <--
                             ) {
                                 NavigationBar {

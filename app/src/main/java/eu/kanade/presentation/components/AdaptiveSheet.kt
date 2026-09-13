@@ -40,13 +40,13 @@ fun NavigatorAdaptiveSheet(
                             animationSpec = tween(
                                 UiMotion.SheetFadeIn,
                                 delayMillis = UiMotion.SheetFadeOut,
-                                easing = UiMotion.EmphasizedDecelerate,
+                                easing = UiMotion.EMPHASIZED_DECELERATE,
                             ),
                         ) togetherWith
                             fadeOut(
                                 animationSpec = tween(
                                     UiMotion.SheetFadeOut,
-                                    easing = UiMotion.EmphasizedAccelerate,
+                                    easing = UiMotion.EMPHASIZED_ACCELERATE,
                                 ),
                             )
                         // KMK <--
