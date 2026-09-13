@@ -208,6 +208,10 @@ class ReaderPreferences(
     fun continuousMinWidth() = preferenceStore.getInt("webgpu_continuous_minwidth", 100)
 
     // KMK -->
+    fun continuousGap() = preferenceStore.getInt("webgpu_continuous_gap", 10)
+    // KMK <--
+
+    // KMK -->
     fun webgpuPageOffset() = preferenceStore.getInt("webgpu_page_offset", 0)
     // KMK <--
 

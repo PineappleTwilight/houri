@@ -242,17 +242,18 @@ internal fun WebGpuViewer.startPageLoad(page: ViewerReaderPage) {
                 try {
                     page.page.progressFlow.collect { value ->
                         if (isDestroyed) return@collect
-                        val stillValid = synchronized(lock) {
-                            pageInCache(page) && page.imagePage is ProgressPage
-                        }
-                        if (!stillValid) return@collect
-                        (page.imagePage as? ProgressPage)?.apply {
-                            progress = value.coerceIn(0, 100) / 100f
-                            try {
-                                invalidate()
-                            } catch (_: Exception) {
+                        // KMK --> Set under the lookup's lock, or an eviction's cleanup() lands between.
+                        synchronized(lock) {
+                            if (!pageInCache(page)) return@collect
+                            (page.imagePage as? ProgressPage)?.apply {
+                                progress = value.coerceIn(0, 100) / 100f
+                                try {
+                                    invalidate()
+                                } catch (_: Exception) {
+                                }
                             }
                         }
+                        // KMK <--
                     }
                 } catch (e: CancellationException) {
                     throw e
@@ -262,6 +263,9 @@ internal fun WebGpuViewer.startPageLoad(page: ViewerReaderPage) {
 
             try {
                 page.page.statusFlow.takeWhile { state ->
+                    // KMK --> Evicted: stop watching, rather than holding the page until the download ends.
+                    if (!synchronized(lock) { pageInCache(page) }) return@takeWhile false
+                    // KMK <--
                     when (state) {
                         Page.State.Queue, Page.State.LoadPage, Page.State.DownloadImage -> true
                         is Page.State.Error -> {
@@ -456,6 +460,12 @@ internal suspend fun WebGpuViewer.decodeReaderPage(page: ViewerReaderPage) {
         } else {
             val frames = ArrayList<Pair<Image, Int>>(pageCount)
 
+            // KMK --> Built frames hold uploaded textures, and ImageSingle owns the only teardown.
+            fun discardFrames() {
+                if (frames.isNotEmpty()) ImagePage.ImageSingle(frames).cleanup()
+            }
+            // KMK <--
+
             val firstImage = Image(
                 firstFrame.image,
                 firstFrame.width,
@@ -466,27 +476,51 @@ internal suspend fun WebGpuViewer.decodeReaderPage(page: ViewerReaderPage) {
 
             frames.add(Pair(firstImage, firstFrame.duration))
 
-            repeat(pageCount - 1) {
-                (page.imagePage as? ProgressPage)?.apply {
-                    progress = (it + 1).toFloat() / pageCount
-                    invalidate()
+            // KMK -->
+            try {
+                for (i in 1 until pageCount) {
+                    // Under lock: a decode this long gives an eviction's cleanup() time to land.
+                    val stillWanted = synchronized(lock) {
+                        pageInCache(page).also { inCache ->
+                            if (inCache) {
+                                (page.imagePage as? ProgressPage)?.apply {
+                                    progress = i.toFloat() / pageCount
+                                    invalidate()
+                                }
+                            }
+                        }
+                    }
+
+                    // Scrolled past: the frames left are work nothing will draw.
+                    if (!stillWanted) {
+                        discardFrames()
+                        try {
+                            dec.close()
+                        } catch (_: Exception) {}
+                        return
+                    }
+
+                    val frame = dec.decodeNext()
+                    if (frame.width <= 4 || frame.height <= 4) {
+                        try {
+                            dec.close()
+                        } catch (_: Exception) {}
+                        throw Exception("Frame too small ${frame.width}x${frame.height}, skipping GPU upload")
+                    }
+                    val image = Image(
+                        frame.image,
+                        frame.width,
+                        frame.height,
+                        createMipMaps = false,
+                        backgroundColor = firstImage.backgroundColor,
+                    )
+                    frames.add(Pair(image, frame.duration))
                 }
-                val frame = dec.decodeNext()
-                if (frame.width <= 4 || frame.height <= 4) {
-                    try {
-                        dec.close()
-                    } catch (_: Exception) {}
-                    throw Exception("Frame too small ${frame.width}x${frame.height}, skipping GPU upload")
-                }
-                val image = Image(
-                    frame.image,
-                    frame.width,
-                    frame.height,
-                    createMipMaps = false,
-                    backgroundColor = firstImage.backgroundColor,
-                )
-                frames.add(Pair(image, frame.duration))
+            } catch (e: Throwable) {
+                discardFrames()
+                throw e
             }
+            // KMK <--
             try {
                 dec.close()
             } catch (_: Exception) {}

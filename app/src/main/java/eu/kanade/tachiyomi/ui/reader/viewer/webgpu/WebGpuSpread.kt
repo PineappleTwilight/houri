@@ -39,14 +39,26 @@ fun WebGpuViewer.isDualPageMode(): Boolean {
  * LTR: LEFT is anchor, looks for RIGHT on next
  */
 internal fun WebGpuViewer.canFormSpread(page: ViewerReaderPage): Boolean {
-    if (!isDualPageMode()) return false
+    return spreadPartner(page) != null
+}
+
+// KMK -->
+/** Who [page] pairs with, or null. One verdict for [buildSpreadPage] and progress reporting. */
+internal fun WebGpuViewer.spreadPartner(page: ViewerReaderPage): ViewerReaderPage? {
+    if (!isDualPageMode()) return null
     val anchorPosition = if (isReversed) SpreadPosition.RIGHT else SpreadPosition.LEFT
     val partnerPosition = if (isReversed) SpreadPosition.LEFT else SpreadPosition.RIGHT
-    if (page.spreadPosition != anchorPosition) return false
-    val next = page.next as? ViewerReaderPage ?: return false
-    if (next.page.chapter != page.page.chapter) return false
-    return next.spreadPosition == partnerPosition && canPairShapes(page, next)
+    if (page.spreadPosition != anchorPosition) return null
+    val next = (page.next as? ViewerReaderPage)?.takeIf { it.page.chapter == page.page.chapter } ?: return null
+    return next.takeIf { it.spreadPosition == partnerPosition && canPairShapes(page, it) }
 }
+
+/** Page to report progress for - the spread's lastmost page, not the anchor. */
+internal fun WebGpuViewer.progressPage(page: ViewerPage): ViewerReaderPage? {
+    val readerPage = page as? ViewerReaderPage ?: return null
+    return spreadPartner(readerPage) ?: readerPage
+}
+// KMK <--
 
 /**
  * Get the anchor page for a spread.
@@ -95,23 +107,8 @@ internal fun WebGpuViewer.buildSpreadPage(page: ViewerPage): ImagePage {
         return imagePage
     }
 
-    val anchorPosition = if (isReversed) SpreadPosition.RIGHT else SpreadPosition.LEFT
-    val partnerPosition = if (isReversed) SpreadPosition.LEFT else SpreadPosition.RIGHT
-
-    // Only the anchor side looks for a partner on the next page. A partner-tagged page only
-    // reaches this function directly (rather than being redirected here via
-    // [getSpreadAnchor]) when it has no anchor before it - a lone RIGHT with no preceding
-    // LEFT (or vice versa), e.g. at a chapter boundary - so it renders alone on its own side
-    // instead of looking anywhere else for a partner.
-    val nextReaderPage = if (page.spreadPosition == anchorPosition) {
-        (page.next as? ViewerReaderPage)?.takeIf { it.page.chapter == page.page.chapter }
-    } else {
-        null
-    }
-    val partnerImagePage = nextReaderPage?.imagePage?.takeIf {
-        nextReaderPage.spreadPosition == partnerPosition &&
-            canPairShapes(page, nextReaderPage)
-    }
+    val nextReaderPage = spreadPartner(page)
+    val partnerImagePage = nextReaderPage?.imagePage
 
     // LEFT/RIGHT map directly to the spread's left/right slot - independent of reading
     // direction, which only decides which side is the anchor for pairing purposes above.

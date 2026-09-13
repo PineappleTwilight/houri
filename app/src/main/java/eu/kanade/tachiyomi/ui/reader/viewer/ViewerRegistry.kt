@@ -66,8 +66,8 @@ private object WebGpuProvider : ViewerProvider {
                 ReadingMode.LEFT_TO_RIGHT -> WebGpuViewer(activity, isReversed = false, isVertical = false)
                 ReadingMode.RIGHT_TO_LEFT -> WebGpuViewer(activity, isReversed = true, isVertical = false)
                 ReadingMode.VERTICAL -> WebGpuViewer(activity, isReversed = false, isVertical = true)
-                ReadingMode.WEBTOON -> WebGpuViewerContinuous(activity)
-                ReadingMode.CONTINUOUS_VERTICAL -> WebGpuViewerContinuous(activity)
+                ReadingMode.WEBTOON -> WebGpuViewerContinuous(activity, useGap = false)
+                ReadingMode.CONTINUOUS_VERTICAL -> WebGpuViewerContinuous(activity, useGap = true)
                 ReadingMode.DEFAULT -> null
             }
         } catch (e: Throwable) {
