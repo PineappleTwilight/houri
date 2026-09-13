@@ -7,10 +7,16 @@ import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
 import eu.kanade.tachiyomi.data.download.model.Download
 import eu.kanade.tachiyomi.source.online.HttpSource
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import mihon.app.di.globalAppGraph
+import java.util.concurrent.ConcurrentHashMap
 import tachiyomi.domain.chapter.interactor.GetChapter
 import tachiyomi.domain.manga.interactor.GetManga
 import tachiyomi.domain.manga.model.Manga
@@ -101,15 +107,25 @@ class DownloadStore(
 
         val downloads = mutableListOf<Download>()
         if (objs.isNotEmpty()) {
-            val cachedManga = mutableMapOf<Long, Manga?>()
-            for ((mangaId, chapterId) in objs) {
-                val manga = cachedManga.getOrPut(mangaId) {
-                    getManga.await(mangaId)
-                } ?: continue
-                val source = sourceManager.get(manga.source) as? HttpSource ?: continue
-                val chapter = getChapter.await(chapterId) ?: continue
-                downloads.add(Download(source, manga, chapter))
+            val cachedManga = ConcurrentHashMap<Long, Manga?>()
+            val semaphore = Semaphore(4)
+            val restored = coroutineScope {
+                objs.map { (mangaId, chapterId) ->
+                    async {
+                        semaphore.withPermit {
+                            val manga = cachedManga.getOrPut(mangaId) {
+                                getManga.await(mangaId)
+                            } ?: return@async null
+                            val source = sourceManager.get(manga.source) as? HttpSource ?: return@async null
+                            val chapter = getChapter.await(chapterId) ?: return@async null
+                            Download(source, manga, chapter)
+                        }
+                    }
+                }.awaitAll().filterNotNull()
             }
+            // Preserve queue order.
+            val order = objs.mapIndexed { index, pair -> pair to index }.toMap()
+            downloads.addAll(restored.sortedBy { order[it.manga.id to it.chapter.id] })
         }
 
         // Clear the store, downloads will be added again immediately.
