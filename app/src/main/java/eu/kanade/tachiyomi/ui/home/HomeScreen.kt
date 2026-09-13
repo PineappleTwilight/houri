@@ -5,8 +5,6 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
@@ -47,6 +45,7 @@ import eu.kanade.domain.source.service.SourcePreferences
 import eu.kanade.domain.ui.UiPreferences
 import eu.kanade.domain.ui.model.NavigationRailAlignment
 import eu.kanade.presentation.util.Screen
+import eu.kanade.presentation.util.UiMotion
 import eu.kanade.presentation.util.isTabletUi
 import eu.kanade.tachiyomi.ui.browse.BrowseTab
 import eu.kanade.tachiyomi.ui.download.DownloadQueueScreen
@@ -62,6 +61,8 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
 import mihon.app.di.globalAppGraph
+import soup.compose.material.motion.animation.materialFadeThroughIn
+import soup.compose.material.motion.animation.materialFadeThroughOut
 import tachiyomi.domain.library.service.LibraryPreferences
 import tachiyomi.i18n.MR
 import tachiyomi.presentation.core.components.material.NavigationBar
@@ -76,7 +77,6 @@ object HomeScreen : Screen() {
     private val openTabEvent = Channel<Tab>()
     private val showBottomNavEvent = Channel<Boolean>()
 
-    private const val TAB_FADE_DURATION = 160
     private const val TAB_NAVIGATOR_KEY = "HomeTabs"
 
     private val TABS = listOf(
@@ -137,8 +137,10 @@ object HomeScreen : Screen() {
                             }
                             AnimatedVisibility(
                                 visible = bottomNavVisible,
-                                enter = expandVertically(tween(200)),
-                                exit = shrinkVertically(tween(200)),
+                                // KMK -->
+                                enter = expandVertically(tween(UiMotion.NAV_BAR_DURATION, easing = UiMotion.EMPHASIZED)),
+                                exit = shrinkVertically(tween(UiMotion.NAV_BAR_DURATION, easing = UiMotion.EMPHASIZED)),
+                                // KMK <--
                             ) {
                                 NavigationBar {
                                     TABS
@@ -162,7 +164,10 @@ object HomeScreen : Screen() {
                         AnimatedContent(
                             targetState = tabNavigator.current,
                             transitionSpec = {
-                                fadeIn(tween(TAB_FADE_DURATION)) togetherWith fadeOut(tween(TAB_FADE_DURATION))
+                                // KMK -->
+                                materialFadeThroughIn(durationMillis = UiMotion.TAB_DURATION) togetherWith
+                                    materialFadeThroughOut(durationMillis = UiMotion.TAB_DURATION)
+                                // KMK <--
                             },
                             modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background),
                             label = "tabContent",

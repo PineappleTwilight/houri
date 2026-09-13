@@ -51,7 +51,8 @@ internal fun ReadingModePage(screenModel: ReaderSettingsScreenModel) {
         },
     )
 
-    if (resolved == ReadingMode.WEBTOON) {
+    // KMK --> Gap slider only affects the WebGPU continuous viewer (long strip keeps no gap).
+    if (resolved == ReadingMode.WEBTOON || resolved == ReadingMode.CONTINUOUS_VERTICAL) {
         val numberFormat = remember { NumberFormat.getPercentInstance() }
         val continuousMinWidth by screenModel.preferences.continuousMinWidth().collectAsState()
         SliderItem(
@@ -64,7 +65,26 @@ internal fun ReadingModePage(screenModel: ReaderSettingsScreenModel) {
             },
             pillColor = MaterialTheme.colorScheme.surfaceContainerHighest,
         )
+
+        if (resolved == ReadingMode.CONTINUOUS_VERTICAL) {
+            val continuousGap by screenModel.preferences.continuousGap().collectAsState()
+            SliderItem(
+                value = continuousGap,
+                valueRange = ReaderPreferences.let { 1..100 },
+                label = stringResource(MR.strings.pref_continuous_gap),
+                valueString = numberFormat.format(continuousGap / 100f),
+                onChange = {
+                    screenModel.preferences.continuousGap().set(it)
+                },
+                pillColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+            )
+        }
+        CheckboxItem(
+            label = stringResource(MR.strings.pref_webtoon_disable_zoom_out),
+            pref = screenModel.preferences.webtoonDisableZoomOut(),
+        )
     }
+    // KMK <--
 
     val orientation = remember(manga) { ReaderOrientation.fromPreference(manga?.readerOrientation?.toInt()) }
     SettingsChipRow(MR.strings.rotation_type) {
@@ -382,6 +402,18 @@ private fun WebGpuViewerSettings(screenModel: ReaderSettingsScreenModel) {
     )
     // KMK <--
 
+    // KMK --> Hide rows that do nothing in the continuous modes.
+    val webgpuManga by screenModel.mangaFlow.collectAsState()
+    val webgpuReadingMode = remember(webgpuManga) { ReadingMode.fromPreference(webgpuManga?.readingMode?.toInt()) }
+    val webgpuDefault = screenModel.preferences.defaultReadingMode().get()
+    val webgpuResolved = ReadingMode.fromPreference(
+        when {
+            webgpuReadingMode == ReadingMode.DEFAULT -> webgpuDefault
+            else -> webgpuManga?.readingMode?.toInt() ?: webgpuDefault
+        },
+    )
+    // KMK <--
+
     val isDual = (viewer as? WebGpuViewer)?.isDualPageMode() == true
 
     if (isDual) {
@@ -411,27 +443,31 @@ private fun WebGpuViewerSettings(screenModel: ReaderSettingsScreenModel) {
         return
     }
 
-    val transitionAnimation by screenModel.preferences.transitionAnimation().collectAsState()
-    SettingsChipRow(MR.strings.pref_transition_animation) {
-        ReaderPreferences.TransitionAnimation.entries.map {
-            FilterChip(
-                selected = it == transitionAnimation,
-                onClick = { screenModel.preferences.transitionAnimation().set(it) },
-                label = { Text(stringResource(it.titleRes)) },
-            )
+    // KMK -->
+    if (webgpuResolved != ReadingMode.WEBTOON && webgpuResolved != ReadingMode.CONTINUOUS_VERTICAL) {
+        val transitionAnimation by screenModel.preferences.transitionAnimation().collectAsState()
+        SettingsChipRow(MR.strings.pref_transition_animation) {
+            ReaderPreferences.TransitionAnimation.entries.map {
+                FilterChip(
+                    selected = it == transitionAnimation,
+                    onClick = { screenModel.preferences.transitionAnimation().set(it) },
+                    label = { Text(stringResource(it.titleRes)) },
+                )
+            }
         }
-    }
 
-    val cutoutMode by screenModel.preferences.cutoutMode().collectAsState()
-    SettingsChipRow(MR.strings.pref_cutout_mode) {
-        ReaderPreferences.CutoutMode.entries.map {
-            FilterChip(
-                selected = it == cutoutMode,
-                onClick = { screenModel.preferences.cutoutMode().set(it) },
-                label = { Text(stringResource(it.titleRes)) },
-            )
+        val cutoutMode by screenModel.preferences.cutoutMode().collectAsState()
+        SettingsChipRow(MR.strings.pref_cutout_mode) {
+            ReaderPreferences.CutoutMode.entries.map {
+                FilterChip(
+                    selected = it == cutoutMode,
+                    onClick = { screenModel.preferences.cutoutMode().set(it) },
+                    label = { Text(stringResource(it.titleRes)) },
+                )
+            }
         }
     }
+    // KMK <--
 }
 // Mihon <--
 

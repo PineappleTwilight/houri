@@ -402,6 +402,7 @@
     <string name="dual_page_view_always">Always</string>
     <string name="dual_page_view_wide">When wide</string>
     <string name="pref_continuous_minwidth">Min width</string>
+    <string name="pref_continuous_gap">Gap</string>
     <!-- Mihon -->
     <string name="pref_double_tap_zoom">Double tap to zoom</string>
     <string name="pref_cutout_short">Show content in cutout area</string>

@@ -62,8 +62,16 @@ class WebGpuConfig(
     var dualPageView = ReaderPreferences.DualPageView.NEVER
         private set
 
-    var continuousMinWidth = 1
+    var continuousMinWidth = 100
         private set
+
+    var zoomOutDisabled = false
+        private set
+
+    // KMK -->
+    var continuousGap = 10
+        private set
+    // KMK <--
 
     var pageOffset = 0
         private set
@@ -202,6 +210,20 @@ class WebGpuConfig(
                 { continuousMinWidth = it },
                 { imagePropertyChangedListener?.invoke() },
             )
+
+        readerPreferences.webtoonDisableZoomOut()
+            .register(
+                { zoomOutDisabled = it },
+                { imagePropertyChangedListener?.invoke() },
+            )
+
+        // KMK -->
+        readerPreferences.continuousGap()
+            .register(
+                { continuousGap = it },
+                { imagePropertyChangedListener?.invoke() },
+            )
+        // KMK <--
 
         readerPreferences.webgpuPageOffset()
             .register(

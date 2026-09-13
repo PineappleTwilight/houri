@@ -172,8 +172,10 @@
   - Implemented 2026-09-11 via JS reverse-engineering of Chrome extension `lepcfgkehgeiblekejomdmdklmjdmflp` (ichigo.moe `/translate` with `base64Images`/`targetLangCode`/`fingerprint`/`clientUuid`/`translationModel`, `Client-Version: 1.0.1`, Bearer auth, 429/401 handling, fingerprint via djb2 + canvas/hardware/screen hash): `MangaTranslatorService` (OkHttp, `ichigo.moe` default, `clientUuid`/`fingerprint` persisted in `TranslationPreferences`, per-manga permanent `TranslatedPageStore` cache + `TranslationCache` 14d, 60s timeout) + `TranslationManager` remote branch (early-return before local pipeline, saves to both caches, breadcrumb) + `SettingsMangaTranslatorCacheScreen` (lists `filesDir/yakuyomi_saved/<mangaId>` even for removed manga, per-manga Wipe + Clear All) + nomtl off-device wiring (stub `MangaTranslatorService`/`TranslatedPageStore`/`TranslationCache`/`TranslateMangaStore` functional, `SettingsYakuyomiScreen` now visible on nomtl with off-device-only groups, `MangaScreen` toggles always visible)
   - Fully supports authentication (Bearer token from `mangaTranslatorApiKey` → `effectiveApiKey` fallback, `access_cookie` sync equivalent) and chapters are cached permanently (`mangaTranslatorCachePermanent` pref, default true, `yakuyomi_saved` 256MB/40 chapters)
   - User can wipe cached TLs per manga via Settings → Translation → MangaTranslator → Manage per-manga translation cache (works for removed library entries)
-- [ ] **WebGPU Reader**: Port latest upstream [PR](https://github.com/mihonapp/mihon/pull/3933)
-- [ ] **AniList**: Implement upstream [PR](https://github.com/mihonapp/mihon/pull/3942)
+- [x] **WebGPU Reader**: Port latest upstream [PR](https://github.com/mihonapp/mihon/pull/3933)
+  - Ported 2026-09-13 without native bumps: page-gap slider for continuous vertical (`continuousGap` pref + `pageGap` slot measuring in `webgpuviewer-houri` fork, long strip keeps 0), disable-zoom-out wiring (`zoomOutDisabled` → fork `homeScale`/`minScale` split, also ported to fork), dual-mode progress fix (`spreadPartner`/`progressPage` — rail follows spread's last page) + decode-worker/eviction hardening, mode-aware reader settings. Deferred: HDR/UltraHDR gainmap rendering (needs `image-decoder` 13 native `Gainmap`, not in `imagedecoder-houri`) and upstream `WebGpuRenderer` device-loss hardening (41-only `DeviceLostCallback` shape).
+- [x] **AniList**: Implement upstream [PR](https://github.com/mihonapp/mihon/pull/3942)
+  - Ported 2026-09-13: `AnilistApi` rate limiter `permits 85→25` per AniList docs (hard limit 30).
 
 ## Bugfixes
 - [x] Fix UI transition choppiness.
@@ -452,9 +454,8 @@
 - [ ] **AI Upscaler**: Add AI model download links
 - [ ] **AI Upscaler**: Ensure Vulkan and NPU backends are available and selectable
   - Should be excluded if device doesn't support them
-- [ ] **App**: Transition UI animations to a smoother system
-  - Current one looks jittery regardless of how fast/slow it is
-  - UI would be great if ran on a separate thread entirely
+- [x] **App**: Transition UI animations to a smoother system
+  - Fixed 2026-09-13: new shared `UiMotion` system (M3 emphasized `cubic-bezier(0.2,0,0,1)`, enter/exit 300/250ms); `DefaultNavigatorScreenTransition` now 300/250ms emphasized slide 1/6 + fade via pure `navigatorTransition(pop)` (was 180ms `LinearOutSlowIn`); tab switches use `materialFadeThrough` 220ms with scale step (was flat 160ms fade); sheet fade threaded through `UiMotion` with decelerate/accelerate easings; bottom bar 220ms emphasized. Note: Compose animations always run on the main thread — smoothness comes from cheaper frames (fade/scale/slide are compositor-friendly) + opaque backgrounds (already present), not a separate thread.
 
 ## Chores
 - [x] Replace all Komikku icons/branding with houri icons/branding

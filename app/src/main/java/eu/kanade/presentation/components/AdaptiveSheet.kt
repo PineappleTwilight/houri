@@ -14,6 +14,7 @@ import cafe.adriel.voyager.core.lifecycle.DisposableEffectIgnoringConfiguration
 import cafe.adriel.voyager.core.screen.Screen
 import cafe.adriel.voyager.navigator.Navigator
 import eu.kanade.presentation.util.ScreenTransition
+import eu.kanade.presentation.util.UiMotion
 import eu.kanade.presentation.util.isTabletUi
 import tachiyomi.presentation.core.components.AdaptiveSheet as AdaptiveSheetImpl
 
@@ -34,8 +35,21 @@ fun NavigatorAdaptiveSheet(
                 ScreenTransition(
                     navigator = sheetNavigator,
                     transition = {
-                        fadeIn(animationSpec = tween(220, delayMillis = 90)) togetherWith
-                            fadeOut(animationSpec = tween(90))
+                        // KMK -->
+                        fadeIn(
+                            animationSpec = tween(
+                                UiMotion.SHEET_FADE_IN,
+                                delayMillis = UiMotion.SHEET_FADE_OUT,
+                                easing = UiMotion.EMPHASIZED_DECELERATE,
+                            ),
+                        ) togetherWith
+                            fadeOut(
+                                animationSpec = tween(
+                                    UiMotion.SHEET_FADE_OUT,
+                                    easing = UiMotion.EMPHASIZED_ACCELERATE,
+                                ),
+                            )
+                        // KMK <--
                     },
                 )
 

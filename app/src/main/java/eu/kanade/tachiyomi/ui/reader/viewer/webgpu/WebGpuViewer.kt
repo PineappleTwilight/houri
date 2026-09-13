@@ -70,13 +70,24 @@ open class WebGpuViewer(
         }
     }
 
-    internal fun readerBackgroundColor(): Int = activity.baseContext.readerBackgroundColor(config.theme)
+    // KMK -->
+    /** Resolved once: render() asks per frame, and createReaderThemeContext builds Resources. */
+    @Volatile
+    private var cachedBackgroundColor: Int? = null
 
-    internal fun readerOnBackgroundColor(): Int = MaterialColors.getColor(
+    @Volatile
+    private var cachedOnBackgroundColor: Int? = null
+    // KMK <--
+
+    internal fun readerBackgroundColor(): Int =
+        cachedBackgroundColor ?: activity.baseContext.readerBackgroundColor(config.theme)
+            .also { cachedBackgroundColor = it }
+
+    internal fun readerOnBackgroundColor(): Int = cachedOnBackgroundColor ?: MaterialColors.getColor(
         activity.createReaderThemeContext(),
         com.google.android.material.R.attr.colorOnBackground,
         Color.WHITE,
-    )
+    ).also { cachedOnBackgroundColor = it }
 
     internal val scope = MainScope()
 
@@ -294,6 +305,8 @@ open class WebGpuViewer(
     }
     // KMK <--
 
+    // Read from the render and decode threads, via the prevChapter/nextChapter getters.
+    @Volatile
     var viewerChapters: ViewerChapters? = null
 
     val pages: List<ReaderPage>? get() = (currentPage as? ViewerReaderPage)?.page?.chapter?.pages
@@ -437,6 +450,10 @@ open class WebGpuViewer(
 
         config.imagePropertyChangedListener = listener@{
             if (isDestroyed) return@listener
+            // KMK --> A theme change comes through here.
+            cachedBackgroundColor = null
+            cachedOnBackgroundColor = null
+            // KMK <--
             pager.state.apply {
                 val isDual = isDualPageMode()
                 transition = when (if (isDual) config.transitionAnimationDual else config.transitionAnimation) {
@@ -470,8 +487,15 @@ open class WebGpuViewer(
                 }
 
                 (this as? ca.mpreg.webgpuviewer.viewer.ImageViewerContinuousState)?.let {
-                    minZoomWidthFraction = config.continuousMinWidth / 100f
-                    scale = minScale
+                    // KMK -->
+                    homeScale = config.continuousMinWidth / 100f
+                    scale = homeScale
+                    minScale = if (config.zoomOutDisabled) 0f else 0.1f
+
+                    if ((this@WebGpuViewer as? WebGpuViewerContinuous)?.useGap == true) {
+                        pageGap = config.continuousGap / 100f
+                    }
+                    // KMK <--
                 }
             }
 
@@ -681,7 +705,10 @@ open class WebGpuViewer(
     }
 
     private fun setChaptersInternal(chapters: ViewerChapters) {
-        val pages = chapters.currChapter.pages ?: return
+        // KMK --> Empty too: lastIndex would be -1, and the requested page is read from it.
+        val pages = chapters.currChapter.pages
+        if (pages.isNullOrEmpty()) return
+        // KMK <--
 
         this.viewerChapters = chapters
 
@@ -694,7 +721,9 @@ open class WebGpuViewer(
         // Get the page and align to spread anchor if needed
         val page = currentPage ?: getPage(requestedPage)
         currentPage = getSpreadAnchor(page)
-        (currentPage as? ViewerReaderPage)?.let { reportPageSelected(it) }
+        // KMK --> Report the spread's lastmost page, not the anchor.
+        progressPage(currentPage!!)?.let { reportPageSelected(it) }
+        // KMK <--
         preloadPages(currentPage!!)
         if (stored != null && isContinuous) {
             // Heavily improved restore: atomic position with pending queue, no arbitrary delay,
@@ -765,7 +794,9 @@ open class WebGpuViewer(
                 }
 
                 currentPage = page
-                (page as? ViewerReaderPage)?.let { reportPageSelected(it) }
+                // KMK --> Report the spread's lastmost page, not the anchor.
+                progressPage(page)?.let { reportPageSelected(it) }
+                // KMK <--
                 preloadPages(page)
 
                 (page as? ViewerTransitionPage)?.let { viewerTransitionPage ->
@@ -792,7 +823,9 @@ open class WebGpuViewer(
         val previousPage = currentPage
 
         currentPage = newPage
-        (newPage as? ViewerReaderPage)?.let { reportPageSelected(it) }
+        // KMK --> Report the spread's lastmost page, not the anchor.
+        progressPage(newPage)?.let { reportPageSelected(it) }
+        // KMK <--
         preloadPages(newPage)
 
         (newPage as? ViewerTransitionPage)?.let { viewerTransitionPage ->
@@ -863,8 +896,11 @@ open class WebGpuViewer(
             if (config.navigateToPan) {
                 val minX = page.minX(page.scale)
                 val maxX = page.maxX(page.scale)
+                // Where a running pan is headed, else where it sits.
+                val currentX = page.animationTargetX ?: page.x
+
                 val c = if (isVertical && config.imageZoomType == ReaderPageImageView.ZoomStartPosition.RIGHT) -1 else 1
-                val x = (page.x - c / page.scale).coerceIn(minX, maxX)
+                val x = (currentX - c / page.scale).coerceIn(minX, maxX)
                 if (x != page.x) {
                     if (page.animationJob?.isActive == true && page.animationTargetX == x) {
                         page.animationJob?.cancel()
@@ -887,8 +923,10 @@ open class WebGpuViewer(
             if (config.navigateToPan) {
                 val minX = page.minX(page.scale)
                 val maxX = page.maxX(page.scale)
+                val currentX = page.animationTargetX ?: page.x
+
                 val c = if (isVertical && config.imageZoomType == ReaderPageImageView.ZoomStartPosition.RIGHT) -1 else 1
-                val x = (page.x + c / page.scale).coerceIn(minX, maxX)
+                val x = (currentX + c / page.scale).coerceIn(minX, maxX)
                 if (x != page.x) {
                     if (page.animationJob?.isActive == true && page.animationTargetX == x) {
                         page.animationJob?.cancel()
@@ -903,24 +941,17 @@ open class WebGpuViewer(
         }
     }
 
-    /**
-     * Get the target page when navigating by spreads from the given page.
-     * @param from Starting page
-     * @param direction Positive = forward in page numbers, negative = backward
-     * @return Target page or null if navigation not possible
-     */
+    /** Target anchor page one spread past [from], in [direction] (positive = forward). */
     private fun nextPage(from: ViewerPage, direction: Int): ViewerPage? {
         var page = getSpreadAnchor(from)
 
         page = if (direction > 0) {
-            // Going forward (next spread)
-            if (page is ViewerReaderPage && canFormSpread(page)) {
+            if (page is ViewerReaderPage && spreadPartner(page) != null) {
                 page.next?.next ?: return null
             } else {
                 page.next ?: return null
             }
         } else {
-            // Going backward (prev spread)
             page.prev ?: return null
         }
 
