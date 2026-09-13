@@ -291,27 +291,7 @@ private fun getLocalizedBreadcrumb(path: String, node: String?, isLtr: Boolean):
     }
 }
 
-private val settingScreens = listOfNotNull(
-    SettingsAppearanceScreen,
-    SettingsLibraryScreen,
-    SettingsReaderScreen,
-    SettingsDownloadScreen,
-    SettingsTrackingScreen,
-    // AM (CONNECTIONS) -->
-    SettingsConnectionScreen,
-    // <-- AM (CONNECTIONS)
-    SettingsBrowseScreen,
-    SettingsDataScreen,
-    SettingsSecurityScreen,
-    // SY -->
-    SettingsEhScreen,
-    SettingsMangadexScreen,
-    // SY <--
-    // KMK --> Off-device MTL is available even on no-MTL builds.
-    SettingsYakuyomiScreen,
-    // KMK <--
-    SettingsAdvancedScreen,
-)
+private val settingScreens: List<SearchableSettings> = SettingsCatalog.searchableScreens
 
 private data class SettingsData(
     val title: String,

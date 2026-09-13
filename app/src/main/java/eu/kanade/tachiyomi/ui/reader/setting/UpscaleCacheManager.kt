@@ -8,10 +8,18 @@ import java.security.MessageDigest
  * I/O, hashing, and eviction concerns (single-responsibility).
  *
  * Fixes:
- * - B2: Hash now includes only first 64KB + length to avoid SHA-256 of 10MB pages per frame.
+ * - B2: Hash covers the full content for small pages and five spread samples
+ *   for large ones (manga pages share JPEG headers/backgrounds, so a single
+ *   prefix sample collides across distinct pages).
  * - B3/B9: Prune and read/write are synchronized to avoid concurrent `listFiles` races.
  */
 class UpscaleCacheManager(cacheRoot: File) {
+
+    private companion object {
+        const val CACHE_KEY_VERSION = "upscale-cache-v2"
+        const val FULL_HASH_MAX_BYTES = 256 * 1024
+        const val TMP_GRACE_MILLIS = 60L * 60 * 1000
+    }
 
     private val cacheDir: File = File(cacheRoot, "upscale_cache").apply {
         try {
@@ -35,17 +43,18 @@ class UpscaleCacheManager(cacheRoot: File) {
         extra2: String,
     ): String {
         val digest = MessageDigest.getInstance("SHA-256")
+        digest.update(CACHE_KEY_VERSION.toByteArray())
         if (bytes.isNotEmpty()) {
-            val prefixLen = minOf(bytes.size, 32 * 1024)
-            digest.update(bytes, 0, prefixLen)
-            if (bytes.size > 64 * 1024) {
-                val mid = bytes.size / 2
-                val midLen = minOf(16 * 1024, bytes.size - mid)
-                digest.update(bytes, mid, midLen)
-                val tailLen = minOf(16 * 1024, bytes.size)
-                digest.update(bytes, bytes.size - tailLen, tailLen)
-            } else if (bytes.size > prefixLen) {
-                val tailLen = minOf(16 * 1024, bytes.size - prefixLen)
+            if (bytes.size <= FULL_HASH_MAX_BYTES) {
+                digest.update(bytes)
+            } else {
+                // Five spread samples: pages from the same chapter share
+                // headers and backgrounds, so clustered samples collide.
+                sample(digest, bytes, 0, 64 * 1024)
+                sample(digest, bytes, bytes.size / 4, 32 * 1024)
+                sample(digest, bytes, bytes.size / 2, 32 * 1024)
+                sample(digest, bytes, bytes.size * 3 / 4, 32 * 1024)
+                val tailLen = minOf(32 * 1024, bytes.size)
                 digest.update(bytes, bytes.size - tailLen, tailLen)
             }
         }
@@ -68,16 +77,35 @@ class UpscaleCacheManager(cacheRoot: File) {
         return digest.digest().joinToString("") { "%02x".format(it) }
     }
 
-    fun getCached(key: String): ByteArray? = synchronized(lock) {
+    private fun sample(digest: MessageDigest, bytes: ByteArray, offset: Int, maxLen: Int) {
+        if (offset < 0 || offset >= bytes.size) return
+        val len = minOf(maxLen, bytes.size - offset)
+        if (len > 0) digest.update(bytes, offset, len)
+    }
+
+    fun getCached(key: String): ByteArray? {
         if (!isValidKey(key)) return null
+        val file = synchronized(lock) { resolveCachedFileLocked(key) } ?: return null
+        return try {
+            file.readBytes().also {
+                try {
+                    synchronized(lock) { file.setLastModified(System.currentTimeMillis()) }
+                } catch (_: Exception) {}
+            }
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    private fun resolveCachedFileLocked(key: String): File? {
         val file = File(cacheDir, "$key.webp")
-        try {
-            if (!file.exists() || file.length() <= 0 || file.length() > maxSingleFileBytes) {
-                if (file.length() > maxSingleFileBytes) {
-                    try {
-                        file.delete()
-                    } catch (_: Exception) {}
-                }
+        return try {
+            if (!file.exists()) return null
+            val len = file.length()
+            if (len <= 0 || len > maxSingleFileBytes) {
+                try {
+                    file.delete()
+                } catch (_: Exception) {}
                 return null
             }
             if (ttlMillis > 0 && System.currentTimeMillis() - file.lastModified() > ttlMillis) {
@@ -86,23 +114,19 @@ class UpscaleCacheManager(cacheRoot: File) {
                 } catch (_: Exception) {}
                 return null
             }
-            file.readBytes().also {
-                try {
-                    file.setLastModified(System.currentTimeMillis())
-                } catch (_: Exception) {}
-            }
+            file
         } catch (_: Exception) {
             null
         }
     }
 
-    fun putCached(key: String, bytes: ByteArray) = synchronized(lock) {
+    fun putCached(key: String, bytes: ByteArray) {
         if (!isValidKey(key)) return
         if (bytes.isEmpty() || bytes.size > maxSingleFileBytes) return
+        val tmp: File
         try {
             ensureCacheDir()
-            val target = File(cacheDir, "$key.webp")
-            val tmp = File(cacheDir, "$key.tmp.${System.nanoTime()}")
+            tmp = File(cacheDir, "$key.tmp.${System.nanoTime()}")
             tmp.writeBytes(bytes)
             if (tmp.length() != bytes.size.toLong()) {
                 try {
@@ -110,14 +134,32 @@ class UpscaleCacheManager(cacheRoot: File) {
                 } catch (_: Exception) {}
                 return
             }
-            if (!tmp.renameTo(target)) {
-                try {
-                    target.delete()
-                } catch (_: Exception) {}
-                tmp.renameTo(target)
-            }
-            pruneIfNeededLocked()
         } catch (_: Exception) {
+            return
+        }
+        synchronized(lock) {
+            try {
+                val target = File(cacheDir, "$key.webp")
+                if (!tmp.renameTo(target)) {
+                    try {
+                        target.delete()
+                    } catch (_: Exception) {}
+                    if (!tmp.renameTo(target)) {
+                        try {
+                            tmp.copyTo(target, overwrite = true)
+                        } finally {
+                            try {
+                                tmp.delete()
+                            } catch (_: Exception) {}
+                        }
+                    }
+                }
+                pruneIfNeededLocked()
+            } catch (_: Exception) {
+                try {
+                    tmp.delete()
+                } catch (_: Exception) {}
+            }
         }
     }
 
@@ -149,16 +191,7 @@ class UpscaleCacheManager(cacheRoot: File) {
     }
 
     fun pruneExpired() = synchronized(lock) {
-        try {
-            val now = System.currentTimeMillis()
-            cacheDir.listFiles()?.forEach { f ->
-                if (now - f.lastModified() > ttlMillis) {
-                    try {
-                        f.delete()
-                    } catch (_: Exception) {}
-                }
-            }
-        } catch (_: Exception) {}
+        pruneExpiredLocked()
     }
 
     private fun ensureCacheDir() {
@@ -193,12 +226,24 @@ class UpscaleCacheManager(cacheRoot: File) {
         try {
             val now = System.currentTimeMillis()
             cacheDir.listFiles()?.forEach { f ->
-                if (now - f.lastModified() > ttlMillis) {
-                    try {
+                try {
+                    if (isAbandonedTmpFile(f, now)) {
                         f.delete()
-                    } catch (_: Exception) {}
-                }
+                    } else if (now - f.lastModified() > ttlMillis) {
+                        f.delete()
+                    }
+                } catch (_: Exception) {}
             }
-        } catch (_: Exception) {}
+        } catch (_: Exception) {
+        }
+    }
+
+    private fun isAbandonedTmpFile(f: File, now: Long): Boolean {
+        if (!f.isFile || ".tmp." !in f.name) return false
+        return try {
+            now - f.lastModified() > TMP_GRACE_MILLIS
+        } catch (_: Exception) {
+            false
+        }
     }
 }

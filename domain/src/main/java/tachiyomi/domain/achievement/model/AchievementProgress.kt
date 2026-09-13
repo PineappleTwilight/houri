@@ -74,6 +74,10 @@ object AchievementProgress {
         "translator_ten" to 10,
         "translator_fifty" to 50,
         "translator_hundred" to 100,
+        // Upscale
+        "upscale_first" to 1,
+        "upscale_ten" to 10,
+        "upscale_hundred" to 100,
         // Trackers
         "tracker_connected" to 1,
         "tracker_two" to 2,
@@ -113,6 +117,8 @@ object AchievementProgress {
         // Trackers: special, need injected count — handled via unlocked check only.
         "rereader", "reread_five", "reread_twenty", "reread_hundred" -> 0
         "translator", "translator_five", "translator_ten", "translator_fifty", "translator_hundred" -> 0
+        in setOf("upscale_first", "upscale_ten", "upscale_hundred") ->
+            prefs.upscalesServed().get().coerceAtLeast(0)
         "tracker_connected", "tracker_two", "tracker_three", "tracker_five", "tracker_all" -> 0
         "ultimate_perfection" -> prefs.getUnlockedIds().count { Achievements.forId(it)?.countsTowardsProgress == true }.toLong()
         "ultimate_secret_hunter_ultimate" -> prefs.getUnlockedIds().count { Achievements.forId(it)?.isSecret == true }.toLong()

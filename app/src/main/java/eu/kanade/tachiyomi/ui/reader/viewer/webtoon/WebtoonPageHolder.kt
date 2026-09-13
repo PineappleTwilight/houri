@@ -15,6 +15,7 @@ import eu.kanade.presentation.util.formattedMessage
 import eu.kanade.tachiyomi.databinding.ReaderErrorBinding
 import eu.kanade.tachiyomi.source.model.Page
 import eu.kanade.tachiyomi.ui.reader.model.ReaderPage
+import eu.kanade.tachiyomi.ui.reader.setting.UpscaleReaderHook
 import eu.kanade.tachiyomi.ui.reader.viewer.ReaderPageImageView
 import eu.kanade.tachiyomi.ui.reader.viewer.ReaderProgressIndicator
 import eu.kanade.tachiyomi.ui.reader.viewer.ReaderTranslation
@@ -202,9 +203,18 @@ class WebtoonPageHolder(
         }
         // KMK <--
 
+        // KMK -->
+        // Display-time upscale of the original bytes (translation below keeps the
+        // originals). Null falls back to the untouched stream.
+        val displayBytes: ByteArray? = translationBytes?.let { bytes ->
+            UpscaleReaderHook.upscaleDisplayBytes(page?.chapter?.chapter?.manga_id, bytes)
+        }
+        // KMK <--
+
         try {
             val (source, isAnimated) = withIOContext {
-                val source = streamFn().use { process(Buffer().readFrom(it)) }
+                val input = displayBytes?.inputStream() ?: streamFn()
+                val source = input.use { process(Buffer().readFrom(it)) }
                 val isAnimated = ImageUtil.isAnimatedAndSupported(source)
                 Pair(source, isAnimated)
             }

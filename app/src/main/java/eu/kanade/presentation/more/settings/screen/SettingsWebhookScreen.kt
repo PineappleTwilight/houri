@@ -11,6 +11,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import eu.kanade.presentation.more.settings.Preference
+import eu.kanade.presentation.more.settings.framework.toItems
 import eu.kanade.tachiyomi.util.system.toast
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableMap
@@ -35,6 +36,7 @@ object SettingsWebhookScreen : SearchableSettings {
         val scope = rememberCoroutineScope()
         val webhookPreferences = remember { globalAppGraph.webhookPreferences }
         val webhookNotifier = remember { globalAppGraph.webhookNotifier }
+        val store = remember { globalAppGraph.preferenceStore }
 
         val enabled by webhookPreferences.enabled().collectAsState()
 
@@ -63,20 +65,7 @@ object SettingsWebhookScreen : SearchableSettings {
             Preference.PreferenceGroup(
                 title = stringResource(KMR.strings.pref_category_connections),
                 preferenceItems = persistentListOf(
-                    Preference.PreferenceItem.SwitchPreference(
-                        preference = webhookPreferences.enabled(),
-                        title = stringResource(KMR.strings.pref_webhook_enabled),
-                    ),
-                    Preference.PreferenceItem.EditTextPreference(
-                        preference = webhookPreferences.discordWebhookUrl(),
-                        title = stringResource(KMR.strings.pref_webhook_discord_url),
-                        enabled = enabled,
-                    ),
-                    Preference.PreferenceItem.EditTextPreference(
-                        preference = webhookPreferences.genericWebhookUrl(),
-                        title = stringResource(KMR.strings.pref_webhook_generic_url),
-                        enabled = enabled,
-                    ),
+                    *WebhookSettingsHost.connectionItems.toItems(store) { enabled }.toTypedArray(),
                     Preference.PreferenceItem.TextPreference(
                         title = stringResource(KMR.strings.pref_webhook_test),
                         enabled = enabled,
@@ -94,81 +83,7 @@ object SettingsWebhookScreen : SearchableSettings {
             ),
             Preference.PreferenceGroup(
                 title = stringResource(KMR.strings.webhook_events),
-                preferenceItems = persistentListOf(
-                    Preference.PreferenceItem.SwitchPreference(
-                        preference = webhookPreferences.notifyOnChapterStarted(),
-                        title = stringResource(KMR.strings.pref_webhook_chapter_started),
-                        enabled = enabled,
-                    ),
-                    Preference.PreferenceItem.SwitchPreference(
-                        preference = webhookPreferences.notifyOnChapterRead(),
-                        title = stringResource(KMR.strings.pref_webhook_chapter_read),
-                        enabled = enabled,
-                    ),
-                    Preference.PreferenceItem.SwitchPreference(
-                        preference = webhookPreferences.includeReadingTime(),
-                        title = stringResource(KMR.strings.pref_webhook_include_reading_time),
-                        subtitle = stringResource(KMR.strings.pref_webhook_include_reading_time_summary),
-                        enabled = enabled,
-                    ),
-                    Preference.PreferenceItem.SwitchPreference(
-                        preference = webhookPreferences.notifyOnNewMangaStarted(),
-                        title = stringResource(KMR.strings.pref_webhook_new_manga_started),
-                        enabled = enabled,
-                    ),
-                    Preference.PreferenceItem.SwitchPreference(
-                        preference = webhookPreferences.notifyOnMangaFinished(),
-                        title = stringResource(KMR.strings.pref_webhook_manga_finished),
-                        enabled = enabled,
-                    ),
-                    Preference.PreferenceItem.SwitchPreference(
-                        preference = webhookPreferences.notifyOnLibraryUpdate(),
-                        title = stringResource(KMR.strings.pref_webhook_library_update),
-                        enabled = enabled,
-                    ),
-                    Preference.PreferenceItem.SwitchPreference(
-                        preference = webhookPreferences.notifyOnBackupCreated(),
-                        title = stringResource(KMR.strings.pref_webhook_backup_created),
-                        enabled = enabled,
-                    ),
-                    // KMK -->
-                    Preference.PreferenceItem.SwitchPreference(
-                        preference = webhookPreferences.notifyOnMangaAdded(),
-                        title = stringResource(KMR.strings.pref_webhook_manga_added),
-                        enabled = enabled,
-                    ),
-                    Preference.PreferenceItem.SwitchPreference(
-                        preference = webhookPreferences.notifyOnMangaRemoved(),
-                        title = stringResource(KMR.strings.pref_webhook_manga_removed),
-                        enabled = enabled,
-                    ),
-                    Preference.PreferenceItem.SwitchPreference(
-                        preference = webhookPreferences.notifyOnDownloadsFinished(),
-                        title = stringResource(KMR.strings.pref_webhook_downloads_finished),
-                        enabled = enabled,
-                    ),
-                    Preference.PreferenceItem.SwitchPreference(
-                        preference = webhookPreferences.notifyOnBackupRestored(),
-                        title = stringResource(KMR.strings.pref_webhook_backup_restored),
-                        enabled = enabled,
-                    ),
-                    Preference.PreferenceItem.SwitchPreference(
-                        preference = webhookPreferences.notifyOnMangaMigrated(),
-                        title = stringResource(KMR.strings.pref_webhook_manga_migrated),
-                        enabled = enabled,
-                    ),
-                    Preference.PreferenceItem.SwitchPreference(
-                        preference = webhookPreferences.notifyOnAppUpdated(),
-                        title = stringResource(KMR.strings.pref_webhook_app_updated),
-                        enabled = enabled,
-                    ),
-                    Preference.PreferenceItem.SwitchPreference(
-                        preference = webhookPreferences.notifyOnAchievementUnlocked(),
-                        title = stringResource(KMR.strings.pref_webhook_achievement_unlocked),
-                        enabled = enabled,
-                    ),
-                    // KMK <--
-                ),
+                preferenceItems = WebhookSettingsHost.eventSwitches.toItems(store) { enabled },
             ),
             // KMK -->
             Preference.PreferenceGroup(

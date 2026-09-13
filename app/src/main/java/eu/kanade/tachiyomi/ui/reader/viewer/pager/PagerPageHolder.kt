@@ -9,6 +9,7 @@ import eu.kanade.presentation.util.formattedMessage
 import eu.kanade.tachiyomi.databinding.ReaderErrorBinding
 import eu.kanade.tachiyomi.source.model.Page
 import eu.kanade.tachiyomi.ui.reader.model.ReaderPage
+import eu.kanade.tachiyomi.ui.reader.setting.UpscaleReaderHook
 import eu.kanade.tachiyomi.ui.reader.viewer.ReaderPageImageView
 import eu.kanade.tachiyomi.ui.reader.viewer.ReaderProgressIndicator
 import eu.kanade.tachiyomi.ui.reader.viewer.ReaderTranslation
@@ -21,6 +22,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.supervisorScope
 import logcat.LogPriority
 import okio.Buffer
+import okio.buffer
+import okio.source
 import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.core.common.util.lang.launchIO
 import tachiyomi.core.common.util.lang.withIOContext
@@ -189,9 +192,23 @@ class PagerPageHolder(
         }
         // KMK <--
 
+        // KMK -->
+        // Display-time upscale of the original bytes (translation below keeps the
+        // originals). Null falls back to the untouched stream.
+        val displayBytes: ByteArray? = translationBytes?.let { bytes ->
+            UpscaleReaderHook.upscaleDisplayBytes(page.chapter.chapter.manga_id, bytes)
+        }
+        // KMK <--
+
         try {
             val (source, isAnimated, background) = withIOContext {
-                streamFn().buffered(16).use { source ->
+                val byteSource: okio.BufferedSource =
+                    if (displayBytes != null) {
+                        Buffer().write(displayBytes)
+                    } else {
+                        streamFn().source().buffer()
+                    }
+                byteSource.use { source ->
                     // SY -->
                     if (extraPage != null) {
                         streamFn2?.invoke()
@@ -200,9 +217,9 @@ class PagerPageHolder(
                         null
                     }.use { source2 ->
                         val itemSource = if (viewer.config.dualPageSplit) {
-                            process(item.first, Buffer().readFrom(source))
+                            process(item.first, Buffer().apply { writeAll(source) })
                         } else {
-                            mergePages(Buffer().readFrom(source), source2?.let { Buffer().readFrom(it) })
+                            mergePages(Buffer().apply { writeAll(source) }, source2?.let { Buffer().readFrom(it) })
                         }
                         // SY <--
                         val isAnimated = ImageUtil.isAnimatedAndSupported(itemSource)

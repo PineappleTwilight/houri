@@ -13,6 +13,7 @@ import de.stefan_oltmann.kim.format.tiff.constant.TiffTag
 import eu.kanade.tachiyomi.source.model.Page
 import eu.kanade.tachiyomi.ui.reader.model.ReaderChapter
 import eu.kanade.tachiyomi.ui.reader.model.ReaderPage
+import eu.kanade.tachiyomi.ui.reader.setting.UpscaleReaderHook
 import eu.kanade.tachiyomi.ui.reader.viewer.ReaderPageImageView.ZoomStartPosition
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -366,6 +367,13 @@ internal suspend fun WebGpuViewer.decodeReaderPage(page: ViewerReaderPage) {
             null
         }
         if (decodeBytes == null) throw Exception("Failed to read page bytes")
+        // KMK -->
+        // Display-time upscale; translation and spread matching below keep the originals.
+        val displayBytes = UpscaleReaderHook.upscaleDisplayBytes(
+            page.page.chapter.chapter.manga_id,
+            decodeBytes,
+        ) ?: decodeBytes
+        // KMK <--
         val isJxlBytes = try {
             tachiyomi.core.common.util.system.ImageUtil.findImageType(decodeBytes.inputStream()) == tachiyomi.core.common.util.system.ImageUtil.ImageType.JXL
         } catch (_: Exception) {
@@ -405,7 +413,7 @@ internal suspend fun WebGpuViewer.decodeReaderPage(page: ViewerReaderPage) {
         }
 
         val dec = try {
-            ImageDecoder.new(decodeBytes.inputStream()).also { d ->
+            ImageDecoder.new(displayBytes.inputStream()).also { d ->
                 if (d.pages <= 0) {
                     try {
                         d.close()

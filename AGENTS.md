@@ -4,7 +4,7 @@
 **Commit:** 936e25bf9
 **Branch:** master
 
-Komikku is an Android manga reader (min SDK 26, target SDK 36, JVM 17 / Kotlin) forked from **Mihon** + **TachiyomiSY**. Stack: Jetpack Compose + Material3, Voyager navigation, SQLDelight, Injekt DI. `applicationId`: `app.komikku`.
+Komikku is an Android manga reader (min SDK 26, target SDK 36, JVM 17 / Kotlin) forked from **Mihon** + **TachiyomiSY**. Stack: Jetpack Compose + Material3, Voyager navigation, SQLDelight, Metro DI (+ legacy Injekt bridge). `applicationId`: `app.komikku`.
 
 **Scale:** 2244 files, 186k lines of Kotlin/Java,47 files >500 lines.
 
@@ -131,6 +131,9 @@ The `app/` module contains **4 competing package roots** reflecting fork heritag
 - Do not edit locale `strings.xml` in `i18n/` or `i18n-sy/` except when syncing upstream; translations via [Weblate](https://hosted.weblate.org/engage/komikku-app/).
 - Komikku code/DI: search `// KMK` (e.g. `KMKDomainModule`, `HideCategory`, library-update errors).
 - Prefs: `eu.kanade.domain.*.service.*Preferences` (e.g. `SourcePreferences.relatedMangas()`).
+  New code uses the modular settings framework — keys in `*SettingKeys`, UI in `*SettingsHost`
+  (guide: `app/.../presentation/more/settings/framework/AGENTS.md`; store base: `core/common/AGENTS.md`).
+- Settings screens: register in `SettingsCatalog.searchableScreens` AND `SettingsMainScreen.items`.
 
 **Examples (Komikku → `i18n-kmk`, not `i18n`):** library update error UI, sync-before-update messages, WebDAV/Discord settings, updater notifications, `mihon/feature/*` Komikku screens.
 

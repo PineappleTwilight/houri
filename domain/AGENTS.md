@@ -57,6 +57,11 @@ In `domain/.../service/`: `LibraryPreferences`, `HistoryPreferences`, `UpdatesPr
 
 Wrap `PreferenceStore` from `core:common`. Registered in `AppModule.kt`.
 
+**Modular framework (new code):** centralize each class's keys in a co-located `*SettingKeys`
+object of `SettingKey` consts (see `WebhookSettingKeys` pilot in `app/.../domain/connections/service/`);
+keep `foo()` accessors as thin delegates so screens, backup, and DI are unaffected. Full guide:
+`app/src/main/java/eu/kanade/presentation/more/settings/framework/AGENTS.md`.
+
 ## Conventions
 
 - One class per file, verb-based naming (not `*Interactor` suffix)

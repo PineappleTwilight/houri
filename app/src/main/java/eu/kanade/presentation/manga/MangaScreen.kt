@@ -735,7 +735,7 @@ private fun MangaScreenSmallImpl(
 
                     item(
                         key = "upscale-toggle-${state.manga.id}",
-                        contentType = "upscale_toggle",
+                        contentType = MangaScreenItem.UPSCALE_TOGGLE,
                     ) {
                         UpscaleMangaToggle(manga = state.manga)
                     }

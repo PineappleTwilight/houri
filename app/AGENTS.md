@@ -43,6 +43,27 @@ Voyager `Screen` + `ScreenModel` in `ui/`, Composable in `presentation/`:
 - `MangaScreen.kt` → `MangaScreenModel.kt` → `presentation/manga/`
 - `ReaderActivity` uses `ReaderViewModel` (AndroidX ViewModel, not Voyager)
 
+## Settings framework
+
+Modular preferences with automatic UI wiring — full guide:
+`app/src/main/java/eu/kanade/presentation/more/settings/framework/AGENTS.md`.
+
+- Store base: `SettingKey`/`SettingsRegistry` (`core:common`); UI: `SettingDefinition`,
+  `SettingRow`/`toItems`, `GenericSettingsScreen`; screen registry: `SettingsCatalog`.
+- New setting = key in `*SettingKeys` + definition in `*SettingsHost` + host list entry.
+- New screen = register in `SettingsCatalog.searchableScreens` AND `SettingsMainScreen.items`.
+- Pilot: webhooks (`WebhookSettingKeys`, `WebhookSettingsHost`).
+
+## Backup & restore
+
+Code in `eu.kanade.tachiyomi.data.backup.{create,restore}`:
+- `PreferenceBackupCreator` snapshots `preferenceStore.getAll()` → typed `BackupPreference`
+  list; always drops `__APP_STATE_`, drops `__PRIVATE_` unless user opts in.
+- `PreferenceRestorer` type-switches values back; remaps category IDs; special-cases
+  `LibraryPreferences`/`DownloadPreferences` category key sets + `SourcePreferences.PINNED_SOURCES_PREF_KEY`.
+- Key renames require a `mihon.core.migration.Migration` (`MigrateUtils.replacePreferences`);
+  backup files match on raw key strings, so framework `SettingKey` values must stay stable.
+
 ## Theme system
 
 19 named color schemes extending `BaseColorScheme`. KMK adds cover-based dynamic theming via `DynamicMaterialExpressiveTheme`.
@@ -54,5 +75,6 @@ All Komikku additions wrapped in `// KMK -->` ... `// KMK <--`. SY additions in 
 ## Conventions
 
 - Logging: `xLogE()` / `xLog()` from `exh.log` for KMK code; `logcat {}` for Mihon code
-- Preferences: `eu.kanade.domain.*.service.*Preferences`
+- Preferences: `eu.kanade.domain.*.service.*Preferences`, keys centralized in co-located
+  `*SettingKeys` (see `settings/framework/AGENTS.md`); new UI rows via `*SettingsHost` definitions
 - Strings: `KMR` + `i18n-kmk/` for Komikku-only features

@@ -31,6 +31,8 @@ class AchievementPreferences(
     fun rotatingDailyIds() = preferenceStore.getString("pref_achievement_rotating_daily_ids", "")
     fun rotatingWeeklyIds() = preferenceStore.getString("pref_achievement_rotating_weekly_ids", "")
     fun rotatingProgress() = preferenceStore.getString("pref_achievement_rotating_progress", "")
+    fun upscalesServed() = preferenceStore.getLong("pref_achievement_upscales_served", 0)
+    fun upscalePageCounts() = preferenceStore.getString("pref_achievement_upscale_page_counts", "")
 
     @Synchronized
     fun incrementOrganicRead() {
@@ -76,6 +78,38 @@ class AchievementPreferences(
     fun incrementLtrFinished() {
         val cur = ltrMangaFinishedCount().get()
         if (cur < 1_000_000L) ltrMangaFinishedCount().set(cur + 1)
+    }
+
+    @Synchronized
+    fun incrementUpscalesServed(): Long {
+        val next = (upscalesServed().get() + 1).coerceIn(0L, 1_000_000L)
+        upscalesServed().set(next)
+        return next
+    }
+
+    @Synchronized
+    fun incrementUpscalePageCount(cacheKey: String): Int {
+        if (cacheKey.isBlank()) return 0
+        val counts = linkedMapOf<String, Int>()
+        upscalePageCounts().get().split(",")
+            .mapNotNull { entry ->
+                val parts = entry.split(":", limit = 2)
+                val key = parts.getOrNull(0)?.trim().orEmpty()
+                val count = parts.getOrNull(1)?.toIntOrNull()
+                if (key.isBlank() || key.length > 64 || count == null || count <= 0) {
+                    null
+                } else {
+                    key to count
+                }
+            }
+            .forEach { (key, count) -> counts[key] = count }
+        val next = ((counts[cacheKey] ?: 0) + 1).coerceIn(1, 10_000)
+        counts[cacheKey] = next
+        while (counts.size > 200) {
+            counts.remove(counts.keys.first())
+        }
+        upscalePageCounts().set(counts.entries.joinToString(",") { "${it.key}:${it.value}" })
+        return next
     }
 
     @Synchronized
@@ -164,6 +198,8 @@ class AchievementPreferences(
         totalReadingTimeMinutes().set(0)
         backlogClearedCount().set(0)
         ltrMangaFinishedCount().set(0)
+        upscalesServed().set(0)
+        upscalePageCounts().set("")
         rotatingDailyIds().set("")
         rotatingWeeklyIds().set("")
         rotatingProgress().set("")

@@ -176,6 +176,11 @@
   - Ported 2026-09-13 without native bumps: page-gap slider for continuous vertical (`continuousGap` pref + `pageGap` slot measuring in `webgpuviewer-houri` fork, long strip keeps 0), disable-zoom-out wiring (`zoomOutDisabled` → fork `homeScale`/`minScale` split, also ported to fork), dual-mode progress fix (`spreadPartner`/`progressPage` — rail follows spread's last page) + decode-worker/eviction hardening, mode-aware reader settings. Deferred: HDR/UltraHDR gainmap rendering (needs `image-decoder` 13 native `Gainmap`, not in `imagedecoder-houri`) and upstream `WebGpuRenderer` device-loss hardening (41-only `DeviceLostCallback` shape).
 - [x] **AniList**: Implement upstream [PR](https://github.com/mihonapp/mihon/pull/3942)
   - Ported 2026-09-13: `AnilistApi` rate limiter `permits 85→25` per AniList docs (hard limit 30).
+- [ ] **Manga Details**: Implement sequel/prequel widgets
+  - Should get metadata from user's preferred tracker
+  - Disabled by default, can be enabled in settings
+  - Should intelligently cache sequel/prequel metadata to avoid API abuse
+  - See [#6](https://github.com/PineappleTwilight/houri/issues/6)
 
 ## Bugfixes
 - [x] Fix UI transition choppiness.
@@ -456,6 +461,20 @@
   - Should be excluded if device doesn't support them
 - [x] **App**: Transition UI animations to a smoother system
   - Fixed 2026-09-13: new shared `UiMotion` system (M3 emphasized `cubic-bezier(0.2,0,0,1)`, enter/exit 300/250ms); `DefaultNavigatorScreenTransition` now 300/250ms emphasized slide 1/6 + fade via pure `navigatorTransition(pop)` (was 180ms `LinearOutSlowIn`); tab switches use `materialFadeThrough` 220ms with scale step (was flat 160ms fade); sheet fade threaded through `UiMotion` with decelerate/accelerate easings; bottom bar 220ms emphasized. Note: Compose animations always run on the main thread — smoothness comes from cheaper frames (fade/scale/slide are compositor-friendly) + opaque backgrounds (already present), not a separate thread.
+- [ ] **Library AST Search**: Make operators (AND, NOT, etc) case-sensitive (must be uppercase)
+- [ ] **Library AST Search**: Fix colon (genre, artist, etc) searches not working
+- [ ] **Manga Details**: Fix library search not working [#9](https://github.com/PineappleTwilight/houri/issues/9)
+- [ ] **MangaTranslations.ai**: Fix login and signup not working
+- [ ] **Library**: Fix incognito from overflow and EH settings having different behavior
+- [ ] **WebGPU Reader** Fix persistently annoying double-page scaling bug once and for all
+- [ ] **Universal Tracker**: Fix only MAL having a removal confirmation
+  - Also implement a way to remove all trackers at once
+- [ ] **Universal Tracker**: Fix dialog still being full-size vertically. Should use a shrink-fit approach.
+- [ ] **MangaUpdates**: Fix tracker not updating
+- [ ] **Universal Tracker**: If a tracker is not synced with the preferred tracker, it should be indicated visually
+- [ ] **Universal Tracker**: Tap and holding on the dialog should have a hover animation
+- [ ] **Universal Tracker**: Fix being unable to bind more than 2 trackers
+- [ ] **Manga Details**: "Fill from tracker" doesn't apply tags and publishing status from MangaBaka
 
 ## Chores
 - [x] Replace all Komikku icons/branding with houri icons/branding
@@ -481,13 +500,14 @@
   - 2026-09-09: all redirect URIs verified as `houri://` (bangumi `houri://bangumi-auth`, mangabaka `houri://mangabaka-auth`, shikimori `houri://shikimori-auth`, MAL PKCE with `houri://myanimelist-auth`); CLIENT_IDs kept pending provider re-registration where needed, redirects already houri
 - [ ] **Google Drive**: Update oauth token
 - [ ] **MyAnimeList**: Update oauth token
-- [ ] **App**: Multithreading
-  - [ ] Dedicated thread for readers
-  - [ ] Dedicated thread for app UI
-  - [ ] Multithread extensions
-  - [ ] Multithread app background operations
-  - [ ] Multithread DB handling
-- [ ] **App**: Enforce modularity and maintainability
+- [x] **App**: Multithreading
+  - [x] Dedicated thread for readers
+  - [x] Dedicated thread for app UI
+  - [x] Multithread extensions
+  - [x] Multithread app background operations
+  - [x] Multithread DB handling
+- [x] **App**: Enforce modularity and maintainability
+- [ ] **App**: Appwide extensible event framework for features such as achievements and webhook wiring
 
 ## Drawing Board
 - [ ] **Anizen Port**: Multi-feed — *Feasibility: investigated 2026-09-11, feasible via existing Feed SavedSearch + RecommendationBatch stack, low risk*

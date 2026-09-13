@@ -14,8 +14,11 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import logcat.LogPriority
+import okhttp3.Call
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import tachiyomi.core.common.util.system.logcat
 import java.io.File
 import java.security.MessageDigest
 
@@ -43,6 +46,11 @@ class UpscaleModelManager(
         val name: String,
         val url: String,
         val size: Long,
+        /**
+         * Expected lowercase hex SHA-256, or empty when the digest is not
+         * known yet. Empty means the download is verified by exact size only
+         * and a warning is logged — never ship a fake uniform digest here.
+         */
         val sha256: String,
     )
 
@@ -53,49 +61,57 @@ class UpscaleModelManager(
                 name = "realcugan-se-2x.ncnn.param",
                 url = "https://github.com/PineappleTwilight/komikku-pineapple/releases/download/upscale-v1/realcugan-se-2x.ncnn.param",
                 size = 3521,
-                sha256 = "0000000000000000000000000000000000000000000000000000000000000000",
+                sha256 = "",
             ),
             RemoteModel(
                 role = "realcugan",
                 name = "realcugan-se-2x.ncnn.bin",
                 url = "https://github.com/PineappleTwilight/komikku-pineapple/releases/download/upscale-v1/realcugan-se-2x.ncnn.bin",
                 size = 4112234,
-                sha256 = "1111111111111111111111111111111111111111111111111111111111111111",
+                sha256 = "",
             ),
             RemoteModel(
                 role = "realesrgan",
                 name = "realesrgan-x4plus.ncnn.param",
                 url = "https://github.com/PineappleTwilight/komikku-pineapple/releases/download/upscale-v1/realesrgan-x4plus.ncnn.param",
                 size = 4870,
-                sha256 = "2222222222222222222222222222222222222222222222222222222222222222",
+                sha256 = "",
             ),
             RemoteModel(
                 role = "realesrgan",
                 name = "realesrgan-x4plus.ncnn.bin",
                 url = "https://github.com/PineappleTwilight/komikku-pineapple/releases/download/upscale-v1/realesrgan-x4plus.ncnn.bin",
                 size = 15055348,
-                sha256 = "3333333333333333333333333333333333333333333333333333333333333333",
+                sha256 = "",
             ),
             RemoteModel(
                 role = "waifu2x",
                 name = "waifu2x-cunet.ncnn.param",
                 url = "https://github.com/PineappleTwilight/komikku-pineapple/releases/download/upscale-v1/waifu2x-cunet.ncnn.param",
                 size = 2856,
-                sha256 = "4444444444444444444444444444444444444444444444444444444444444444",
+                sha256 = "",
             ),
             RemoteModel(
                 role = "waifu2x",
                 name = "waifu2x-cunet.ncnn.bin",
                 url = "https://github.com/PineappleTwilight/komikku-pineapple/releases/download/upscale-v1/waifu2x-cunet.ncnn.bin",
                 size = 2108421,
-                sha256 = "5555555555555555555555555555555555555555555555555555555555555555",
+                sha256 = "",
             ),
         )
+    }
+
+    private fun isUnverifiedHash(sha256: String): Boolean {
+        if (sha256.isBlank()) return true
+        return sha256.all { it == sha256[0] }
     }
 
     private val modelsDir: File = File(context.filesDir, "upscale_models").apply { mkdirs() }
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var downloadJob: Job? = null
+
+    @Volatile
+    private var activeCall: Call? = null
 
     private var models: List<RemoteModel> = FALLBACK_MODELS
 
@@ -108,14 +124,15 @@ class UpscaleModelManager(
 
     private fun file(model: RemoteModel): File = File(modelsDir, model.name)
 
-    fun isReady(): Boolean = models.isNotEmpty() && models.all { file(it).exists() && file(it).length() == it.size }
+    fun isReady(): Boolean =
+        models.isNotEmpty() && models.all { m -> file(m).let { it.exists() && it.length() == m.size } }
 
     fun installedBytes(): Long = models.sumOf { file(it).takeIf { f -> f.exists() }?.length() ?: 0L }
 
     fun isModelReady(role: String): Boolean {
         val roleModels = models.filter { it.role == role }
         if (roleModels.isEmpty()) return false
-        return roleModels.all { file(it).exists() && file(it).length() == it.size }
+        return roleModels.all { m -> file(m).let { it.exists() && it.length() == m.size } }
     }
 
     fun refresh() {
@@ -162,13 +179,21 @@ class UpscaleModelManager(
 
     fun cancelDownload() {
         downloadJob?.cancel()
+        try {
+            activeCall?.cancel()
+        } catch (_: Exception) {}
         downloadJob = null
+        activeCall = null
         refresh()
     }
 
     fun clearModels(roleFilter: String? = null) {
         downloadJob?.cancel()
+        try {
+            activeCall?.cancel()
+        } catch (_: Exception) {}
         downloadJob = null
+        activeCall = null
         try {
             models.filter { roleFilter == null || it.role == roleFilter }.forEach { model ->
                 file(model).delete()
@@ -182,47 +207,68 @@ class UpscaleModelManager(
         if (model.name.contains("..") || model.name.contains("/")) throw IllegalStateException("Invalid model name")
         if (!model.url.startsWith("https://")) throw IllegalStateException("Invalid model URL")
         val dlClient = client.newBuilder()
-            .callTimeout(0, java.util.concurrent.TimeUnit.SECONDS)
+            .callTimeout(10, java.util.concurrent.TimeUnit.MINUTES)
             .readTimeout(60, java.util.concurrent.TimeUnit.SECONDS)
             .connectTimeout(15, java.util.concurrent.TimeUnit.SECONDS)
             .build()
         val request = Request.Builder().url(model.url).get().build()
-        dlClient.newCall(request).execute().use { resp ->
-            if (!resp.isSuccessful) throw IllegalStateException("HTTP ${resp.code} for ${model.name}")
-            val body = resp.body
-            val tmp = File(modelsDir, "${model.name}.tmp")
-            var totalRead = 0L
-            body.byteStream().use { input ->
-                tmp.outputStream().use { output ->
-                    val buf = ByteArray(64 * 1024)
-                    while (true) {
-                        val read = input.read(buf)
-                        if (read == -1) break
-                        totalRead += read
-                        if (totalRead > model.size + 1024 * 1024) throw IllegalStateException("Download exceeded expected size for ${model.name}")
-                        output.write(buf, 0, read)
-                        onBytes(read.toLong())
+        val call = dlClient.newCall(request)
+        activeCall = call
+        try {
+            call.execute().use { resp ->
+                if (!resp.isSuccessful) throw IllegalStateException("HTTP ${resp.code} for ${model.name}")
+                val body = resp.body
+                val tmp = File(modelsDir, "${model.name}.tmp")
+                var totalRead = 0L
+                body.byteStream().use { input ->
+                    tmp.outputStream().use { output ->
+                        val buf = ByteArray(64 * 1024)
+                        while (true) {
+                            val read = input.read(buf)
+                            if (read == -1) break
+                            totalRead += read
+                            if (totalRead > model.size + 1024 * 1024) throw IllegalStateException("Download exceeded expected size for ${model.name}")
+                            output.write(buf, 0, read)
+                            onBytes(read.toLong())
+                        }
+                        output.flush()
                     }
-                    output.flush()
                 }
-            }
-            if (tmp.length() != model.size) {
-                tmp.delete()
-                throw IllegalStateException("Size mismatch for ${model.name} (got ${tmp.length()}, expected ${model.size})")
-            }
-            if (!model.sha256.all { it == '0' } && !model.sha256.all { it == '1' } && !model.sha256.all { it == '2' } && !model.sha256.all { it == '3' } && !model.sha256.all { it == '4' } && !model.sha256.all { it == '5' }) {
-                val actual = sha256(tmp)
-                if (!actual.equals(model.sha256, ignoreCase = true)) {
+                if (tmp.length() != model.size) {
+                    try {
+                        tmp.delete()
+                    } catch (_: Exception) {}
+                    throw IllegalStateException("Size mismatch for ${model.name} (got ${tmp.length()}, expected ${model.size})")
+                }
+                if (isUnverifiedHash(model.sha256)) {
+                    logcat(LogPriority.WARN) { "Upscale model ${model.name} has no recorded sha256; size-checked only" }
+                } else {
+                    val actual = sha256(tmp)
+                    if (!actual.equals(model.sha256, ignoreCase = true)) {
+                        try {
+                            tmp.delete()
+                        } catch (_: Exception) {}
+                        throw IllegalStateException("sha256 mismatch for ${model.name}")
+                    }
+                }
+                val target = file(model)
+                try {
+                    if (target.exists() && !target.delete()) throw IllegalStateException("Cannot replace ${model.name}")
+                    if (!tmp.renameTo(target)) {
+                        tmp.copyTo(target, overwrite = true)
+                    }
+                } catch (e: Exception) {
+                    try {
+                        tmp.delete()
+                    } catch (_: Exception) {}
+                    throw e
+                }
+                try {
                     tmp.delete()
-                    throw IllegalStateException("sha256 mismatch for ${model.name}")
-                }
+                } catch (_: Exception) {}
             }
-            val target = file(model)
-            if (target.exists() && !target.delete()) throw IllegalStateException("Cannot replace ${model.name}")
-            if (!tmp.renameTo(target)) {
-                tmp.copyTo(target, overwrite = true)
-                tmp.delete()
-            }
+        } finally {
+            if (activeCall === call) activeCall = null
         }
     }
 

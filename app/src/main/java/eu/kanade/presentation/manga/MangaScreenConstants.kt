@@ -20,6 +20,7 @@ enum class MangaScreenItem {
     // KMK -->
     TRANSLATE_TOGGLE,
     TRANSLATE_MANGA_INFO_TOGGLE,
+    UPSCALE_TOGGLE,
     // KMK <--
 
     // SY -->

@@ -26,6 +26,13 @@ Defines the contract that APK extensions (installed separately) must conform to.
 
 In `exh/source/`: `DelegatedHttpSource`, `EnhancedHttpSource` for in-repo sources (NHentai, 8Muses, etc.)
 
+## Per-source preferences (adjacent surface)
+
+`ConfigurableSource` implementations keep prefs in per-source SharedPreferences files named
+`source_$id` (extension ABI) — separate from the app-wide `PreferenceStore` and deliberately
+**outside** the modular settings framework (`settings/framework/`). Do not migrate source
+prefs into `SettingKey`s; the framework must never assume the default shared-prefs file.
+
 ## Conventions
 
 - **NEVER** break extension ABI

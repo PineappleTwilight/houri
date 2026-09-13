@@ -21,9 +21,27 @@ Foundation module providing networking, security, storage, and shared utilities.
 
 **`CbzCrypto`** (in core:archive) – AES-256/128/ZipCrypto via Android KeyStore
 
+## Preferences framework
+
+**`tachiyomi.core.common.preference`** — 100% SharedPreferences, no Jetpack DataStore:
+
+| Type | Role |
+|---|---|
+| `PreferenceStore` | Factory interface (`getBoolean/getInt/getString/…`, `getEnum`/`getLongArray` extensions) |
+| `Preference<T>` | Reactive value (`get/set/changes()/stateIn()`); self-heals on type mismatch |
+| `AndroidPreferenceStore` | Production impl (`@SingleIn @Inject`, default SharedPreferences + keyFlow) |
+| `InMemoryPreferenceStore` | Tests/previews |
+| `SettingKey<T>` | Single source of truth: exact storage key + default (new code, replaces inline literals) |
+| `SettingHost` / `SettingsRegistry` | Feature key contributions; fail-fast duplicate detection; `isBackedUp()` mirrors backup filtering |
+
 **Preference key conventions:**
 - `__PRIVATE_` prefix: Excluded from backups
 - `__APP_STATE_` prefix: Internal app state, not user-facing
+
+Feature classes (`*Preferences`, one `fun foo() = store.getX(key, default)` per setting) and UI
+hosts both reference the same `*SettingKeys` consts — keys must never drift. UI wiring:
+`app/.../presentation/more/settings/framework/AGENTS.md`. Never rename a key without a
+migration in `mihon/core/migration/migrations/`.
 
 ## Storage
 

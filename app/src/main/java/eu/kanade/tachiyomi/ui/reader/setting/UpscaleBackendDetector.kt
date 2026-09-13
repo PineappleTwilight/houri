@@ -43,18 +43,16 @@ class UpscaleBackendDetector(private val context: Context) {
     }
 
     fun isVulkanAvailable(): Boolean = try {
-        val pm = context.packageManager
-        if (!pm.hasSystemFeature("android.hardware.vulkan.version")) return false
-        if (android.os.Build.VERSION.SDK_INT >= 24) {
-            val feat = pm.getSystemAvailableFeatures()?.any { it.name == "android.hardware.vulkan.version" } ?: false
-            feat
-        } else {
-            true
-        }
+        context.packageManager.hasSystemFeature("android.hardware.vulkan.version")
     } catch (_: Throwable) {
         false
     }
 
+    /**
+     * Whether the ONNX Runtime NPU execution provider can be loaded. This
+     * probes for the runtime class, not for NPU silicon, so a `true` result
+     * means "NPU path available", not "NPU hardware present".
+     */
     fun isNpuAvailable(): Boolean = try {
         Class.forName("ai.onnxruntime.OrtEnvironment")
         true
@@ -66,7 +64,9 @@ class UpscaleBackendDetector(private val context: Context) {
         UpscalePreferences.Backend.AUTO -> true
         UpscalePreferences.Backend.VULKAN -> isVulkanAvailable()
         UpscalePreferences.Backend.NPU -> isNpuAvailable()
-        UpscalePreferences.Backend.CPU -> isAvailable() || true
+        // CPU is the software fallback path, so it is always selectable.
+        // Whether native inference can actually run is decided by isAvailable().
+        UpscalePreferences.Backend.CPU -> true
     }
 
     fun availableBackends(): List<UpscalePreferences.Backend> = buildList {
@@ -93,6 +93,9 @@ class UpscaleBackendDetector(private val context: Context) {
     }
 
     private fun probeNativeAvailable(): Boolean {
+        // Native inference libraries ship separately from the app. Until they
+        // are bundled this probe returns false and the engine stays on the
+        // software path; the TTL cache above keeps this check off hot paths.
         return try {
             System.loadLibrary("ncnn")
             true

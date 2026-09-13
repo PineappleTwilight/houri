@@ -27,6 +27,18 @@ Shared Compose components, theme system, and i18n helpers. Package root: `tachiy
 | `LinkIcon` | Icon with click handler |
 | `ListGroupHeader` | Section header |
 
+## SettingsItems (parallel settings system)
+
+`components/SettingsItems.kt` — a second, independent settings-item system used by non-settings
+screens (library sort, source filters): `HeadingItem`, `IconItem`, `SortItem`, `CheckboxItem`,
+`RadioItem`, `SliderItem`/`BaseSliderItem`, `SelectItem`, `TriStateItem`, `TextItem`,
+`SettingsChipRow`, `SettingsIconGrid`. These take raw `Preference<T>` directly (e.g.
+`CheckboxItem(label, pref)` auto-wires via `collectAsState()` + `toggle()`).
+
+Do not confuse with the settings-framework rows (`app/.../settings/framework/`), which build
+`Preference.PreferenceItem` for `SearchableSettings` screens. Unify only deliberately — the two
+systems serve different hosts (arbitrary screens vs. settings screens).
+
 ## Material customizations
 
 Custom implementations of Material3 components:

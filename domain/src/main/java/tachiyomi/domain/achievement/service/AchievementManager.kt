@@ -222,6 +222,18 @@ class AchievementManager(
     }
 
     @Synchronized
+    fun onUpscaled(count: Long): List<String> {
+        if (!prefs.achievementsEnabled().get()) return emptyList()
+        val safe = count.coerceIn(0L, 1_000_000L)
+        val unlocked = mutableListOf<String>()
+        if (safe >= 1) tryUnlock("upscale_first", unlocked)
+        if (safe >= 10) tryUnlock("upscale_ten", unlocked)
+        if (safe >= 100) tryUnlock("upscale_hundred", unlocked)
+        if (unlocked.isNotEmpty()) notifyIfNeeded(unlocked)
+        return unlocked
+    }
+
+    @Synchronized
     fun tryUnlockDirect(id: String): Boolean {
         if (!prefs.achievementsEnabled().get()) return false
         val out = mutableListOf<String>()

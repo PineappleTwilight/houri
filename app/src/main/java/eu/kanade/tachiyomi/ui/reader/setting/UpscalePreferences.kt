@@ -29,14 +29,39 @@ class UpscalePreferences(
         const val KEY_FACTOR = "pref_upscale_factor"
         const val KEY_SIMPLE_ALGO = "pref_upscale_simple_algo"
         const val KEY_MODE = "pref_upscale_mode"
+
+        private const val KEY_LEGACY_PER_SERIES = "pref_upscale_per_series"
+        private const val KEY_LEGACY_PER_SERIES_BACKUP = "pref_upscale_per_series_backup"
     }
 
     init {
+        migrateLegacyPerSeries()
+    }
+
+    /**
+     * Moves legacy per-series upscale opt-ins into per-manga prefs instead of
+     * dropping them. The legacy value is a free-form string, so each
+     * comma/semicolon/whitespace-separated token that parses to a positive id
+     * becomes an opt-in; the raw value is stashed under a backup key before the
+     * original is cleared, so a future migration can retry anything skipped.
+     */
+    private fun migrateLegacyPerSeries() {
         try {
-            val legacy = preferenceStore.getString("pref_upscale_per_series", "").get()
-            if (legacy.isNotBlank()) {
-                preferenceStore.getString("pref_upscale_per_series", "").set("")
-            }
+            val legacyPref = preferenceStore.getString(KEY_LEGACY_PER_SERIES, "")
+            val legacy = legacyPref.get()
+            if (legacy.isBlank()) return
+            legacy.split(',', ';', '\n', ' ', '\t')
+                .mapNotNull { it.trim().toLongOrNull()?.takeIf { id -> id > 0 } }
+                .toSet()
+                .forEach { mangaId ->
+                    try {
+                        upscaleMangaStore.setEnabled(mangaId, true)
+                    } catch (_: Exception) {}
+                }
+            try {
+                preferenceStore.getString(KEY_LEGACY_PER_SERIES_BACKUP, "").set(legacy)
+            } catch (_: Exception) {}
+            legacyPref.set("")
         } catch (_: Exception) {}
     }
 
@@ -61,7 +86,7 @@ class UpscalePreferences(
     fun effectiveSimpleAlgo(): SimpleAlgo = runCatching { SimpleAlgo.valueOf(simpleAlgo().get()) }.getOrDefault(SimpleAlgo.BICUBIC)
 
     fun isEnabledForManga(mangaId: Long): Boolean {
-        if (mangaId <= 0) return isGloballyEnabled()
+        if (mangaId <= 0) return false
         if (!isGloballyEnabled()) return false
         return upscaleMangaStore.isEnabled(mangaId)
     }
