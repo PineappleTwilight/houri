@@ -173,7 +173,9 @@
   - Fully supports authentication (Bearer token from `mangaTranslatorApiKey` → `effectiveApiKey` fallback, `access_cookie` sync equivalent) and chapters are cached permanently (`mangaTranslatorCachePermanent` pref, default true, `yakuyomi_saved` 256MB/40 chapters)
   - User can wipe cached TLs per manga via Settings → Translation → MangaTranslator → Manage per-manga translation cache (works for removed library entries)
 - [ ] **WebGPU Reader**: Port latest upstream [PR](https://github.com/mihonapp/mihon/pull/3933)
-- [ ] **AniList**: Implement upstream [PR](https://github.com/mihonapp/mihon/pull/3942)
+  - Assessed 2026-09-13: "Bump webgpuviewer" (wwww-wwww, merged Sep 12) — webgpuviewer 40→41 + image-decoder 10→13, HDR/ICC/PQ/HLG pages, page-gap slider, disable-zoom-out, dual-mode progress fix, mode-aware settings. Requires syncing Houri's own native forks (`external/webgpuviewer-houri`, `external/imagedecoder-houri`) + reconciling local islands (spread height-match, JXL guards) — deferred as multi-day native work, not done in this session.
+- [x] **AniList**: Implement upstream [PR](https://github.com/mihonapp/mihon/pull/3942)
+  - Ported 2026-09-13: `AnilistApi` rate limiter `permits 85→25` per AniList docs (hard limit 30).
 
 ## Bugfixes
 - [x] Fix UI transition choppiness.
@@ -452,9 +454,8 @@
 - [ ] **AI Upscaler**: Add AI model download links
 - [ ] **AI Upscaler**: Ensure Vulkan and NPU backends are available and selectable
   - Should be excluded if device doesn't support them
-- [ ] **App**: Transition UI animations to a smoother system
-  - Current one looks jittery regardless of how fast/slow it is
-  - UI would be great if ran on a separate thread entirely
+- [x] **App**: Transition UI animations to a smoother system
+  - Fixed 2026-09-13: new shared `UiMotion` system (M3 emphasized `cubic-bezier(0.2,0,0,1)`, enter/exit 300/250ms); `DefaultNavigatorScreenTransition` now 300/250ms emphasized slide 1/6 + fade via pure `navigatorTransition(pop)` (was 180ms `LinearOutSlowIn`); tab switches use `materialFadeThrough` 220ms with scale step (was flat 160ms fade); sheet fade threaded through `UiMotion` with decelerate/accelerate easings; bottom bar 220ms emphasized. Note: Compose animations always run on the main thread — smoothness comes from cheaper frames (fade/scale/slide are compositor-friendly) + opaque backgrounds (already present), not a separate thread.
 
 ## Chores
 - [x] Replace all Komikku icons/branding with houri icons/branding

@@ -3,7 +3,6 @@ package eu.kanade.presentation.util
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.ContentTransform
-import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -70,31 +69,37 @@ interface AssistContentScreen {
     fun onProvideAssistUrl(): String?
 }
 
+// KMK -->
+/**
+ * Pure slide + fade transition builder for Voyager push/pop.
+ *
+ * @param pop true when the transition is a stack pop (mirrors the slide direction).
+ */
+fun navigatorTransition(pop: Boolean): AnimatedContentTransitionScope<Screen>.() -> ContentTransform = {
+    val enterOffset: AnimatedContentTransitionScope<Screen>.(Int) -> Int =
+        { if (pop) -it / 6 else it / 6 }
+    val exitOffset: AnimatedContentTransitionScope<Screen>.(Int) -> Int =
+        { if (pop) it / 6 else -it / 6 }
+    slideInHorizontally(tween(UiMotion.ScreenEnter, easing = UiMotion.Emphasized), enterOffset) +
+        fadeIn(tween(UiMotion.ScreenEnter, easing = UiMotion.Emphasized)) togetherWith
+        slideOutHorizontally(tween(UiMotion.ScreenExit, easing = UiMotion.Emphasized), exitOffset) +
+        fadeOut(tween(UiMotion.ScreenExit, easing = UiMotion.Emphasized))
+}
+
 @Composable
 fun DefaultNavigatorScreenTransition(
     navigator: Navigator,
     modifier: Modifier = Modifier,
 ) {
-    val duration = 180
-    val easing = LinearOutSlowInEasing
     ScreenTransition(
         navigator = navigator,
         transition = {
-            if (navigator.lastEvent != StackEvent.Pop) {
-                slideInHorizontally(tween(duration, easing = easing)) { it / 6 } +
-                    fadeIn(tween(duration, easing = easing)) togetherWith
-                    slideOutHorizontally(tween(duration, easing = easing)) { -it / 6 } +
-                    fadeOut(tween(duration, easing = easing))
-            } else {
-                slideInHorizontally(tween(duration, easing = easing)) { -it / 6 } +
-                    fadeIn(tween(duration, easing = easing)) togetherWith
-                    slideOutHorizontally(tween(duration, easing = easing)) { it / 6 } +
-                    fadeOut(tween(duration, easing = easing))
-            }
+            navigatorTransition(navigator.lastEvent == StackEvent.Pop).invoke(this)
         },
         modifier = modifier,
     )
 }
+// KMK <--
 
 @Composable
 fun ScreenTransition(

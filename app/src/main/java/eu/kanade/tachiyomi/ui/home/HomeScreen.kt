@@ -5,10 +5,11 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.togetherWith
+import eu.kanade.presentation.util.UiMotion
+import soup.compose.material.motion.animation.materialFadeThroughIn
+import soup.compose.material.motion.animation.materialFadeThroughOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.RowScope
@@ -76,7 +77,6 @@ object HomeScreen : Screen() {
     private val openTabEvent = Channel<Tab>()
     private val showBottomNavEvent = Channel<Boolean>()
 
-    private const val TAB_FADE_DURATION = 160
     private const val TAB_NAVIGATOR_KEY = "HomeTabs"
 
     private val TABS = listOf(
@@ -137,8 +137,10 @@ object HomeScreen : Screen() {
                             }
                             AnimatedVisibility(
                                 visible = bottomNavVisible,
-                                enter = expandVertically(tween(200)),
-                                exit = shrinkVertically(tween(200)),
+                                // KMK -->
+                                enter = expandVertically(tween(UiMotion.NavBarDuration, easing = UiMotion.Emphasized)),
+                                exit = shrinkVertically(tween(UiMotion.NavBarDuration, easing = UiMotion.Emphasized)),
+                                // KMK <--
                             ) {
                                 NavigationBar {
                                     TABS
@@ -162,7 +164,10 @@ object HomeScreen : Screen() {
                         AnimatedContent(
                             targetState = tabNavigator.current,
                             transitionSpec = {
-                                fadeIn(tween(TAB_FADE_DURATION)) togetherWith fadeOut(tween(TAB_FADE_DURATION))
+                                // KMK -->
+                                materialFadeThroughIn(durationMillis = UiMotion.TabDuration) togetherWith
+                                    materialFadeThroughOut(durationMillis = UiMotion.TabDuration)
+                                // KMK <--
                             },
                             modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background),
                             label = "tabContent",
