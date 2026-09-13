@@ -60,6 +60,7 @@ class VerticalPagerViewer(
     @ColorInt seedColor: Int? = null,
     // KMK <--
 ) : PagerViewer(activity, seedColor) {
+    override val isVertical: Boolean = true
     /**
      * Creates a new vertical pager.
      */

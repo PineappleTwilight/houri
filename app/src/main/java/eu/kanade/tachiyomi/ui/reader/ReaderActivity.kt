@@ -106,9 +106,6 @@ import eu.kanade.tachiyomi.ui.reader.setting.ReadingMode
 import eu.kanade.tachiyomi.ui.reader.viewer.ReaderProgressIndicator
 import eu.kanade.tachiyomi.ui.reader.viewer.pager.PagerConfig
 import eu.kanade.tachiyomi.ui.reader.viewer.pager.PagerViewer
-import eu.kanade.tachiyomi.ui.reader.viewer.pager.VerticalPagerViewer
-import eu.kanade.tachiyomi.ui.reader.viewer.webgpu.WebGpuViewer
-import eu.kanade.tachiyomi.ui.reader.viewer.webtoon.WebtoonViewer
 import eu.kanade.tachiyomi.ui.webview.WebViewActivity
 import eu.kanade.tachiyomi.util.system.isNightMode
 import eu.kanade.tachiyomi.util.system.openInBrowser
@@ -376,13 +373,7 @@ class ReaderActivity : BaseActivity() {
                         chapterId = state.currentChapter?.chapter?.id,
                         totalPages = state.totalPages,
                         onRetry = {
-                            val viewer = state.viewer
-                            when (viewer) {
-                                is WebGpuViewer -> viewer.retryCurrentPageTranslation()
-                                is PagerViewer -> retryLegacyTranslation(viewer.currentPage as? ReaderPage)
-                                is WebtoonViewer -> retryLegacyTranslation(viewer.currentPage as? ReaderPage)
-                                else -> {}
-                            }
+                            state.viewer.retryTranslation()
                         },
                         modifier = Modifier
                             .align(Alignment.BottomCenter)
@@ -735,7 +726,7 @@ class ReaderActivity : BaseActivity() {
         val verticalSeekbarLandscape =
             configuration.orientation == Configuration.ORIENTATION_LANDSCAPE && landscapeVerticalSeekbar
         val verticalSeekbarHorizontal = configuration.orientation == Configuration.ORIENTATION_PORTRAIT
-        val viewerIsVertical = (state.viewer is WebtoonViewer || state.viewer is VerticalPagerViewer)
+        val viewerIsVertical = state.viewer.isVertical
         val showVerticalSeekbar =
             !forceHorizontalSeekbar && (verticalSeekbarLandscape || verticalSeekbarHorizontal) && viewerIsVertical
         val navBarType = when {
@@ -852,18 +843,7 @@ class ReaderActivity : BaseActivity() {
                         val interval = intervalFloat.seconds
                         while (true) {
                             if (!viewModel.state.value.menuVisible) {
-                                viewModel.state.value.viewer.let { v ->
-                                    when (v) {
-                                        is PagerViewer -> v.moveToNext()
-                                        is WebtoonViewer -> {
-                                            if (readerPreferences.smoothAutoScroll().get()) {
-                                                v.linearScroll(interval)
-                                            } else {
-                                                v.scrollDown()
-                                            }
-                                        }
-                                    }
-                                }
+                                viewModel.state.value.viewer.moveToNext()
                                 delay(interval)
                             } else {
                                 delay(100)
@@ -943,21 +923,9 @@ class ReaderActivity : BaseActivity() {
 
     private fun exhCurrentpage(): ReaderPage? {
         val viewer = viewModel.state.value.viewer
-        val currentPage = (((viewer as? PagerViewer)?.currentPage ?: (viewer as? WebtoonViewer)?.currentPage) as? ReaderPage)?.index
+        val currentPage = viewer.currentReaderPage?.index
         return currentPage?.let { viewModel.state.value.viewerChapters?.currChapter?.pages?.getOrNull(it) }
     }
-
-    // KMK -->
-    /**
-     * Retries MTL translation for the currently displayed page on the legacy (pager/webtoon)
-     * readers. Re-queues the page so the holder re-runs the decode → translate → display path.
-     */
-    private fun retryLegacyTranslation(page: ReaderPage?) {
-        page ?: return
-        page.status = Page.State.Queue
-        page.chapter.pageLoader?.retryPage(page)
-    }
-    // KMK <--
 
     fun reloadChapters(doublePages: Boolean, force: Boolean = false) {
         val viewer = viewModel.state.value.viewer as? PagerViewer ?: return

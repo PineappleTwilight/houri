@@ -53,7 +53,7 @@ import kotlin.time.Duration.Companion.milliseconds
 open class WebGpuViewer(
     val activity: ReaderActivity,
     val isReversed: Boolean,
-    val isVertical: Boolean,
+    override val isVertical: Boolean,
     val pager: ImageView = ImageView(activity, isVertical = isVertical, isReversed = isReversed),
 ) : Viewer {
 
@@ -612,6 +612,10 @@ open class WebGpuViewer(
      * user explicitly requests it). Reads the source bytes again from the page stream
      * and re-runs the translation pipeline.
      */
+    override fun retryTranslation() {
+        retryCurrentPageTranslation()
+    }
+
     fun retryCurrentPageTranslation() {
         if (isDestroyed) return
         val mgr = translationManager ?: return
