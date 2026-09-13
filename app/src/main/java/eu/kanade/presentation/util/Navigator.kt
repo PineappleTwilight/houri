@@ -76,10 +76,8 @@ interface AssistContentScreen {
  * @param pop true when the transition is a stack pop (mirrors the slide direction).
  */
 fun navigatorTransition(pop: Boolean): AnimatedContentTransitionScope<Screen>.() -> ContentTransform = {
-    val enterOffset: AnimatedContentTransitionScope<Screen>.(Int) -> Int =
-        { if (pop) -it / 6 else it / 6 }
-    val exitOffset: AnimatedContentTransitionScope<Screen>.(Int) -> Int =
-        { if (pop) it / 6 else -it / 6 }
+    val enterOffset: (Int) -> Int = { if (pop) -it / 6 else it / 6 }
+    val exitOffset: (Int) -> Int = { if (pop) it / 6 else -it / 6 }
     slideInHorizontally(tween(UiMotion.SCREEN_ENTER, easing = UiMotion.EMPHASIZED), enterOffset) +
         fadeIn(tween(UiMotion.SCREEN_ENTER, easing = UiMotion.EMPHASIZED)) togetherWith
         slideOutHorizontally(tween(UiMotion.SCREEN_EXIT, easing = UiMotion.EMPHASIZED), exitOffset) +
