@@ -81,6 +81,7 @@ import mihon.app.di.globalAppGraph
 import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.core.common.storage.displayablePath
 import tachiyomi.core.common.util.lang.launchNonCancellable
+import tachiyomi.core.common.util.lang.withIOContext
 import tachiyomi.core.common.util.lang.withUIContext
 import tachiyomi.core.common.util.system.logcat
 import tachiyomi.domain.backup.service.BackupPreferences
@@ -428,7 +429,7 @@ object SettingsDataScreen : SearchableSettings {
         val getFavorites = remember { globalAppGraph.getFavorites }
         var favorites by remember { mutableStateOf<List<Manga>>(emptyList()) }
         LaunchedEffect(Unit) {
-            favorites = getFavorites.await()
+            favorites = withIOContext { getFavorites.await() }
         }
 
         val saveFileLauncher = rememberLauncherForActivityResult(

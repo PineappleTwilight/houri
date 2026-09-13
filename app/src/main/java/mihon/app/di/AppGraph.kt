@@ -1,6 +1,7 @@
 package mihon.app.di
 
 import android.content.Context
+import app.cash.sqldelight.db.SqlDriver
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.DependencyGraph
 import dev.zacsweers.metro.Provides
@@ -110,6 +111,7 @@ import exh.yakuyomi.TranslationStatus
 import exh.yakuyomi.YakuyomiEngine
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.protobuf.ProtoBuf
+import mihon.core.concurrency.AppDispatchers
 import mihon.domain.chapter.interactor.FilterChaptersForDownload
 import mihon.domain.extension.interactor.AddExtensionStore
 import mihon.domain.extension.interactor.GetExtensionStoreCountAsFlow
@@ -285,11 +287,13 @@ interface AppGraph : ViewModelGraph {
     val googleDriveService: GoogleDriveService
     val webhookPreferences: WebhookPreferences
     val webhookNotifier: WebhookNotifier
+    val appDispatchers: AppDispatchers
     // KMK <--
 
     // KMK -->
     // Accessors added while migrating remaining call sites off Injekt
     val protoBuf: ProtoBuf
+    val sqlDriver: SqlDriver
     val databaseHandler: DatabaseHandler
     val database: Database
     val mangaRepository: MangaRepository

@@ -3,17 +3,9 @@ package eu.kanade.tachiyomi.ui.reader.setting
 import androidx.annotation.ColorInt
 import androidx.annotation.DrawableRes
 import dev.icerock.moko.resources.StringResource
-import eu.kanade.domain.base.BasePreferences
 import eu.kanade.tachiyomi.R
 import eu.kanade.tachiyomi.ui.reader.ReaderActivity
 import eu.kanade.tachiyomi.ui.reader.viewer.Viewer
-import eu.kanade.tachiyomi.ui.reader.viewer.pager.L2RPagerViewer
-import eu.kanade.tachiyomi.ui.reader.viewer.pager.R2LPagerViewer
-import eu.kanade.tachiyomi.ui.reader.viewer.pager.VerticalPagerViewer
-import eu.kanade.tachiyomi.ui.reader.viewer.webgpu.WebGpuViewer
-import eu.kanade.tachiyomi.ui.reader.viewer.webgpu.WebGpuViewerContinuous
-import eu.kanade.tachiyomi.ui.reader.viewer.webtoon.WebtoonViewer
-import mihon.app.di.globalAppGraph
 import tachiyomi.i18n.MR
 
 enum class ReadingMode(
@@ -78,70 +70,12 @@ enum class ReadingMode(
             @ColorInt seedColor: Int?,
             // KMK <--
         ): Viewer {
-            // Mihon -->
-            val basePreferences = globalAppGraph.basePreferences
-            // KMK --> Gate the WebGPU renderer behind a total-RAM check: on low-memory devices the
-            // native renderer crashes with an uncatchable SIGSEGV (null GPUTexture in createView)
-            // when it cannot allocate GPU-visible memory. Fall back to the legacy pager viewers.
-            // KMK <--
-            val wantsHighQuality = basePreferences.highQualityRenderer().get() &&
-                exh.yakuyomi.DeviceMemory.isWebGpuSupported(activity)
-            if (wantsHighQuality) {
-                val isWebGpuAvailable = try {
-                    ca.mpreg.webgpuviewer.renderer.WebGpuRenderer.isAvailable
-                } catch (e: Throwable) {
-                    false
-                }
-                if (isWebGpuAvailable) {
-                    try {
-                        return when (fromPreference(preference)) {
-                            LEFT_TO_RIGHT -> WebGpuViewer(activity, isReversed = false, isVertical = false)
-                            RIGHT_TO_LEFT -> WebGpuViewer(activity, isReversed = true, isVertical = false)
-                            VERTICAL -> WebGpuViewer(activity, isReversed = false, isVertical = true)
-                            WEBTOON -> WebGpuViewerContinuous(activity)
-                            CONTINUOUS_VERTICAL -> WebGpuViewerContinuous(activity)
-                            DEFAULT -> throw IllegalStateException("Preference value must be resolved: $preference")
-                        }
-                    } catch (e: Throwable) {
-                        android.util.Log.w("ReadingMode", "WebGPU viewer failed, falling back to pager", e)
-                    }
-                }
-            }
-            // Mihon <--
-            return when (fromPreference(preference)) {
-                LEFT_TO_RIGHT -> L2RPagerViewer(
-                    activity,
-                    // KMK -->
-                    seedColor = seedColor,
-                    // KMK <--
-                )
-                RIGHT_TO_LEFT -> R2LPagerViewer(
-                    activity,
-                    // KMK -->
-                    seedColor = seedColor,
-                    // KMK <--
-                )
-                VERTICAL -> VerticalPagerViewer(
-                    activity,
-                    // KMK -->
-                    seedColor = seedColor,
-                    // KMK <--
-                )
-                WEBTOON -> WebtoonViewer(
-                    activity,
-                    // KMK -->
-                    seedColor = seedColor,
-                    // KMK <--
-                )
-                CONTINUOUS_VERTICAL -> WebtoonViewer(
-                    activity,
-                    isContinuous = false,
-                    // KMK -->
-                    seedColor = seedColor,
-                    // KMK <--
-                )
-                DEFAULT -> throw IllegalStateException("Preference value must be resolved: $preference")
-            }
+            val mode = fromPreference(preference)
+            if (mode == DEFAULT) throw IllegalStateException("Preference value must be resolved: $preference")
+            // Viewer construction is pluggable via ViewerRegistry (WebGPU gate +
+            // legacy mapping live in the default providers); custom readers register
+            // their own ViewerProvider.
+            return eu.kanade.tachiyomi.ui.reader.viewer.ViewerRegistry.create(mode, activity, seedColor)
         }
     }
 

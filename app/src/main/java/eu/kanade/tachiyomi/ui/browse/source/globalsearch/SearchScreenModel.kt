@@ -14,7 +14,6 @@ import kotlinx.collections.immutable.persistentMapOf
 import kotlinx.collections.immutable.toImmutableMap
 import kotlinx.collections.immutable.toPersistentMap
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.flow.collectLatest
@@ -24,6 +23,7 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import mihon.app.di.globalAppGraph
+import mihon.core.concurrency.AppDispatchers
 import mihon.domain.manga.model.toDomainManga
 import tachiyomi.core.common.preference.toggle
 import tachiyomi.core.common.util.QuerySanitizer.sanitize
@@ -32,7 +32,6 @@ import tachiyomi.domain.manga.interactor.GetManga
 import tachiyomi.domain.manga.interactor.NetworkToLocalManga
 import tachiyomi.domain.manga.model.Manga
 import tachiyomi.domain.source.service.SourceManager
-import java.util.concurrent.Executors
 
 abstract class SearchScreenModel(
     initialState: State = State(),
@@ -42,9 +41,10 @@ abstract class SearchScreenModel(
     private val networkToLocalManga: NetworkToLocalManga = globalAppGraph.networkToLocalManga,
     private val getManga: GetManga = globalAppGraph.getManga,
     private val preferences: SourcePreferences = globalAppGraph.sourcePreferences,
+    private val appDispatchers: AppDispatchers = globalAppGraph.appDispatchers,
 ) : StateScreenModel<SearchScreenModel.State>(initialState) {
 
-    private val coroutineDispatcher = Executors.newFixedThreadPool(5).asCoroutineDispatcher()
+    private val coroutineDispatcher = appDispatchers.extensions
     private var searchJob: Job? = null
 
     private val enabledLanguages = sourcePreferences.enabledLanguages().get()

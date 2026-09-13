@@ -2,9 +2,9 @@ package exh.yakuyomi
 
 import android.graphics.Bitmap
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import li.joye.yakuyomi.engine.Translator
+import mihon.core.concurrency.AppDispatchersHolder
 
 /**
  * Breadcrumb-aware translation stage backed by the on-device ("local") LLM provider (MLC-LLM on
@@ -24,7 +24,7 @@ class LocalLlmTranslator(
     private val glossary: Map<String, String> = emptyMap(),
 ) : Translator {
 
-    override suspend fun translate(queries: List<String>): List<String> = withContext(Dispatchers.IO) {
+    override suspend fun translate(queries: List<String>): List<String> = withContext(AppDispatchersHolder.get().io) {
         if (queries.isEmpty()) return@withContext emptyList()
         val isEnFix = sourceLang.equals("EN", true) && targetLang.equals("EN", true)
         val prompt = buildTranslationPrompt(queries, sourceLang, targetLang, breadcrumb, isEnFix, mangaContext, glossary)

@@ -13,6 +13,7 @@ import exh.pref.DelegateSourcePreferences
 import exh.source.ExhPreferences
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.protobuf.ProtoBuf
+import mihon.core.concurrency.AppDispatchers
 import nl.adaptivity.xmlutil.serialization.XML
 import tachiyomi.core.common.preference.PreferenceStore
 import tachiyomi.domain.manga.repository.MangaMetadataRepository
@@ -65,6 +66,7 @@ class MetroInteropModule(
     private val connectionsManager: ConnectionsManager,
     private val googleDriveSyncService: GoogleDriveSyncService,
     private val imageSaver: ImageSaver,
+    private val appDispatchers: AppDispatchers,
 ) : InjektModule {
 
     override fun InjektRegistrar.registerInjectables() {
@@ -99,5 +101,6 @@ class MetroInteropModule(
         addSingleton(connectionsManager)
         addSingleton(googleDriveSyncService)
         addSingleton(imageSaver)
+        addSingleton(appDispatchers)
     }
 }

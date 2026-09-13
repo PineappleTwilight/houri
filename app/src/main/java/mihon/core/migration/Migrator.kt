@@ -3,14 +3,13 @@ package mihon.core.migration
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.runBlocking
+import mihon.core.concurrency.AppDispatchersHolder
 
 object Migrator {
 
     private var result: Deferred<Boolean>? = null
-    val scope = CoroutineScope(Dispatchers.IO + Job())
+    val scope = CoroutineScope(AppDispatchersHolder.get().io + Job())
 
     fun initialize(
         old: Int,
@@ -35,7 +34,5 @@ object Migrator {
         result = null
     }
 
-    fun awaitAndRelease(): Boolean = runBlocking {
-        await().also { release() }
-    }
+    suspend fun awaitAndRelease(): Boolean = await().also { release() }
 }

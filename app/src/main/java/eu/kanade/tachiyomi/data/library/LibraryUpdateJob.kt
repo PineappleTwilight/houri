@@ -51,7 +51,6 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.ensureActive
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
@@ -436,83 +435,88 @@ class LibraryUpdateJob(private val context: Context, workerParams: WorkerParamet
         val fetchWindow = fetchInterval.getWindow(ZonedDateTime.now())
 
         coroutineScope {
-            mangaToUpdate.groupBy { it.manga.source }
+            val groups = mangaToUpdate.groupBy { it.manga.source }
                 // SY -->
                 .filterNot { it.key in LIBRARY_UPDATE_EXCLUDED_SOURCES }
                 // SY <--
                 .values
+                .toList()
+            groups
                 .map { mangaInSource ->
                     async {
-                        semaphore.withPermit {
-                            if (
-                                mdlistLogged &&
-                                mangaInSource.firstOrNull()
-                                    ?.let { it.manga.source in mangaDexSourceIds } == true
-                            ) {
-                                launch {
-                                    mangaInSource.forEach { (manga) ->
-                                        try {
-                                            val tracks = getTracks.await(manga.id)
-                                            if (tracks.isEmpty() ||
-                                                tracks.none { it.trackerId == TrackerId.MDLIST }
-                                            ) {
-                                                val track = mdList.createInitialTracker(manga)
-                                                insertTrack.await(mdList.refresh(track).toDomainTrack(false)!!)
-                                            }
-                                        } catch (e: Exception) {
-                                            if (e is CancellationException) throw e
-                                            xLogE("Error adding initial track for ${manga.title}", e)
-                                        }
+                        if (
+                            mdlistLogged &&
+                            mangaInSource.firstOrNull()
+                                ?.let { it.manga.source in mangaDexSourceIds } == true
+                        ) {
+                            mangaInSource.forEach { (manga) ->
+                                try {
+                                    val tracks = getTracks.await(manga.id)
+                                    if (tracks.isEmpty() ||
+                                        tracks.none { it.trackerId == TrackerId.MDLIST }
+                                    ) {
+                                        val track = mdList.createInitialTracker(manga)
+                                        insertTrack.await(mdList.refresh(track).toDomainTrack(false)!!)
                                     }
+                                } catch (e: Exception) {
+                                    if (e is CancellationException) throw e
+                                    xLogE("Error adding initial track for ${manga.title}", e)
                                 }
                             }
-                            mangaInSource.forEach { libraryManga ->
-                                val manga = libraryManga.manga
-                                ensureActive()
+                        }
+                    }
+                }
+                .awaitAll()
+            groups
+                .flatten()
+                .map { libraryManga ->
+                    async {
+                        semaphore.withPermit {
+                            val manga = libraryManga.manga
+                            ensureActive()
 
-                                // Don't continue to update if manga is not in library
-                                if (getManga.await(manga.id)?.favorite != true) {
-                                    return@forEach
-                                }
+                            // Don't continue to update if manga is not in library
+                            if (getManga.await(manga.id)?.favorite != true) {
+                                return@withPermit
+                            }
 
-                                withUpdateNotification(
-                                    currentlyUpdatingManga,
-                                    progressCount,
-                                    manga,
-                                ) {
-                                    try {
-                                        val newChapters = updateManga(manga, fetchWindow)
-                                            .sortedByDescending { it.sourceOrder }
+                            withUpdateNotification(
+                                currentlyUpdatingManga,
+                                progressCount,
+                                manga,
+                            ) {
+                                try {
+                                    val newChapters = updateManga(manga, fetchWindow)
+                                        .sortedByDescending { it.sourceOrder }
 
-                                        if (newChapters.isNotEmpty()) {
-                                            val chaptersToDownload = filterChaptersForDownload.await(manga, newChapters)
+                                    if (newChapters.isNotEmpty()) {
+                                        val chaptersToDownload = filterChaptersForDownload.await(manga, newChapters)
 
-                                            if (chaptersToDownload.isNotEmpty()) {
-                                                downloadChapters(manga, chaptersToDownload)
-                                                hasDownloads.store(true)
-                                            }
-
-                                            libraryPreferences.newUpdatesCount().getAndSet { it + newChapters.size }
-
-                                            // Convert to the manga that contains new chapters
-                                            newUpdates.add(manga to newChapters.toTypedArray())
+                                        if (chaptersToDownload.isNotEmpty()) {
+                                            downloadChapters(manga, chaptersToDownload)
+                                            hasDownloads.store(true)
                                         }
-                                        clearErrorFromDB(mangaId = manga.id)
-                                    } catch (e: Throwable) {
-                                        val errorMessage = when (e) {
-                                            is NoChaptersException ->
-                                                context.stringResource(MR.strings.no_chapters_error)
-                                            // failedUpdates will already have the source,
-                                            // don't need to copy it into the message
-                                            is SourceNotInstalledException -> context.stringResource(
-                                                MR.strings.loader_not_implemented_error,
-                                            )
 
-                                            else -> e.message
-                                        }
-                                        writeErrorToDB(manga to errorMessage)
-                                        failedUpdates.add(manga to errorMessage)
+                                        libraryPreferences.newUpdatesCount().getAndSet { it + newChapters.size }
+
+                                        // Convert to the manga that contains new chapters
+                                        newUpdates.add(manga to newChapters.toTypedArray())
                                     }
+                                    clearErrorFromDB(mangaId = manga.id)
+                                } catch (e: Throwable) {
+                                    val errorMessage = when (e) {
+                                        is NoChaptersException ->
+                                            context.stringResource(MR.strings.no_chapters_error)
+                                        // failedUpdates will already have the source,
+                                        // don't need to copy it into the message
+                                        is SourceNotInstalledException -> context.stringResource(
+                                            MR.strings.loader_not_implemented_error,
+                                        )
+
+                                        else -> e.message
+                                    }
+                                    writeErrorToDB(manga to errorMessage)
+                                    failedUpdates.add(manga to errorMessage)
                                 }
                             }
                         }
@@ -597,54 +601,60 @@ class LibraryUpdateJob(private val context: Context, workerParams: WorkerParamet
      */
     private suspend fun syncFollows() = coroutineScope {
         val preferences = globalAppGraph.sourcePreferences
-        var count = 0
+        val count = AtomicInt(0)
         val mangaDex = MdUtil.getEnabledMangaDex(preferences, sourceManager = sourceManager)
             ?: return@coroutineScope
         val syncFollowStatusInts = preferences.mangadexSyncToLibraryIndexes().get().map { it.toInt() }
 
-        val size: Int
-        mangaDex.fetchAllFollows()
+        val follows = mangaDex.fetchAllFollows()
             .filter { (_, metadata) ->
                 syncFollowStatusInts.contains(metadata.followStatus)
             }
-            .also { size = it.size }
-            .forEach { (networkManga, metadata) ->
-                ensureActive()
+        val size = follows.size
+        val semaphore = Semaphore(3)
+        follows
+            .map { (networkManga, metadata) ->
+                async {
+                    semaphore.withPermit {
+                        ensureActive()
 
-                count++
-                notifier.showProgressNotification(
-                    listOf(Manga.create().copy(ogTitle = networkManga.title)),
-                    count,
-                    size,
-                )
+                        val c = count.incrementAndFetch()
+                        notifier.showProgressNotification(
+                            listOf(Manga.create().copy(ogTitle = networkManga.title)),
+                            c,
+                            size,
+                        )
 
-                var dbManga = getManga.await(networkManga.url, mangaDex.id)
+                        var dbManga = getManga.await(networkManga.url, mangaDex.id)
 
-                if (dbManga == null) {
-                    dbManga = networkToLocalManga(
-                        Manga.create().copy(
-                            url = networkManga.url,
-                            ogTitle = networkManga.title,
-                            source = mangaDex.id,
-                            favorite = true,
-                            dateAdded = System.currentTimeMillis(),
-                        ),
-                    )
-                } else if (!dbManga.favorite) {
-                    updateManga.awaitUpdateFavorite(dbManga.id, true)
+                        if (dbManga == null) {
+                            dbManga = networkToLocalManga(
+                                Manga.create().copy(
+                                    url = networkManga.url,
+                                    ogTitle = networkManga.title,
+                                    source = mangaDex.id,
+                                    favorite = true,
+                                    dateAdded = System.currentTimeMillis(),
+                                ),
+                            )
+                        } else if (!dbManga.favorite) {
+                            updateManga.awaitUpdateFavorite(dbManga.id, true)
+                        }
+
+                        updateMangaFromRemote(
+                            manga = dbManga,
+                            // KMK -->
+                            // Update cover & fetchInterval
+                            manualFetch = true,
+                            // KMK <--
+                        )
+
+                        metadata.mangaId = dbManga.id
+                        insertFlatMetadata.await(metadata)
+                    }
                 }
-
-                updateMangaFromRemote(
-                    manga = dbManga,
-                    // KMK -->
-                    // Update cover & fetchInterval
-                    manualFetch = true,
-                    // KMK <--
-                )
-
-                metadata.mangaId = dbManga.id
-                insertFlatMetadata.await(metadata)
             }
+            .awaitAll()
 
         notifier.cancelProgressNotification()
     }
@@ -653,31 +663,38 @@ class LibraryUpdateJob(private val context: Context, workerParams: WorkerParamet
      * Method that updates the all mangas which are not tracked as "reading" on mangadex
      */
     private suspend fun pushFavorites() = coroutineScope {
-        var count = 0
+        val count = AtomicInt(0)
         val listManga = getFavorites.await().filter { it.source in mangaDexSourceIds }
 
         // filter all follows from Mangadex and only add reading or rereading manga to library
         if (mdList.isLoggedIn) {
-            listManga.forEach { manga ->
-                ensureActive()
+            val semaphore = Semaphore(3)
+            listManga
+                .map { manga ->
+                    async {
+                        semaphore.withPermit {
+                            ensureActive()
 
-                count++
-                notifier.showProgressNotification(listOf(manga), count, listManga.size)
+                            val c = count.incrementAndFetch()
+                            notifier.showProgressNotification(listOf(manga), c, listManga.size)
 
-                // Get this manga's trackers from the database
-                val dbTracks = getTracks.await(manga.id)
+                            // Get this manga's trackers from the database
+                            val dbTracks = getTracks.await(manga.id)
 
-                var tracker = dbTracks.firstOrNull { it.trackerId == TrackerId.MDLIST }
-                    ?: mdList.createInitialTracker(manga).toDomainTrack(idRequired = false)
+                            var tracker = dbTracks.firstOrNull { it.trackerId == TrackerId.MDLIST }
+                                ?: mdList.createInitialTracker(manga).toDomainTrack(idRequired = false)
 
-                if (tracker?.status == FollowStatus.UNFOLLOWED.long) {
-                    tracker = tracker.copy(
-                        status = FollowStatus.READING.long,
-                    )
-                    val updatedTrack = mdList.update(tracker.toDbTrack())
-                    insertTrack.await(updatedTrack.toDomainTrack(false)!!)
+                            if (tracker?.status == FollowStatus.UNFOLLOWED.long) {
+                                tracker = tracker.copy(
+                                    status = FollowStatus.READING.long,
+                                )
+                                val updatedTrack = mdList.update(tracker.toDbTrack())
+                                insertTrack.await(updatedTrack.toDomainTrack(false)!!)
+                            }
+                        }
+                    }
                 }
-            }
+                .awaitAll()
         }
 
         notifier.cancelProgressNotification()

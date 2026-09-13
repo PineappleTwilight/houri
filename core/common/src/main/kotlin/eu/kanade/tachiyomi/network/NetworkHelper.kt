@@ -51,6 +51,12 @@ open /* SY <-- */ class NetworkHelper(
         // KMK <--
     ): OkHttpClient.Builder = run {
         val builder = OkHttpClient.Builder()
+            .dispatcher(
+                okhttp3.Dispatcher().apply {
+                    maxRequests = 32
+                    maxRequestsPerHost = 5
+                },
+            )
             .cookieJar(cookieJar)
             // KMK -->
             .connectTimeout(connectTimeout, TimeUnit.SECONDS)

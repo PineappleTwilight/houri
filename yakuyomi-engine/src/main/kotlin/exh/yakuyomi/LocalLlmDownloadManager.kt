@@ -8,7 +8,6 @@ import dev.zacsweers.metro.SingleIn
 import exh.log.xLogW
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -19,6 +18,7 @@ import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
+import mihon.core.concurrency.AppDispatchersHolder
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.io.File
@@ -66,7 +66,7 @@ class LocalLlmDownloadManager(
     }
 
     private val json = Json { ignoreUnknownKeys = true }
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val scope = CoroutineScope(SupervisorJob() + AppDispatchersHolder.get().io)
     private var downloadJob: Job? = null
 
     // Downloads use their own client: the shared one may have timeouts tuned for page

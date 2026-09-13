@@ -7,7 +7,6 @@ import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
@@ -22,6 +21,7 @@ import li.joye.yakuyomi.engine.Ocr
 import li.joye.yakuyomi.engine.PageResult
 import li.joye.yakuyomi.engine.Pipeline
 import li.joye.yakuyomi.engine.Translator
+import mihon.core.concurrency.AppDispatchersHolder
 import tachiyomi.core.common.util.system.logcat
 import java.io.File
 
@@ -38,7 +38,7 @@ class YakuyomiEngine(
     private val prefs: TranslationPreferences,
     private val modelManager: ModelManager,
 ) {
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    private val scope = CoroutineScope(SupervisorJob() + AppDispatchersHolder.get().default)
 
     /**
      * Serializes native-session access (build/close/translate) because the NCNN backends are not
@@ -294,7 +294,7 @@ class YakuyomiEngine(
      * page. [translator] is the breadcrumb-aware LLM stage; pass null to skip translation (debug).
      * Serialized via Mutex because NCNN native backends are not thread-safe.
      */
-    suspend fun translatePage(bitmap: Bitmap, translator: Translator?, targetLang: String? = null): PageResult = withContext(Dispatchers.Default) {
+    suspend fun translatePage(bitmap: Bitmap, translator: Translator?, targetLang: String? = null): PageResult = withContext(AppDispatchersHolder.get().default) {
         if (!isHardwareSupported()) {
             return@withContext PageResult.Failed(notEnoughMemoryReason, li.joye.yakuyomi.engine.PipelineErrorCode.INVALID_BITMAP)
         }

@@ -13,6 +13,7 @@ import androidx.core.view.isVisible
 import androidx.viewpager.widget.ViewPager
 import eu.kanade.tachiyomi.R
 import eu.kanade.tachiyomi.data.download.DownloadManager
+import eu.kanade.tachiyomi.source.model.Page
 import eu.kanade.tachiyomi.ui.reader.ReaderActivity
 import eu.kanade.tachiyomi.ui.reader.model.ChapterTransition
 import eu.kanade.tachiyomi.ui.reader.model.InsertPage
@@ -349,9 +350,18 @@ abstract class PagerViewer(
     /**
      * Moves to the next page.
      */
-    open fun moveToNext() {
+    override fun moveToNext() {
         moveRight()
     }
+
+    override fun retryTranslation() {
+        val page = currentReaderPage ?: return
+        page.status = Page.State.Queue
+        page.chapter.pageLoader?.retryPage(page)
+    }
+
+    override val currentReaderPage: ReaderPage?
+        get() = currentPage as? ReaderPage
 
     /**
      * Moves to the previous page.

@@ -11,13 +11,13 @@ import eu.kanade.tachiyomi.ui.reader.setting.ReaderPreferences
 import eu.kanade.tachiyomi.util.storage.DiskUtil
 import eu.kanade.tachiyomi.util.storage.saveTo
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.serialization.json.Json
 import logcat.LogPriority
+import mihon.core.concurrency.AppDispatchersHolder
 import okhttp3.Response
 import okio.buffer
 import okio.sink
@@ -45,7 +45,7 @@ class ChapterCache(
 ) {
 
     // --> EH
-    private val scope = CoroutineScope(Job() + Dispatchers.Main)
+    private val scope = CoroutineScope(Job() + AppDispatchersHolder.get().io)
 
     /** Cache class used for cache management.  */
     private var diskCache = setupDiskCache(readerPreferences.cacheSize().get().toLong())

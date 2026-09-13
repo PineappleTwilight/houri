@@ -26,6 +26,7 @@ dependencies {
     api(libs.preferencektx)
     implementation(libs.metro.runtime)
     implementation(projects.core.metro)
+    implementation(projects.core.concurrency)
     implementation("li.joye.yakuyomi:engine")
     // On-device Gemini Nano LLM via ML Kit GenAI Prompt API (priority provider when available).
     implementation(libs.mlkit.genai.prompt)

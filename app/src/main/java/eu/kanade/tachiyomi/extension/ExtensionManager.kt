@@ -34,6 +34,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 import logcat.LogPriority
 import mihon.app.di.globalAppGraph
 import tachiyomi.core.common.util.lang.withUIContext
@@ -88,7 +89,9 @@ class ExtensionManager(
     val untrustedExtensionsFlow = untrustedExtensionMapFlow.mapExtensions(scope)
 
     init {
-        initExtensions()
+        scope.launch(mihon.core.concurrency.AppDispatchersHolder.get().io) {
+            initExtensions()
+        }
         ExtensionInstallReceiver(InstallationListener()).register(context)
     }
 
@@ -147,7 +150,7 @@ class ExtensionManager(
     /**
      * Loads and registers the installed extensions.
      */
-    private fun initExtensions() {
+    private suspend fun initExtensions() {
         logcat(LogPriority.INFO) { "[ExtInstall] initExtensions: starting extension load" }
         val extensions = ExtensionLoader.loadExtensions(context)
         logcat(LogPriority.INFO) { "[ExtInstall] initExtensions: loaded ${extensions.size} results (${extensions.count { it is LoadResult.Success }} success, ${extensions.count { it is LoadResult.Untrusted }} untrusted, ${extensions.count { it is LoadResult.Error }} error)" }

@@ -29,12 +29,12 @@ import cafe.adriel.voyager.transitions.ScreenTransitionContent
 import eu.kanade.tachiyomi.util.system.isPreviewBuildType
 import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.plus
 import logcat.LogPriority
 import logcat.logcat
+import mihon.core.concurrency.AppDispatchersHolder
 
 /**
  * For invoking back press to the parent activity
@@ -62,7 +62,7 @@ val ScreenModel.ioCoroutineScope: CoroutineScope
     get() = ScreenModelStore.getOrPutDependency(
         screenModel = this,
         name = "ScreenModelIoCoroutineScope",
-        factory = { key -> CoroutineScope(Dispatchers.IO + SupervisorJob()) + CoroutineName(key) },
+        factory = { key -> CoroutineScope(AppDispatchersHolder.get().io + SupervisorJob()) + CoroutineName(key) },
         onDispose = { scope -> scope.cancel() },
     )
 

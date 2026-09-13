@@ -10,11 +10,11 @@ import com.google.mlkit.genai.prompt.ImagePart
 import com.google.mlkit.genai.prompt.TextPart
 import com.google.mlkit.genai.prompt.generateContentRequest
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import mihon.core.concurrency.AppDispatchersHolder
 import tachiyomi.core.common.util.system.logcat
 
 /**
@@ -35,7 +35,7 @@ import tachiyomi.core.common.util.system.logcat
 class GeminiNanoTranslator(
     private val prefs: TranslationPreferences,
 ) {
-    private val scope = kotlinx.coroutines.CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    private val scope = kotlinx.coroutines.CoroutineScope(SupervisorJob() + AppDispatchersHolder.get().default)
 
     private val model: GenerativeModel? by lazy {
         try {
@@ -138,7 +138,7 @@ class GeminiNanoTranslator(
     }
 
     suspend fun translate(queries: List<String>, pageBitmap: Bitmap?, sourceLang: String): List<String>? =
-        withContext(Dispatchers.Default) {
+        withContext(AppDispatchersHolder.get().default) {
             if (queries.isEmpty()) return@withContext emptyList()
             if (refreshStatus() != FeatureStatus.AVAILABLE) return@withContext null
             val m = model ?: return@withContext null

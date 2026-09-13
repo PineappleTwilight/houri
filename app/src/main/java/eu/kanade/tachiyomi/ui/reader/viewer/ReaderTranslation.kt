@@ -14,14 +14,14 @@ import tachiyomi.core.common.util.lang.withUIContext
  * [exh.yakuyomi.TranslationManager] pipeline against the original encoded bytes and hands the
  * translated WEBP back on the main thread for the holder to swap in.
  */
-object ReaderTranslation {
+object ReaderTranslation : PageTranslator {
 
     /**
      * Kicks off translation for [page] if (and only if) translation is enabled globally,
      * not gated, enabled for this manga, and the AI models are installed. On success,
      * [onResult] is invoked on the main thread with the translated WEBP bytes.
      */
-    fun translate(
+    override fun translate(
         scope: CoroutineScope,
         page: ReaderPage,
         originalBytes: ByteArray?,

@@ -15,6 +15,7 @@ import androidx.core.view.isVisible
 import androidx.recyclerview.widget.RecyclerView
 import androidx.recyclerview.widget.WebtoonLayoutManager
 import eu.kanade.tachiyomi.data.download.DownloadManager
+import eu.kanade.tachiyomi.source.model.Page
 import eu.kanade.tachiyomi.ui.reader.ReaderActivity
 import eu.kanade.tachiyomi.ui.reader.model.ChapterTransition
 import eu.kanade.tachiyomi.ui.reader.model.ReaderPage
@@ -29,6 +30,7 @@ import tachiyomi.core.common.util.system.logcat
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.time.Duration
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * Implementation of a [Viewer] to display pages with a [RecyclerView].
@@ -353,6 +355,25 @@ class WebtoonViewer(
             duration.inWholeMilliseconds.toInt(),
         )
     }
+
+    override val isVertical: Boolean = true
+
+    override fun moveToNext() {
+        if (readerPreferences.smoothAutoScroll().get()) {
+            linearScroll(readerPreferences.autoscrollInterval().get().toDouble().seconds)
+        } else {
+            scrollDown()
+        }
+    }
+
+    override fun retryTranslation() {
+        val page = currentReaderPage ?: return
+        page.status = Page.State.Queue
+        page.chapter.pageLoader?.retryPage(page)
+    }
+
+    override val currentReaderPage: ReaderPage?
+        get() = currentPage as? ReaderPage
 
     /**
      * Scrolls down by [scrollDistance].

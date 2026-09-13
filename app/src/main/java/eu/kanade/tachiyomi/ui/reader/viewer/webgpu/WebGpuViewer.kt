@@ -35,7 +35,6 @@ import eu.kanade.tachiyomi.ui.reader.viewer.ViewerNavigation.NavigationRegion
 import eu.kanade.tachiyomi.util.system.createReaderThemeContext
 import eu.kanade.tachiyomi.util.system.readerBackgroundColor
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.cancel
@@ -43,6 +42,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import logcat.LogPriority
 import mihon.app.di.globalAppGraph
+import mihon.core.concurrency.AppDispatchersHolder
 import tachiyomi.core.common.util.system.logcat
 import java.util.TreeSet
 import java.util.concurrent.Executors
@@ -53,7 +53,7 @@ import kotlin.time.Duration.Companion.milliseconds
 open class WebGpuViewer(
     val activity: ReaderActivity,
     val isReversed: Boolean,
-    val isVertical: Boolean,
+    override val isVertical: Boolean,
     val pager: ImageView = ImageView(activity, isVertical = isVertical, isReversed = isReversed),
 ) : Viewer {
 
@@ -352,7 +352,7 @@ open class WebGpuViewer(
             if (!chapterPreloadGuard.tryBegin(key)) return
         }
 
-        scope.launch(Dispatchers.Default) {
+        scope.launch(AppDispatchersHolder.get().default) {
             try {
                 if (isDestroyed) return@launch
                 activity.viewModel.preload(chapter)
@@ -612,6 +612,10 @@ open class WebGpuViewer(
      * user explicitly requests it). Reads the source bytes again from the page stream
      * and re-runs the translation pipeline.
      */
+    override fun retryTranslation() {
+        retryCurrentPageTranslation()
+    }
+
     fun retryCurrentPageTranslation() {
         if (isDestroyed) return
         val mgr = translationManager ?: return
@@ -732,7 +736,7 @@ open class WebGpuViewer(
                         }
                     }
                     // If pages not yet available, restorePosition queues pending and will apply in captureRenderState
-                    scope.launch(Dispatchers.Main) {
+                    scope.launch(AppDispatchersHolder.get().main) {
                         try {
                             // retry once after layout if still pending (e.g. width==0)
                             kotlinx.coroutines.delay(100)
@@ -840,7 +844,7 @@ open class WebGpuViewer(
     /**
      * Moves to the next page.
      */
-    fun moveToNext() {
+    override fun moveToNext() {
         moveRight()
     }
 

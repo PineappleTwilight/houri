@@ -8,12 +8,10 @@ import exh.recs.sources.RECOMMENDS_SOURCE
 import exh.recs.sources.RecommendationPagingSource
 import exh.recs.sources.RecommendationSource
 import exh.recs.sources.StaticResultPagingSource
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.runBlocking
 import mihon.app.di.globalAppGraph
 import tachiyomi.core.common.util.lang.launchIO
 import tachiyomi.domain.manga.interactor.GetManga
@@ -44,7 +42,7 @@ class BrowseRecommendsScreenModel(
         get() = when (args) {
             is BrowseRecommendsScreen.Args.MergedSourceMangas -> StaticResultPagingSource(args.results)
             is BrowseRecommendsScreen.Args.SingleSourceManga -> RecommendationPagingSource.createSources(
-                manga ?: runBlocking(Dispatchers.IO) { getManga.await(args.mangaId)!! },
+                manga ?: Manga.create(),
                 // KMK -->
                 RecommendationSource(sourceId),
                 // KMK <--

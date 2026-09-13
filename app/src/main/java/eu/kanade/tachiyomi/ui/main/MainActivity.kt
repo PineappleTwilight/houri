@@ -188,6 +188,7 @@ class MainActivity : BaseActivity() {
 
     private var runExhConfigureDialog by mutableStateOf(false)
     // SY <--
+    private var didMigration by mutableStateOf(false)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         val isLaunch = savedInstanceState == null
@@ -197,10 +198,10 @@ class MainActivity : BaseActivity() {
 
         super.onCreate(savedInstanceState)
 
-        val didMigration = if (isLaunch) {
-            Migrator.awaitAndRelease()
-        } else {
-            false
+        if (isLaunch) {
+            lifecycleScope.launchIO {
+                didMigration = Migrator.awaitAndRelease()
+            }
         }
 
         // Do not let the launcher create a new activity http://stackoverflow.com/questions/16283079

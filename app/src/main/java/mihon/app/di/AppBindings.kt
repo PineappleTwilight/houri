@@ -19,6 +19,8 @@ import io.requery.android.database.sqlite.RequerySQLiteOpenHelperFactory
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.protobuf.ProtoBuf
 import mihon.core.archive.CbzCrypto
+import mihon.core.concurrency.AppDispatchers
+import mihon.core.concurrency.AppDispatchersImpl
 import net.zetetic.database.sqlcipher.SupportOpenHelperFactory
 import nl.adaptivity.xmlutil.XmlDeclMode
 import nl.adaptivity.xmlutil.core.XmlVersion
@@ -188,5 +190,9 @@ object AppBindings {
     fun providesOkHttpClient(networkHelper: NetworkHelper): OkHttpClient {
         return networkHelper.client
     }
+
+    @Provides
+    @SingleIn(AppScope::class)
+    fun providesAppDispatchers(): AppDispatchers = AppDispatchersImpl()
     // KMK <--
 }
