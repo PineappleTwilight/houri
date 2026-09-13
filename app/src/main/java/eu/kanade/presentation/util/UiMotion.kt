@@ -23,21 +23,21 @@ object UiMotion {
     val EMPHASIZED_ACCELERATE: Easing = CubicBezierEasing(0.3f, 0f, 0.8f, 0.15f)
 
     /** Voyager push enter duration. */
-    const val ScreenEnter = 300
+    const val SCREEN_ENTER = 300
 
     /** Voyager push/pop exit duration. */
-    const val ScreenExit = 250
+    const val SCREEN_EXIT = 250
 
     /** Bottom nav / rail tab switch duration (fade-through). */
-    const val TabDuration = 220
+    const val TAB_DURATION = 220
 
     /** Sheet navigator fade-in duration. */
-    const val SheetFadeIn = 220
+    const val SHEET_FADE_IN = 220
 
     /** Sheet navigator fade-out duration. */
-    const val SheetFadeOut = 90
+    const val SHEET_FADE_OUT = 90
 
     /** Bottom bar show/hide duration. */
-    const val NavBarDuration = 220
+    const val NAV_BAR_DURATION = 220
 }
 // KMK <--

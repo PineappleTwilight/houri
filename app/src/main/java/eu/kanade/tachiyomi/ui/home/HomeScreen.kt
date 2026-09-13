@@ -138,8 +138,8 @@ object HomeScreen : Screen() {
                             AnimatedVisibility(
                                 visible = bottomNavVisible,
                                 // KMK -->
-                                enter = expandVertically(tween(UiMotion.NavBarDuration, easing = UiMotion.EMPHASIZED)),
-                                exit = shrinkVertically(tween(UiMotion.NavBarDuration, easing = UiMotion.EMPHASIZED)),
+                                enter = expandVertically(tween(UiMotion.NAV_BAR_DURATION, easing = UiMotion.EMPHASIZED)),
+                                exit = shrinkVertically(tween(UiMotion.NAV_BAR_DURATION, easing = UiMotion.EMPHASIZED)),
                                 // KMK <--
                             ) {
                                 NavigationBar {
@@ -165,8 +165,8 @@ object HomeScreen : Screen() {
                             targetState = tabNavigator.current,
                             transitionSpec = {
                                 // KMK -->
-                                materialFadeThroughIn(durationMillis = UiMotion.TabDuration) togetherWith
-                                    materialFadeThroughOut(durationMillis = UiMotion.TabDuration)
+                                materialFadeThroughIn(durationMillis = UiMotion.TAB_DURATION) togetherWith
+                                    materialFadeThroughOut(durationMillis = UiMotion.TAB_DURATION)
                                 // KMK <--
                             },
                             modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background),
