@@ -844,7 +844,7 @@ open class WebGpuViewer(
     /**
      * Moves to the next page.
      */
-    fun moveToNext() {
+    override fun moveToNext() {
         moveRight()
     }
 

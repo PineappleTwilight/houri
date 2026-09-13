@@ -373,7 +373,7 @@ class ReaderActivity : BaseActivity() {
                         chapterId = state.currentChapter?.chapter?.id,
                         totalPages = state.totalPages,
                         onRetry = {
-                            state.viewer.retryTranslation()
+                            state.viewer?.retryTranslation()
                         },
                         modifier = Modifier
                             .align(Alignment.BottomCenter)
@@ -726,7 +726,7 @@ class ReaderActivity : BaseActivity() {
         val verticalSeekbarLandscape =
             configuration.orientation == Configuration.ORIENTATION_LANDSCAPE && landscapeVerticalSeekbar
         val verticalSeekbarHorizontal = configuration.orientation == Configuration.ORIENTATION_PORTRAIT
-        val viewerIsVertical = state.viewer.isVertical
+        val viewerIsVertical = state.viewer?.isVertical == true
         val showVerticalSeekbar =
             !forceHorizontalSeekbar && (verticalSeekbarLandscape || verticalSeekbarHorizontal) && viewerIsVertical
         val navBarType = when {
@@ -843,7 +843,7 @@ class ReaderActivity : BaseActivity() {
                         val interval = intervalFloat.seconds
                         while (true) {
                             if (!viewModel.state.value.menuVisible) {
-                                viewModel.state.value.viewer.moveToNext()
+                                viewModel.state.value.viewer?.moveToNext()
                                 delay(interval)
                             } else {
                                 delay(100)
@@ -923,7 +923,7 @@ class ReaderActivity : BaseActivity() {
 
     private fun exhCurrentpage(): ReaderPage? {
         val viewer = viewModel.state.value.viewer
-        val currentPage = viewer.currentReaderPage?.index
+        val currentPage = viewer?.currentReaderPage?.index
         return currentPage?.let { viewModel.state.value.viewerChapters?.currChapter?.pages?.getOrNull(it) }
     }
 
