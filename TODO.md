@@ -489,6 +489,7 @@
   - Fixed 2026-09-13: `TrackInfoDialogHome`/`TrackSearch` no longer caps at 2 bound trackers
 - [x] **Manga Details**: "Fill from tracker" doesn't apply tags and publishing status from MangaBaka
   - Fixed 2026-09-13: `MangaBaka`/`MangaBakaApi`/`MangaBakaUtils`/`MangaBakaItem` now return tags + publication status for fill-from-tracker
+- [ ] **Codebase**: Remove/replace ALL old Komikku icons
 
 ## Chores
 - [x] Replace all Komikku icons/branding with houri icons/branding
