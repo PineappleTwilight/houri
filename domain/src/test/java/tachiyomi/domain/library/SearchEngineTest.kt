@@ -7,6 +7,7 @@ import org.junit.jupiter.api.parallel.Execution
 import org.junit.jupiter.api.parallel.ExecutionMode
 import tachiyomi.domain.library.model.LibrarySearchParser
 import tachiyomi.domain.library.model.LibrarySearchToken
+import tachiyomi.domain.library.model.positiveText
 
 @Execution(ExecutionMode.CONCURRENT)
 class SearchEngineTest {

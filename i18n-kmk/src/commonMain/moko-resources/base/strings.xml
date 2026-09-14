@@ -348,6 +348,11 @@
     <string name="manga_reread_count_button">Reread ×%1$d</string>
     <string name="track_normalized_score_summary">≈ %1$.1f/10 across %2$d trackers</string>
     <string name="track_remove_all_trackers">Remove all tracking</string>
+    <string name="track_unsynced_hint">● marks a tracker behind the furthest-read chapter count</string>
+    <string name="track_sync_error_hint">⚠ marks a tracker that failed to refresh — check or rebind its entry</string>
+    <string name="track_bulk_remove_title">Remove tracking</string>
+    <string name="track_bulk_remove_text">Untrack the selected services? Your manga stays in the library.</string>
+    <string name="track_bulk_remove_remote_text">Also delete the entries on those services</string>
     <string name="pref_rail_button_alignment">Rail button alignment</string>
     <string name="rail_alignment_top">Top</string>
     <string name="rail_alignment_center">Center</string>

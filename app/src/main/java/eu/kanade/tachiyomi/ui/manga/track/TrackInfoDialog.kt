@@ -21,6 +21,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SelectableDates
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TriStateCheckbox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.collectAsState
@@ -31,6 +32,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -92,6 +94,7 @@ import tachiyomi.domain.track.interactor.DeleteTrack
 import tachiyomi.domain.track.interactor.GetTracks
 import tachiyomi.domain.track.model.Track
 import tachiyomi.i18n.MR
+import tachiyomi.i18n.kmk.KMR
 import tachiyomi.presentation.core.components.LabeledCheckbox
 import tachiyomi.presentation.core.components.material.AlertDialogContent
 import tachiyomi.presentation.core.components.material.padding
@@ -168,6 +171,7 @@ data class TrackInfoDialogHomeScreen(
                             TrackDateSelectorScreen(
                                 track = it.track!!,
                                 serviceId = it.tracker.id,
+                                mangaId = mangaId,
                                 start = true,
                             ),
                         )
@@ -177,6 +181,7 @@ data class TrackInfoDialogHomeScreen(
                             TrackDateSelectorScreen(
                                 track = it.track!!,
                                 serviceId = it.tracker.id,
+                                mangaId = mangaId,
                                 start = false,
                             ),
                         )
@@ -200,8 +205,22 @@ data class TrackInfoDialogHomeScreen(
                             ),
                         )
                     },
+                    // KMK --> one confirmation for every selected tracker instead of
+                    // one TrackerRemoveScreen per service
+                    onRemoveAll = { items ->
+                        navigator.push(
+                            TrackerBulkRemoveScreen(
+                                mangaId = mangaId,
+                                tracks = items.mapNotNull { it.track },
+                            ),
+                        )
+                    },
+                    // KMK <--
                     onCopyLink = { context.copyTrackerLink(it) },
                     onTogglePrivate = screenModel::togglePrivate,
+                    // KMK --> badge trackers whose last refresh failed (e.g. a 404 entry)
+                    errorTrackerIds = state.errorTrackerIds,
+                    // KMK <--
                 )
             }
         }
@@ -374,22 +393,28 @@ data class TrackInfoDialogHomeScreen(
             val refreshTracks = globalAppGraph.refreshTracks
             val context = globalAppGraph.context
 
-            refreshTracks.await(mangaId)
+            val failures = refreshTracks.await(mangaId)
                 .filter { it.first != null }
-                .forEach { (track, e) ->
-                    logcat(LogPriority.ERROR, e) {
-                        "Failed to refresh track data mangaId=$mangaId for service ${track?.id}"
-                    }
-                    withUIContext {
-                        context.toast(
-                            context.stringResource(
-                                MR.strings.track_error,
-                                track?.name ?: "Unknown",
-                                e.message ?: "",
-                            ),
-                        )
-                    }
+            failures.forEach { (track, e) ->
+                logcat(LogPriority.ERROR, e) {
+                    "Failed to refresh track data mangaId=$mangaId for service ${track?.id}"
                 }
+                withUIContext {
+                    context.toast(
+                        context.stringResource(
+                            MR.strings.track_error,
+                            track?.name ?: "Unknown",
+                            e.message ?: "",
+                        ),
+                    )
+                }
+            }
+            // KMK --> remember which trackers failed so the dialog can badge them
+            // instead of leaving e.g. a 404 MAL entry looking fine
+            mutableState.update {
+                it.copy(errorTrackerIds = failures.mapNotNull { (tracker, _) -> tracker?.id }.toSet())
+            }
+            // KMK <--
         }
 
         fun togglePrivate(item: TrackItem) {
@@ -424,6 +449,9 @@ data class TrackInfoDialogHomeScreen(
             // SY -->
             val isLoading: Boolean = false,
             // SY <--
+            // KMK --> tracker ids whose last refresh failed (e.g. a 404 remote entry)
+            val errorTrackerIds: Set<Long> = emptySet(),
+            // KMK <--
         )
     }
 }
@@ -618,6 +646,7 @@ private data class TrackDateSelectorScreen(
     private val track: Track,
     private val serviceId: Long,
     private val start: Boolean,
+    private val mangaId: Long = 0L,
 ) : Screen() {
 
     @Transient
@@ -675,6 +704,7 @@ private data class TrackDateSelectorScreen(
                 track = track,
                 tracker = globalAppGraph.trackerManager.get(serviceId)!!,
                 start = start,
+                mangaId = mangaId,
             )
         }
 
@@ -704,6 +734,7 @@ private data class TrackDateSelectorScreen(
         private val track: Track,
         private val tracker: Tracker,
         private val start: Boolean,
+        private val mangaId: Long = 0L,
     ) : ScreenModel {
 
         // In UTC
@@ -725,6 +756,30 @@ private data class TrackDateSelectorScreen(
                 } else {
                     tracker.setRemoteFinishDate(track.toDbTrack(), localMillis)
                 }
+                // KMK --> fill the same date on other trackers that have none set yet,
+                // so a manual edit isn't silently missing everywhere else
+                if (mangaId != 0L) {
+                    try {
+                        val allTracks = globalAppGraph.getTracks.await(mangaId)
+                        for (other in allTracks) {
+                            if (other.trackerId == tracker.id) continue
+                            val otherTracker = globalAppGraph.trackerManager.get(other.trackerId) ?: continue
+                            if (!otherTracker.isLoggedIn || !otherTracker.supportsReadingDates) continue
+                            val otherDate = if (start) other.startDate else other.finishDate
+                            if (otherDate > 0L) continue
+                            try {
+                                if (start) {
+                                    otherTracker.setRemoteStartDate(other.toDbTrack(), localMillis)
+                                } else {
+                                    otherTracker.setRemoteFinishDate(other.toDbTrack(), localMillis)
+                                }
+                            } catch (_: Exception) {
+                            }
+                        }
+                    } catch (_: Exception) {
+                    }
+                }
+                // KMK <--
             }
         }
 
@@ -1016,3 +1071,165 @@ private data class TrackerRemoveScreen(
         }
     }
 }
+
+// KMK --> one confirmation for every selected tracker instead of one
+// TrackerRemoveScreen per service, with per-tracker checkmarks + tri-state select-all
+private data class TrackerBulkRemoveScreen(
+    private val mangaId: Long,
+    private val tracks: List<Track>,
+) : Screen() {
+
+    @Composable
+    override fun Content() {
+        val navigator = LocalNavigator.currentOrThrow
+        val screenModel = rememberScreenModel {
+            Model(
+                mangaId = mangaId,
+                tracks = tracks,
+            )
+        }
+        val state by screenModel.state.collectAsState()
+
+        val allIds = remember(tracks) { tracks.map { it.trackerId }.toSet() }
+        val triState = when {
+            state.selectedIds.containsAll(allIds) -> ToggleableState.On
+            state.selectedIds.isEmpty() -> ToggleableState.Off
+            else -> ToggleableState.Indeterminate
+        }
+        AlertDialogContent(
+            modifier = Modifier.windowInsetsPadding(WindowInsets.systemBars),
+            icon = {
+                Icon(
+                    imageVector = Icons.Default.Delete,
+                    contentDescription = null,
+                )
+            },
+            title = {
+                Text(
+                    text = stringResource(KMR.strings.track_bulk_remove_title),
+                    textAlign = TextAlign.Center,
+                )
+            },
+            text = {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(MaterialTheme.padding.small),
+                ) {
+                    Text(
+                        text = stringResource(KMR.strings.track_bulk_remove_text),
+                    )
+
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        TriStateCheckbox(
+                            state = triState,
+                            onClick = { screenModel.setAll(triState != ToggleableState.On) },
+                        )
+                        Text(text = stringResource(MR.strings.action_select_all))
+                    }
+
+                    tracks.forEach { track ->
+                        LabeledCheckbox(
+                            label = screenModel.trackerName(track.trackerId),
+                            checked = track.trackerId in state.selectedIds,
+                            onCheckedChange = { screenModel.toggle(track.trackerId) },
+                        )
+                    }
+
+                    if (screenModel.anyDeletableSelected()) {
+                        LabeledCheckbox(
+                            label = stringResource(KMR.strings.track_bulk_remove_remote_text),
+                            checked = state.removeRemote,
+                            onCheckedChange = screenModel::setRemoveRemote,
+                        )
+                    }
+                }
+            },
+            buttons = {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(
+                        MaterialTheme.padding.small,
+                        Alignment.End,
+                    ),
+                ) {
+                    TextButton(onClick = navigator::pop) {
+                        Text(text = stringResource(MR.strings.action_cancel))
+                    }
+                    FilledTonalButton(
+                        onClick = {
+                            screenModel.confirm()
+                            navigator.pop()
+                        },
+                        colors = ButtonDefaults.filledTonalButtonColors(
+                            containerColor = MaterialTheme.colorScheme.errorContainer,
+                            contentColor = MaterialTheme.colorScheme.onErrorContainer,
+                        ),
+                    ) {
+                        Text(text = stringResource(MR.strings.action_remove))
+                    }
+                }
+            },
+        )
+    }
+
+    private class Model(
+        private val mangaId: Long,
+        private val tracks: List<Track>,
+        private val trackerManager: TrackerManager = globalAppGraph.trackerManager,
+        private val deleteTrack: DeleteTrack = globalAppGraph.deleteTrack,
+    ) : StateScreenModel<Model.State>(State(selectedIds = tracks.map { it.trackerId }.toSet())) {
+
+        fun trackerName(trackerId: Long): String =
+            trackerManager.get(trackerId)?.name ?: trackerId.toString()
+
+        fun anyDeletableSelected(): Boolean =
+            state.value.selectedIds.any { trackerManager.get(it) is DeletableTracker }
+
+        fun toggle(trackerId: Long) {
+            mutableState.update {
+                val selected = it.selectedIds.toMutableSet()
+                if (!selected.add(trackerId)) selected.remove(trackerId)
+                it.copy(selectedIds = selected)
+            }
+        }
+
+        fun setAll(select: Boolean) {
+            mutableState.update {
+                it.copy(
+                    selectedIds = if (select) {
+                        tracks.map { track -> track.trackerId }.toSet()
+                    } else {
+                        emptySet()
+                    },
+                )
+            }
+        }
+
+        fun setRemoveRemote(remove: Boolean) {
+            mutableState.update { it.copy(removeRemote = remove) }
+        }
+
+        fun confirm() {
+            val selected = state.value.selectedIds
+            val removeRemote = state.value.removeRemote
+            screenModelScope.launchNonCancellable {
+                tracks.filter { it.trackerId in selected }.forEach { track ->
+                    deleteTrack.await(mangaId, track.trackerId)
+                    if (removeRemote) {
+                        try {
+                            (trackerManager.get(track.trackerId) as? DeletableTracker)?.delete(track)
+                        } catch (e: Exception) {
+                            logcat(LogPriority.ERROR, e) { "Failed to delete entry from service" }
+                        }
+                    }
+                }
+            }
+        }
+
+        @Immutable
+        data class State(
+            val selectedIds: Set<Long> = emptySet(),
+            val removeRemote: Boolean = false,
+        )
+    }
+}
+// KMK <--

@@ -4,13 +4,10 @@ package eu.kanade.presentation.more.settings.screen
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.ReadOnlyComposable
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
-import eu.kanade.domain.connections.service.WebhookSettingKeys
 import eu.kanade.presentation.more.settings.Preference
 import eu.kanade.presentation.more.settings.framework.toItems
 import eu.kanade.tachiyomi.util.system.toast
@@ -21,7 +18,6 @@ import tachiyomi.core.common.util.lang.launchUI
 import tachiyomi.domain.category.model.Category
 import tachiyomi.i18n.kmk.KMR
 import tachiyomi.presentation.core.i18n.stringResource
-import tachiyomi.presentation.core.util.collectAsState
 
 object SettingsWebhookScreen : SearchableSettings {
     @Suppress("unused")
@@ -39,7 +35,10 @@ object SettingsWebhookScreen : SearchableSettings {
         val webhookNotifier = remember { globalAppGraph.webhookNotifier }
         val store = remember { globalAppGraph.preferenceStore }
 
-        val enabled by webhookPreferences.enabled().collectAsState()
+        // KMK --> rows stay visible regardless of the master switch: StatusWrapper
+        // hides (not greys) disabled rows, which previously left this page empty
+        // with no way to turn webhooks on. The master switch remains the
+        // functional gate inside WebhookNotifier.notify().
 
         // KMK -->
         val categories = remember { mutableStateOf<List<Category>>(emptyList()) }
@@ -66,15 +65,9 @@ object SettingsWebhookScreen : SearchableSettings {
             Preference.PreferenceGroup(
                 title = stringResource(KMR.strings.pref_category_connections),
                 preferenceItems = persistentListOf(
-                    // KMK --> master switch stays enabled so webhooks can be turned on;
-                    // only the URL fields gate on it.
-                    *WebhookSettingsHost.connectionItems.toItems(store) { def ->
-                        def.key.key == WebhookSettingKeys.ENABLED.key || enabled
-                    }.toTypedArray(),
-                    // KMK <--
+                    *WebhookSettingsHost.connectionItems.toItems(store).toTypedArray(),
                     Preference.PreferenceItem.TextPreference(
                         title = stringResource(KMR.strings.pref_webhook_test),
-                        enabled = enabled,
                         onClick = {
                             scope.launchUI {
                                 webhookNotifier.sendTest()
@@ -89,7 +82,7 @@ object SettingsWebhookScreen : SearchableSettings {
             ),
             Preference.PreferenceGroup(
                 title = stringResource(KMR.strings.webhook_events),
-                preferenceItems = WebhookSettingsHost.eventSwitches.toItems(store) { enabled },
+                preferenceItems = WebhookSettingsHost.eventSwitches.toItems(store),
             ),
             // KMK -->
             Preference.PreferenceGroup(
@@ -99,7 +92,6 @@ object SettingsWebhookScreen : SearchableSettings {
                         preference = webhookPreferences.excludedCategories(),
                         entries = categoryEntries,
                         title = stringResource(KMR.strings.pref_webhook_excluded_categories),
-                        enabled = enabled,
                     ),
                     Preference.PreferenceItem.InfoPreference(
                         stringResource(KMR.strings.pref_webhook_excluded_categories_summary),

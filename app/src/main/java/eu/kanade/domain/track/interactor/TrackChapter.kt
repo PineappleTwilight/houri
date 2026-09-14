@@ -93,8 +93,19 @@ class TrackChapter(
                             } else {
                                 toUpdate
                             }
-                            service.update(withCompletion.toDbTrack(), true)
-                            insertTrack.await(withCompletion)
+                            // KMK --> leaving a not-started list starts the clock when no start date is set
+                            val withStartDate =
+                                if (service.hasNotStartedReading(track.status) &&
+                                    !service.hasNotStartedReading(withCompletion.status) &&
+                                    withCompletion.startDate <= 0L
+                                ) {
+                                    withCompletion.copy(startDate = System.currentTimeMillis())
+                                } else {
+                                    withCompletion
+                                }
+                            // KMK <--
+                            service.update(withStartDate.toDbTrack(), true)
+                            insertTrack.await(withStartDate)
                             delayedTrackingStore.remove(track.id)
                         } catch (e: Exception) {
                             delayedTrackingStore.add(track.id, chapterNumber)

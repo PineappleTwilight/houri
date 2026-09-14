@@ -34,16 +34,19 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.toMutableStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import cafe.adriel.voyager.core.model.StateScreenModel
+import cafe.adriel.voyager.core.model.rememberScreenModel
 import cafe.adriel.voyager.core.model.screenModelScope
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
@@ -81,9 +84,10 @@ class ScanlatorPreferenceScreen(
     @Composable
     override fun Content() {
         val navigator = LocalNavigator.currentOrThrow
-        val model = remember { ScanlatorPreferenceModel(mangaId) }
+        val model = rememberScreenModel { ScanlatorPreferenceModel(mangaId) }
         val state by model.state.collectAsState()
-        var selectedTab by mutableIntStateOf(0)
+        // KMK --> without remember any recomposition snaps back to the priority tab
+        var selectedTab by remember { mutableIntStateOf(0) }
 
         // Guarantee the system back button exits this screen (users reported getting stuck here).
         BackHandler { navigator.pop() }
@@ -133,11 +137,18 @@ class ScanlatorPreferenceScreen(
         model: ScanlatorPreferenceModel,
     ) {
         val listState = rememberLazyListState()
+        // KMK --> drag against a local mirror: persisting every move to the DB rebuilds
+        // state.orderedScanlators mid-drag and fights the finger. Resync when settled.
+        val dragList = remember { state.orderedScanlators.toMutableStateList() }
         val reorderableState = rememberReorderableLazyListState(listState) { from, to ->
-            val reordered = state.orderedScanlators.toMutableList().apply {
-                add(to.index, removeAt(from.index))
+            dragList.apply { add(to.index, removeAt(from.index)) }
+            model.setPriority(dragList.map { it.name })
+        }
+        LaunchedEffect(state.orderedScanlators) {
+            if (!reorderableState.isAnyItemDragging) {
+                dragList.clear()
+                dragList.addAll(state.orderedScanlators)
             }
-            model.setPriority(reordered.map { it.name })
         }
 
         LazyColumn(
@@ -145,7 +156,7 @@ class ScanlatorPreferenceScreen(
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(MaterialTheme.padding.small),
         ) {
-            items(state.orderedScanlators, key = { it.name }) { entry ->
+            items(dragList, key = { it.name }) { entry ->
                 ReorderableItem(reorderableState, key = entry.name) {
                     val excluded = entry.name in state.excludedScanlators
                     ElevatedCard(

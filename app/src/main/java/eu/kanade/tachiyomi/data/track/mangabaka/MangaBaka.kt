@@ -195,7 +195,9 @@ class MangaBaka(id: Long) : BaseTracker(id, "MangaBaka"), DeletableTracker {
         STEP_10 -> STEP_10_SCORES
         STEP_20 -> STEP_20_SCORES
         STEP_25 -> STEP_25_SCORES
-        else -> throw Exception("Unknown score type")
+        // KMK --> unknown/stale stored value (e.g. from older builds) falls back to STEP_10
+        // instead of throwing and breaking the score dialog
+        else -> STEP_10_SCORES
     }
 
     companion object {

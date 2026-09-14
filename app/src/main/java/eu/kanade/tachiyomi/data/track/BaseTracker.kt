@@ -91,10 +91,18 @@ abstract class BaseTracker(
     }
 
     override suspend fun setRemoteStatus(track: Track, status: Long) {
+        // KMK --> leaving a not-started list starts the clock when no start date is set
+        val wasNotStarted = hasNotStartedReading(track.status)
+        // KMK <--
         track.status = status
         if (track.status == getCompletionStatus() && track.total_chapters != 0L) {
             track.last_chapter_read = track.total_chapters.toDouble()
         }
+        // KMK -->
+        if (wasNotStarted && !hasNotStartedReading(status) && track.started_reading_date <= 0L) {
+            track.started_reading_date = System.currentTimeMillis()
+        }
+        // KMK <--
         updateRemote(track)
     }
 

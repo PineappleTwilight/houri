@@ -385,7 +385,7 @@ internal suspend fun WebGpuViewer.decodeReaderPage(page: ViewerReaderPage) {
         // Translation gate: only small-enough pages are sent to LLM/cache
         val translationBytes: ByteArray? = if (decodeBytes.size in 1..32 * 1024 * 1024) decodeBytes else null
 
-        page.taggedSpreadPosition = run {
+        page.taggedSpreadPosition = if (isDualPageMode()) {
             val tag = try {
                 Kim.readMetadata(decodeBytes.inputStream(), decodeBytes.size.toLong())
                     ?.findStringValue(TiffTag.TIFF_TAG_PAGE_NAME)
@@ -401,6 +401,10 @@ internal suspend fun WebGpuViewer.decodeReaderPage(page: ViewerReaderPage) {
                 null -> null
                 else -> SpreadPosition.SINGLE
             }
+        } else {
+            // Single-page display never pairs: leave untagged so [spreadPosition] derives
+            // geometrically on rotation into dual mode instead of reusing a stale tag.
+            null
         }
 
         // Store bytes for height-matching regardless of SINGLE tag — pages decoded before

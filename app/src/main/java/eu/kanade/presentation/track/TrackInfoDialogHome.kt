@@ -24,9 +24,9 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.DropdownMenuItem
@@ -84,8 +84,10 @@ fun TrackInfoDialogHome(
     onNewSearch: (TrackItem) -> Unit,
     onOpenInBrowser: (TrackItem) -> Unit,
     onRemoved: (TrackItem) -> Unit,
+    onRemoveAll: (List<TrackItem>) -> Unit = {},
     onCopyLink: (TrackItem) -> Unit,
     onTogglePrivate: (TrackItem) -> Unit,
+    errorTrackerIds: Set<Long> = emptySet(),
 ) {
     val isTablet = isTabletUi()
     Box(
@@ -125,6 +127,27 @@ fun TrackInfoDialogHome(
             val mismatchIds = remember(domainTracks) {
                 TrackerProgressSync.mismatchedIds(domainTracks)
             }
+            // KMK --> error badges only for bound entries; legend explains both marks
+            val visibleErrorIds = remember(trackItems, errorTrackerIds) {
+                trackedItems.map { it.tracker.id }.toSet() intersect errorTrackerIds
+            }
+            if (mismatchIds.isNotEmpty()) {
+                Text(
+                    text = stringResource(KMR.strings.track_unsynced_hint),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+            if (visibleErrorIds.isNotEmpty()) {
+                Text(
+                    text = stringResource(KMR.strings.track_sync_error_hint),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+            // KMK <--
             // Unified card only when 2+ actually tracked entries; otherwise show per-tracker rows.
             // Fixes: untracked manga being shown as tracked, and empty space below card when only 1 tracked.
             // KMK --> pass ALL trackers (incl. untracked) so a 3rd+ service can still bind from the card.
@@ -138,8 +161,10 @@ fun TrackInfoDialogHome(
                     onEndDateEdit = onEndDateEdit,
                     onNewSearch = onNewSearch,
                     onRemoved = onRemoved,
+                    onRemoveAll = onRemoveAll,
                     onOpenInBrowser = onOpenInBrowser,
                     onCopyLink = onCopyLink,
+                    errorTrackerIds = errorTrackerIds,
                 )
                 // KMK <--
             } else {
@@ -185,6 +210,7 @@ fun TrackInfoDialogHome(
                             onTogglePrivate = { onTogglePrivate(item) }
                                 .takeIf { supportsPrivate },
                             isMismatched = isMismatched,
+                            hasError = item.tracker.id in errorTrackerIds,
                         )
                     }
                 }
@@ -237,6 +263,9 @@ private fun TrackInfoItem(
     private: Boolean,
     onTogglePrivate: (() -> Unit)?,
     isMismatched: Boolean = false,
+    // KMK --> refresh-failure badge (e.g. a 404 remote entry)
+    hasError: Boolean = false,
+    // KMK <--
 ) {
     val context = LocalContext.current
     Column {
@@ -245,7 +274,21 @@ private fun TrackInfoItem(
         ) {
             BadgedBox(
                 badge = {
-                    if (private) {
+                    // KMK --> refresh failure outranks the private badge; legend explains it
+                    if (hasError) {
+                        Badge(
+                            containerColor = MaterialTheme.colorScheme.error,
+                            contentColor = MaterialTheme.colorScheme.onError,
+                            modifier = Modifier.absoluteOffset(x = (-5).dp),
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Warning,
+                                contentDescription = null,
+                                modifier = Modifier.size(14.dp),
+                            )
+                        }
+                    } else if (private) {
+                        // KMK <--
                         Badge(
                             containerColor = MaterialTheme.colorScheme.primary,
                             contentColor = MaterialTheme.colorScheme.onPrimary,
@@ -465,6 +508,10 @@ private fun UnifiedTrackerCard(
     onRemoved: (TrackItem) -> Unit,
     onOpenInBrowser: (TrackItem) -> Unit,
     onCopyLink: (TrackItem) -> Unit,
+    // KMK --> bulk removal goes through one confirmation; error ids badge failed refreshes
+    onRemoveAll: (List<TrackItem>) -> Unit = {},
+    errorTrackerIds: Set<Long> = emptySet(),
+    // KMK <--
 ) {
     val domainTracksForSync = remember(trackItems) { trackItems.mapNotNull { it.track } }
     val preferredId = remember(domainTracksForSync) {
@@ -519,9 +566,23 @@ private fun UnifiedTrackerCard(
                 val itemTrack = item.track
                 val isUnsynced = itemTrack != null && resolved != null &&
                     abs(itemTrack.lastChapterRead - resolved.lastChapterRead) > 0.01
+                // KMK --> refresh failure outranks the unsynced dot; legend explains both
+                val isErrored = item.tracker.id in errorTrackerIds
+                // KMK <--
                 BadgedBox(
                     badge = {
-                        if (isUnsynced) {
+                        if (isErrored) {
+                            Badge(
+                                containerColor = MaterialTheme.colorScheme.error,
+                                contentColor = MaterialTheme.colorScheme.onError,
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.Warning,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(12.dp),
+                                )
+                            }
+                        } else if (isUnsynced) {
                             Badge(containerColor = MaterialTheme.colorScheme.error)
                         }
                     },
@@ -665,58 +726,27 @@ private fun UnifiedTrackerCard(
                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = if (finishDate == null) UNSET_TEXT_ALPHA else 1f),
                         )
                     }
-                    if (finishDate != null) {
-                        VerticalDivider()
-                        Box(
-                            modifier = Modifier
-                                .size(40.dp)
-                                .clickable {
-                                    val track = primary.track ?: return@clickable
-                                    scope.launch {
-                                        try {
-                                            primary.tracker.setRemoteFinishDate(track.toDbTrack(), 0)
-                                        } catch (_: Exception) {
-                                        }
-                                    }
-                                }
-                                .padding(8.dp),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.Close,
-                                contentDescription = stringResource(MR.strings.action_remove),
-                                modifier = Modifier.size(16.dp),
-                            )
-                        }
-                    }
-                    VerticalDivider()
-                    Box(
-                        modifier = Modifier
-                            .size(40.dp)
-                            // KMK --> single-entry removal keeps its TrackerRemoveScreen confirmation
-                            .clickable { onRemoved(primary) }
-                            // KMK <--
-                            .padding(8.dp),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.Close,
-                            contentDescription = stringResource(MR.strings.action_remove),
-                            modifier = Modifier.size(16.dp),
-                        )
-                    }
                 }
             }
         }
-        // KMK --> bulk removal still routes every tracker through its TrackerRemoveScreen confirmation
-        TextButton(
-            onClick = { trackItems.filter { it.track != null }.forEach { onRemoved(it) } },
+        // KMK --> single remove lives at the bottom next to remove-all; the dates row
+        // keeps no X buttons (finish-date clearing stays in the date picker)
+        Row(
             modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
         ) {
-            Text(
-                text = stringResource(KMR.strings.track_remove_all_trackers),
-                color = MaterialTheme.colorScheme.error,
-            )
+            TextButton(onClick = { onRemoved(primary) }) {
+                Text(
+                    text = stringResource(MR.strings.action_remove),
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
+            TextButton(onClick = { onRemoveAll(trackItems.filter { it.track != null }) }) {
+                Text(
+                    text = stringResource(KMR.strings.track_remove_all_trackers),
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
         }
         // KMK <--
     }
