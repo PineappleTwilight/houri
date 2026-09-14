@@ -493,6 +493,7 @@
 - [ ] **Simple Upscaler**: Remove redundant algorithm selection, upscaler method already covers it
 - [ ] **Chapter Blacklist**: Fix skip filtered chapters being ignored on blacklisted chapters. Blacklisted chapters still open if switching chapters inside the reader.
 - [ ] **Achievements**: Fix secret achievements not showing their proper name in toasts
+- [ ] **Achievements**: Make toasts match the app theme
 
 ## Chores
 - [x] Replace all Komikku icons/branding with houri icons/branding
