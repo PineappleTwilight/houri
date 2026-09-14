@@ -490,6 +490,7 @@
 - [x] **Manga Details**: "Fill from tracker" doesn't apply tags and publishing status from MangaBaka
   - Fixed 2026-09-13: `MangaBaka`/`MangaBakaApi`/`MangaBakaUtils`/`MangaBakaItem` now return tags + publication status for fill-from-tracker
 - [ ] **Codebase**: Remove/replace ALL old Komikku icons
+- [ ] **Simple Upscaler**: Remove redundant algorithm selection, upscaler method already covers it
 
 ## Chores
 - [x] Replace all Komikku icons/branding with houri icons/branding
