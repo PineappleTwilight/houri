@@ -494,6 +494,10 @@
 - [ ] **Chapter Blacklist**: Fix skip filtered chapters being ignored on blacklisted chapters. Blacklisted chapters still open if switching chapters inside the reader.
 - [ ] **Achievements**: Fix secret achievements not showing their proper name in toasts
 - [ ] **Achievements**: Make toasts match the app theme
+- [ ] **WebGPU Reader**: Fix webtoon mode skipping ahead randomly, not having proper zoom, and overall being very buggy.
+- [ ] **Achievements**: Fix achievement app events sometimes triggering multiple times or at the wrong times
+- [ ] **Simple Upscaler**: Fix algorithmic upscaling causing warping on long strip manhwas/webtoons
+- [ ] **Tracker as Metadata Source**: Expand to work with any tracker and not just mangadex
 
 ## Chores
 - [x] Replace all Komikku icons/branding with houri icons/branding
