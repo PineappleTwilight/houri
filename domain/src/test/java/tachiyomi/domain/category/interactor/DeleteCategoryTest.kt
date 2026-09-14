@@ -61,16 +61,15 @@ class DeleteCategoryTest {
         val sub2 = category(7, parentId = 5)
 
         stubDefaultCategory(-1)
-        coEvery { categoryRepository.getSubcategories(5) } returns listOf(sub1, sub2)
+        coEvery { categoryRepository.getAll() } returns listOf(parent, sub1, sub2)
         coEvery { categoryRepository.delete(any()) } just runs
-        coEvery { categoryRepository.getAll() } returns emptyList()
 
         deleteCategory.await(5) shouldBe DeleteCategory.Result.Success
 
         coVerifySequence {
-            categoryRepository.getSubcategories(5)
-            categoryRepository.delete(6)
+            categoryRepository.getAll()
             categoryRepository.delete(7)
+            categoryRepository.delete(6)
             categoryRepository.delete(5)
             categoryRepository.getAll()
             categoryRepository.updatePartial(emptyList())
@@ -80,14 +79,13 @@ class DeleteCategoryTest {
     @Test
     fun `deletes only the parent when it has no subcategories`() = runTest {
         stubDefaultCategory(-1)
-        coEvery { categoryRepository.getSubcategories(3) } returns emptyList()
-        coEvery { categoryRepository.delete(any()) } just runs
         coEvery { categoryRepository.getAll() } returns listOf(category(0), category(4))
+        coEvery { categoryRepository.delete(any()) } just runs
 
         deleteCategory.await(3) shouldBe DeleteCategory.Result.Success
 
         coVerifySequence {
-            categoryRepository.getSubcategories(3)
+            categoryRepository.getAll()
             categoryRepository.delete(3)
             categoryRepository.getAll()
             categoryRepository.updatePartial(
@@ -100,15 +98,23 @@ class DeleteCategoryTest {
     }
 
     @Test
-    fun `returns internal error when repository delete fails`() = runTest {
+    fun `tolerates a single failed delete and still removes the rest`() = runTest {
         val parent = category(2)
         val sub = category(8, parentId = 2)
 
-        coEvery { categoryRepository.getSubcategories(2) } returns listOf(sub)
+        stubDefaultCategory(-1)
+        coEvery { categoryRepository.getAll() } returns listOf(parent, sub)
         coEvery { categoryRepository.delete(sub.id) } just runs
         coEvery { categoryRepository.delete(parent.id) } throws RuntimeException("db locked")
 
-        val result = deleteCategory.await(2)
-        (result as DeleteCategory.Result.InternalError).error.message shouldBe "db locked"
+        deleteCategory.await(2) shouldBe DeleteCategory.Result.Success
+
+        coVerifySequence {
+            categoryRepository.getAll()
+            categoryRepository.delete(8)
+            categoryRepository.delete(2)
+            categoryRepository.getAll()
+            categoryRepository.updatePartial(emptyList())
+        }
     }
 }
