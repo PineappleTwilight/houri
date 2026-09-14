@@ -491,6 +491,7 @@
   - Fixed 2026-09-13: `MangaBaka`/`MangaBakaApi`/`MangaBakaUtils`/`MangaBakaItem` now return tags + publication status for fill-from-tracker
 - [ ] **Codebase**: Remove/replace ALL old Komikku icons
 - [ ] **Simple Upscaler**: Remove redundant algorithm selection, upscaler method already covers it
+- [ ] **Chapter Blacklist**: Fix skip filtered chapters being ignored on blacklisted chapters. Blacklisted chapters still open if switching chapters inside the reader.
 
 ## Chores
 - [x] Replace all Komikku icons/branding with houri icons/branding
