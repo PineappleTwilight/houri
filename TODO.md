@@ -498,6 +498,10 @@
 - [ ] **Achievements**: Fix achievement app events sometimes triggering multiple times or at the wrong times
 - [ ] **Simple Upscaler**: Fix algorithmic upscaling causing warping on long strip manhwas/webtoons
 - [ ] **Tracker as Metadata Source**: Expand to work with any tracker and not just mangadex
+- [ ] **Upscaler**: Implement proper native AI backends (vulkan/npu)
+- [ ] **Multi-Feed**: Merge into feed tab to avoid overcrowding the header
+- [ ] **App Event Framework**: Harden, improve, and migrate any old code that relies on app events into it
+- [ ] **WebGPU Reader**: UI improvements and hardening
 
 ## Chores
 - [x] Replace all Komikku icons/branding with houri icons/branding
