@@ -68,6 +68,7 @@ import eu.kanade.tachiyomi.data.connections.ConnectionsManager
 import eu.kanade.tachiyomi.data.download.DownloadCache
 import eu.kanade.tachiyomi.data.download.DownloadManager
 import eu.kanade.tachiyomi.data.download.DownloadProvider
+import eu.kanade.tachiyomi.data.event.AppEventBus
 import eu.kanade.tachiyomi.data.library.LibraryUpdateJob
 import eu.kanade.tachiyomi.data.library.MetadataUpdateJob
 import eu.kanade.tachiyomi.data.notification.NotificationReceiver
@@ -189,6 +190,7 @@ import tachiyomi.domain.manga.interactor.GetReadMangaNotInLibraryView
 import tachiyomi.domain.manga.interactor.GetSearchMetadata
 import tachiyomi.domain.manga.interactor.GetSearchTags
 import tachiyomi.domain.manga.interactor.GetSearchTitles
+import tachiyomi.domain.manga.interactor.GetSequelPrequel
 import tachiyomi.domain.manga.interactor.InsertFavoriteEntries
 import tachiyomi.domain.manga.interactor.InsertFavoriteEntryAlternative
 import tachiyomi.domain.manga.interactor.InsertFlatMetadata
@@ -287,7 +289,9 @@ interface AppGraph : ViewModelGraph {
     val googleDriveService: GoogleDriveService
     val webhookPreferences: WebhookPreferences
     val webhookNotifier: WebhookNotifier
+    val appEventBus: AppEventBus
     val appDispatchers: AppDispatchers
+    val getSequelPrequel: GetSequelPrequel
     // KMK <--
 
     // KMK -->

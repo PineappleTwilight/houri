@@ -1,7 +1,7 @@
 package exh.search
 
 import dev.zacsweers.metro.Inject
-import java.util.Locale
+import tachiyomi.domain.library.model.LibrarySearchParser
 
 @Inject
 class SearchEngine {
@@ -132,6 +132,9 @@ class SearchEngine {
         val res = mutableListOf<QueryComponent>()
 
         var inQuotes = false
+        // KMK --> quoted tokens never act as operators
+        var tokenQuoted = false
+        // KMK <--
         val queuedRawText = StringBuilder()
         val queuedText = mutableListOf<TextComponent>()
         var namespace: Namespace? = null
@@ -153,6 +156,24 @@ class SearchEngine {
 
         fun flushAll() {
             flushText()
+            // KMK --> Uppercase-only AST operators: lowercase and/not/or stay literal text
+            if (enableAst && !inQuotes && !tokenQuoted && namespace == null && queuedText.size == 1) {
+                val single = queuedText.single() as? StringTextComponent
+                if (single != null) {
+                    if (single.value == "AND" || single.value == "OR") {
+                        queuedText.clear()
+                        tokenQuoted = false
+                        return
+                    }
+                    if (single.value == "NOT") {
+                        nextIsExcluded = true
+                        queuedText.clear()
+                        tokenQuoted = false
+                        return
+                    }
+                }
+            }
+            // KMK <--
             if (queuedText.isNotEmpty() || namespace != null) {
                 val component = namespace?.apply {
                     tag = flushToText()
@@ -161,12 +182,20 @@ class SearchEngine {
                 component.excluded = nextIsExcluded
                 component.exact = nextIsExact
                 res += component
+                // KMK --> exclusion/exact apply to the next term only
+                nextIsExcluded = false
+                nextIsExact = false
+                // KMK <--
             }
+            tokenQuoted = false
         }
 
-        query.lowercase(Locale.getDefault()).forEach { char ->
+        query.forEach { char ->
             if (char == '"') {
                 inQuotes = !inQuotes
+                // KMK --> quoted tokens never act as operators
+                tokenQuoted = true
+                // KMK <--
             } else if (enableWildcard && (char == '?' || char == '_')) {
                 flushText()
                 queuedText.add(SingleWildcard(char.toString()))
@@ -179,28 +208,17 @@ class SearchEngine {
                 nextIsExact = true
             } else if (char == ':' && enableAst && !inQuotes) {
                 flushText()
-                var flushed = flushToText().rawTextOnly()
-                val mapped = when (flushed) {
-                    "a" -> "artist"
-                    "c", "char" -> "character"
-                    "f" -> "female"
-                    "g", "creator", "circle" -> "group"
-                    "l", "lang" -> "language"
-                    "m" -> "male"
-                    "p", "series" -> "parody"
-                    "r" -> "reclass"
-                    else -> flushed
-                }
+                // KMK --> field names match case-insensitively, values keep their case
+                val flushed = flushToText().rawTextOnly()
+                val mapped = LibrarySearchParser.mapSearchNamespacePrefix(flushed)
+                // KMK <--
                 // Only treat colon as namespace separator when prefix is a known field.
                 // This keeps titles like "Re:Zero", "JoJo: Part" as plain text search
                 // instead of mis-parsing "re" as a namespace.
-                val allowedNamespaces = setOf(
-                    "artist", "character", "female", "group", "language", "male", "parody", "reclass",
-                    "a", "c", "char", "f", "g", "creator", "circle", "l", "lang", "m", "p", "series", "r",
-                    "title", "author", "source", "genre", "tag", "tags", "status", "tracker",
-                    "desc", "description", "uploader", "id", "src",
-                )
-                val isAllowed = mapped in allowedNamespaces || flushed in allowedNamespaces
+                // KMK --> shared contract in LibrarySearchParser
+                val isAllowed = LibrarySearchParser.isAllowedSearchNamespace(mapped) ||
+                    LibrarySearchParser.isAllowedSearchNamespace(flushed)
+                // KMK <--
                 if (flushed.isBlank() || flushed.contains(' ') || flushed.contains('\t') || !isAllowed) {
                     if (flushed.isNotEmpty()) queuedText.add(StringTextComponent(flushed))
                     queuedText.add(StringTextComponent(":"))

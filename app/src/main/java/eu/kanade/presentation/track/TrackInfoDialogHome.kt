@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.absoluteOffset
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
@@ -72,6 +71,7 @@ import tachiyomi.i18n.MR
 import tachiyomi.i18n.kmk.KMR
 import tachiyomi.presentation.core.i18n.stringResource
 import java.time.format.DateTimeFormatter
+import kotlin.math.abs
 
 @Composable
 fun TrackInfoDialogHome(
@@ -126,18 +126,21 @@ fun TrackInfoDialogHome(
             }
             // Unified card only when 2+ actually tracked entries; otherwise show per-tracker rows.
             // Fixes: untracked manga being shown as tracked, and empty space below card when only 1 tracked.
+            // KMK --> pass ALL trackers (incl. untracked) so a 3rd+ service can still bind from the card.
             if (trackedItems.size > 1) {
                 UnifiedTrackerCard(
-                    trackItems = trackedItems,
+                    trackItems = trackItems,
                     onStatusClick = onStatusClick,
                     onChapterClick = onChapterClick,
                     onScoreClick = onScoreClick,
                     onStartDateEdit = onStartDateEdit,
                     onEndDateEdit = onEndDateEdit,
+                    onNewSearch = onNewSearch,
                     onRemoved = onRemoved,
                     onOpenInBrowser = onOpenInBrowser,
                     onCopyLink = onCopyLink,
                 )
+                // KMK <--
             } else {
                 trackItems.forEach { item ->
                     if (item.track != null) {
@@ -345,8 +348,9 @@ private fun TrackDetailsItem(
 ) {
     Box(
         modifier = modifier
+            // KMK --> no full-height stretch so short dialog content shrink-fits
             .clickable(onClick = onClick)
-            .fillMaxHeight()
+            // KMK <--
             .padding(12.dp),
         contentAlignment = Alignment.Center,
     ) {
@@ -453,6 +457,9 @@ private fun UnifiedTrackerCard(
     onScoreClick: (TrackItem) -> Unit,
     onStartDateEdit: (TrackItem) -> Unit,
     onEndDateEdit: (TrackItem) -> Unit,
+    // KMK --> needed so untracked icons in the card can bind a 3rd+ tracker
+    onNewSearch: (TrackItem) -> Unit,
+    // KMK <--
     onRemoved: (TrackItem) -> Unit,
     onOpenInBrowser: (TrackItem) -> Unit,
     onCopyLink: (TrackItem) -> Unit,
@@ -500,27 +507,40 @@ private fun UnifiedTrackerCard(
             .padding(12.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
+        // KMK --> per-tracker unsynced dot (vs preferred) + untracked icons bind via onNewSearch
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             trackItems.forEach { item ->
-                Box(
-                    modifier = Modifier
-                        .size(40.dp)
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(MaterialTheme.colorScheme.surface)
-                        .padding(4.dp),
-                    contentAlignment = Alignment.Center,
+                val itemTrack = item.track
+                val isUnsynced = itemTrack != null && resolved != null &&
+                    abs(itemTrack.lastChapterRead - resolved.lastChapterRead) > 0.01
+                BadgedBox(
+                    badge = {
+                        if (isUnsynced) {
+                            Badge(containerColor = MaterialTheme.colorScheme.error)
+                        }
+                    },
                 ) {
-                    TrackLogoIcon(
-                        tracker = item.tracker,
-                        onClick = { onOpenInBrowser(item) },
-                        onLongClick = { onCopyLink(item) },
-                    )
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(MaterialTheme.colorScheme.surface)
+                            .padding(4.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        TrackLogoIcon(
+                            tracker = item.tracker,
+                            onClick = { if (itemTrack != null) onOpenInBrowser(item) else onNewSearch(item) },
+                            onLongClick = if (itemTrack != null) ({ onCopyLink(item) }) else null,
+                        )
+                    }
                 }
             }
         }
+        // KMK <--
         Surface(
             modifier = Modifier
                 .clip(RoundedCornerShape(12.dp))
@@ -535,7 +555,6 @@ private fun UnifiedTrackerCard(
                     Box(
                         modifier = Modifier
                             .weight(1f)
-                            .fillMaxHeight()
                             .clickable { onStatusClick(primary) }
                             .padding(12.dp),
                         contentAlignment = Alignment.Center,
@@ -546,7 +565,6 @@ private fun UnifiedTrackerCard(
                     Box(
                         modifier = Modifier
                             .weight(1f)
-                            .fillMaxHeight()
                             .clickable { onScoreClick(primary) }
                             .padding(12.dp),
                         contentAlignment = Alignment.Center,
@@ -564,7 +582,6 @@ private fun UnifiedTrackerCard(
                     Box(
                         modifier = Modifier
                             .weight(0.15f)
-                            .fillMaxHeight()
                             .clickable {
                                 val base = TrackerProgressSync.maxProgress(domainTracksForSync).toInt()
                                 val newChapter = base + 1
@@ -586,7 +603,6 @@ private fun UnifiedTrackerCard(
                     Box(
                         modifier = Modifier
                             .weight(0.7f)
-                            .fillMaxHeight()
                             .clickable { onChapterClick(primary) }
                             .padding(12.dp),
                         contentAlignment = Alignment.Center,
@@ -597,7 +613,6 @@ private fun UnifiedTrackerCard(
                     Box(
                         modifier = Modifier
                             .weight(0.15f)
-                            .fillMaxHeight()
                             .clickable {
                                 val base = TrackerProgressSync.maxProgress(domainTracksForSync).toInt()
                                 val newChapter = maxOf(0, base - 1)
@@ -623,7 +638,6 @@ private fun UnifiedTrackerCard(
                     Box(
                         modifier = Modifier
                             .weight(1f)
-                            .fillMaxHeight()
                             .clickable { onStartDateEdit(primary) }
                             .padding(12.dp),
                         contentAlignment = Alignment.Center,
@@ -638,7 +652,6 @@ private fun UnifiedTrackerCard(
                     Box(
                         modifier = Modifier
                             .weight(1f)
-                            .fillMaxHeight()
                             .clickable { onEndDateEdit(primary) }
                             .padding(12.dp),
                         contentAlignment = Alignment.Center,
@@ -677,7 +690,9 @@ private fun UnifiedTrackerCard(
                     Box(
                         modifier = Modifier
                             .size(40.dp)
+                            // KMK --> single-entry removal keeps its TrackerRemoveScreen confirmation
                             .clickable { onRemoved(primary) }
+                            // KMK <--
                             .padding(8.dp),
                         contentAlignment = Alignment.Center,
                     ) {
@@ -690,6 +705,17 @@ private fun UnifiedTrackerCard(
                 }
             }
         }
+        // KMK --> bulk removal still routes every tracker through its TrackerRemoveScreen confirmation
+        TextButton(
+            onClick = { trackItems.filter { it.track != null }.forEach { onRemoved(it) } },
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text(
+                text = stringResource(KMR.strings.track_remove_all_trackers),
+                color = MaterialTheme.colorScheme.error,
+            )
+        }
+        // KMK <--
     }
 }
 

@@ -43,7 +43,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import eu.kanade.domain.source.interactor.ToggleIncognito
+import eu.kanade.domain.base.BasePreferences
 import eu.kanade.presentation.library.components.SyncFavoritesWarningDialog
 import eu.kanade.presentation.more.settings.Preference
 import eu.kanade.tachiyomi.ui.webview.WebViewActivity
@@ -52,7 +52,6 @@ import exh.eh.EHentaiUpdateWorker
 import exh.eh.EHentaiUpdateWorkerConstants
 import exh.eh.EHentaiUpdaterStats
 import exh.metadata.metadata.EHentaiSearchMetadata
-import exh.source.EH_PACKAGE
 import exh.source.ExhPreferences
 import exh.ui.login.EhLoginActivity
 import exh.util.nullIfBlank
@@ -127,6 +126,7 @@ object SettingsEhScreen : SearchableSettings {
     @Composable
     override fun getPreferences(): List<Preference> {
         val exhPreferences: ExhPreferences = remember { globalAppGraph.exhPreferences }
+        val basePreferences: BasePreferences = remember { globalAppGraph.basePreferences }
         val getFlatMetadataById: GetFlatMetadataById = remember { globalAppGraph.getFlatMetadataById }
         val deleteFavoriteEntries: DeleteFavoriteEntries = remember { globalAppGraph.deleteFavoriteEntries }
         val getExhFavoriteMangaWithMetadata: GetExhFavoriteMangaWithMetadata = remember { globalAppGraph.getExhFavoriteMangaWithMetadata }
@@ -143,7 +143,7 @@ object SettingsEhScreen : SearchableSettings {
             Preference.PreferenceGroup(
                 stringResource(MR.strings.source_settings),
                 preferenceItems = persistentListOf(
-                    ehIncognitoMode(exhPreferences),
+                    incognitoMode(basePreferences),
                 ),
             ),
             // KMK <--
@@ -190,18 +190,13 @@ object SettingsEhScreen : SearchableSettings {
 
     // KMK -->
     @Composable
-    fun ehIncognitoMode(
-        exhPreferences: ExhPreferences,
+    fun incognitoMode(
+        basePreferences: BasePreferences,
     ): Preference.PreferenceItem.SwitchPreference {
         return Preference.PreferenceItem.SwitchPreference(
-            preference = exhPreferences.ehIncognitoMode(),
+            preference = basePreferences.incognitoMode(),
             title = stringResource(MR.strings.pref_incognito_mode),
             subtitle = stringResource(MR.strings.pref_incognito_mode_summary),
-            onValueChanged = { newVal ->
-                val toggleIncognito = globalAppGraph.toggleIncognito
-                toggleIncognito.await(EH_PACKAGE, newVal)
-                true
-            },
         )
     }
     // KMK <--

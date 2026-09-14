@@ -2,10 +2,14 @@ package tachiyomi.domain.manga.interactor
 
 import io.kotest.matchers.shouldBe
 import io.mockk.mockk
+import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.parallel.Execution
 import org.junit.jupiter.api.parallel.ExecutionMode
 import tachiyomi.domain.chapter.model.Chapter
+import tachiyomi.domain.manga.model.SequelPrequelEntry
+import tachiyomi.domain.manga.model.SequelPrequelRelation
+import tachiyomi.domain.manga.model.SequelPrequelSettingKeys
 import java.time.ZoneOffset
 import java.time.ZonedDateTime
 import kotlin.time.Duration
@@ -168,3 +172,61 @@ class FetchIntervalTest {
     private fun List<Chapter>.lastUploadDate() =
         last().dateUpload.toDuration(DurationUnit.MILLISECONDS)
 }
+
+// KMK -->
+// Tests for sequel/prequel widgets (#6): intelligent cache + default-off gate + empty→hidden.
+// RED phase: these fail until GetSequelPrequel + RelatedMangaCache land.
+@Execution(ExecutionMode.CONCURRENT)
+class GetSequelPrequelTest {
+
+    private var now = 0L
+    private var apiCalls = 0
+
+    private fun cache() = RelatedMangaCache(ttlMillis = 60_000L, clock = { now })
+
+    private fun provider(entries: List<SequelPrequelEntry> = listOf(prequel())) =
+        SequelPrequelProvider { _, _ ->
+            apiCalls++
+            entries
+        }
+
+    private fun prequel() = SequelPrequelEntry(
+        title = "Before Story",
+        url = "/title/before",
+        relation = SequelPrequelRelation.PREQUEL,
+    )
+
+    @Test
+    fun `cache hit does not call api twice`() = runTest {
+        val interactor = GetSequelPrequel(cache(), provider())
+
+        interactor.await(mangaId = 1L, preferredTrackerId = null, enabled = true) shouldBe
+            GetSequelPrequel.Result.Success(listOf(prequel()))
+        interactor.await(mangaId = 1L, preferredTrackerId = null, enabled = true) shouldBe
+            GetSequelPrequel.Result.Success(listOf(prequel()))
+
+        apiCalls shouldBe 1
+    }
+
+    @Test
+    fun `disabled by default returns disabled without api call`() = runTest {
+        SequelPrequelSettingKeys.DEFAULT_ENABLED shouldBe false
+
+        val interactor = GetSequelPrequel(cache(), provider())
+        interactor.await(
+            mangaId = 1L,
+            preferredTrackerId = null,
+            enabled = SequelPrequelSettingKeys.DEFAULT_ENABLED,
+        ) shouldBe GetSequelPrequel.Result.Disabled
+
+        apiCalls shouldBe 0
+    }
+
+    @Test
+    fun `empty result maps to hidden`() = runTest {
+        val interactor = GetSequelPrequel(cache(), provider(emptyList()))
+        interactor.await(mangaId = 1L, preferredTrackerId = null, enabled = true) shouldBe
+            GetSequelPrequel.Result.Hidden
+    }
+}
+// KMK <--

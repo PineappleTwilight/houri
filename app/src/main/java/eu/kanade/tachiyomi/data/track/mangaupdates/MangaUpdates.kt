@@ -10,6 +10,7 @@ import eu.kanade.tachiyomi.data.track.mangaupdates.dto.MUListItem
 import eu.kanade.tachiyomi.data.track.mangaupdates.dto.MURating
 import eu.kanade.tachiyomi.data.track.mangaupdates.dto.copyTo
 import eu.kanade.tachiyomi.data.track.mangaupdates.dto.toTrackSearch
+import eu.kanade.tachiyomi.data.track.mangaupdates.dto.totalChapters
 import eu.kanade.tachiyomi.data.track.model.TrackMangaMetadata
 import eu.kanade.tachiyomi.data.track.model.TrackSearch
 import eu.kanade.tachiyomi.util.lang.htmlDecode
@@ -90,7 +91,9 @@ class MangaUpdates(id: Long) : BaseTracker(id, "MangaUpdates"), DeletableTracker
             track.copyFrom(series, rating)
             runCatching {
                 val rec = api.getSeries(track.remote_id)
-                track.total_chapters = rec.latestChapter?.toLong() ?: track.total_chapters
+                // KMK -->
+                track.total_chapters = rec.totalChapters()
+                // KMK <--
             }
             runCatching { mihon.app.di.globalAppGraph.achievementManager.onTrackerConnected(1) }
             track
@@ -99,7 +102,9 @@ class MangaUpdates(id: Long) : BaseTracker(id, "MangaUpdates"), DeletableTracker
             api.addSeriesToList(track, hasReadChapters)
             runCatching {
                 val rec = api.getSeries(track.remote_id)
-                track.total_chapters = rec.latestChapter?.toLong() ?: 0L
+                // KMK -->
+                track.total_chapters = rec.totalChapters()
+                // KMK <--
             }
             runCatching { mihon.app.di.globalAppGraph.achievementManager.onTrackerConnected(1) }
             track
@@ -118,7 +123,9 @@ class MangaUpdates(id: Long) : BaseTracker(id, "MangaUpdates"), DeletableTracker
         track.copyFrom(series, rating)
         runCatching {
             val rec = api.getSeries(track.remote_id)
-            track.total_chapters = rec.latestChapter?.toLong() ?: track.total_chapters
+            // KMK -->
+            track.total_chapters = rec.totalChapters()
+            // KMK <--
         }
         return track
     }

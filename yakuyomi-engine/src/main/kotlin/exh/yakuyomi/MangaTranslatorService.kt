@@ -19,7 +19,6 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import java.net.URI
 import java.util.UUID
-import java.util.concurrent.TimeUnit
 
 @Serializable
 private data class IchigoTranslateRequest(
@@ -61,6 +60,13 @@ private data class IchigoTokens(
 private data class IchigoAuthResponse(
     val tokens: IchigoTokens? = null,
 )
+
+// KMK --> Refresh payload for POST /auth/refresh (wires the otherwise-unused refreshToken)
+@Serializable
+private data class IchigoRefreshRequest(
+    @SerialName("refreshToken") val refreshToken: String,
+)
+// KMK <--
 
 @Serializable
 data class IchigoUser(
@@ -272,6 +278,63 @@ class MangaTranslatorService(
 
     private fun accessToken(): String = prefs.mangaTranslatorAccessToken().get().trim()
 
+    // KMK --> Session token helpers: refreshToken was parsed but never stored/used
+    private fun refreshToken(): String = prefs.mangaTranslatorRefreshToken().get().trim()
+
+    private fun storeTokens(access: String?, refresh: String?) {
+        val a = access?.trim().orEmpty()
+        if (a.isNotBlank() && a.length in 16..2048) {
+            prefs.mangaTranslatorAccessToken().set(a)
+        }
+        val r = refresh?.trim().orEmpty()
+        if (r.isNotBlank() && r.length in 8..4096) {
+            prefs.mangaTranslatorRefreshToken().set(r)
+        }
+    }
+
+    suspend fun refreshAccessToken(): Boolean {
+        val rt = refreshToken()
+        if (rt.isBlank()) return false
+        val url = "${baseUrl()}/auth/refresh"
+        val body = try {
+            json.encodeToString(IchigoRefreshRequest.serializer(), IchigoRefreshRequest(rt))
+        } catch (_: Exception) {
+            return false
+        }
+        val req = Request.Builder()
+            .url(url)
+            .post(body.toRequestBody("application/json".toMediaType()))
+            .header("Content-Type", "application/json")
+            .header("Client-Version", "1.0.1")
+            .header("X-Client-Version", "1.0.1")
+            .header("User-Agent", spoofedUa)
+            .build()
+        return try {
+            client.newCall(req).execute().use { resp ->
+                if (resp.code != 200) return false
+                val txt = resp.body.string().take(4096)
+                val parsed = try {
+                    json.decodeFromString(IchigoAuthResponse.serializer(), txt)
+                } catch (_: Exception) {
+                    null
+                }
+                val newAccess = parsed?.tokens?.accessToken?.trim()
+                val newRefresh = parsed?.tokens?.refreshToken?.trim()
+                if (newAccess.isNullOrBlank() || newAccess.length < 16) {
+                    val fallback = Regex(""""accessToken"\s*:\s*"([^"]+)"""").find(txt)?.groupValues?.getOrNull(1)
+                    if (fallback.isNullOrBlank()) return false
+                    storeTokens(fallback, newRefresh)
+                    return true
+                }
+                storeTokens(newAccess, newRefresh)
+                true
+            }
+        } catch (_: Exception) {
+            false
+        }
+    }
+    // KMK <--
+
     private val spoofedUa = "Mozilla/5.0 (Linux; Android 16; SM-S928U Build/BP4A.251205.006) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/152.0.7977.87 Mobile Safari/537.36"
 
     private fun ichigoHeaders(): Map<String, String> {
@@ -287,13 +350,6 @@ class MangaTranslatorService(
         }
         return headers
     }
-
-    private fun newCallClient(): OkHttpClient = OkHttpClient.Builder()
-        .callTimeout(60, TimeUnit.SECONDS)
-        .connectTimeout(15, TimeUnit.SECONDS)
-        .readTimeout(60, TimeUnit.SECONDS)
-        .writeTimeout(30, TimeUnit.SECONDS)
-        .build()
 
     // --- Auth: mirrors extension's ichigoApi.ts (login / signup / logout / metrics) ---
 
@@ -313,28 +369,27 @@ class MangaTranslatorService(
             .header("User-Agent", spoofedUa)
             .build()
         return try {
-            newCallClient().newCall(req).execute().use { resp ->
+            // KMK --> use injected client so fake-OkHttp tests can intercept; store access+refresh
+            client.newCall(req).execute().use { resp ->
                 val txt = resp.body.string().take(4096)
                 when (resp.code) {
                     200 -> {
                         try {
                             val parsed = json.decodeFromString(IchigoAuthResponse.serializer(), txt)
-                            val token = parsed.tokens?.accessToken?.trim()
-                            if (!token.isNullOrBlank() && token.length >= 16) {
-                                prefs.mangaTranslatorAccessToken().set(token)
-                                prefs.mangaTranslatorEmail().set(e)
-                            }
+                            storeTokens(parsed.tokens?.accessToken, parsed.tokens?.refreshToken)
+                            if (accessToken().isNotBlank()) prefs.mangaTranslatorEmail().set(e)
                         } catch (_: Exception) {
                         }
                         if (accessToken().isBlank()) {
                             val fallback = Regex(""""accessToken"\s*:\s*"([^"]+)"""").find(txt)?.groupValues?.getOrNull(1)
                             if (!fallback.isNullOrBlank()) {
-                                prefs.mangaTranslatorAccessToken().set(fallback)
+                                storeTokens(fallback, null)
                                 prefs.mangaTranslatorEmail().set(e)
                             }
                         }
                         LoginResult.Success
                     }
+                    // KMK <--
                     400 -> {
                         val lower = txt.lowercase()
                         val detail = Regex(""""kind"\s*:\s*"([^"]+)"""").find(txt)?.groupValues?.getOrNull(1)?.lowercase()
@@ -385,25 +440,24 @@ class MangaTranslatorService(
             .header("User-Agent", spoofedUa)
             .build()
         return try {
-            newCallClient().newCall(req).execute().use { resp ->
+            // KMK --> use injected client so fake-OkHttp tests can intercept; store access+refresh
+            client.newCall(req).execute().use { resp ->
                 val txt = resp.body.string().take(8192)
                 when (resp.code) {
                     201, 200 -> {
                         try {
                             val parsed = json.decodeFromString(IchigoAuthResponse.serializer(), txt)
-                            val token = parsed.tokens?.accessToken?.trim()
-                            if (!token.isNullOrBlank() && token.length >= 16) {
-                                prefs.mangaTranslatorAccessToken().set(token)
-                                prefs.mangaTranslatorEmail().set(e)
-                            }
+                            storeTokens(parsed.tokens?.accessToken, parsed.tokens?.refreshToken)
+                            if (accessToken().isNotBlank()) prefs.mangaTranslatorEmail().set(e)
                         } catch (_: Exception) {}
                         val fallback = Regex(""""accessToken"\s*:\s*"([^"]+)"""").find(txt)?.groupValues?.getOrNull(1)
                         if (!fallback.isNullOrBlank() && accessToken().isBlank()) {
-                            prefs.mangaTranslatorAccessToken().set(fallback)
+                            storeTokens(fallback, null)
                             prefs.mangaTranslatorEmail().set(e)
                         }
                         SignupResult.Success
                     }
+                    // KMK <--
                     400 -> {
                         val lower = txt.lowercase()
                         val detail = Regex(""""kind"\s*:\s*"([^"]+)"""").find(txt)?.groupValues?.getOrNull(1)?.lowercase()
@@ -452,21 +506,25 @@ class MangaTranslatorService(
             .header("X-Client-Version", "1.0.1")
             .header("User-Agent", spoofedUa)
         if (token.isNotBlank()) builder.header("Authorization", "Bearer $token")
+        // KMK --> injected client for testability; clear both session tokens
         val ok = try {
-            newCallClient().newCall(builder.build()).execute().use { resp ->
+            client.newCall(builder.build()).execute().use { resp ->
                 resp.code == 204 || resp.code == 200 || resp.code == 401 || resp.code == 403
             }
         } catch (_: Exception) {
             false
         }
-        // Always clear local state, matching extension's clearExtensionAuth()
-        prefs.mangaTranslatorAccessToken().set("")
+        clearAuth()
+        // KMK <--
         // Do not clear email - keep for UI convenience, matching extension's email retention
         return ok
     }
 
     fun clearAuth() {
+        // KMK --> clear both session tokens (access + refresh)
         prefs.mangaTranslatorAccessToken().set("")
+        prefs.mangaTranslatorRefreshToken().set("")
+        // KMK <--
     }
 
     fun isLoggedIn(): Boolean = accessToken().isNotBlank()
@@ -585,18 +643,25 @@ class MangaTranslatorService(
         request: Request,
         block: suspend (okhttp3.Response) -> T,
     ): T {
-        val callClient = newCallClient()
-        var resp = callClient.newCall(request).execute()
+        // KMK --> injected client (fake-OkHttp testable); refresh once, else clear stale Bearer and retry once
+        var resp = client.newCall(request).execute()
         // Mirror extension's authenticatedFetch: on 401/403 with token, clear and retry once without stale token
         if ((resp.code == 401 || resp.code == 403) && accessToken().isNotBlank()) {
-            val bodyStr = try {
+            val staleCode = resp.code
+            try {
                 resp.body.string()
             } catch (_: Exception) {
-                ""
             }
             resp.close()
-            xLogW("MangaTranslator token appears stale (HTTP ${resp.code}), clearing and retrying once")
-            clearAuth()
+            val refreshed = try {
+                refreshAccessToken()
+            } catch (_: Exception) {
+                false
+            }
+            if (!refreshed) {
+                xLogW("MangaTranslator token appears stale (HTTP $staleCode), clearing and retrying once")
+                clearAuth()
+            }
             val retryHeaders = ichigoHeaders()
             val retryRequest = request.newBuilder().apply {
                 // Remove old Authorization, re-apply current headers
@@ -605,11 +670,12 @@ class MangaTranslatorService(
                 // If no token now, ensure Authorization is absent
                 if (!retryHeaders.containsKey("Authorization")) removeHeader("Authorization")
             }.build()
-            resp = callClient.newCall(retryRequest).execute()
+            resp = client.newCall(retryRequest).execute()
             // Let block handle the retry response code (will throw appropriate TranslationException)
             return resp.use { block(it) }
         }
         return resp.use { block(it) }
+        // KMK <--
     }
 
     private fun sanitizeTranslations(list: List<IchigoTranslation>): List<IchigoTranslation> {

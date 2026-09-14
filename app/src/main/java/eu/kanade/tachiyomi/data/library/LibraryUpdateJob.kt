@@ -25,13 +25,12 @@ import eu.kanade.domain.track.model.toDbTrack
 import eu.kanade.domain.track.model.toDomainTrack
 import eu.kanade.tachiyomi.data.LibraryUpdateStatus
 import eu.kanade.tachiyomi.data.download.DownloadManager
+import eu.kanade.tachiyomi.data.event.AppEvent
 import eu.kanade.tachiyomi.data.notification.Notifications
 import eu.kanade.tachiyomi.data.sync.SyncDataJob
 import eu.kanade.tachiyomi.data.track.TrackStatus
 import eu.kanade.tachiyomi.data.track.TrackerManager
 import eu.kanade.tachiyomi.data.track.core.TrackerId
-import eu.kanade.tachiyomi.data.webhook.WebhookEvent
-import eu.kanade.tachiyomi.data.webhook.WebhookNotifier
 import eu.kanade.tachiyomi.source.model.SManga
 import eu.kanade.tachiyomi.source.model.UpdateStrategy
 import eu.kanade.tachiyomi.util.system.isConnectedToWifi
@@ -118,7 +117,6 @@ class LibraryUpdateJob(private val context: Context, workerParams: WorkerParamet
     private val updateMangaFromRemote: UpdateMangaFromRemote = globalAppGraph.updateMangaFromRemote
 
     // KMK -->
-    private val webhookNotifier: WebhookNotifier = globalAppGraph.webhookNotifier
     private val getCategories: GetCategories = globalAppGraph.getCategories
     // KMK <--
 
@@ -535,12 +533,11 @@ class LibraryUpdateJob(private val context: Context, workerParams: WorkerParamet
         }
 
         // KMK -->
-        webhookNotifier.notify(
-            WebhookEvent.LIBRARY_UPDATE,
-            mapOf(
-                "mangas_updated" to newUpdates.size.toString(),
-                "new_chapters" to newUpdates.sumOf { it.second.size }.toString(),
-                "failed" to failedUpdates.size.toString(),
+        globalAppGraph.appEventBus.emit(
+            AppEvent.LibraryUpdated(
+                mangasUpdated = newUpdates.size,
+                newChapters = newUpdates.sumOf { it.second.size },
+                failed = failedUpdates.size,
             ),
         )
         // KMK <--

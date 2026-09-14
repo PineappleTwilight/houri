@@ -1,6 +1,7 @@
 package eu.kanade.presentation.track.components
 
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -12,7 +13,6 @@ import androidx.compose.ui.tooling.preview.PreviewParameter
 import androidx.compose.ui.unit.dp
 import eu.kanade.presentation.theme.TachiyomiPreviewTheme
 import eu.kanade.tachiyomi.data.track.Tracker
-import tachiyomi.presentation.core.util.clickableNoIndication
 
 @Composable
 fun TrackLogoIcon(
@@ -20,11 +20,13 @@ fun TrackLogoIcon(
     onClick: (() -> Unit)? = null,
     onLongClick: (() -> Unit)? = null,
 ) {
+    // KMK --> combinedClickable keeps tap-hold while restoring ripple/hover indication
     val modifier = if (onClick != null) {
-        Modifier.clickableNoIndication(onClick = onClick, onLongClick = onLongClick)
+        Modifier.combinedClickable(onClick = onClick, onLongClick = onLongClick)
     } else {
         Modifier
     }
+    // KMK <--
 
     Image(
         painter = painterResource(tracker.getLogo()),

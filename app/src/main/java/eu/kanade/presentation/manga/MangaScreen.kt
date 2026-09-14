@@ -93,6 +93,7 @@ import eu.kanade.presentation.manga.components.PagePreviewItems
 import eu.kanade.presentation.manga.components.PagePreviews
 import eu.kanade.presentation.manga.components.RelatedMangasRow
 import eu.kanade.presentation.manga.components.SearchMetadataChips
+import eu.kanade.presentation.manga.components.SequelPrequelRow
 import eu.kanade.presentation.util.formatChapterNumber
 import eu.kanade.tachiyomi.BuildConfig
 import eu.kanade.tachiyomi.data.download.model.Download
@@ -129,6 +130,7 @@ import tachiyomi.domain.chapter.service.missingChaptersCount
 import tachiyomi.domain.library.service.LibraryPreferences
 import tachiyomi.domain.manga.model.Manga
 import tachiyomi.domain.manga.model.MangaCover
+import tachiyomi.domain.manga.model.SequelPrequelEntry
 import tachiyomi.domain.source.model.StubSource
 import tachiyomi.i18n.MR
 import tachiyomi.i18n.kmk.KMR
@@ -220,6 +222,7 @@ fun MangaScreen(
     onRelatedMangasScreenClick: () -> Unit,
     onRelatedMangaClick: (Manga) -> Unit,
     onRelatedMangaLongClick: (Manga) -> Unit,
+    onSequelPrequelClick: (SequelPrequelEntry) -> Unit,
     librarySearch: (query: String) -> Unit,
     onSourceClick: () -> Unit,
     onCoverLoaded: (MangaCover) -> Unit,
@@ -294,6 +297,7 @@ fun MangaScreen(
             onRelatedMangasScreenClick = onRelatedMangasScreenClick,
             onRelatedMangaClick = onRelatedMangaClick,
             onRelatedMangaLongClick = onRelatedMangaLongClick,
+            onSequelPrequelClick = onSequelPrequelClick,
             librarySearch = librarySearch,
             onSourceClick = onSourceClick,
             onCoverLoaded = onCoverLoaded,
@@ -362,6 +366,7 @@ fun MangaScreen(
             onRelatedMangasScreenClick = onRelatedMangasScreenClick,
             onRelatedMangaClick = onRelatedMangaClick,
             onRelatedMangaLongClick = onRelatedMangaLongClick,
+            onSequelPrequelClick = onSequelPrequelClick,
             librarySearch = librarySearch,
             onSourceClick = onSourceClick,
             onCoverLoaded = onCoverLoaded,
@@ -450,6 +455,7 @@ private fun MangaScreenSmallImpl(
     onRelatedMangasScreenClick: () -> Unit,
     onRelatedMangaClick: (Manga) -> Unit,
     onRelatedMangaLongClick: (Manga) -> Unit,
+    onSequelPrequelClick: (SequelPrequelEntry) -> Unit,
     librarySearch: (query: String) -> Unit,
     onSourceClick: () -> Unit,
     onCoverLoaded: (MangaCover) -> Unit,
@@ -480,6 +486,7 @@ private fun MangaScreenSmallImpl(
     val relatedMangasEnabled by globalAppGraph.sourcePreferences.relatedMangas().collectAsState()
     val expandRelatedMangas by uiPreferences.expandRelatedMangas().collectAsState()
     val showRelatedMangasInOverflow by uiPreferences.relatedMangasInOverflow().collectAsState()
+    val showSequelPrequel by uiPreferences.showSequelPrequel().collectAsState()
 
     var layoutSize by remember { mutableStateOf(IntSize.Zero) }
     var fabSize by remember { mutableStateOf(IntSize.Zero) }
@@ -826,6 +833,20 @@ private fun MangaScreenSmallImpl(
                         }
                     }
                     // KMK <--
+                    // KMK -->
+                    if (showSequelPrequel) {
+                        item(
+                            key = MangaScreenItem.SEQUEL_PREQUEL,
+                            contentType = MangaScreenItem.SEQUEL_PREQUEL,
+                        ) {
+                            SequelPrequelRow(
+                                entries = state.sequelPrequelEntries,
+                                enabled = showSequelPrequel,
+                                onEntryClick = onSequelPrequelClick,
+                            )
+                        }
+                    }
+                    // KMK <--
 
                     // SY -->
                     if (!state.showRecommendationsInOverflow || state.showMergeWithAnother) {
@@ -999,6 +1020,7 @@ private fun MangaScreenLargeImpl(
     onRelatedMangasScreenClick: () -> Unit,
     onRelatedMangaClick: (Manga) -> Unit,
     onRelatedMangaLongClick: (Manga) -> Unit,
+    onSequelPrequelClick: (SequelPrequelEntry) -> Unit,
     librarySearch: (query: String) -> Unit,
     onSourceClick: () -> Unit,
     onCoverLoaded: (MangaCover) -> Unit,
@@ -1028,6 +1050,7 @@ private fun MangaScreenLargeImpl(
     val relatedMangasEnabled by globalAppGraph.sourcePreferences.relatedMangas().collectAsState()
     val expandRelatedMangas by uiPreferences.expandRelatedMangas().collectAsState()
     val showRelatedMangasInOverflow by uiPreferences.relatedMangasInOverflow().collectAsState()
+    val showSequelPrequel by uiPreferences.showSequelPrequel().collectAsState()
 
     var layoutSize by remember { mutableStateOf(IntSize.Zero) }
     var fabSize by remember { mutableStateOf(IntSize.Zero) }
@@ -1356,6 +1379,20 @@ private fun MangaScreenLargeImpl(
                                             onClick = onRelatedMangasScreenClick,
                                         )
                                     }
+                                }
+                            }
+                            // KMK <--
+                            // KMK -->
+                            if (showSequelPrequel) {
+                                item(
+                                    key = MangaScreenItem.SEQUEL_PREQUEL,
+                                    contentType = MangaScreenItem.SEQUEL_PREQUEL,
+                                ) {
+                                    SequelPrequelRow(
+                                        entries = state.sequelPrequelEntries,
+                                        enabled = showSequelPrequel,
+                                        onEntryClick = onSequelPrequelClick,
+                                    )
                                 }
                             }
                             // KMK <--

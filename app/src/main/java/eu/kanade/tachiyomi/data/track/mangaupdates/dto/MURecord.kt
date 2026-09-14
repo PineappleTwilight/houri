@@ -24,6 +24,10 @@ data class MURecord(
     val authors: List<MUAuthor>? = null,
 )
 
+// KMK -->
+fun MURecord.totalChapters(): Long = latestChapter?.toLong() ?: 0L
+// KMK <--
+
 fun MURecord.toTrackSearch(id: Long): TrackSearch {
     return TrackSearch.create(id).apply {
         remote_id = this@toTrackSearch.seriesId ?: 0L

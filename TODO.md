@@ -176,11 +176,12 @@
   - Ported 2026-09-13 without native bumps: page-gap slider for continuous vertical (`continuousGap` pref + `pageGap` slot measuring in `webgpuviewer-houri` fork, long strip keeps 0), disable-zoom-out wiring (`zoomOutDisabled` → fork `homeScale`/`minScale` split, also ported to fork), dual-mode progress fix (`spreadPartner`/`progressPage` — rail follows spread's last page) + decode-worker/eviction hardening, mode-aware reader settings. Deferred: HDR/UltraHDR gainmap rendering (needs `image-decoder` 13 native `Gainmap`, not in `imagedecoder-houri`) and upstream `WebGpuRenderer` device-loss hardening (41-only `DeviceLostCallback` shape).
 - [x] **AniList**: Implement upstream [PR](https://github.com/mihonapp/mihon/pull/3942)
   - Ported 2026-09-13: `AnilistApi` rate limiter `permits 85→25` per AniList docs (hard limit 30).
-- [ ] **Manga Details**: Implement sequel/prequel widgets
+- [x] **Manga Details**: Implement sequel/prequel widgets
   - Should get metadata from user's preferred tracker
   - Disabled by default, can be enabled in settings
   - Should intelligently cache sequel/prequel metadata to avoid API abuse
   - See [#6](https://github.com/PineappleTwilight/houri/issues/6)
+  - Implemented 2026-09-13: `MangaDexSequelPrequelProvider` (`exh/md/related/`, MangaDex relation API + cache), `RelatedMangasRow` widgets on `MangaScreen`, default OFF via `UiPreferences` + `SettingsBrowseScreen` toggle, preferred-tracker aware
 
 ## Bugfixes
 - [x] Fix UI transition choppiness.
@@ -461,20 +462,33 @@
   - Should be excluded if device doesn't support them
 - [x] **App**: Transition UI animations to a smoother system
   - Fixed 2026-09-13: new shared `UiMotion` system (M3 emphasized `cubic-bezier(0.2,0,0,1)`, enter/exit 300/250ms); `DefaultNavigatorScreenTransition` now 300/250ms emphasized slide 1/6 + fade via pure `navigatorTransition(pop)` (was 180ms `LinearOutSlowIn`); tab switches use `materialFadeThrough` 220ms with scale step (was flat 160ms fade); sheet fade threaded through `UiMotion` with decelerate/accelerate easings; bottom bar 220ms emphasized. Note: Compose animations always run on the main thread — smoothness comes from cheaper frames (fade/scale/slide are compositor-friendly) + opaque backgrounds (already present), not a separate thread.
-- [ ] **Library AST Search**: Make operators (AND, NOT, etc) case-sensitive (must be uppercase)
-- [ ] **Library AST Search**: Fix colon (genre, artist, etc) searches not working
-- [ ] **Manga Details**: Fix library search not working [#9](https://github.com/PineappleTwilight/houri/issues/9)
-- [ ] **MangaTranslations.ai**: Fix login and signup not working
-- [ ] **Library**: Fix incognito from overflow and EH settings having different behavior
-- [ ] **WebGPU Reader** Fix persistently annoying double-page scaling bug once and for all
-- [ ] **Universal Tracker**: Fix only MAL having a removal confirmation
+- [x] **Library AST Search**: Make operators (AND, NOT, etc) case-sensitive (must be uppercase)
+  - Fixed 2026-09-13: `LibrarySearchParser`/`LibrarySearchToken` now require uppercase operators; `SearchEngine`/`SmartLibrarySearchEngine` honor them (covered by `SearchEngineTest`)
+- [x] **Library AST Search**: Fix colon (genre, artist, etc) searches not working
+  - Fixed 2026-09-13: `LibrarySearchParser` colon field tokens (`genre:`, `artist:`, etc) now parsed and applied in `SearchEngine`/`SmartLibrarySearchEngine` (covered by `SearchEngineTest`)
+- [x] **Manga Details**: Fix library search not working [#9](https://github.com/PineappleTwilight/houri/issues/9)
+  - Fixed 2026-09-13: `MangaScreen`/`MangaScreenModel` library search now routes through `GetSearchTitles` with the new AST parser
+- [x] **MangaTranslations.ai**: Fix login and signup not working
+  - Fixed 2026-09-13: `MangaTranslatorService` token store/refresh/retry (401/429 handling) in `yakuyomi-engine` + `yakuyomi-stub`, `TranslationPreferences` token persistence
+- [x] **Library**: Fix incognito from overflow and EH settings having different behavior
+  - Fixed 2026-09-13: single source of truth via `ExhPreferences`/`UiPreferences`; `SettingsEhScreen` and overflow toggle now share the same pref
+- [x] **WebGPU Reader** Fix persistently annoying double-page scaling bug once and for all
+  - Fixed 2026-09-13: deterministic shorter→taller scaling in `WebGpuSpread` (zero-height guard, partner fallback, target clamp) — covered by `WebGpuSpreadMathTest`
+- [x] **Universal Tracker**: Fix only MAL having a removal confirmation
   - Also implement a way to remove all trackers at once
-- [ ] **Universal Tracker**: Fix dialog still being full-size vertically. Should use a shrink-fit approach.
-- [ ] **MangaUpdates**: Fix tracker not updating
-- [ ] **Universal Tracker**: If a tracker is not synced with the preferred tracker, it should be indicated visually
-- [ ] **Universal Tracker**: Tap and holding on the dialog should have a hover animation
-- [ ] **Universal Tracker**: Fix being unable to bind more than 2 trackers
-- [ ] **Manga Details**: "Fill from tracker" doesn't apply tags and publishing status from MangaBaka
+  - Fixed 2026-09-13: `TrackInfoDialogHome` removal confirmation for all trackers + remove-all action
+- [x] **Universal Tracker**: Fix dialog still being full-size vertically. Should use a shrink-fit approach.
+  - Fixed 2026-09-13: `TrackInfoDialogHome` now shrink-fits to content height
+- [x] **MangaUpdates**: Fix tracker not updating
+  - Fixed 2026-09-13: `MangaUpdates` refresh via `MURecord` DTO fixes
+- [x] **Universal Tracker**: If a tracker is not synced with the preferred tracker, it should be indicated visually
+  - Fixed 2026-09-13: `TrackInfoDialogHome`/`TrackLogoIcon` unsynced visual indicator
+- [x] **Universal Tracker**: Tap and holding on the dialog should have a hover animation
+  - Fixed 2026-09-13: `TrackInfoDialogHome` tap-hold hover animation
+- [x] **Universal Tracker**: Fix being unable to bind more than 2 trackers
+  - Fixed 2026-09-13: `TrackInfoDialogHome`/`TrackSearch` no longer caps at 2 bound trackers
+- [x] **Manga Details**: "Fill from tracker" doesn't apply tags and publishing status from MangaBaka
+  - Fixed 2026-09-13: `MangaBaka`/`MangaBakaApi`/`MangaBakaUtils`/`MangaBakaItem` now return tags + publication status for fill-from-tracker
 
 ## Chores
 - [x] Replace all Komikku icons/branding with houri icons/branding
@@ -507,11 +521,13 @@
   - [x] Multithread app background operations
   - [x] Multithread DB handling
 - [x] **App**: Enforce modularity and maintainability
-- [ ] **App**: Appwide extensible event framework for features such as achievements and webhook wiring
+- [x] **App**: Appwide extensible event framework for features such as achievements and webhook wiring
+  - Implemented 2026-09-13: `AppEventBus` (`app/.../data/event/`) wired via `AppGraph`
 
 ## Drawing Board
-- [ ] **Anizen Port**: Multi-feed — *Feasibility: investigated 2026-09-11, feasible via existing Feed SavedSearch + RecommendationBatch stack, low risk*
+- [x] **Anizen Port**: Multi-feed — *Feasibility: investigated 2026-09-11, feasible via existing Feed SavedSearch + RecommendationBatch stack, low risk*
   - Anizen’s multi-feed aggregates multiple `SavedSearch`/`FeedSavedSearch` tabs in a ViewPager with per-feed `PagingSource` and a unified `RecommendationSearchHelper` batch. Houri already has `exh/recs/` (`RecommendationPagingSource`, `RecommendationSearchHelper`), `domain/source/service/FeedSavedSearchRepository`, and `LibraryUpdateJob` batch infra; `Feed` screen (`FeedsScreen` + `FeedScreenModel`) already supports multiple saved searches. Port is UI glue: add `AnizenMultiFeedScreen` with `HorizontalPager` of `FeedSavedSearch` tabs, share `RecommendationSearchHelper` batch cache, reuse `LibraryPreferences` feed ordering. No DB migration, no source ABI change. Effort `~1.5d` (`0.5d` `FeedSavedSearch` tab UI + `0.5d` `ViewPager`/`TabRow` wiring + `0.5d` cache/batch polish). Reference `salmanbappi/AniZen` `app/src/main/java/com/salman/anizen/ui/anime/feed/`.
+  - Implemented 2026-09-13: `AnizenMultiFeedScreen`/`AnizenMultiFeedScreenModel`/`AnizenMultiFeedTab` (`HorizontalPager` of `FeedSavedSearch` tabs), `AnizenMultiFeedTabs` model, `BrowseTab` glue, `LibraryUpdateJob` batch reuse
 - [ ] **New**: Insert Google's fruit fly brain scan into the app to allow a fruit fly to read manga with you — *Feasibility: investigated 2026-09-11, not feasible on-device; feasible as cloud demo with heavy caveats, not recommended for production*
   - MaleCNS v1.0 (FlyWire, Princeton/Google) is `~150k` neurons / `~50M` chemical synapses + `~500k` gap junctions, ~`20 GB` raw EM + `~100 GB` mesh/synapse tables (neuroglancer precomputed, `gs://h01-release`). On-device inference impossible on Android (RAM/CPU). Inference requires spiking network simulator (Brian2/ANNarchy/NEST with `~10k` LIF neurons/sec/core, `~hours` per second of sim) or DQN policy on top of connectome embeddings. Even pruned `~3k` optic-lobe subgraph needs `~4 GB` RAM + `NPU`/`NNAPI` for `~500 ms` step.
   - Recommendation-agent use: FlyWire “approval/dislike” is not a valence circuit; mushroom-body extrinsic neurons encode associative valence but not manga semantics. Mapping `Manga.tags → KC → MBON` would be synthetic, no better than current `AniList`/`MAL` recs, and would need a supervised `LLM→KC` bridge trained on `~10k` manga-tag pairs. No existing `manga ↔ fly` dataset.

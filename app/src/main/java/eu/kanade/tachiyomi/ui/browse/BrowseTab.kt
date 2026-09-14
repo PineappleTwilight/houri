@@ -24,7 +24,9 @@ import eu.kanade.tachiyomi.data.connections.discord.DiscordRPCService
 import eu.kanade.tachiyomi.data.connections.discord.DiscordScreen
 import eu.kanade.tachiyomi.ui.browse.extension.ExtensionsScreenModel
 import eu.kanade.tachiyomi.ui.browse.extension.extensionsTab
+import eu.kanade.tachiyomi.ui.browse.feed.AnizenMultiFeedScreenModel
 import eu.kanade.tachiyomi.ui.browse.feed.FeedScreenModel
+import eu.kanade.tachiyomi.ui.browse.feed.anizenMultiFeedTab
 import eu.kanade.tachiyomi.ui.browse.feed.feedTab
 import eu.kanade.tachiyomi.ui.browse.migration.sources.migrateSourceTab
 import eu.kanade.tachiyomi.ui.browse.source.globalsearch.GlobalSearchScreen
@@ -81,6 +83,7 @@ data object BrowseTab : Tab {
         // KMK -->
         val feedScreenModel = rememberScreenModel { FeedScreenModel() }
         val bulkFavoriteScreenModel = rememberScreenModel { BulkFavoriteScreenModel() }
+        val anizenMultiFeedScreenModel = rememberScreenModel { AnizenMultiFeedScreenModel() }
         // KMK <--
 
         // SY -->
@@ -100,6 +103,12 @@ data object BrowseTab : Tab {
                         bulkFavoriteScreenModel,
                         // KMK <--
                     ),
+                    // KMK -->
+                    anizenMultiFeedTab(
+                        anizenMultiFeedScreenModel,
+                        bulkFavoriteScreenModel,
+                    ),
+                    // KMK <--
                     sourcesTab(),
                     extensionsTab(extensionsScreenModel),
                     migrateSourceTab(),
@@ -114,6 +123,12 @@ data object BrowseTab : Tab {
                         bulkFavoriteScreenModel,
                         // KMK <--
                     ),
+                    // KMK -->
+                    anizenMultiFeedTab(
+                        anizenMultiFeedScreenModel,
+                        bulkFavoriteScreenModel,
+                    ),
+                    // KMK <--
                     extensionsTab(extensionsScreenModel),
                     migrateSourceTab(),
                 )

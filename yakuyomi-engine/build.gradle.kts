@@ -32,4 +32,9 @@ dependencies {
     implementation(libs.mlkit.genai.prompt)
     // On-device GGUF LLM runtime (llama.cpp via Llamatik).
     implementation(libs.llamatik)
+    // KMK --> fake-OkHttp auth tests (401→refresh→retry-once, signup-200-stores-token, 429→friendlyError)
+    testImplementation(libs.bundles.test)
+    testImplementation(kotlinx.coroutines.test)
+    testRuntimeOnly(libs.junit.platform.launcher)
+    // KMK <--
 }

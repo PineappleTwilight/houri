@@ -21,6 +21,7 @@ data class MangaBakaItem(
     val cover: MangaBakaCover,
     val authors: List<String>?,
     val artists: List<String>?,
+    val tags: List<String>? = null,
     val description: String?,
     val published: MangaBakaPublishData,
     val status: String,

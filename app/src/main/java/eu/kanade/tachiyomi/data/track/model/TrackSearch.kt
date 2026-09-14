@@ -42,6 +42,10 @@ class TrackSearch : Track {
 
     var artists: List<String> = emptyList()
 
+    // KMK -->
+    var tags: List<String> = emptyList()
+    // KMK <--
+
     var cover_url: String = ""
 
     var summary: String = ""

@@ -294,3 +294,27 @@ data class Manga(
         }
     }
 }
+
+// KMK -->
+enum class SequelPrequelRelation(val dexString: String?) {
+    PREQUEL("prequel"),
+    SEQUEL("sequel"),
+    ;
+
+    companion object {
+        fun fromDex(mdString: String) = entries.find { it.dexString == mdString }
+    }
+}
+
+data class SequelPrequelEntry(
+    val title: String,
+    val url: String,
+    val relation: SequelPrequelRelation,
+    val trackerId: Long? = null,
+)
+
+object SequelPrequelSettingKeys {
+    const val KEY = "pref_sequel_prequel_enabled"
+    const val DEFAULT_ENABLED = false
+}
+// KMK <--

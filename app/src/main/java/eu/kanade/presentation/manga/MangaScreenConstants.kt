@@ -41,5 +41,6 @@ enum class MangaScreenItem {
 
     // KMK -->
     RELATED_MANGAS,
+    SEQUEL_PREQUEL,
     // KMK <--
 }

@@ -9,11 +9,84 @@ import ca.mpreg.webgpuviewer.renderer.Image.Companion.invoke
 import ca.mpreg.webgpuviewer.viewer.ImagePage
 import eu.kanade.tachiyomi.ui.reader.setting.ReaderPreferences
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import logcat.LogPriority
 import tachiyomi.core.common.util.system.logcat
 import java.nio.ByteBuffer
+import java.util.Collections
+import java.util.WeakHashMap
 import kotlin.math.roundToInt
+
+// KMK -->
+/** Floor for a spread side upload: below this the GPU rejects the texture (gralloc 0x3b). */
+internal const val SPREAD_MIN_SIDE_DIM = 8
+
+/** Hard ceiling for any rescaled spread dimension. */
+internal const val SPREAD_MAX_DIM = 8192
+
+/**
+ * Scale factor bringing the shorter side up to the taller height, or null when there is
+ * nothing to do: equal heights, non-positive (destroyed/placeholder) dims, or an inverted
+ * call that would shrink the taller side. Pure math, no Android dependency.
+ */
+internal fun spreadHeightMatchFactor(shorterHeight: Int, tallerHeight: Int): Float? {
+    if (shorterHeight <= 0 || tallerHeight <= 0) return null
+    if (shorterHeight >= tallerHeight) return null
+    return tallerHeight.toFloat() / shorterHeight
+}
+
+/** Clamp any spread dimension into the uploadable 1..[SPREAD_MAX_DIM] range. Pure math. */
+internal fun clampSpreadDim(value: Int): Int = value.coerceIn(1, SPREAD_MAX_DIM)
+
+/**
+ * Width preserving aspect when scaling [srcWidth]x[srcHeight] to [targetHeight], clamped to
+ * 1..[SPREAD_MAX_DIM]; null on non-positive dims (hard noop, never divides by zero).
+ * Pure math, no Android dependency.
+ */
+internal fun scaledSpreadWidth(srcWidth: Int, srcHeight: Int, targetHeight: Int): Int? {
+    if (srcWidth <= 0 || srcHeight <= 0 || targetHeight <= 0) return null
+    return (srcWidth.toFloat() * targetHeight / srcHeight).roundToInt().coerceIn(1, SPREAD_MAX_DIM)
+}
+
+/** A resolved height-match: which side is shorter and the clamped taller height. */
+internal data class SpreadHeightMatchPlan(val shorterIsLeft: Boolean, val targetHeight: Int)
+
+/**
+ * Resolve one deterministic shorter-to-taller pass, or null when it is a noop (zero dims,
+ * already equal heights). The target is the clamped taller height, so the taller side is
+ * never shrunk (which collapsed spreads to tiny on e-ink resume). Pure math.
+ */
+internal fun resolveSpreadHeightMatch(
+    leftWidth: Int,
+    leftHeight: Int,
+    rightWidth: Int,
+    rightHeight: Int,
+): SpreadHeightMatchPlan? {
+    if (leftWidth <= 0 || leftHeight <= 0 || rightWidth <= 0 || rightHeight <= 0) return null
+    if (leftHeight == rightHeight) return null
+    return SpreadHeightMatchPlan(
+        shorterIsLeft = leftHeight < rightHeight,
+        targetHeight = clampSpreadDim(maxOf(leftHeight, rightHeight)),
+    )
+}
+
+/** True when a decoded side is big enough to rescale or rescale toward. Pure math. */
+internal fun isSpreadSideViable(width: Int, height: Int): Boolean =
+    width >= SPREAD_MIN_SIDE_DIM && height >= SPREAD_MIN_SIDE_DIM
+
+/**
+ * Gate for firing a rescale: needs a plan, retained source bytes, and no rescale already
+ * running. Evicted bytes (freed on eviction) are terminal for the pass - the next decode
+ * re-arms via fresh bytes - so a dead spread can never spin a retry storm. Pure math.
+ */
+internal fun shouldAttemptSpreadRescale(
+    hasBytes: Boolean,
+    rescaleInFlight: Boolean,
+    plan: SpreadHeightMatchPlan?,
+): Boolean = plan != null && hasBytes && !rescaleInFlight
+// KMK <--
 
 /**
  * Check if dual page mode is currently active based on config and view dimensions.
@@ -134,12 +207,57 @@ private fun existing(left: ImagePage?, right: ImagePage?, spreadPage: ImagePage.
 
 // KMK -->
 /**
- * Dual-page spread height matching: when both halves are decoded images with differing
- * heights, rescale the shorter side to the taller side's height. The rescaled image
- * replaces that side's [ImagePage.ImageSingle], and the spread recomposes from slot
- * identity on the next fetch. Prior logic could rescale the taller side down (tiny on
- * e-ink) or rescale to its own height (no-op on first spread); this version is
- * deterministic and retry-safe.
+ * One coalesced height-match retry per anchor page: a new request cancels the pending one,
+ * so slow decodes pile up a single delayed pass instead of stacking fire-and-forget loops.
+ * Weak keys so an evicted anchor cannot leak its viewer; entries remove themselves on fire.
+ */
+private val spreadHeightRetries: MutableMap<ViewerReaderPage, Job> =
+    Collections.synchronizedMap(WeakHashMap())
+
+internal fun WebGpuViewer.retrySpreadHeightMatchSoon(
+    anchorPage: ViewerReaderPage,
+    spread: ImagePage.ImageSpread,
+    nextReaderPage: ViewerReaderPage?,
+    delayMs: Long = 150,
+) {
+    if (isDestroyed || !config.matchDoublePageHeights) return
+    val viewer = this
+    val job = scope.launch {
+        try {
+            delay(delayMs)
+        } catch (_: CancellationException) {
+            return@launch
+        }
+        synchronized(spreadHeightRetries) { spreadHeightRetries.remove(anchorPage) }
+        if (viewer.isDestroyed || !viewer.config.matchDoublePageHeights) return@launch
+        // Evicted anchor: terminal noop. Retrying a dead spread was the persistent storm.
+        val anchored = synchronized(viewer.lock) { viewer.pageInCache(anchorPage) }
+        if (!anchored) return@launch
+        viewer.maybeScheduleSpreadHeightMatch(anchorPage, spread, nextReaderPage)
+    }
+    synchronized(spreadHeightRetries) {
+        spreadHeightRetries[anchorPage]?.cancel()
+        spreadHeightRetries[anchorPage] = job
+    }
+    job.invokeOnCompletion {
+        synchronized(spreadHeightRetries) {
+            if (spreadHeightRetries[anchorPage] === job) spreadHeightRetries.remove(anchorPage)
+        }
+    }
+}
+
+internal fun WebGpuViewer.cancelSpreadHeightRetry(page: ViewerReaderPage) {
+    synchronized(spreadHeightRetries) { spreadHeightRetries.remove(page)?.cancel() }
+}
+
+/**
+ * Dual-page spread height matching: one deterministic pass rescaling the shorter side up
+ * to the taller side's height. The rescaled image replaces that side's
+ * [ImagePage.ImageSingle], and the spread recomposes from slot identity on the next fetch.
+ * Never shrinks the taller side down (which produced tiny spreads on e-ink resume) and
+ * never rescales a side to its own height. Transient states (partner not decoded yet,
+ * sub-gralloc dims, position race) funnel into a single coalesced retry; terminal states
+ * (zero dims, equal heights, evicted bytes, in-flight rescale) return without scheduling.
  */
 internal fun WebGpuViewer.maybeScheduleSpreadHeightMatch(
     anchorPage: ViewerReaderPage,
@@ -152,56 +270,58 @@ internal fun WebGpuViewer.maybeScheduleSpreadHeightMatch(
     val leftImage = (spread.left as? ImagePage.ImageSingle)?.image
     val rightImage = (spread.right as? ImagePage.ImageSingle)?.image
     if (leftImage == null || rightImage == null) {
-        scope.launch {
-            kotlinx.coroutines.delay(200)
-            if (!isDestroyed && config.matchDoublePageHeights) {
-                maybeScheduleSpreadHeightMatch(anchorPage, spread, nextReaderPage)
-            }
-        }
+        retrySpreadHeightMatchSoon(anchorPage, spread, nextReaderPage)
         return
     }
-    if (leftImage.height == rightImage.height) return
-    if (leftImage.height < 8 || rightImage.height < 8) return
-    if (leftImage.width < 8 || rightImage.width < 8) return
+    // Zero-guard: destroyed/placeholder dims are a hard noop, never a retry or divide-by-zero.
+    if (leftImage.width <= 0 || leftImage.height <= 0 || rightImage.width <= 0 || rightImage.height <= 0) {
+        return
+    }
+    if (leftImage.height == rightImage.height) {
+        cancelSpreadHeightRetry(anchorPage)
+        return
+    }
+    if (!isSpreadSideViable(leftImage.width, leftImage.height) ||
+        !isSpreadSideViable(rightImage.width, rightImage.height)
+    ) {
+        retrySpreadHeightMatchSoon(anchorPage, spread, nextReaderPage)
+        return
+    }
 
-    // Deterministically scale the shorter side up to the taller side. This avoids
-    // shrinking a large page down to a small partner (which produced tiny spreads on
-    // e-ink) and makes the target independent of decode order.
-    val isLeftShorter = leftImage.height < rightImage.height
-    val targetHeight = maxOf(leftImage.height, rightImage.height)
+    val plan = resolveSpreadHeightMatch(
+        leftImage.width,
+        leftImage.height,
+        rightImage.width,
+        rightImage.height,
+    ) ?: return
 
     val shorterPage: ViewerReaderPage? = when {
-        isLeftShorter && anchorPage.spreadPosition == SpreadPosition.LEFT -> anchorPage
-        isLeftShorter && nextReaderPage != null && nextReaderPage.spreadPosition == SpreadPosition.LEFT -> nextReaderPage
-        !isLeftShorter && anchorPage.spreadPosition == SpreadPosition.RIGHT -> anchorPage
-        !isLeftShorter && nextReaderPage != null && nextReaderPage.spreadPosition == SpreadPosition.RIGHT -> nextReaderPage
+        plan.shorterIsLeft && anchorPage.spreadPosition == SpreadPosition.LEFT -> anchorPage
+        plan.shorterIsLeft && nextReaderPage?.spreadPosition == SpreadPosition.LEFT -> nextReaderPage
+        !plan.shorterIsLeft && anchorPage.spreadPosition == SpreadPosition.RIGHT -> anchorPage
+        !plan.shorterIsLeft && nextReaderPage?.spreadPosition == SpreadPosition.RIGHT -> nextReaderPage
         else -> null
     }
 
     if (shorterPage == null) {
-        scope.launch {
-            kotlinx.coroutines.delay(120)
-            if (!isDestroyed && config.matchDoublePageHeights) {
-                maybeScheduleSpreadHeightMatch(anchorPage, spread, nextReaderPage)
-            }
-        }
+        retrySpreadHeightMatchSoon(anchorPage, spread, nextReaderPage)
         return
     }
-    if (shorterPage.spreadBytes == null || shorterPage.rescaleInFlight) {
-        scope.launch {
-            kotlinx.coroutines.delay(120)
-            if (!isDestroyed && config.matchDoublePageHeights) {
-                maybeScheduleSpreadHeightMatch(anchorPage, spread, nextReaderPage)
-            }
-        }
-        return
+    val hasBytes: Boolean
+    val inFlight: Boolean
+    synchronized(lock) {
+        hasBytes = shorterPage.spreadBytes != null
+        inFlight = shorterPage.rescaleInFlight
     }
-    scheduleSpreadHeightMatch(shorterPage, targetHeight)
+    if (!shouldAttemptSpreadRescale(hasBytes, inFlight, plan)) return
+    scheduleSpreadHeightMatch(shorterPage, plan.targetHeight)
 }
 
 internal fun WebGpuViewer.scheduleSpreadHeightMatch(sourcePage: ViewerReaderPage, targetHeight: Int) {
     if (isDestroyed) return
-    if (targetHeight < 8 || targetHeight > 8192) {
+    // Single 1..8192 clamp; below-gralloc heights stay a hard noop (never a 0-height upload).
+    val safeTarget = targetHeight.coerceIn(1, SPREAD_MAX_DIM)
+    if (safeTarget < SPREAD_MIN_SIDE_DIM) {
         synchronized(lock) { sourcePage.rescaleInFlight = false }
         return
     }
@@ -214,13 +334,13 @@ internal fun WebGpuViewer.scheduleSpreadHeightMatch(sourcePage: ViewerReaderPage
         var scaledImage: Image? = null
         try {
             val bytes = synchronized(lock) { sourcePage.spreadBytes }
-            if (bytes != null && targetHeight in 1..8192) {
-                scaledImage = rescaleImageToHeight(bytes, targetHeight)
+            if (bytes != null) {
+                scaledImage = rescaleImageToHeight(bytes, safeTarget)
             }
         } catch (e: CancellationException) {
             throw e
         } catch (e: OutOfMemoryError) {
-            logcat(LogPriority.ERROR) { "Spread height-match OOM target $targetHeight" }
+            logcat(LogPriority.ERROR) { "Spread height-match OOM target $safeTarget" }
             System.gc()
         } catch (e: Exception) {
             logcat(LogPriority.ERROR, e) { "Spread height-match rescale failed" }
@@ -231,6 +351,13 @@ internal fun WebGpuViewer.scheduleSpreadHeightMatch(sourcePage: ViewerReaderPage
             sourcePage.rescaleInFlight = false
             if (scaledImage != null && pageInCache(sourcePage)) {
                 val scaledSingle = ImagePage.ImageSingle(scaledImage)
+                // Reapply the full decode-time zoom stack, not only the double-tap policy,
+                // so a swapped side keeps fit-mode/wide-zoom anchoring after e-ink resume.
+                if (!isDualPageMode()) {
+                    if (!applyWideZoomIfNeeded(scaledSingle)) {
+                        applyFitModeAnchor(scaledSingle)
+                    }
+                }
                 applyDoubleTapZoomPolicy(scaledSingle)
                 val oldImagePage = sourcePage.imagePage
                 sourcePage.imagePage = scaledSingle
@@ -242,6 +369,9 @@ internal fun WebGpuViewer.scheduleSpreadHeightMatch(sourcePage: ViewerReaderPage
                 scaledImage?.let { stale -> ImagePage.ImageSingle(stale).cleanup() }
             }
         }
+        // Terminal state reached either way: drop any coalesced retry for this side. The
+        // anchor-keyed retry, if any, self-terminates on equal heights at the next pass.
+        cancelSpreadHeightRetry(sourcePage)
 
         if (swapped) pager.state.invalidate()
     }

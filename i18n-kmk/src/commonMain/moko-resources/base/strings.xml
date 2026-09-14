@@ -206,6 +206,10 @@
     <string name="pref_source_related_mangas_summary">Show source-website's Suggestions while viewing entry</string>
     <string name="related_mangas_website_suggestions">Website Suggestions</string>
     <string name="related_mangas_more">More like these...</string>
+    <!-- KMK sequel/prequel widgets (#6), disabled by default -->
+    <string name="pref_sequel_prequel_title">Sequels &amp; Prequels</string>
+    <string name="pref_sequel_prequel">Sequels &amp; prequels</string>
+    <string name="pref_sequel_prequel_summary">Show sequel and prequel entries while viewing entry (uses cached tracker relations)</string>
     <string name="saved_searches_add_feed">Saved Searches (Hold to add to Feed)</string>
     <string name="saved_searches_delete">Saved Searches (Hold to delete)</string>
     <!-- Error Screen -->
@@ -221,6 +225,7 @@
     <string name="action_sort_feed">Sort feeds</string>
     <string name="sort_feed_confirmation">Would you like to sort the feeds alphabetically?</string>
     <string name="action_refresh">Refresh</string>
+    <string name="anizen_multi_feed">Multi-feed</string>
     <!-- Webhooks -->
     <string name="webhook_title">Webhooks</string>
     <string name="pref_webhook_enabled">Enable webhooks</string>
@@ -342,6 +347,7 @@
     <string name="rereading_label">Rereading</string>
     <string name="manga_reread_count_button">Reread ×%1$d</string>
     <string name="track_normalized_score_summary">≈ %1$.1f/10 across %2$d trackers</string>
+    <string name="track_remove_all_trackers">Remove all tracking</string>
     <string name="pref_rail_button_alignment">Rail button alignment</string>
     <string name="rail_alignment_top">Top</string>
     <string name="rail_alignment_center">Center</string>

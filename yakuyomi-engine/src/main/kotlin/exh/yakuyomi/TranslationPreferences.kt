@@ -113,6 +113,11 @@ class TranslationPreferences(
     fun mangaTranslatorAccessToken() =
         preferenceStore.getString(tachiyomi.core.common.preference.Preference.privateKey("pref_yakuyomi_mangatranslator_access_token"), "")
 
+    // KMK --> MangaTranslator session refresh token (pairs with the access token above)
+    fun mangaTranslatorRefreshToken() =
+        preferenceStore.getString(Preference.privateKey("pref_yakuyomi_mangatranslator_refresh_token"), "")
+    // KMK <--
+
     fun mangaTranslatorEmail() =
         preferenceStore.getString("pref_yakuyomi_mangatranslator_email", "")
 

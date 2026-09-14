@@ -447,6 +447,13 @@ class MangaScreen(
             },
             onRelatedMangaClick = { navigator.push(MangaScreen(it.id, true)) },
             onRelatedMangaLongClick = { bulkFavoriteScreenModel.addRemoveManga(it, haptic) },
+            // KMK -->
+            onSequelPrequelClick = { entry ->
+                scope.launch {
+                    screenModel.resolveSequelPrequel(entry)?.let { navigator.push(MangaScreen(it, true)) }
+                }
+            },
+            // KMK <--
             onSourceClick = {
                 if (successState.source !is StubSource) {
                     // KMK -->
@@ -792,6 +799,21 @@ class MangaScreen(
             navigator.push(GlobalSearchScreen(query))
             return
         }
+
+        // KMK -->
+        // Library search: pop to HomeScreen so HomeScreen.search(query) can route
+        // via librarySearchEvent -> LibraryTab.search -> queryEvent -> filterLibrary.
+        if (library) {
+            if (query.isBlank()) return
+            if (navigator.items.none { it is HomeScreen }) {
+                navigator.push(HomeScreen)
+            } else if (navigator.lastItem !is HomeScreen) {
+                navigator.popUntil { it is HomeScreen }
+            }
+            (navigator.lastItem as? HomeScreen)?.search(query)
+            return
+        }
+        // KMK <--
 
         if (navigator.size < 2) {
             return

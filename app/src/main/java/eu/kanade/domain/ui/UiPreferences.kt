@@ -83,6 +83,11 @@ class UiPreferences(
     fun topAlignCover() = preferenceStore.getBoolean("top_align_cover", false)
 
     fun censorLewdManga() = preferenceStore.getBoolean("pref_censor_lewd_manga", false)
+
+    fun showSequelPrequel() = preferenceStore.getBoolean(
+        tachiyomi.domain.manga.model.SequelPrequelSettingKeys.KEY,
+        tachiyomi.domain.manga.model.SequelPrequelSettingKeys.DEFAULT_ENABLED,
+    )
     // KMK <--
 
     fun recommendsInOverflow() = preferenceStore.getBoolean("recommends_in_overflow", false)

@@ -62,6 +62,7 @@ import eu.kanade.tachiyomi.source.Source
 import eu.kanade.tachiyomi.source.getNameForMangaInfo
 import eu.kanade.tachiyomi.source.model.SManga
 import eu.kanade.tachiyomi.source.online.MetadataSource
+import eu.kanade.tachiyomi.source.online.ResolvableSource
 import eu.kanade.tachiyomi.source.online.all.MergedSource
 import eu.kanade.tachiyomi.ui.common.AddToLibrary
 import eu.kanade.tachiyomi.ui.manga.RelatedManga.Companion.isLoading
@@ -144,6 +145,7 @@ import tachiyomi.domain.manga.interactor.GetManga
 import tachiyomi.domain.manga.interactor.GetMangaWithChapters
 import tachiyomi.domain.manga.interactor.GetMergedMangaById
 import tachiyomi.domain.manga.interactor.GetMergedReferencesById
+import tachiyomi.domain.manga.interactor.GetSequelPrequel
 import tachiyomi.domain.manga.interactor.NetworkToLocalManga
 import tachiyomi.domain.manga.interactor.SetCustomMangaInfo
 import tachiyomi.domain.manga.interactor.SetMangaChapterFlags
@@ -155,6 +157,7 @@ import tachiyomi.domain.manga.model.MangaUpdate
 import tachiyomi.domain.manga.model.MangaWithChapterCount
 import tachiyomi.domain.manga.model.MergeMangaSettingsUpdate
 import tachiyomi.domain.manga.model.MergedMangaReference
+import tachiyomi.domain.manga.model.SequelPrequelEntry
 import tachiyomi.domain.manga.model.applyFilter
 import tachiyomi.domain.manga.model.asMangaCover
 import tachiyomi.domain.manga.repository.MangaRepository
@@ -222,6 +225,7 @@ class MangaScreenModel(
     // KMK -->
     private val startRereading: StartRereading = globalAppGraph.startRereading,
     private val stopRereading: StopRereading = globalAppGraph.stopRereading,
+    private val getSequelPrequel: GetSequelPrequel = globalAppGraph.getSequelPrequel,
     // KMK <--
     private val updateChapter: UpdateChapter = globalAppGraph.updateChapter,
     private val updateManga: UpdateManga = globalAppGraph.updateManga,
@@ -525,6 +529,7 @@ class MangaScreenModel(
                 // KMK -->
                 launch { syncTrackers() }
                 launch { fetchRelatedMangasFromSource() }
+                launch { fetchSequelPrequel() }
                 // KMK <--
             }
 
@@ -1188,6 +1193,45 @@ class MangaScreenModel(
     }
     // KMK <--
 
+    // KMK -->
+    internal suspend fun fetchSequelPrequel() {
+        val state = successState ?: return
+        if (!uiPreferences.showSequelPrequel().get()) return
+        try {
+            val preferredTrackerId = trackPreferences.getPreferredTrackerForManga(state.manga.id)
+            when (val result = getSequelPrequel.await(state.manga.id, preferredTrackerId, enabled = true)) {
+                is GetSequelPrequel.Result.Success ->
+                    updateSuccessState { it.copy(sequelPrequelEntries = result.entries) }
+                GetSequelPrequel.Result.Hidden, GetSequelPrequel.Result.Disabled ->
+                    updateSuccessState { it.copy(sequelPrequelEntries = emptyList()) }
+            }
+        } catch (e: Exception) {
+            logcat(LogPriority.ERROR, e)
+            updateSuccessState { it.copy(sequelPrequelEntries = emptyList()) }
+        }
+    }
+
+    suspend fun resolveSequelPrequel(entry: SequelPrequelEntry): Long? {
+        val state = successState ?: return null
+        return try {
+            val sManga = (state.source as? ResolvableSource)?.getManga(entry.url)
+                ?: state.source.getMangaUpdate(
+                    SManga.create().apply {
+                        url = entry.url
+                        title = entry.title
+                    },
+                    emptyList(),
+                    fetchDetails = true,
+                    fetchChapters = false,
+                ).manga
+            networkToLocalManga(sManga.toDomainManga(state.source.id)).id
+        } catch (e: Exception) {
+            logcat(LogPriority.ERROR, e)
+            null
+        }
+    }
+    // KMK <--
+
     /**
      * @throws IllegalStateException if the swipe action is [LibraryPreferences.ChapterSwipeAction.Disabled]
      */
@@ -1822,6 +1866,7 @@ class MangaScreenModel(
              * a list of <keyword, related mangas>
              */
             val relatedMangaCollection: List<RelatedManga>? = null,
+            val sequelPrequelEntries: List<SequelPrequelEntry>? = null,
             val seedColor: Color? = manga.asMangaCover().vibrantCoverColor?.let { Color(it) },
             // KMK <--
         ) : State {

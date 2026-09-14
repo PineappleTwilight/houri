@@ -130,13 +130,9 @@ class MangaBaka(id: Long) : BaseTracker(id, "MangaBaka"), DeletableTracker {
 
     override suspend fun getMangaMetadata(track: DomainTrack): TrackMangaMetadata {
         val remote = api.getMangaDetails(track.remoteId.toInt()) ?: throw Exception("Could not find manga")
-        return TrackMangaMetadata(
-            remoteId = track.remoteId,
-            title = remote.title,
-            thumbnailUrl = remote.cover_url,
-            description = remote.summary,
-            authors = remote.authors.joinToString(", ").ifBlank { null },
-        )
+        // KMK -->
+        return remote.toMangaMetadata(track.remoteId)
+        // KMK <--
     }
 
     override suspend fun login(username: String, password: String) = login(password)
