@@ -354,12 +354,10 @@ jobs:
       - name: Rename APKs
         run: |
           set -e
-          mv app/build/outputs/apk/mtl/release/app-mtl-universal-release-unsigned-signed.apk Houri-${{ needs.prepare-build.outputs.VERSION_TAG }}.apk
           mv app/build/outputs/apk/mtl/release/app-mtl-arm64-v8a-release-unsigned-signed.apk Houri-arm64-v8a-${{ needs.prepare-build.outputs.VERSION_TAG }}.apk
           mv app/build/outputs/apk/mtl/release/app-mtl-armeabi-v7a-release-unsigned-signed.apk Houri-armeabi-v7a-${{ needs.prepare-build.outputs.VERSION_TAG }}.apk
           mv app/build/outputs/apk/mtl/release/app-mtl-x86-release-unsigned-signed.apk Houri-x86-${{ needs.prepare-build.outputs.VERSION_TAG }}.apk
           mv app/build/outputs/apk/mtl/release/app-mtl-x86_64-release-unsigned-signed.apk Houri-x86_64-${{ needs.prepare-build.outputs.VERSION_TAG }}.apk
-          mv app/build/outputs/apk/nomtl/release/app-nomtl-universal-release-unsigned-signed.apk Houri-nomtl-${{ needs.prepare-build.outputs.VERSION_TAG }}.apk
           mv app/build/outputs/apk/nomtl/release/app-nomtl-arm64-v8a-release-unsigned-signed.apk Houri-nomtl-arm64-v8a-${{ needs.prepare-build.outputs.VERSION_TAG }}.apk
           mv app/build/outputs/apk/nomtl/release/app-nomtl-armeabi-v7a-release-unsigned-signed.apk Houri-nomtl-armeabi-v7a-${{ needs.prepare-build.outputs.VERSION_TAG }}.apk
 
@@ -386,14 +384,12 @@ jobs:
             <!-->
             > [!TIP]
             >
-            > ### If you are unsure which version to download then go with `Houri-${{ needs.prepare-build.outputs.VERSION_TAG }}.apk`
+            > ### If you are unsure which version to download then go with `Houri-arm64-v8a-${{ needs.prepare-build.outputs.VERSION_TAG }}.apk`
           files: |
-            Houri-${{ needs.prepare-build.outputs.VERSION_TAG }}.apk
             Houri-arm64-v8a-${{ needs.prepare-build.outputs.VERSION_TAG }}.apk
             Houri-armeabi-v7a-${{ needs.prepare-build.outputs.VERSION_TAG }}.apk
             Houri-x86-${{ needs.prepare-build.outputs.VERSION_TAG }}.apk
             Houri-x86_64-${{ needs.prepare-build.outputs.VERSION_TAG }}.apk
-            Houri-nomtl-${{ needs.prepare-build.outputs.VERSION_TAG }}.apk
             Houri-nomtl-arm64-v8a-${{ needs.prepare-build.outputs.VERSION_TAG }}.apk
             Houri-nomtl-armeabi-v7a-${{ needs.prepare-build.outputs.VERSION_TAG }}.apk
           draft: false

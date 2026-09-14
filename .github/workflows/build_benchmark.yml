@@ -183,7 +183,6 @@ jobs:
         id: get_sha
         run: |
           set -e
-          mv app/build/outputs/apk/${{ needs.prepare-build.outputs.ARTIFACTS_PREFIX }}-universal-benchmark-signed.apk Houri-${{ needs.prepare-build.outputs.TAG_NAME }}.apk
           mv app/build/outputs/apk/${{ needs.prepare-build.outputs.ARTIFACTS_PREFIX }}-arm64-v8a-benchmark-signed.apk Houri-arm64-v8a-${{ needs.prepare-build.outputs.TAG_NAME }}.apk
           mv app/build/outputs/apk/${{ needs.prepare-build.outputs.ARTIFACTS_PREFIX }}-armeabi-v7a-benchmark-signed.apk Houri-armeabi-v7a-${{ needs.prepare-build.outputs.TAG_NAME }}.apk
           mv app/build/outputs/apk/${{ needs.prepare-build.outputs.ARTIFACTS_PREFIX }}-x86-benchmark-signed.apk Houri-x86-${{ needs.prepare-build.outputs.TAG_NAME }}.apk

@@ -196,8 +196,8 @@ jobs:
           echo "VERSION_TAG=$version_tag" >> $GITHUB_OUTPUT
           echo "COMMIT_COUNT=$commit_count"
           echo "COMMIT_COUNT=$commit_count" >> $GITHUB_OUTPUT
-          mv app/build/outputs/apk/mtl/preview/app-mtl-universal-preview-signed.apk Houri-$version_tag-r$commit_count.apk
-          mv app/build/outputs/apk/nomtl/preview/app-nomtl-universal-preview-signed.apk Houri-nomtl-$version_tag-r$commit_count.apk
+          mv app/build/outputs/apk/mtl/preview/app-mtl-arm64-v8a-preview-signed.apk Houri-$version_tag-r$commit_count.apk
+          mv app/build/outputs/apk/nomtl/preview/app-nomtl-arm64-v8a-preview-signed.apk Houri-nomtl-$version_tag-r$commit_count.apk
 
       - name: Upload APK
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
