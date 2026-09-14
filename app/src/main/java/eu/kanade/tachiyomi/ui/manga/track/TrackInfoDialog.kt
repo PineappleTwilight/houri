@@ -333,6 +333,13 @@ data class TrackInfoDialogHomeScreen(
                         trackerManager.mangaUpdates.id -> metadata.mangaUpdatesId
                         else -> null
                     }
+                        // KMK --> never auto-bind placeholder IDs (blank/"0"/non-positive numerics)
+                        .takeUnless { id ->
+                            val v = id?.trim().orEmpty()
+                            v.isBlank() || v == "0" || v.equals("null", ignoreCase = true) ||
+                                (v.toLongOrNull()?.let { it <= 0L } == true)
+                        }
+                    // KMK <--
                 }
             } catch (e: Throwable) {
                 logcat(LogPriority.ERROR, e) { "Failed to get tracker ID from metadata" }
@@ -341,9 +348,17 @@ data class TrackInfoDialogHomeScreen(
         }
 
         suspend fun registerTrackingById(trackerId: Long, remoteId: String): Boolean {
+            // KMK --> drop placeholder IDs before touching the network
+            val id = remoteId.trim()
+            if (id.isBlank() || id == "0" || id.equals("null", ignoreCase = true) ||
+                (id.toLongOrNull()?.let { it <= 0L } == true)
+            ) {
+                return false
+            }
+            // KMK <--
             trackerManager.get(trackerId)?.let { tracker ->
                 try {
-                    tracker.searchById(remoteId)?.let { track ->
+                    tracker.searchById(id)?.let { track ->
                         tracker.register(track, mangaId)
                         return true
                     }

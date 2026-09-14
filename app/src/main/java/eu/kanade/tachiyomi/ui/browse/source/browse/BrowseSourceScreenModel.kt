@@ -16,6 +16,7 @@ import cafe.adriel.voyager.core.model.StateScreenModel
 import cafe.adriel.voyager.core.model.screenModelScope
 import dev.icerock.moko.resources.StringResource
 import eu.kanade.core.preference.asState
+import eu.kanade.domain.base.BasePreferences
 import eu.kanade.domain.manga.interactor.UpdateManga
 import eu.kanade.domain.source.interactor.GetExhSavedSearch
 import eu.kanade.domain.source.interactor.GetIncognitoState
@@ -113,6 +114,7 @@ open class BrowseSourceScreenModel(
     private val updateMangaFromRemote: UpdateMangaFromRemote = globalAppGraph.updateMangaFromRemote,
     private val toggleIncognito: ToggleIncognito = globalAppGraph.toggleIncognito,
     private val extensionManager: ExtensionManager = globalAppGraph.extensionManager,
+    private val basePreferences: BasePreferences = globalAppGraph.basePreferences,
     // KMK <--
 
     // SY -->
@@ -253,8 +255,12 @@ open class BrowseSourceScreenModel(
             source.isEhBasedSource() -> EH_PACKAGE
             else -> extensionManager.getExtensionPackage(sourceId)
         }
-        packageName?.let {
-            toggleIncognito.await(it, !incognitoMode.value)
+        if (packageName != null) {
+            toggleIncognito.await(packageName, !incognitoMode.value)
+        } else {
+            // KMK --> stub/uninstalled sources have no package: fall back to the global
+            // switch instead of silently no-oping from the overflow menu.
+            basePreferences.incognitoMode().set(!incognitoMode.value)
         }
     }
     // KMK <--

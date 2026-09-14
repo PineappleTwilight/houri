@@ -24,7 +24,11 @@ class AchievementNotifier(
     private val context: Context,
     private val prefs: AchievementPreferences,
     private val soundPlayer: AchievementSoundPlayer,
-    private val webhookNotifier: eu.kanade.tachiyomi.data.webhook.WebhookNotifier? = null,
+    // KMK -->
+    // Non-null: Metro resolves `Type? = null` only from a nullable binding, so the old
+    // nullable param silently stayed null and no ACHIEVEMENT_UNLOCKED webhook was sent.
+    private val webhookNotifier: eu.kanade.tachiyomi.data.webhook.WebhookNotifier,
+    // KMK <--
 ) : AchievementUnlockNotifier {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private val handler = Handler(Looper.getMainLooper())
@@ -62,19 +66,19 @@ class AchievementNotifier(
     fun notifyNow(ids: List<String>) {
         if (!prefs.achievementsEnabled().get()) return
         if (ids.isEmpty()) return
-        webhookNotifier?.let { wh ->
-            ids.forEach { id ->
-                val ach = Achievements.forId(id) ?: return@forEach
-                wh.notify(
-                    event = eu.kanade.tachiyomi.data.webhook.WebhookEvent.ACHIEVEMENT_UNLOCKED,
-                    data = mapOf(
-                        "achievement_id" to id,
-                        "achievement_title" to ach.displayTitle,
-                        "achievement_tier" to ach.tier.name,
-                    ),
-                )
-            }
+        // KMK -->
+        ids.forEach { id ->
+            val ach = Achievements.forId(id) ?: return@forEach
+            webhookNotifier.notify(
+                event = eu.kanade.tachiyomi.data.webhook.WebhookEvent.ACHIEVEMENT_UNLOCKED,
+                data = mapOf(
+                    "achievement_id" to id,
+                    "achievement_title" to ach.displayTitle,
+                    "achievement_tier" to ach.tier.name,
+                ),
+            )
         }
+        // KMK <--
         val valid = ids.mapNotNull { Achievements.forId(it) }
         if (valid.isEmpty()) return
         if (valid.size > 3) {

@@ -10,7 +10,12 @@ import tachiyomi.domain.achievement.model.Achievements
 @Inject
 class AchievementManager(
     private val prefs: AchievementPreferences,
-    private val notifier: AchievementUnlockNotifier? = null,
+    // KMK -->
+    // Non-null: Metro treats `Type? = null` as an *optional* binding satisfied only by a
+    // nullable binding, so the old nullable param silently resolved to null and webhooks
+    // never fired. Non-null forces a compile-time graph error instead of silent loss.
+    private val notifier: AchievementUnlockNotifier,
+    // KMK <--
 ) {
     @Synchronized
     fun onOrganicChapterRead(totalRead: Long): List<String> {
@@ -283,7 +288,9 @@ class AchievementManager(
 
     private fun notifyIfNeeded(unlocked: List<String>) {
         if (unlocked.isNotEmpty()) {
-            notifier?.onUnlocked(unlocked)
+            // KMK --> notifier is non-null so unlocks always fan out to webhooks
+            notifier.onUnlocked(unlocked)
+            // KMK <--
         }
     }
 

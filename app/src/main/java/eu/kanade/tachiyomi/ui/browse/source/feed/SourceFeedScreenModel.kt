@@ -10,6 +10,7 @@ import cafe.adriel.voyager.core.model.StateScreenModel
 import cafe.adriel.voyager.core.model.screenModelScope
 import dev.icerock.moko.resources.StringResource
 import eu.kanade.core.preference.asState
+import eu.kanade.domain.base.BasePreferences
 import eu.kanade.domain.source.interactor.GetExhSavedSearch
 import eu.kanade.domain.source.interactor.GetIncognitoState
 import eu.kanade.domain.source.interactor.ToggleIncognito
@@ -85,6 +86,7 @@ open class SourceFeedScreenModel(
     getIncognitoState: GetIncognitoState = globalAppGraph.getIncognitoState,
     private val toggleIncognito: ToggleIncognito = globalAppGraph.toggleIncognito,
     private val extensionManager: ExtensionManager = globalAppGraph.extensionManager,
+    private val basePreferences: BasePreferences = globalAppGraph.basePreferences,
     sourcePreferences: SourcePreferences = globalAppGraph.sourcePreferences,
     // KMK <--
     private val appDispatchers: AppDispatchers = globalAppGraph.appDispatchers,
@@ -137,8 +139,10 @@ open class SourceFeedScreenModel(
             source.isEhBasedSource() -> EH_PACKAGE
             else -> extensionManager.getExtensionPackage(sourceId)
         }
-        packageName?.let {
-            toggleIncognito.await(it, !incognitoMode.value)
+        if (packageName != null) {
+            toggleIncognito.await(packageName, !incognitoMode.value)
+        } else {
+            basePreferences.incognitoMode().set(!incognitoMode.value)
         }
     }
 

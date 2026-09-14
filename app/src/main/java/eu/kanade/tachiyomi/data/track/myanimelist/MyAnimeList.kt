@@ -170,6 +170,12 @@ class MyAnimeList(id: Long) : BaseTracker(id, "MyAnimeList"), DeletableTracker {
                 xLogW("Invalid ID format for searchById: $id")
                 return null
             }
+        // KMK --> never query placeholder IDs
+        if (searchId <= 0) {
+            xLogW("Ignoring placeholder ID for searchById: $id")
+            return null
+        }
+        // KMK <--
         return try {
             api.getMangaDetails(searchId)
         } catch (e: Exception) {

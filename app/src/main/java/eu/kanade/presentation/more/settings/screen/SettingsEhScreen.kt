@@ -43,7 +43,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import eu.kanade.domain.base.BasePreferences
+import eu.kanade.domain.source.service.SourcePreferences
 import eu.kanade.presentation.library.components.SyncFavoritesWarningDialog
 import eu.kanade.presentation.more.settings.Preference
 import eu.kanade.tachiyomi.ui.webview.WebViewActivity
@@ -52,16 +52,24 @@ import exh.eh.EHentaiUpdateWorker
 import exh.eh.EHentaiUpdateWorkerConstants
 import exh.eh.EHentaiUpdaterStats
 import exh.metadata.metadata.EHentaiSearchMetadata
+import exh.source.EH_PACKAGE
 import exh.source.ExhPreferences
 import exh.ui.login.EhLoginActivity
 import exh.util.nullIfBlank
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.persistentMapOf
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.serialization.json.Json
 import logcat.LogPriority
 import mihon.app.di.globalAppGraph
 import tachiyomi.core.common.i18n.pluralStringResource
 import tachiyomi.core.common.i18n.stringResource
+import tachiyomi.core.common.preference.getAndSet
 import tachiyomi.core.common.util.lang.launchNonCancellable
 import tachiyomi.core.common.util.lang.withIOContext
 import tachiyomi.core.common.util.lang.withUIContext
@@ -81,6 +89,7 @@ import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
+import tachiyomi.core.common.preference.Preference as DataPreference
 
 object SettingsEhScreen : SearchableSettings {
     private fun readResolve(): Any = SettingsEhScreen
@@ -126,7 +135,7 @@ object SettingsEhScreen : SearchableSettings {
     @Composable
     override fun getPreferences(): List<Preference> {
         val exhPreferences: ExhPreferences = remember { globalAppGraph.exhPreferences }
-        val basePreferences: BasePreferences = remember { globalAppGraph.basePreferences }
+        val sourcePreferences: SourcePreferences = remember { globalAppGraph.sourcePreferences }
         val getFlatMetadataById: GetFlatMetadataById = remember { globalAppGraph.getFlatMetadataById }
         val deleteFavoriteEntries: DeleteFavoriteEntries = remember { globalAppGraph.deleteFavoriteEntries }
         val getExhFavoriteMangaWithMetadata: GetExhFavoriteMangaWithMetadata = remember { globalAppGraph.getExhFavoriteMangaWithMetadata }
@@ -143,7 +152,7 @@ object SettingsEhScreen : SearchableSettings {
             Preference.PreferenceGroup(
                 stringResource(MR.strings.source_settings),
                 preferenceItems = persistentListOf(
-                    incognitoMode(basePreferences),
+                    incognitoMode(sourcePreferences),
                 ),
             ),
             // KMK <--
@@ -191,10 +200,30 @@ object SettingsEhScreen : SearchableSettings {
     // KMK -->
     @Composable
     fun incognitoMode(
-        basePreferences: BasePreferences,
+        sourcePreferences: SourcePreferences,
     ): Preference.PreferenceItem.SwitchPreference {
+        // EH-scoped incognito is membership of EH_PACKAGE in the shared
+        // incognito-extensions set, so the row always reflects behavior.
+        val ehIncognito = remember(sourcePreferences) {
+            object : DataPreference<Boolean> {
+                override fun key(): String = sourcePreferences.incognitoExtensions().key()
+                override fun get(): Boolean = EH_PACKAGE in sourcePreferences.incognitoExtensions().get()
+                override fun set(value: Boolean) {
+                    sourcePreferences.incognitoExtensions().getAndSet { current ->
+                        if (value) current + EH_PACKAGE else current - EH_PACKAGE
+                    }
+                }
+                override fun isSet(): Boolean = sourcePreferences.incognitoExtensions().isSet()
+                override fun delete() = set(false)
+                override fun defaultValue(): Boolean = false
+                override fun changes(): Flow<Boolean> =
+                    sourcePreferences.incognitoExtensions().changes().map { EH_PACKAGE in it }
+                override fun stateIn(scope: CoroutineScope): StateFlow<Boolean> =
+                    changes().stateIn(scope, SharingStarted.Eagerly, get())
+            }
+        }
         return Preference.PreferenceItem.SwitchPreference(
-            preference = basePreferences.incognitoMode(),
+            preference = ehIncognito,
             title = stringResource(MR.strings.pref_incognito_mode),
             subtitle = stringResource(MR.strings.pref_incognito_mode_summary),
         )

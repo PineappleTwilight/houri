@@ -1397,15 +1397,21 @@ class LibraryScreenModel(
                             (searchTitles?.fastAny { it.title.contains(query, true) } == true)
                     }
                     is Namespace -> {
-                        searchTags != null &&
-                            searchTags.fastAny {
-                                val tag = queryComponent.tag
-                                (
-                                    it.namespace.equals(queryComponent.namespace, true) &&
-                                        tag?.run { it.name.contains(tag.asQuery(), true) } == true
-                                    ) ||
-                                    (tag == null && it.namespace.equals(queryComponent.namespace, true))
-                            }
+                        // KMK --> match `field:value` against library fields first,
+                        // metadata search tags second (previously tags-only, which
+                        // filtered out every non-metadata entry for a:/g:/genre:)
+                        matchNamespace(
+                            namespace = queryComponent.namespace,
+                            tag = queryComponent.tag?.asQuery().orEmpty(),
+                            libraryManga = libraryManga,
+                            genre = genre,
+                            tracks = tracks,
+                            source = source,
+                            sourceIdString = sourceIdString,
+                            searchTags = searchTags,
+                            searchTitles = searchTitles,
+                        )
+                        // KMK <--
                     }
                     else -> true
                 }
@@ -1431,22 +1437,20 @@ class LibraryScreenModel(
                                 )
                     }
                     is Namespace -> {
-                        val searchedTag = queryComponent.tag?.asQuery()
-                        searchTags == null ||
-                            (queryComponent.namespace.isBlank() && searchedTag.isNullOrBlank()) ||
-                            searchTags.fastAll { mangaTag ->
-                                if (queryComponent.namespace.isBlank() && !searchedTag.isNullOrBlank()) {
-                                    !mangaTag.name.contains(searchedTag, true)
-                                } else if (searchedTag.isNullOrBlank()) {
-                                    mangaTag.namespace == null ||
-                                        !mangaTag.namespace.equals(queryComponent.namespace, true)
-                                } else if (mangaTag.namespace.isNullOrBlank()) {
-                                    true
-                                } else {
-                                    !mangaTag.name.contains(searchedTag, true) ||
-                                        !mangaTag.namespace.equals(queryComponent.namespace, true)
-                                }
-                            }
+                        // KMK --> exclusion is the negation of the same
+                        // library-fields-first match used above
+                        !matchNamespace(
+                            namespace = queryComponent.namespace,
+                            tag = queryComponent.tag?.asQuery().orEmpty(),
+                            libraryManga = libraryManga,
+                            genre = genre,
+                            tracks = tracks,
+                            source = source,
+                            sourceIdString = sourceIdString,
+                            searchTags = searchTags,
+                            searchTitles = searchTitles,
+                        )
+                        // KMK <--
                     }
                     else -> true
                 }
@@ -1468,6 +1472,88 @@ class LibraryScreenModel(
             }
         }
     }
+    // KMK -->
+    private fun matchNamespace(
+        namespace: String,
+        tag: String,
+        libraryManga: LibraryManga,
+        genre: List<String>,
+        tracks: List<Track>?,
+        source: Source?,
+        sourceIdString: String?,
+        searchTags: List<SearchTag>?,
+        searchTitles: List<SearchTitle>?,
+    ): Boolean {
+        val manga = libraryManga.manga
+        fun tagsMatch(): Boolean {
+            if (searchTags == null) return false
+            return searchTags.fastAny {
+                it.namespace.equals(namespace, true) &&
+                    (tag.isBlank() || it.name.contains(tag, true))
+            }
+        }
+        return when (namespace.lowercase()) {
+            "genre", "tag", "tags" ->
+                (tag.isBlank() && genre.isNotEmpty()) ||
+                    genre.fastAny { it.contains(tag, true) } || tagsMatch()
+            "title" ->
+                (tag.isBlank() && manga.title.isNotBlank()) ||
+                    manga.title.contains(tag, true) ||
+                    searchTitles?.fastAny { it.title.contains(tag, true) } == true
+            "author", "a" ->
+                // KMK --> a: matches either credit field: many sources only fill author
+                tag.isNotBlank() && (
+                    (manga.author?.contains(tag, true) == true) ||
+                        (manga.artist?.contains(tag, true) == true) || tagsMatch()
+                    )
+            "artist" ->
+                (tag.isBlank() && (!manga.artist.isNullOrBlank() || !manga.author.isNullOrBlank())) ||
+                    (manga.artist?.contains(tag, true) == true) ||
+                    // KMK --> fall back to author: sources that only fill author still match a:
+                    (manga.author?.contains(tag, true) == true) || tagsMatch()
+            "group", "g", "creator", "circle" ->
+                // KMK --> g: is genre in library context (EH group tags fold into genre/tags)
+                (tag.isBlank() && genre.isNotEmpty()) ||
+                    genre.fastAny { it.contains(tag, true) } || tagsMatch()
+            "source" ->
+                (tag.isBlank() && source != null) ||
+                    (source?.name?.contains(tag, true) == true) ||
+                    (sourceIdString != null && sourceIdString == tag)
+            "src" ->
+                (tag.isBlank() && source != null) ||
+                    if (tag.equals(LOCAL_SOURCE_ID_ALIAS, ignoreCase = true)) {
+                        manga.source == LocalSource.ID
+                    } else {
+                        manga.source == tag.toLongOrNull()
+                    }
+            "id" -> tag.toLongOrNull()?.let { manga.id == it } ?: false
+            "status" -> matchMangaStatus(tag, manga.status)
+            "desc", "description" ->
+                tag.isNotBlank() && (manga.description?.contains(tag, true) == true)
+            "tracker" ->
+                tracks != null && tracks.isNotEmpty() &&
+                    (tag.isBlank() || filterTracks(tag, tracks, globalAppGraph.context))
+            else -> tagsMatch()
+        }
+    }
+
+    private fun matchMangaStatus(tag: String, status: Long): Boolean {
+        val t = tag.trim().lowercase().replace('_', ' ').replace('-', ' ')
+        if (t.isBlank()) return true
+        if (t == status.toString()) return true
+        val names = when (status) {
+            SManga.UNKNOWN.toLong() -> listOf("unknown")
+            SManga.ONGOING.toLong() -> listOf("ongoing")
+            SManga.COMPLETED.toLong() -> listOf("completed", "complete", "finished")
+            SManga.LICENSED.toLong() -> listOf("licensed")
+            SManga.PUBLISHING_FINISHED.toLong() -> listOf("publishing finished")
+            SManga.CANCELLED.toLong() -> listOf("cancelled", "canceled")
+            SManga.ON_HIATUS.toLong() -> listOf("on hiatus", "hiatus")
+            else -> return false
+        }
+        return names.fastAny { it.contains(t) }
+    }
+    // KMK <--
     // SY <--
 
     private var lastSelectionCategory: Long? = null

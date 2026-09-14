@@ -86,6 +86,12 @@ class MangaUpdates(id: Long) : BaseTracker(id, "MangaUpdates"), DeletableTracker
     }
 
     override suspend fun bind(track: Track, hasReadChapters: Boolean): Track {
+        // KMK --> placeholder remote IDs can never bind; fail fast instead of POSTing id 0
+        if (track.remote_id <= 0L) {
+            xLogW("Ignoring bind for placeholder MangaUpdates remote_id=${track.remote_id}")
+            throw IllegalArgumentException("Invalid MangaUpdates id: ${track.remote_id}")
+        }
+        // KMK <--
         return try {
             val (series, rating) = api.getSeriesListItem(track)
             track.copyFrom(series, rating)
@@ -113,12 +119,19 @@ class MangaUpdates(id: Long) : BaseTracker(id, "MangaUpdates"), DeletableTracker
 
     override suspend fun search(query: String): List<TrackSearch> {
         return api.search(query)
+            .filter { (it.seriesId ?: 0L) > 0L }
             .map {
                 it.toTrackSearch(id)
             }
     }
 
     override suspend fun refresh(track: Track): Track {
+        // KMK --> placeholder remote IDs can never refresh; fail fast instead of GETting id 0
+        if (track.remote_id <= 0L) {
+            xLogW("Ignoring refresh for placeholder MangaUpdates remote_id=${track.remote_id}")
+            throw IllegalArgumentException("Invalid MangaUpdates id: ${track.remote_id}")
+        }
+        // KMK <--
         val (series, rating) = api.getSeriesListItem(track)
         track.copyFrom(series, rating)
         runCatching {
@@ -169,8 +182,12 @@ class MangaUpdates(id: Long) : BaseTracker(id, "MangaUpdates"), DeletableTracker
          */
 
         val base36Id = if (id.matches(Regex("""^\d+$"""))) {
+            // KMK --> placeholder numeric IDs can never resolve; fail fast instead of GETting id 0
+            if ((id.toLongOrNull() ?: 0L) <= 0L) return null
+            // KMK <--
             api.convertToNewId(id.toInt()) ?: return null
         } else {
+            if (id.isBlank() || id == "0") return null
             id
         }
 

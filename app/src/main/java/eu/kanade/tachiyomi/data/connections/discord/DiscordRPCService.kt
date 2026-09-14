@@ -47,6 +47,18 @@ class DiscordRPCService : Service() {
         super.onCreate()
         Timber.tag(TAG).i("Starting Discord RPC service")
 
+        // KMK --> must enter foreground BEFORE any early return: the system kills the
+        // process with RemoteServiceException if startForegroundService() is not followed
+        // by startForeground() within the timeout (seen on Android 11, Multilaser M8_4G).
+        try {
+            notification(this)
+        } catch (e: Exception) {
+            Timber.tag(TAG).e(e, "Failed to enter foreground, stopping")
+            stopSelf()
+            return
+        }
+        // KMK <--
+
         val token = connectionsPreferences.connectionsToken(connectionsManager.discord).get()
 
         // KMK -->
@@ -57,10 +69,6 @@ class DiscordRPCService : Service() {
             stopSelf()
             return
         }
-
-        // Show notification and enter foreground as early as possible
-        notification(this)
-        // KMK <--
 
         val status = when (connectionsPreferences.discordRPCStatus().get()) {
             -1 -> "dnd"
@@ -98,6 +106,16 @@ class DiscordRPCService : Service() {
     override fun onBind(intent: Intent): IBinder? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        // KMK --> re-assert foreground on every start (system restart delivers null intent
+        // after onCreate, and STOP/RESTART paths must never run without foreground).
+        try {
+            notification(this)
+        } catch (e: Exception) {
+            Timber.tag(TAG).e(e, "Failed to re-assert foreground")
+            stopSelf()
+            return START_NOT_STICKY
+        }
+        // KMK <--
         when (intent?.action) {
             ACTION_RESTART -> restartRPC()
             STOP_SERVICE -> {
@@ -185,7 +203,13 @@ class DiscordRPCService : Service() {
                     connectionsPreferences.enableDiscordRPC().set(false)
                 } else if (rpc == null) {
                     since = System.currentTimeMillis()
-                    context.startForegroundService(Intent(context, DiscordRPCService::class.java))
+                    // KMK --> background starts are restricted on Android 12+; never crash the caller.
+                    try {
+                        context.startForegroundService(Intent(context, DiscordRPCService::class.java))
+                    } catch (e: Exception) {
+                        Timber.tag(TAG).e(e, "Failed to start Discord RPC service")
+                    }
+                    // KMK <--
                 }
             }
         }
@@ -198,7 +222,7 @@ class DiscordRPCService : Service() {
                         action = STOP_SERVICE
                     }
                     try {
-                        context.startService(stopIntent)
+                        context.startForegroundService(stopIntent)
                     } catch (e: Exception) {
                         Timber.tag(TAG).e(e, "Failed to stop Discord RPC service: ${e.message}")
                     }
@@ -208,7 +232,7 @@ class DiscordRPCService : Service() {
                     action = STOP_SERVICE
                 }
                 try {
-                    context.startService(stopIntent)
+                    context.startForegroundService(stopIntent)
                 } catch (e: Exception) {
                     Timber.tag(TAG).e(e, "Failed to stop Discord RPC service: ${e.message}")
                 }

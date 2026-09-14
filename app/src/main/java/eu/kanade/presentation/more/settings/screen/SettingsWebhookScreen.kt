@@ -10,6 +10,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
+import eu.kanade.domain.connections.service.WebhookSettingKeys
 import eu.kanade.presentation.more.settings.Preference
 import eu.kanade.presentation.more.settings.framework.toItems
 import eu.kanade.tachiyomi.util.system.toast
@@ -65,7 +66,12 @@ object SettingsWebhookScreen : SearchableSettings {
             Preference.PreferenceGroup(
                 title = stringResource(KMR.strings.pref_category_connections),
                 preferenceItems = persistentListOf(
-                    *WebhookSettingsHost.connectionItems.toItems(store) { enabled }.toTypedArray(),
+                    // KMK --> master switch stays enabled so webhooks can be turned on;
+                    // only the URL fields gate on it.
+                    *WebhookSettingsHost.connectionItems.toItems(store) { def ->
+                        def.key.key == WebhookSettingKeys.ENABLED.key || enabled
+                    }.toTypedArray(),
+                    // KMK <--
                     Preference.PreferenceItem.TextPreference(
                         title = stringResource(KMR.strings.pref_webhook_test),
                         enabled = enabled,

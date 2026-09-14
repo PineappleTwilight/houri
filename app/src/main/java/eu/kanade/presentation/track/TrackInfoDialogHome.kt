@@ -1,12 +1,12 @@
 package eu.kanade.presentation.track
 
-import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
@@ -19,7 +19,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -94,14 +93,16 @@ fun TrackInfoDialogHome(
         contentAlignment = if (isTablet) Alignment.Center else Alignment.TopStart,
     ) {
         Column(
+            // KMK --> bounded + scrollable: heightIn must cap the scroll container directly.
+            // No animateContentSize/wrapContentHeight here: they remeasure the scroll child
+            // unbounded and defeat the max-height cap, letting the sheet grow full-length.
             modifier = Modifier
-                .animateContentSize()
                 .then(if (isTablet) Modifier.widthIn(max = 560.dp) else Modifier.fillMaxWidth())
-                .wrapContentHeight()
                 .heightIn(max = 520.dp)
                 .verticalScroll(rememberScrollState())
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+                .padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+            // KMK <--
         ) {
             // KMK -->
             val scoredTracks = trackItems
@@ -142,6 +143,7 @@ fun TrackInfoDialogHome(
                 )
                 // KMK <--
             } else {
+                val untrackedItems = remember(trackItems) { trackItems.filter { it.track == null } }
                 trackItems.forEach { item ->
                     if (item.track != null) {
                         val isMismatched = item.tracker.id in mismatchIds
@@ -184,13 +186,31 @@ fun TrackInfoDialogHome(
                                 .takeIf { supportsPrivate },
                             isMismatched = isMismatched,
                         )
-                    } else {
-                        TrackInfoItemEmpty(
-                            tracker = item.tracker,
-                            onNewSearch = { onNewSearch(item) },
-                        )
                     }
                 }
+                // KMK --> collapse untracked trackers into one compact add-tracking section
+                // instead of one full row per service, so N logged-in trackers cost ~2 rows.
+                if (untrackedItems.isNotEmpty()) {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(
+                            text = stringResource(MR.strings.add_tracking),
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        FlowRow(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            untrackedItems.forEach { item ->
+                                TrackLogoIcon(
+                                    tracker = item.tracker,
+                                    onClick = { onNewSearch(item) },
+                                )
+                            }
+                        }
+                    }
+                }
+                // KMK <--
             }
         }
     }
@@ -247,8 +267,9 @@ private fun TrackInfoItem(
                 )
             }
             Box(
+                // KMK --> denser title row so per-tracker cards cost less vertical space
                 modifier = Modifier
-                    .height(48.dp)
+                    .height(40.dp)
                     .weight(1f)
                     .combinedClickable(
                         onClick = onNewSearch,
@@ -256,14 +277,15 @@ private fun TrackInfoItem(
                             context.copyToClipboard(title, title)
                         },
                     )
-                    .padding(start = 16.dp),
+                    .padding(start = 12.dp),
+                // KMK <--
                 contentAlignment = Alignment.CenterStart,
             ) {
                 Text(
                     text = title,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
-                    style = MaterialTheme.typography.titleMedium,
+                    style = MaterialTheme.typography.titleSmall,
                     color = MaterialTheme.colorScheme.onSurface,
                 )
             }
@@ -279,7 +301,7 @@ private fun TrackInfoItem(
 
         Box(
             modifier = Modifier
-                .padding(top = 12.dp)
+                .padding(top = 8.dp)
                 .clip(MaterialTheme.shapes.medium)
                 .background(
                     when {
@@ -287,7 +309,7 @@ private fun TrackInfoItem(
                         else -> MaterialTheme.colorScheme.surfaceContainerHighest
                     },
                 )
-                .padding(8.dp)
+                .padding(6.dp)
                 .clip(RoundedCornerShape(6.dp)),
         ) {
             Column {
@@ -351,7 +373,7 @@ private fun TrackDetailsItem(
             // KMK --> no full-height stretch so short dialog content shrink-fits
             .clickable(onClick = onClick)
             // KMK <--
-            .padding(12.dp),
+            .padding(8.dp),
         contentAlignment = Alignment.Center,
     ) {
         Text(
@@ -362,26 +384,6 @@ private fun TrackDetailsItem(
             textAlign = TextAlign.Center,
             color = MaterialTheme.colorScheme.onSurface.copy(alpha = if (text == null) UNSET_TEXT_ALPHA else 1f),
         )
-    }
-}
-
-@Composable
-private fun TrackInfoItemEmpty(
-    tracker: Tracker,
-    onNewSearch: () -> Unit,
-) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        TrackLogoIcon(tracker, onClick = onNewSearch)
-        TextButton(
-            onClick = onNewSearch,
-            modifier = Modifier
-                .padding(start = 16.dp)
-                .weight(1f),
-        ) {
-            Text(text = stringResource(MR.strings.add_tracking))
-        }
     }
 }
 
@@ -504,8 +506,9 @@ private fun UnifiedTrackerCard(
             .fillMaxWidth()
             .clip(RoundedCornerShape(16.dp))
             .background(MaterialTheme.colorScheme.surfaceContainerHighest)
-            .padding(12.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+            // KMK --> denser card to shorten the tracker menu
+            .padding(8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         // KMK --> per-tracker unsynced dot (vs preferred) + untracked icons bind via onNewSearch
         Row(
@@ -556,7 +559,7 @@ private fun UnifiedTrackerCard(
                         modifier = Modifier
                             .weight(1f)
                             .clickable { onStatusClick(primary) }
-                            .padding(12.dp),
+                            .padding(8.dp),
                         contentAlignment = Alignment.Center,
                     ) {
                         Text(text = statusText, style = MaterialTheme.typography.bodyMedium)
@@ -566,7 +569,7 @@ private fun UnifiedTrackerCard(
                         modifier = Modifier
                             .weight(1f)
                             .clickable { onScoreClick(primary) }
-                            .padding(12.dp),
+                            .padding(8.dp),
                         contentAlignment = Alignment.Center,
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -594,7 +597,7 @@ private fun UnifiedTrackerCard(
                                     }
                                 }
                             }
-                            .padding(12.dp),
+                            .padding(8.dp),
                         contentAlignment = Alignment.Center,
                     ) {
                         Text(text = "+", style = MaterialTheme.typography.titleMedium)
@@ -604,7 +607,7 @@ private fun UnifiedTrackerCard(
                         modifier = Modifier
                             .weight(0.7f)
                             .clickable { onChapterClick(primary) }
-                            .padding(12.dp),
+                            .padding(8.dp),
                         contentAlignment = Alignment.Center,
                     ) {
                         Text(text = chaptersText, style = MaterialTheme.typography.bodyMedium)
@@ -625,7 +628,7 @@ private fun UnifiedTrackerCard(
                                     }
                                 }
                             }
-                            .padding(12.dp),
+                            .padding(8.dp),
                         contentAlignment = Alignment.Center,
                     ) {
                         Text(text = "−", style = MaterialTheme.typography.titleMedium)
@@ -639,7 +642,7 @@ private fun UnifiedTrackerCard(
                         modifier = Modifier
                             .weight(1f)
                             .clickable { onStartDateEdit(primary) }
-                            .padding(12.dp),
+                            .padding(8.dp),
                         contentAlignment = Alignment.Center,
                     ) {
                         Text(
@@ -653,7 +656,7 @@ private fun UnifiedTrackerCard(
                         modifier = Modifier
                             .weight(1f)
                             .clickable { onEndDateEdit(primary) }
-                            .padding(12.dp),
+                            .padding(8.dp),
                         contentAlignment = Alignment.Center,
                     ) {
                         Text(
