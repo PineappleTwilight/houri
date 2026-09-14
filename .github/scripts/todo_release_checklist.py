@@ -167,9 +167,12 @@ def main() -> int:
     else:
         prev_tag = os.environ.get("PREV_TAG_NAME", "").strip()
         if not prev_tag:
-            print("PREV_TAG_NAME is not set and no file pair given", file=sys.stderr)
-            return 1
-        old_text = git_show(prev_tag)
+            # No previous (non-draft) release, e.g. first stable release: diff
+            # against an empty baseline instead of failing the workflow.
+            print("PREV_TAG_NAME is not set; using empty baseline", file=sys.stderr)
+            old_text = ""
+        else:
+            old_text = git_show(prev_tag)
         todo_path = Path("TODO.md")
         new_text = todo_path.read_text(encoding="utf-8") if todo_path.exists() else ""
 
