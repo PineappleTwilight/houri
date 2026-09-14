@@ -511,6 +511,7 @@
 - [ ] **Multi-Feed**: Merge into feed tab to avoid overcrowding the header
 - [ ] **App Event Framework**: Harden, improve, and migrate any old code that relies on app events into it
 - [ ] **WebGPU Reader**: UI improvements and hardening
+- [ ] **Upscaler**: Make "clear cache" button update the other relevant UI components immediately instead of needing to navigate out and then back in
 
 ## Chores
 - [x] Replace all Komikku icons/branding with houri icons/branding
