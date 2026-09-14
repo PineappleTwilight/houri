@@ -161,14 +161,20 @@ jobs:
       - name: Commit logs
         id: commit_logs
         run: |
-          # Skip commits that only touch TODO files so they don't flood release notes
+          # Skip commits that only touch TODO files so they don't flood release notes.
+          # Capped: with no previous tag the base is the root commit and the full
+          # history would burst GitHub's 1MB job-output limit.
+          MAX_COMMITS=200
+          range="${{ steps.previous_commit.outputs.PREV_RELEASE_SHA }}..${{ steps.current_commit.outputs.CURRENT_SHA }}"
+          total=$(git rev-list --count "$range")
           echo "COMMIT_LOGS<<{delimiter}
-          $(git log --no-merges --pretty=format:"%H|%an|%s" "${{ steps.previous_commit.outputs.PREV_RELEASE_SHA }}..${{ steps.current_commit.outputs.CURRENT_SHA }}" \
+          $(git log --no-merges --max-count=$MAX_COMMITS --pretty=format:"%H|%an|%s" "$range" \
             | while IFS='|' read -r hash author subject; do
                 if git diff-tree --no-commit-id --name-only -r "$hash" < /dev/null | grep -qviE '^(todo\.md|docs/todo\.md)$'; then
                   printf -- "- %s (@%s)\n" "$subject" "$author"
                 fi
               done)
+          $([ "$total" -gt "$MAX_COMMITS" ] && echo "- …and $((total - MAX_COMMITS)) more")
           {delimiter}" >> $GITHUB_OUTPUT
 
   build-app:
