@@ -182,6 +182,15 @@
   - Should intelligently cache sequel/prequel metadata to avoid API abuse
   - See [#6](https://github.com/PineappleTwilight/houri/issues/6)
   - Implemented 2026-09-13: `MangaDexSequelPrequelProvider` (`exh/md/related/`, MangaDex relation API + cache), `RelatedMangasRow` widgets on `MangaScreen`, default OFF via `UiPreferences` + `SettingsBrowseScreen` toggle, preferred-tracker aware
+- [ ] **WebGPU Reader**: Image filter system
+  - Has presets of things like grayscale, sepia, and more
+  - Disabled by default
+  - Allows the user to modify values on their own and create/use their saved presets
+  - Extension of this system should be made for "immersive filters"
+    - These are essentially transparent animated gifs overlaid on top of the reader
+    - Allows more immersion, for example sakura petals falling when reading a manga
+    - Also has presets and custom user-uploaded gifs
+
 
 ## Bugfixes
 - [x] Fix UI transition choppiness.
