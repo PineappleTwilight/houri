@@ -276,10 +276,13 @@ open class WebGpuViewer(
         scope.launch {
             while (!isDestroyed) {
                 try {
-                    (currentPage?.imagePage as? ProgressPage)?.invalidate()
+                    val progress = currentPage?.imagePage as? ProgressPage
+                    progress?.invalidate()
+                    // Animate at ~30fps only while a progress page is current; poll
+                    // slowly otherwise so the viewer does not wake every 33ms idle.
+                    delay(if (progress != null) 33.milliseconds else 250.milliseconds)
                 } catch (_: Exception) {
                 }
-                delay(33.milliseconds)
             }
         }
         // KMK <--
