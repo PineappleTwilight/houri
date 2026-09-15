@@ -202,7 +202,9 @@ jobs:
         uses: actions/cache@v4
         with:
           path: external/imagedecoder-houri/library/.cxx
-          key: ${{ runner.os }}-native-${{ hashFiles('external/imagedecoder-houri/library/src/main/cpp/CMakeLists.txt', 'external/imagedecoder-houri/library/src/main/cpp/cmake/**', 'gradle/libs.versions.toml', 'external/imagedecoder-houri/**') }}
+          key: ${{ runner.os }}-native-${{ hashFiles('external/imagedecoder-houri/library/src/main/cpp/**', 'gradle/libs.versions.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-native-
 
       - name: Write google-services.json
         env:

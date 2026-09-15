@@ -133,7 +133,9 @@ jobs:
         uses: actions/cache@v4
         with:
           path: external/imagedecoder-houri/library/.cxx
-          key: ${{ runner.os }}-native-${{ hashFiles('external/imagedecoder-houri/library/src/main/cpp/CMakeLists.txt', 'external/imagedecoder-houri/library/src/main/cpp/cmake/**', 'gradle/libs.versions.toml', 'external/imagedecoder-houri/**') }}
+          key: ${{ runner.os }}-native-${{ hashFiles('external/imagedecoder-houri/library/src/main/cpp/**', 'gradle/libs.versions.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-native-
 
       - name: Set up gradle
         uses: gradle/actions/setup-gradle@3f131e8634966bd73d06cc69884922b02e6faf92 # v6

@@ -141,7 +141,9 @@ jobs:
         uses: actions/cache@v4
         with:
           path: external/imagedecoder-houri/library/.cxx
-          key: ${{ runner.os }}-native-${{ hashFiles('external/imagedecoder-houri/library/src/main/cpp/CMakeLists.txt', 'external/imagedecoder-houri/library/src/main/cpp/cmake/**', 'gradle/libs.versions.toml', 'external/imagedecoder-houri/**') }}
+          key: ${{ runner.os }}-native-${{ hashFiles('external/imagedecoder-houri/library/src/main/cpp/**', 'gradle/libs.versions.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-native-
           # No restore-keys — exact match only. Stale .cxx with old CMakeCache (empty meson "" or chmod errors)
           # previously poisoned Linux CI via prefix fallback (e.g. Linux-native-). Exact match forces clean build
           # when source changes (e.g. 20a5e30 chmod fix, c7af74c meson fix). ccache is cached separately via
