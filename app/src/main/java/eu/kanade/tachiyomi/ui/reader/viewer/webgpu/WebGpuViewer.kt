@@ -79,6 +79,17 @@ open class WebGpuViewer(
     private var cachedOnBackgroundColor: Int? = null
     // KMK <--
 
+    // KMK -->
+    /** Resolved once: decodeReaderPage runs per page on the decode thread. */
+    internal val isLowRamDevice: Boolean by lazy {
+        try {
+            eu.kanade.tachiyomi.util.system.DeviceUtil.isLowRamDevice(activity)
+        } catch (_: Exception) {
+            false
+        }
+    }
+    // KMK <--
+
     internal fun readerBackgroundColor(): Int =
         cachedBackgroundColor ?: activity.baseContext.readerBackgroundColor(config.theme)
             .also { cachedBackgroundColor = it }

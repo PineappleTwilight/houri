@@ -359,11 +359,7 @@ internal suspend fun WebGpuViewer.decodeReaderPage(page: ViewerReaderPage) {
             }
         }
 
-        val isLowRam = try {
-            eu.kanade.tachiyomi.util.system.DeviceUtil.isLowRamDevice(mihon.app.di.globalAppGraph.context)
-        } catch (_: Exception) {
-            false
-        }
+        val isLowRam = isLowRamDevice
         val maxPageBytes = if (isLowRam) 40 * 1024 * 1024 else 80 * 1024 * 1024
         val decodeBytes: ByteArray? = try {
             val bytes = input.readBytes()
@@ -419,7 +415,9 @@ internal suspend fun WebGpuViewer.decodeReaderPage(page: ViewerReaderPage) {
         // Store bytes for height-matching regardless of SINGLE tag — pages decoded before
         // viewport layout (width <8) may be tagged SINGLE initially but become LEFT/RIGHT
         // after rotation/layout, and webp pages decoded via fallback need bytes for retry.
-        if (config.matchDoublePageHeights && decodeBytes.size in 1..32 * 1024 * 1024) {
+        // Low-RAM devices retain nothing: up to 32MB per cached page is unaffordable there,
+        // and the spread then simply skips height-matching instead of OOMing.
+        if (!isLowRam && config.matchDoublePageHeights && decodeBytes.size in 1..32 * 1024 * 1024) {
             page.spreadBytes = decodeBytes
         } else {
             page.spreadBytes = null
