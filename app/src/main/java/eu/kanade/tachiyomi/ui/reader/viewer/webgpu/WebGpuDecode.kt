@@ -65,20 +65,29 @@ internal fun WebGpuViewer.queueForDecode(page: ViewerReaderPage, prioritize: Boo
 internal fun WebGpuViewer.evictFarthestPage(reference: ViewerPage? = null) {
     val effectiveCacheSize = cacheSize.coerceAtLeast(1)
     val current = reference ?: currentPage ?: pageCache.values.lastOrNull() ?: return
-    val allCandidates = pageCache.values.filter { it !== current }.toMutableSet()
-    if (allCandidates.isEmpty()) return
-    val candidates = allCandidates.filter { it.state == PageState.IDLE }.toMutableSet()
-    val effectiveCandidates = if (candidates.isEmpty()) allCandidates else candidates
+    // Single pass: collect non-current pages in cache order and note whether any
+    // eviction-safe (IDLE) page exists. Order matters: victim fallbacks take the
+    // oldest remaining entry, so insertion order must be preserved end to end.
+    val all = ArrayList<ViewerPage>(pageCache.size)
+    var hasIdle = false
+    for (page in pageCache.values) {
+        if (page === current) continue
+        all.add(page)
+        if (!hasIdle && page.state == PageState.IDLE) hasIdle = true
+    }
+    if (all.isEmpty()) return
+    // Prefer evicting IDLE pages; fall back to any page when none is IDLE.
+    val pool = if (hasIdle) all.filterTo(ArrayList(all.size)) { it.state == PageState.IDLE } else all
 
     fun findNext(page: ViewerPage): ViewerPage? = when (page) {
         is ViewerReaderPage -> {
             val chapterId = page.page.chapter.chapter.id
             val nextIndex = page.page.index + 1
-            allCandidates.find {
+            all.find {
                 it is ViewerReaderPage && it.page.chapter.chapter.id == chapterId && it.page.index == nextIndex
-            } ?: allCandidates.find { it is ViewerTransitionPage && it.prevChapter?.chapter?.id == chapterId }
+            } ?: all.find { it is ViewerTransitionPage && it.prevChapter?.chapter?.id == chapterId }
                 ?: page.nextChapter?.chapter?.id?.let { nextChapterId ->
-                    allCandidates.find {
+                    all.find {
                         it is ViewerReaderPage && it.page.chapter.chapter.id == nextChapterId && it.page.index == 0
                     }
                 }
@@ -86,7 +95,7 @@ internal fun WebGpuViewer.evictFarthestPage(reference: ViewerPage? = null) {
 
         is ViewerTransitionPage -> {
             val nextChapterId = page.nextChapter?.chapter?.id
-            allCandidates.find {
+            all.find {
                 it is ViewerReaderPage && it.page.chapter.chapter.id == nextChapterId && it.page.index == 0
             }
         }
@@ -98,12 +107,12 @@ internal fun WebGpuViewer.evictFarthestPage(reference: ViewerPage? = null) {
         is ViewerReaderPage -> {
             val chapterId = page.page.chapter.chapter.id
             val prevIndex = page.page.index - 1
-            allCandidates.find {
+            all.find {
                 it is ViewerReaderPage && it.page.chapter.chapter.id == chapterId && it.page.index == prevIndex
-            } ?: allCandidates.find { it is ViewerTransitionPage && it.nextChapter?.chapter?.id == chapterId }
+            } ?: all.find { it is ViewerTransitionPage && it.nextChapter?.chapter?.id == chapterId }
                 ?: page.prevChapter?.let { prevChapter ->
                     prevChapter.pages?.lastIndex?.let { lastIndex ->
-                        allCandidates.find {
+                        all.find {
                             it is ViewerReaderPage && it.page.chapter.chapter.id == prevChapter.chapter.id &&
                                 it.page.index == lastIndex
                         }
@@ -114,7 +123,7 @@ internal fun WebGpuViewer.evictFarthestPage(reference: ViewerPage? = null) {
         is ViewerTransitionPage -> {
             val prevChapterId = page.prevChapter?.chapter?.id
             page.prevChapter?.pages?.lastIndex?.let { lastIndex ->
-                allCandidates.find {
+                all.find {
                     it is ViewerReaderPage && it.page.chapter.chapter.id == prevChapterId &&
                         it.page.index == lastIndex
                 }
@@ -129,15 +138,15 @@ internal fun WebGpuViewer.evictFarthestPage(reference: ViewerPage? = null) {
     var backward: ViewerPage? = current
 
     for (i in 0 until effectiveCacheSize) {
-        if (effectiveCandidates.isEmpty()) break
+        if (pool.isEmpty()) break
         forward = forward?.let { findNext(it) }
         backward = backward?.let { findPrev(it) }
         if (forward == null && backward == null) break
-        if (forward != null && effectiveCandidates.remove(forward)) farthest = forward
-        if (backward != null && effectiveCandidates.remove(backward)) farthest = backward
+        if (forward != null && pool.remove(forward)) farthest = forward
+        if (backward != null && pool.remove(backward)) farthest = backward
     }
 
-    val toRemove = effectiveCandidates.firstOrNull() ?: farthest ?: allCandidates.firstOrNull() ?: return
+    val toRemove = pool.firstOrNull() ?: farthest ?: all.firstOrNull() ?: return
 
     pageCache.remove(pageKey(toRemove))
     decodeQueue.remove(toRemove)
