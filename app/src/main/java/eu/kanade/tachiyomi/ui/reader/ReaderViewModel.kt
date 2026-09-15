@@ -436,7 +436,10 @@ class ReaderViewModel(
             .drop(1) // allow the loader to set the first page and chapter id
             // SY <-
             .onEach { currentChapter ->
-                if (chapterPageIndex >= 0) {
+                // Only restore the saved page when it belongs to this chapter. Without the
+                // chapter check, the previous chapter's index leaks into every newly loaded
+                // chapter (wrong landing page after each chapter change).
+                if (chapterPageIndex >= 0 && chapterId == currentChapter.chapter.id) {
                     // Restore from SavedState
                     currentChapter.requestedPage = chapterPageIndex
                 } else if (!currentChapter.chapter.read) {
