@@ -7,6 +7,26 @@ class WebGpuReadingPositionStore(
 ) {
     private val prefs by lazy { context.getSharedPreferences("webgpu_positions", Context.MODE_PRIVATE) }
 
+    // Coalesces the per-page-crossing write storm: flings report many pages in
+    // quick succession, so allow at most one write per window for the same chapter.
+    // A different chapter always writes immediately so restores stay exact.
+    private var lastSaveAtMs = 0L
+    private var lastSavedChapterId = -1L
+
+    private fun takeSaveSlot(chapterId: Long, now: Long): Boolean {
+        if (chapterId != lastSavedChapterId) {
+            lastSavedChapterId = chapterId
+            lastSaveAtMs = now
+            return true
+        }
+        val elapsed = now - lastSaveAtMs
+        if (elapsed < 0 || elapsed >= SAVE_THROTTLE_MS) {
+            lastSaveAtMs = now
+            return true
+        }
+        return false
+    }
+
     fun save(chapterId: Long, pageIndex: Int, offsetRatio: Float = 0f, zoom: Float = 1f) {
         // Legacy overload kept for compat — offsetRatio may be old 0..1 fraction or new documentY
         // Detect intent: if offsetRatio > 2f treat as documentY, otherwise fraction
@@ -15,6 +35,7 @@ class WebGpuReadingPositionStore(
         } else {
             // old fraction path — preserve but migrate to v2 on next save via new overload
             try {
+                if (!takeSaveSlot(chapterId, System.currentTimeMillis())) return
                 val safeIndex = pageIndex.coerceAtLeast(0).coerceAtMost(9999)
                 val safeFraction = offsetRatio.coerceIn(0f, 1f)
                 val safeZoom = zoom.coerceIn(0.5f, 8f)
@@ -28,6 +49,7 @@ class WebGpuReadingPositionStore(
 
     fun saveDocument(chapterId: Long, pageIndex: Int, documentY: Float, zoom: Float, offsetX: Float) {
         try {
+            if (!takeSaveSlot(chapterId, System.currentTimeMillis())) return
             val safeIndex = pageIndex.coerceAtLeast(0).coerceAtMost(9999)
             val safeDocY = when {
                 !documentY.isFinite() -> 0f
@@ -45,6 +67,7 @@ class WebGpuReadingPositionStore(
 
     fun savePosition(chapterId: Long, pageIndex: Int, documentY: Float, scale: Float, offsetX: Float, fraction: Float) {
         try {
+            if (!takeSaveSlot(chapterId, System.currentTimeMillis())) return
             val safeIndex = pageIndex.coerceAtLeast(0).coerceAtMost(9999)
             val safeDocY = documentY.coerceIn(0f, 1e7f).let { if (!it.isFinite()) 0f else it }
             val safeScale = scale.coerceIn(0.5f, 8f).let { if (!it.isFinite()) 1f else it }
@@ -107,6 +130,7 @@ class WebGpuReadingPositionStore(
 
     fun clear(chapterId: Long) {
         try {
+            if (chapterId == lastSavedChapterId) lastSavedChapterId = -1L
             prefs.edit().remove(key(chapterId)).apply()
         } catch (_: Exception) {}
     }
@@ -128,6 +152,10 @@ class WebGpuReadingPositionStore(
     }
 
     private fun key(chapterId: Long) = "pos_$chapterId"
+
+    companion object {
+        private const val SAVE_THROTTLE_MS = 500L
+    }
 
     data class PositionData(
         val pageIndex: Int,
