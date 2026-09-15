@@ -783,13 +783,22 @@ open class WebGpuViewer(
         val requestedPage = pages[targetIndex]
 
         // Get the page and align to spread anchor if needed
-        val page = currentPage ?: getPage(requestedPage)
+        // Captured before reassignment: a non-null previous page already inside the
+        // new chapter means seamless scroll entry (see restore guard below).
+        val previousPage = currentPage
+        val page = previousPage ?: getPage(requestedPage)
         currentPage = getSpreadAnchor(page)
         // KMK --> Report the spread's lastmost page, not the anchor.
         progressPage(currentPage!!)?.let { reportPageSelected(it) }
         // KMK <--
         preloadPages(currentPage!!)
-        if (stored != null && isContinuous) {
+        // KMK --> Seamless scroll entry: the user is already reading inside the new
+        // chapter (previousPage resolved there via onPageChange before the chapter
+        // switch landed). Restoring the stored offset now would yank the viewport
+        // to a stale position. Fresh and explicit opens still restore below.
+        val alreadyInsideNewChapter =
+            (previousPage as? ViewerReaderPage)?.page?.chapter == chapters.currChapter
+        if (stored != null && isContinuous && !alreadyInsideNewChapter) {
             // Heavily improved restore: atomic position with pending queue, no arbitrary delay,
             // handles both v2 documentY and legacy fraction, restores scale/offsetX together.
             try {
