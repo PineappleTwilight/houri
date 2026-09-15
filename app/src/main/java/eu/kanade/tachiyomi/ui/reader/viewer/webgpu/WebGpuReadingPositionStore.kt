@@ -13,6 +13,11 @@ class WebGpuReadingPositionStore(
     private var lastSaveAtMs = 0L
     private var lastSavedChapterId = -1L
 
+    // Tracks entry count without deserializing the whole file per save. -1 means
+    // unknown (read once, then maintained locally). Overwrites may overcount by one,
+    // which only prunes slightly early — never late, never skipped.
+    private var entryCount = -1
+
     private fun takeSaveSlot(chapterId: Long, now: Long): Boolean {
         if (chapterId != lastSavedChapterId) {
             lastSavedChapterId = chapterId
@@ -131,13 +136,19 @@ class WebGpuReadingPositionStore(
     fun clear(chapterId: Long) {
         try {
             if (chapterId == lastSavedChapterId) lastSavedChapterId = -1L
+            if (entryCount > 0) entryCount--
             prefs.edit().remove(key(chapterId)).apply()
         } catch (_: Exception) {}
     }
 
     private fun pruneIfNeeded() {
         try {
-            if (prefs.all.size > 500) {
+            if (entryCount < 0) {
+                entryCount = prefs.all.size
+            } else {
+                entryCount++
+            }
+            if (entryCount > 500) {
                 val entries = prefs.all.entries.mapNotNull { e ->
                     val v = e.value as? String ?: return@mapNotNull null
                     val ts = v.split("|").lastOrNull()?.toLongOrNull() ?: 0L
@@ -147,6 +158,7 @@ class WebGpuReadingPositionStore(
                 val ed = prefs.edit()
                 toRemove.forEach { ed.remove(it.first) }
                 ed.apply()
+                entryCount = prefs.all.size
             }
         } catch (_: Exception) {}
     }
