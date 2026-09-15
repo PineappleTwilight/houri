@@ -39,6 +39,49 @@ sealed class PageKey {
     data class Transition(val prevId: Long?, val nextId: Long?) : PageKey()
 }
 
+/**
+ * Memoizes one neighbor link (`prev`/`next`), which the pager library re-evaluates on
+ * every render snapshot while scrolling. The key must cover every input the resolution
+ * depends on: a chapter finishing loading, a chapter-set swap, or a transition-pref flip
+ * all change it and force a recompute. An evicted cached target is detected by identity
+ * and recomputed. While the neighboring chapter is still loading, the preload nudge is
+ * repeated on hits so load retries keep working without a full recompute.
+ */
+private class NeighborLink {
+    private var page: ViewerPage? = null
+    private var valid = false
+    private var pageCount = -2
+    private var chapter: ReaderChapter? = null
+    private var loaded = false
+    private var transition = false
+
+    fun get(
+        viewer: WebGpuViewer,
+        pageCount: Int,
+        chapter: ReaderChapter?,
+        loaded: Boolean,
+        transition: Boolean,
+        resolve: () -> ViewerPage?,
+    ): ViewerPage? {
+        val hit = page
+        if (valid && pageCount == this.pageCount && chapter === this.chapter &&
+            loaded == this.loaded && transition == this.transition &&
+            (hit == null || viewer.pageInCache(hit))
+        ) {
+            if (!loaded) chapter?.let { viewer.preloadChapterThenRetry(it) }
+            return hit
+        }
+        val resolved = resolve()
+        page = resolved
+        valid = true
+        this.pageCount = pageCount
+        this.chapter = chapter
+        this.loaded = loaded
+        this.transition = transition
+        return resolved
+    }
+}
+
 fun pageKey(page: ViewerPage): PageKey = when (page) {
     is ViewerReaderPage -> PageKey.Reader(page.page.chapter.chapter.id, page.page.index)
     is ViewerTransitionPage -> PageKey.Transition(page.prevChapter?.chapter?.id, page.nextChapter?.chapter?.id)
@@ -67,11 +110,28 @@ class ViewerTransitionPage(
 ) : ViewerPage() {
     override var imagePage: ImagePage = TransitionPage(viewer, prevChapter, nextChapter)
 
+    private val prevLink = NeighborLink()
+    private val nextLink = NeighborLink()
+
     override val prev: ViewerPage?
-        get() = prevChapter?.pages?.lastOrNull()?.let { viewer.getPage(it, viewer.currentPage) }
+        get() {
+            val prevCh = prevChapter
+            val prevPages = prevCh?.pages
+            // Transition links only depend on the neighboring pages list; load state and
+            // the transition pref do not branch here, so constant key slots are correct.
+            return prevLink.get(viewer, prevPages?.size ?: -1, prevCh, true, false) {
+                prevPages?.lastOrNull()?.let { viewer.getPage(it, viewer.currentPage) }
+            }
+        }
 
     override val next: ViewerPage?
-        get() = nextChapter?.pages?.firstOrNull()?.let { viewer.getPage(it, viewer.currentPage) }
+        get() {
+            val nextCh = nextChapter
+            val nextPages = nextCh?.pages
+            return nextLink.get(viewer, nextPages?.size ?: -1, nextCh, true, false) {
+                nextPages?.firstOrNull()?.let { viewer.getPage(it, viewer.currentPage) }
+            }
+        }
 }
 
 class ViewerReaderPage(
@@ -80,6 +140,9 @@ class ViewerReaderPage(
 ) : ViewerPage() {
     /** Cached spread ImagePage when this page is the anchor of a dual-page spread */
     var spreadPage: ImagePage.ImageSpread? = null
+
+    private val prevLink = NeighborLink()
+    private val nextLink = NeighborLink()
 
     /** The side the file names, or null for none. Never a value merely derived from the index. */
     @Volatile
@@ -144,35 +207,59 @@ class ViewerReaderPage(
         }
 
     override val prev: ViewerPage?
-        get() = page.chapter.pages?.let { pages ->
-            pages.getOrNull(page.index - 1)?.let { viewer.getPage(it, viewer.currentPage) } ?: run {
-                val prevChapter = prevChapter ?: return@run viewer.getPage(null, page.chapter, viewer.currentPage)
+        get() {
+            val chapterPages = page.chapter.pages
+            val prevCh = prevChapter
+            return prevLink.get(
+                viewer,
+                pageCount = chapterPages?.size ?: -1,
+                chapter = prevCh,
+                loaded = prevCh?.state is ReaderChapter.State.Loaded,
+                transition = viewer.config.alwaysShowChapterTransition,
+            ) {
+                chapterPages?.let { pages ->
+                    pages.getOrNull(page.index - 1)?.let { viewer.getPage(it, viewer.currentPage) } ?: run {
+                        if (prevCh == null) return@run viewer.getPage(null, page.chapter, viewer.currentPage)
 
-                if (prevChapter.state !is eu.kanade.tachiyomi.ui.reader.model.ReaderChapter.State.Loaded) {
-                    viewer.preloadChapterThenRetry(prevChapter)
-                }
+                        if (prevCh.state !is ReaderChapter.State.Loaded) {
+                            viewer.preloadChapterThenRetry(prevCh)
+                        }
 
-                if (viewer.config.alwaysShowChapterTransition) {
-                    viewer.getPage(prevChapter, page.chapter, viewer.currentPage)
-                } else {
-                    prevChapter.pages?.lastOrNull()?.let { viewer.getPage(it, viewer.currentPage) }
+                        if (viewer.config.alwaysShowChapterTransition) {
+                            viewer.getPage(prevCh, page.chapter, viewer.currentPage)
+                        } else {
+                            prevCh.pages?.lastOrNull()?.let { viewer.getPage(it, viewer.currentPage) }
+                        }
+                    }
                 }
             }
         }
 
     override val next: ViewerPage?
-        get() = page.chapter.pages?.let { pages ->
-            pages.getOrNull(page.index + 1)?.let { viewer.getPage(it, viewer.currentPage) } ?: run {
-                val nextChapter = nextChapter ?: return@run viewer.getPage(page.chapter, null, viewer.currentPage)
+        get() {
+            val chapterPages = page.chapter.pages
+            val nextCh = nextChapter
+            return nextLink.get(
+                viewer,
+                pageCount = chapterPages?.size ?: -1,
+                chapter = nextCh,
+                loaded = nextCh?.state is ReaderChapter.State.Loaded,
+                transition = viewer.config.alwaysShowChapterTransition,
+            ) {
+                chapterPages?.let { pages ->
+                    pages.getOrNull(page.index + 1)?.let { viewer.getPage(it, viewer.currentPage) } ?: run {
+                        if (nextCh == null) return@run viewer.getPage(page.chapter, null, viewer.currentPage)
 
-                if (nextChapter.state !is eu.kanade.tachiyomi.ui.reader.model.ReaderChapter.State.Loaded) {
-                    viewer.preloadChapterThenRetry(nextChapter)
-                }
+                        if (nextCh.state !is ReaderChapter.State.Loaded) {
+                            viewer.preloadChapterThenRetry(nextCh)
+                        }
 
-                if (viewer.config.alwaysShowChapterTransition) {
-                    viewer.getPage(page.chapter, nextChapter, viewer.currentPage)
-                } else {
-                    nextChapter.pages?.firstOrNull()?.let { viewer.getPage(it, viewer.currentPage) }
+                        if (viewer.config.alwaysShowChapterTransition) {
+                            viewer.getPage(page.chapter, nextCh, viewer.currentPage)
+                        } else {
+                            nextCh.pages?.firstOrNull()?.let { viewer.getPage(it, viewer.currentPage) }
+                        }
+                    }
                 }
             }
         }
