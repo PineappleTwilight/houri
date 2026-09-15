@@ -416,6 +416,22 @@ open class WebGpuViewer(
             fetchPage = fetch@{ index ->
                 val current = currentPage ?: return@fetch null
 
+                // KMK --> Continuous never forms spreads: getSpreadAnchor and
+                // buildSpreadPage both early-return the page's own imagePage, so
+                // skip them outright instead of re-proving it on every frame walk.
+                // (Pager mode keeps the full pipeline, including the existing()
+                // identity reuse inside buildSpreadPage.)
+                if (isContinuous) {
+                    if (index == 0) return@fetch current.imagePage
+                    var page = current
+                    val step = if (index > 0) 1 else -1
+                    repeat(abs(index)) {
+                        page = nextPage(page, step) ?: return@fetch null
+                    }
+                    return@fetch page.imagePage
+                }
+                // KMK <--
+
                 // For index 0, return the current spread
                 if (index == 0) {
                     return@fetch buildSpreadPage(getSpreadAnchor(current))
