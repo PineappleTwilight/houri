@@ -444,34 +444,57 @@ class TransitionPage(
             Color.BLACK
         }
 
+    // Per-frame render() must not resolve resources or density: chapter names and the
+    // locale change only on chapter swap, and density only on display change.
+    private var cachedText: String? = null
+    private var cachedPrevId: Long? = null
+    private var cachedPrevName: String? = null
+    private var cachedNextId: Long? = null
+    private var cachedNextName: String? = null
+    private var cachedLocale: java.util.Locale? = null
+    private var cachedDensity = -1f
+    private var cachedPadding = 24f
+    private var cachedUnit = 16f
+
     override fun render(dst: GPUTexture, x: Float, y: Float, scale: Float) {
         if (viewer.isDestroyed || dst.width < 8 || dst.height < 8) return
         // Its own footprint, so the page carries its background wherever a transition puts it.
         fillPage(dst, x, y, scale, backgroundColor)
-        val lines: MutableList<String> = mutableListOf()
-        try {
-            prevChapter?.chapter?.let { chapter ->
-                lines.add(viewer.activity.stringResource(MR.strings.action_previous_chapter) + ": " + chapter.name)
+        val prevCh = prevChapter?.chapter
+        val nextCh = nextChapter?.chapter
+        val locale = try { java.util.Locale.getDefault() } catch (_: Exception) { null }
+        var text = cachedText
+        if (text == null || prevCh?.id != cachedPrevId || prevCh?.name != cachedPrevName ||
+            nextCh?.id != cachedNextId || nextCh?.name != cachedNextName || locale != cachedLocale
+        ) {
+            val lines: MutableList<String> = mutableListOf()
+            try {
+                if (prevCh != null) {
+                    lines.add(viewer.activity.stringResource(MR.strings.action_previous_chapter) + ": " + prevCh.name)
+                }
+                if (nextCh != null) {
+                    lines.add(viewer.activity.stringResource(MR.strings.action_next_chapter) + ": " + nextCh.name)
+                }
+            } catch (_: Exception) {
             }
-            nextChapter?.chapter?.let { chapter ->
-                lines.add(viewer.activity.stringResource(MR.strings.action_next_chapter) + ": " + chapter.name)
-            }
-        } catch (_: Exception) {
+            text = lines.joinToString("\n")
+            cachedText = text
+            cachedPrevId = prevCh?.id
+            cachedPrevName = prevCh?.name
+            cachedNextId = nextCh?.id
+            cachedNextName = nextCh?.name
+            cachedLocale = locale
         }
-
-        val text = lines.joinToString("\n")
         if (text.isBlank()) return
 
-        val padding = try {
-            with(viewer.pager.state.density) { 24.dp.toPx() }
-        } catch (_: Exception) {
-            24f
+        val density = try { viewer.pager.state.density.density } catch (_: Exception) { -1f }
+        if (density != cachedDensity) {
+            cachedDensity = density
+            cachedPadding = if (density > 0f) 24f * density else 24f
+            cachedUnit = if (density > 0f) 16f * density else 16f
         }
-        val size = try {
-            scale * with(viewer.pager.state.density) { 16.dp.toPx() }
-        } catch (_: Exception) {
-            16f * scale
-        }
+        val padding = cachedPadding
+        val size = scale * cachedUnit
 
         val cx = dst.width * (0.5f + scale * x)
         val cy = dst.height * (0.5f + scale * y)
