@@ -179,6 +179,7 @@ class MangaRestorer(
                 rereading = manga.rereading,
                 rereadStartedAt = manga.rereadStartedAt,
                 scanlatorRangeRules = manga.scanlatorRangeRules.let(StringListColumnAdapter::encode),
+                isLightNovel = manga.isLightNovel,
                 // KMK <--
             )
         }

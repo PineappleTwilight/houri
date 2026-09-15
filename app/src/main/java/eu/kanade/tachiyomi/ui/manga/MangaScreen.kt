@@ -86,6 +86,7 @@ import eu.kanade.tachiyomi.ui.reader.ReaderActivity
 import eu.kanade.tachiyomi.ui.setting.SettingsScreen
 import eu.kanade.tachiyomi.ui.webview.WebViewScreen
 import eu.kanade.tachiyomi.util.system.copyToClipboard
+import eu.kanade.tachiyomi.util.system.openInBrowser
 import eu.kanade.tachiyomi.util.system.toShareIntent
 import eu.kanade.tachiyomi.util.system.toast
 import exh.pagepreview.PagePreviewScreen
@@ -451,6 +452,9 @@ class MangaScreen(
             onSequelPrequelClick = { entry ->
                 scope.launch {
                     screenModel.resolveSequelPrequel(entry)?.let { navigator.push(MangaScreen(it, true)) }
+                        // Tracker-sourced entries (e.g. AniList siteUrl) don't resolve
+                        // in-source: open them in the browser instead of no-op.
+                        ?: entry.url.takeIf { it.startsWith("http") }?.let { context.openInBrowser(it) }
                 }
             },
             // KMK <--

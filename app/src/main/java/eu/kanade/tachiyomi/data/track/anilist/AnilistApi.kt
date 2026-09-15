@@ -8,6 +8,7 @@ import eu.kanade.tachiyomi.data.track.anilist.dto.ALCurrentUserResult
 import eu.kanade.tachiyomi.data.track.anilist.dto.ALError
 import eu.kanade.tachiyomi.data.track.anilist.dto.ALIdSearchResult
 import eu.kanade.tachiyomi.data.track.anilist.dto.ALMangaMetadata
+import eu.kanade.tachiyomi.data.track.anilist.dto.ALMangaRelations
 import eu.kanade.tachiyomi.data.track.anilist.dto.ALOAuth
 import eu.kanade.tachiyomi.data.track.anilist.dto.ALSearchResult
 import eu.kanade.tachiyomi.data.track.anilist.dto.ALUserListMangaQueryResult
@@ -524,6 +525,56 @@ class AnilistApi(val client: OkHttpClient, interceptor: AnilistInterceptor) {
         }
     }
     // SY <--
+
+    // KMK -->
+    /**
+     * Public prequel/sequel relations for a media id. Uses the unauthenticated
+     * client: relations are public data, and requiring login would lock out
+     * readers who only bound AniList for metadata. Abuse is capped upstream by
+     * [tachiyomi.domain.manga.interactor.RelatedMangaCache] (24h TTL).
+     */
+    suspend fun getMangaRelations(mediaId: Long): ALMangaRelations {
+        return withIOContext {
+            val query = $$"""
+            |query ($mangaId: Int!) {
+                |Media (id: $mangaId) {
+                    |relations {
+                        |edges {
+                            |relationType(version: 2)
+                            |node {
+                                |id
+                                |title {
+                                    |romaji
+                                    |english
+                                    |userPreferred
+                                |}
+                                |siteUrl
+                            |}
+                        |}
+                    |}
+                |}
+            |}
+            |
+            """.trimMargin()
+            val payload = buildJsonObject {
+                put("query", query)
+                putJsonObject("variables") {
+                    put("mangaId", mediaId)
+                }
+            }
+            with(json) {
+                client.newCall(
+                    POST(
+                        API_URL,
+                        body = payload.toString().toRequestBody(jsonMime),
+                    ),
+                )
+                    .await()
+                    .parseAs<ALMangaRelations>()
+            }
+        }
+    }
+    // KMK <--
 
     private fun createDate(dateValue: Long): JsonObject {
         if (dateValue == 0L) {

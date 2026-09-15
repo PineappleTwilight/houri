@@ -31,12 +31,16 @@ fun isMetadataSource(source: Long) = source in 6900..6999 ||
 
 // KMK -->
 fun Source.isEhBasedSource() = this is EhBasedSource && id in eHentaiSourceIds
+
+fun Source.isLnBasedSource() = id in lnSourceIds
 // KMK <--
 
 fun Source.isMdBasedSource() = id in mangaDexSourceIds
 
 // KMK -->
 fun Manga.isEhBasedManga() = source in eHentaiSourceIds
+
+fun Manga.isLightNovel() = isLightNovel || source in lnSourceIds
 // KMK <--
 
 fun Source.getMainSource(): Source = if (this is EnhancedHttpSource) {

@@ -78,6 +78,38 @@ val EXHENTAI_EXT_SOURCES = mapOf(
 
 val eHentaiSourceIds = EHENTAI_EXT_SOURCES.keys + EXHENTAI_EXT_SOURCES.keys
 
+// KMK -->
+// Light novel source IDs: reserved range LEWD_SOURCE_SERIES+100..+117, one per
+// locale mirroring the EHENTAI 18-locale set. No community extension occupies
+// these yet; the NovelViewer stub keys off them until real LN sources ship.
+const val LN_SOURCE_SERIES = LEWD_SOURCE_SERIES + 100
+
+val LN_SOURCE_IDS = mapOf(
+    LN_SOURCE_SERIES + 0 to "ja",
+    LN_SOURCE_SERIES + 1 to "en",
+    LN_SOURCE_SERIES + 2 to "zh",
+    LN_SOURCE_SERIES + 3 to "nl",
+    LN_SOURCE_SERIES + 4 to "fr",
+    LN_SOURCE_SERIES + 5 to "de",
+    LN_SOURCE_SERIES + 6 to "hu",
+    LN_SOURCE_SERIES + 7 to "it",
+    LN_SOURCE_SERIES + 8 to "ko",
+    LN_SOURCE_SERIES + 9 to "pl",
+    LN_SOURCE_SERIES + 10 to "pt-BR",
+    LN_SOURCE_SERIES + 11 to "ru",
+    LN_SOURCE_SERIES + 12 to "es",
+    LN_SOURCE_SERIES + 13 to "th",
+    LN_SOURCE_SERIES + 14 to "vi",
+    LN_SOURCE_SERIES + 15 to "none",
+    LN_SOURCE_SERIES + 16 to "other",
+    LN_SOURCE_SERIES + 17 to "all",
+)
+
+val lnSourceIds = LN_SOURCE_IDS.keys
+
+fun isLnSourceId(sourceId: Long): Boolean = sourceId in lnSourceIds
+// KMK <--
+
 val COMICK_IDS = setOf(
     982606170401027267, // all
     2971557565147974499, // en

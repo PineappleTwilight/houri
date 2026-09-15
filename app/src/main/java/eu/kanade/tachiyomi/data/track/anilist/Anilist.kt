@@ -6,6 +6,7 @@ import eu.kanade.tachiyomi.R
 import eu.kanade.tachiyomi.data.database.models.Track
 import eu.kanade.tachiyomi.data.track.BaseTracker
 import eu.kanade.tachiyomi.data.track.DeletableTracker
+import eu.kanade.tachiyomi.data.track.anilist.dto.ALMangaRelations
 import eu.kanade.tachiyomi.data.track.anilist.dto.ALOAuth
 import eu.kanade.tachiyomi.data.track.core.TrackerLoginMode
 import eu.kanade.tachiyomi.data.track.model.TrackMangaMetadata
@@ -240,6 +241,17 @@ class Anilist(id: Long) : BaseTracker(id, "AniList"), DeletableTracker {
     override suspend fun getMangaMetadata(track: DomainTrack): TrackMangaMetadata {
         return api.getMangaMetadata(track)
     }
+
+    // KMK -->
+    suspend fun getMangaRelations(mediaId: Long): ALMangaRelations? {
+        return try {
+            api.getMangaRelations(mediaId)
+        } catch (e: Exception) {
+            xLogW("Error during getMangaRelations '$mediaId': ${e.message}", e)
+            null
+        }
+    }
+    // KMK <--
 
     // SY -->
     override suspend fun searchById(id: String): TrackSearch? {

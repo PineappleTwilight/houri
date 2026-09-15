@@ -1,12 +1,19 @@
 package eu.kanade.tachiyomi.data.achievement
 
 import android.content.Context
+import android.content.res.Configuration
 import android.os.Handler
 import android.os.Looper
 import android.widget.Toast
+import androidx.appcompat.view.ContextThemeWrapper
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
+import eu.kanade.domain.ui.UiPreferences
+import eu.kanade.domain.ui.model.ThemeMode
+import eu.kanade.tachiyomi.R
+import eu.kanade.tachiyomi.ui.base.delegate.ThemingDelegate
+import eu.kanade.tachiyomi.util.system.isNightMode
 import eu.kanade.tachiyomi.util.system.toast
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -14,6 +21,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import mihon.app.di.globalAppGraph
 import tachiyomi.domain.achievement.model.Achievements
 import tachiyomi.domain.achievement.service.AchievementPreferences
 import tachiyomi.domain.achievement.service.AchievementUnlockNotifier
@@ -34,6 +42,7 @@ class AchievementNotifier(
     private val handler = Handler(Looper.getMainLooper())
     private var lastSeen = prefs.getUnlockedIds()
     private var started = false
+    private val recentlyNotified = mutableMapOf<String, Long>()
 
     fun start() {
         if (started) return
@@ -44,7 +53,9 @@ class AchievementNotifier(
                 .map { raw -> if (raw.isBlank()) emptySet() else raw.split(",").filter { it.isNotBlank() }.toSet() }
                 .distinctUntilChanged()
                 .collect { current ->
-                    val newly = current - lastSeen
+                    val now = android.os.SystemClock.uptimeMillis()
+                    val newly = (current - lastSeen)
+                        .filterNot { (now - (recentlyNotified[it] ?: 0L)) < 10_000L }
                     if (newly.isNotEmpty()) {
                         var delayMs = 0L
                         for (id in newly) {
@@ -66,14 +77,17 @@ class AchievementNotifier(
     fun notifyNow(ids: List<String>) {
         if (!prefs.achievementsEnabled().get()) return
         if (ids.isEmpty()) return
+        val now = android.os.SystemClock.uptimeMillis()
+        ids.forEach { recentlyNotified[it] = now }
         // KMK -->
         ids.forEach { id ->
             val ach = Achievements.forId(id) ?: return@forEach
+            val revealed = if (ach.isSecret) ach.copy(unlockedAt = 1L) else ach
             webhookNotifier.notify(
                 event = eu.kanade.tachiyomi.data.webhook.WebhookEvent.ACHIEVEMENT_UNLOCKED,
                 data = mapOf(
                     "achievement_id" to id,
-                    "achievement_title" to ach.displayTitle,
+                    "achievement_title" to revealed.displayTitle,
                     "achievement_tier" to ach.tier.name,
                 ),
             )
@@ -82,11 +96,12 @@ class AchievementNotifier(
         val valid = ids.mapNotNull { Achievements.forId(it) }
         if (valid.isEmpty()) return
         if (valid.size > 3) {
-            val summary = "Unlocked ${valid.size} achievements: " + valid.take(3).joinToString(", ") { it.displayTitle } + if (valid.size > 3) " +${valid.size - 3} more" else ""
+            val revealed = valid.map { if (it.isSecret) it.copy(unlockedAt = 1L) else it }
+            val summary = "Unlocked ${revealed.size} achievements: " + revealed.take(3).joinToString(", ") { it.displayTitle } + if (revealed.size > 3) " +${revealed.size - 3} more" else ""
             handler.post {
                 if (prefs.achievementToastsEnabled().get()) {
                     try {
-                        context.toast(summary, duration = Toast.LENGTH_LONG)
+                        themedToastContext().toast(summary, duration = Toast.LENGTH_LONG)
                     } catch (_: Exception) {}
                 }
                 valid.forEach { soundPlayer.play(it.tier) }
@@ -113,7 +128,8 @@ class AchievementNotifier(
     private fun showToast(ach: tachiyomi.domain.achievement.model.Achievement) {
         if (!prefs.achievementsEnabled().get()) return
         if (!prefs.achievementToastsEnabled().get()) return
-        val tierLabel = when (ach.tier) {
+        val resolved = if (ach.isSecret) ach.copy(unlockedAt = 1L) else ach
+        val tierLabel = when (resolved.tier) {
             tachiyomi.domain.achievement.model.AchievementTier.MYTHIC -> "MYTHIC"
             tachiyomi.domain.achievement.model.AchievementTier.LEGENDARY -> "LEGENDARY"
             tachiyomi.domain.achievement.model.AchievementTier.PLATINUM -> "PLATINUM"
@@ -122,11 +138,36 @@ class AchievementNotifier(
             tachiyomi.domain.achievement.model.AchievementTier.ULTIMATE -> "ULTIMATE"
             else -> "BRONZE"
         }
-        val secretPrefix = if (ach.isSecret) "Secret Unlocked! " else ""
-        val desc = if (ach.displayDescription.length > 80) ach.displayDescription.take(77) + "..." else ach.displayDescription
-        val msg = "${ach.displayIcon}  ${secretPrefix}${ach.displayTitle} [$tierLabel] — $desc"
+        val secretPrefix = if (resolved.isSecret) "Secret Unlocked! " else ""
+        val desc = if (resolved.displayDescription.length > 80) resolved.displayDescription.take(77) + "..." else resolved.displayDescription
+        val msg = "${resolved.displayIcon}  ${secretPrefix}${resolved.displayTitle} [$tierLabel] — $desc"
         try {
-            context.toast(msg, duration = Toast.LENGTH_LONG)
+            themedToastContext().toast(msg, duration = Toast.LENGTH_LONG)
         } catch (_: Exception) {}
+    }
+
+    private fun themedToastContext(): Context {
+        return try {
+            val uiPrefs: UiPreferences = globalAppGraph.uiPreferences
+            val night = when (uiPrefs.themeMode().get()) {
+                ThemeMode.LIGHT -> false
+                ThemeMode.DARK -> true
+                else -> context.applicationContext.isNightMode()
+            }
+            val expected = if (night) Configuration.UI_MODE_NIGHT_YES else Configuration.UI_MODE_NIGHT_NO
+            val base = context.applicationContext
+            val wrapped = ContextThemeWrapper(base, R.style.Theme_Tachiyomi)
+            if (base.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK != expected) {
+                val overrideConf = Configuration()
+                overrideConf.setTo(base.resources.configuration)
+                overrideConf.uiMode = (overrideConf.uiMode and Configuration.UI_MODE_NIGHT_MASK.inv()) or expected
+                wrapped.applyOverrideConfiguration(overrideConf)
+            }
+            ThemingDelegate.getThemeResIds(uiPrefs.appTheme().get(), uiPrefs.themeDarkAmoled().get())
+                .forEach { wrapped.theme.applyStyle(it, true) }
+            wrapped
+        } catch (_: Exception) {
+            context
+        }
     }
 }

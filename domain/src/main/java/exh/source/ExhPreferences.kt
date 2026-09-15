@@ -26,6 +26,10 @@ class ExhPreferences(
     // SY -->
     fun isHentaiEnabled() = preferenceStore.getBoolean("eh_is_hentai_enabled", true)
 
+    // KMK --> Light novel reader gate (default off until real LN sources ship).
+    fun isLightNovelEnabled() = preferenceStore.getBoolean("eh_is_light_novel_enabled", false)
+    // KMK <--
+
     fun enableExhentai() = preferenceStore.getBoolean(Preference.privateKey("enable_exhentai"), false)
 
     fun imageQuality() = preferenceStore.getString("ehentai_quality", "auto")

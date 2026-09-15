@@ -9,11 +9,13 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import eu.kanade.presentation.more.settings.Preference
-import kotlinx.collections.immutable.persistentListOf
+import eu.kanade.tachiyomi.ui.reader.setting.UpscalePreferences
 import kotlinx.collections.immutable.toImmutableList
 import mihon.app.di.globalAppGraph
 import tachiyomi.i18n.kmk.KMR
@@ -55,14 +57,35 @@ object SettingsUpscalerScreen : SearchableSettings {
                 backend
             }
         }
-        val cacheBytes = remember(cacheEnabled, enabled) {
+        val backendEntries = remember(enabled) {
+            try {
+                val available = engine.availableBackends().toSet()
+                kotlinx.collections.immutable.persistentMapOf<String, String>(
+                    *buildList {
+                        add("AUTO" to "Auto (Vulkan → NPU → CPU)")
+                        if (UpscalePreferences.Backend.VULKAN in available) add("VULKAN" to "Vulkan (GPU)")
+                        if (UpscalePreferences.Backend.NPU in available) add("NPU" to "NPU (Qualcomm/ONNX)")
+                        add("CPU" to "CPU (fallback)")
+                    }.toTypedArray(),
+                )
+            } catch (_: Exception) {
+                kotlinx.collections.immutable.persistentMapOf(
+                    "AUTO" to "Auto (Vulkan → NPU → CPU)",
+                    "VULKAN" to "Vulkan (GPU)",
+                    "NPU" to "NPU (Qualcomm/ONNX)",
+                    "CPU" to "CPU (fallback)",
+                )
+            }
+        }
+        var cacheRefreshTick by remember { mutableIntStateOf(0) }
+        val cacheBytes = remember(cacheEnabled, enabled, cacheRefreshTick) {
             try {
                 engine.cacheSizeBytes()
             } catch (_: Exception) {
                 0L
             }
         }
-        val cacheCount = remember(cacheEnabled, enabled) {
+        val cacheCount = remember(cacheEnabled, enabled, cacheRefreshTick) {
             try {
                 engine.cacheFileCount()
             } catch (_: Exception) {
@@ -93,7 +116,7 @@ object SettingsUpscalerScreen : SearchableSettings {
                         preference = prefs.mode(),
                         entries = kotlinx.collections.immutable.persistentMapOf(
                             "NATIVE" to "Native (Real-CUGAN / ESRGAN / Waifu2x)",
-                            "SIMPLE" to "Simple (Bicubic / Bilinear / Nearest)",
+                            "SIMPLE" to "Simple",
                         ),
                         title = "Upscale mode",
                         subtitle = if (isSimple) "Simple — $simpleAlgo" else "Native — $model • $effBackend",
@@ -133,12 +156,7 @@ object SettingsUpscalerScreen : SearchableSettings {
                 add(
                     Preference.PreferenceItem.ListPreference(
                         preference = prefs.backend(),
-                        entries = kotlinx.collections.immutable.persistentMapOf(
-                            "AUTO" to "Auto (Vulkan → NPU → CPU)",
-                            "VULKAN" to "Vulkan (GPU)",
-                            "NPU" to "NPU (Qualcomm/ONNX)",
-                            "CPU" to "CPU (fallback)",
-                        ),
+                        entries = backendEntries,
                         title = stringResource(KMR.strings.pref_upscale_backend),
                         subtitle = "$backend → effective: $effBackend",
                         enabled = enabled,
@@ -192,7 +210,10 @@ object SettingsUpscalerScreen : SearchableSettings {
                 Preference.PreferenceItem.TextPreference(
                     title = stringResource(KMR.strings.pref_upscale_clear_cache),
                     subtitle = if (cacheBytes > 0) "Clear $cacheCount files (${cacheBytes / 1024} KB)" else stringResource(KMR.strings.pref_upscale_clear_cache_summary),
-                    onClick = { engine.clearCache() },
+                    onClick = {
+                        engine.clearCache()
+                        cacheRefreshTick++
+                    },
                     enabled = enabled && cacheEnabled,
                 ),
             )
@@ -262,10 +283,21 @@ object SettingsUpscalerScreen : SearchableSettings {
                     title = if (enabled) "Upscaling is per-manga: enable globally above, then toggle Upscale Manga on each manga's details page." else "Enable upscaling to reveal the per-manga toggle on manga details.",
                 ),
             )
-            if (!isSimple && enabled) {
+            if (!isSimple) {
+                val nativeAvailable = remember(enabled, mode) {
+                    try {
+                        engine.isNativeAvailable()
+                    } catch (_: Exception) {
+                        false
+                    }
+                }
                 add(
                     Preference.PreferenceItem.InfoPreference(
-                        title = "Native mode currently uses high-quality bilinear as placeholder; true NCNN/ONNX inference (Real-CUGAN/ESRGAN) runs when native libs (libncnn/libonnxruntime) are bundled. Cache keys include factor, model, preset and backend.",
+                        title = if (nativeAvailable) {
+                            "Native mode currently uses high-quality bilinear as placeholder; true NCNN/ONNX inference (Real-CUGAN/ESRGAN) runs when native libs (libncnn/libonnxruntime) are bundled. Cache keys include factor, model, preset and backend."
+                        } else {
+                            "Native libs (libncnn/libonnxruntime) are not bundled on this build, so Native mode falls back to high-quality bilinear until they are. Cache keys include factor, model, preset and backend."
+                        },
                     ),
                 )
             }

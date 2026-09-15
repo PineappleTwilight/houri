@@ -46,6 +46,7 @@ object MangaMapper {
         rereading: Boolean,
         rereadStartedAt: Long,
         scanlatorRangeRules: List<String>,
+        isLightNovel: Boolean,
         // KMK <--
     ): Manga = Manga(
         id = id,
@@ -82,6 +83,7 @@ object MangaMapper {
         rereading = rereading,
         rereadStartedAt = rereadStartedAt,
         scanlatorRangeRules = scanlatorRangeRules,
+        isLightNovel = isLightNovel,
         // KMK <--
     )
 
@@ -122,6 +124,7 @@ object MangaMapper {
         rereading: Boolean,
         rereadStartedAt: Long,
         scanlatorRangeRules: List<String>,
+        isLightNovel: Boolean,
         // KMK <--
         totalCount: Long,
         readCount: Double,
@@ -171,6 +174,7 @@ object MangaMapper {
             rereading,
             rereadStartedAt,
             scanlatorRangeRules,
+            isLightNovel,
             // KMK <--
         ),
         categories = categories.split(",").map { it.toLong() },
@@ -223,6 +227,7 @@ object MangaMapper {
         rereading: Boolean,
         rereadStartedAt: Long,
         scanlatorRangeRules: List<String>,
+        isLightNovel: Boolean,
         // KMK <--
         totalCount: Long,
     ): MangaWithChapterCount = MangaWithChapterCount(
@@ -263,6 +268,7 @@ object MangaMapper {
             rereading,
             rereadStartedAt,
             scanlatorRangeRules,
+            isLightNovel,
             // KMK <--
         ),
         chapterCount = totalCount,

@@ -1,0 +1,5 @@
+-- KMK -->
+-- Migration 54: Light novel skeleton (per-manga override flag; source-ID
+-- detection lives in exh.source.LN_SOURCE_IDS, no backfill needed)
+ALTER TABLE mangas ADD COLUMN is_light_novel INTEGER AS Boolean NOT NULL DEFAULT 0;
+-- KMK <--

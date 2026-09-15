@@ -6,10 +6,9 @@ import eu.kanade.domain.manga.model.hasCustomCover
 import eu.kanade.domain.source.service.SourcePreferences
 import eu.kanade.tachiyomi.data.cache.CoverCache
 import eu.kanade.tachiyomi.data.download.DownloadManager
+import eu.kanade.tachiyomi.data.event.AppEvent
 import eu.kanade.tachiyomi.data.track.EnhancedTracker
 import eu.kanade.tachiyomi.data.track.TrackerManager
-import eu.kanade.tachiyomi.data.webhook.WebhookEvent
-import eu.kanade.tachiyomi.data.webhook.WebhookNotifier
 import kotlinx.coroutines.CancellationException
 import mihon.app.di.globalAppGraph
 import mihon.domain.migration.models.MigrationFlag
@@ -50,7 +49,7 @@ class MigrateMangaUseCase(
     // KMK <--
 ) {
     // KMK -->
-    private val webhookNotifier: WebhookNotifier get() = globalAppGraph.webhookNotifier
+    private val appEventBus get() = globalAppGraph.appEventBus
     // KMK <--
     private val enhancedServices by lazy { trackerManager.trackers.filterIsInstance<EnhancedTracker>() }
 
@@ -199,15 +198,14 @@ class MigrateMangaUseCase(
 
             updateManga.awaitAll(listOfNotNull(currentMangaUpdate, targetMangaUpdate))
             // KMK -->
-            webhookNotifier.notify(
-                WebhookEvent.MANGA_MIGRATED,
-                mapOf(
-                    "manga" to target.title,
-                    "from_source" to (currentSource?.name ?: current.source.toString()),
-                    "to_source" to targetSource.name,
+            appEventBus.emit(
+                AppEvent.MangaMigrated(
+                    mangaTitle = target.title,
+                    fromSource = currentSource?.name ?: current.source.toString(),
+                    toSource = targetSource.name,
+                    sourceId = target.source,
+                    mangaId = target.id,
                 ),
-                sourceId = target.source,
-                mangaId = target.id,
             )
             // KMK <--
         } catch (e: Throwable) {

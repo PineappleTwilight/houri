@@ -489,8 +489,12 @@ open class WebGpuViewer(
                 (this as? ca.mpreg.webgpuviewer.viewer.ImageViewerContinuousState)?.let {
                     // KMK -->
                     homeScale = config.continuousMinWidth / 100f
-                    scale = homeScale
                     minScale = if (config.zoomOutDisabled) 0f else 0.1f
+                    // Never clobber the reader's zoom here: this listener fires on
+                    // every image-property change (theme, scale type, ...). Only
+                    // lift out of an illegal range (homeScale's own setter already
+                    // lifts scale when the floor itself rises).
+                    if (config.zoomOutDisabled && scale < homeScale) scale = homeScale
 
                     if ((this@WebGpuViewer as? WebGpuViewerContinuous)?.useGap == true) {
                         pageGap = config.continuousGap / 100f
@@ -733,18 +737,7 @@ open class WebGpuViewer(
                 val st = cont?.state
                 if (st != null) {
                     when {
-                        stored.isV2 && stored.offsetRatio > 1f -> {
-                            val pos = ca.mpreg.webgpuviewer.viewer.ImageViewerContinuousState.ContinuousPosition(
-                                documentY = stored.offsetRatio,
-                                scale = stored.zoom,
-                                offsetX = stored.offsetX,
-                                pageIndexHint = stored.pageIndex,
-                                fractionWithinPage = stored.fraction,
-                            )
-                            st.restorePosition(pos, animate = false)
-                        }
                         stored.isV2 -> {
-                            // small docY (top of document) still use v2 path
                             val pos = ca.mpreg.webgpuviewer.viewer.ImageViewerContinuousState.ContinuousPosition(
                                 documentY = stored.offsetRatio,
                                 scale = stored.zoom,
@@ -755,9 +748,17 @@ open class WebGpuViewer(
                             st.restorePosition(pos, animate = false)
                         }
                         else -> {
-                            // legacy fraction 0..1 — restore by page+fraction
-                            if (stored.fraction.isFinite() && stored.fraction > 0f) {
-                                st.scrollToPage(stored.pageIndex, stored.fraction)
+                            // legacy fraction 0..1 — restore by page+fraction.
+                            // Suppress callbacks: the scroll walk would re-drive
+                            // currentPage mid-restore and jump somewhere random.
+                            val cb = st.onPageChange
+                            st.onPageChange = null
+                            try {
+                                if (stored.fraction.isFinite() && stored.fraction > 0f) {
+                                    st.scrollToPage(stored.pageIndex, stored.fraction)
+                                }
+                            } finally {
+                                st.onPageChange = cb
                             }
                             val maxOffsetX = maxOf(0f, (stored.zoom - 1f) / (2f * stored.zoom))
                             st.scale = stored.zoom.coerceIn(st.minScale, st.maxScale)

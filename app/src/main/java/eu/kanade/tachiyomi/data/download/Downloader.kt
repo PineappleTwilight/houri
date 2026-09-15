@@ -13,9 +13,9 @@ import eu.kanade.domain.manga.model.getComicInfo
 import eu.kanade.domain.source.service.SourcePreferences
 import eu.kanade.tachiyomi.data.cache.ChapterCache
 import eu.kanade.tachiyomi.data.download.model.Download
+import eu.kanade.tachiyomi.data.event.AppEvent
 import eu.kanade.tachiyomi.data.library.LibraryUpdateNotifier
 import eu.kanade.tachiyomi.data.notification.NotificationHandler
-import eu.kanade.tachiyomi.data.webhook.WebhookEvent
 import eu.kanade.tachiyomi.data.webhook.WebhookNotifier
 import eu.kanade.tachiyomi.source.UnmeteredSource
 import eu.kanade.tachiyomi.source.model.Page
@@ -118,7 +118,7 @@ class Downloader(
     private val notifier by lazy { DownloadNotifier(context) }
 
     // KMK -->
-    private val webhookNotifier by lazy { globalAppGraph.webhookNotifier }
+    private val appEventBus by lazy { globalAppGraph.appEventBus }
 
     private var completedDownloadsCount = 0
 
@@ -126,10 +126,7 @@ class Downloader(
         val count = completedDownloadsCount
         completedDownloadsCount = 0
         if (count > 0) {
-            webhookNotifier.notify(
-                WebhookEvent.DOWNLOADS_FINISHED,
-                mapOf("chapters_downloaded" to count.toString()),
-            )
+            appEventBus.emit(AppEvent.DownloadsFinished(count))
         }
     }
     // KMK <--

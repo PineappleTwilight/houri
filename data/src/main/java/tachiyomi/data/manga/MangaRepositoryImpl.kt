@@ -214,6 +214,7 @@ class MangaRepositoryImpl(
                     rereading = value.rereading,
                     rereadStartedAt = value.rereadStartedAt,
                     scanlatorRangeRules = value.scanlatorRangeRules?.let(StringListColumnAdapter::encode),
+                    isLightNovel = value.isLightNovel,
                     // KMK <--
                 )
             }

@@ -26,7 +26,6 @@ import eu.kanade.tachiyomi.ui.browse.extension.ExtensionsScreenModel
 import eu.kanade.tachiyomi.ui.browse.extension.extensionsTab
 import eu.kanade.tachiyomi.ui.browse.feed.AnizenMultiFeedScreenModel
 import eu.kanade.tachiyomi.ui.browse.feed.FeedScreenModel
-import eu.kanade.tachiyomi.ui.browse.feed.anizenMultiFeedTab
 import eu.kanade.tachiyomi.ui.browse.feed.feedTab
 import eu.kanade.tachiyomi.ui.browse.migration.sources.migrateSourceTab
 import eu.kanade.tachiyomi.ui.browse.source.globalsearch.GlobalSearchScreen
@@ -101,14 +100,9 @@ data object BrowseTab : Tab {
                         // KMK -->
                         feedScreenModel,
                         bulkFavoriteScreenModel,
+                        anizenMultiFeedScreenModel,
                         // KMK <--
                     ),
-                    // KMK -->
-                    anizenMultiFeedTab(
-                        anizenMultiFeedScreenModel,
-                        bulkFavoriteScreenModel,
-                    ),
-                    // KMK <--
                     sourcesTab(),
                     extensionsTab(extensionsScreenModel),
                     migrateSourceTab(),
@@ -121,14 +115,9 @@ data object BrowseTab : Tab {
                         // KMK -->
                         feedScreenModel,
                         bulkFavoriteScreenModel,
+                        anizenMultiFeedScreenModel,
                         // KMK <--
                     ),
-                    // KMK -->
-                    anizenMultiFeedTab(
-                        anizenMultiFeedScreenModel,
-                        bulkFavoriteScreenModel,
-                    ),
-                    // KMK <--
                     extensionsTab(extensionsScreenModel),
                     migrateSourceTab(),
                 )
@@ -136,6 +125,10 @@ data object BrowseTab : Tab {
         // SY <--
 
         val state = rememberPagerState { tabs.size }
+
+        // KMK --> Multi-feed merged into the feed tab: header is shorter, so the
+        // extensions index depends on the visible tabs.
+        val extensionsIndex = if (hideFeedTab) 1 else 2
 
         TabbedScreen(
             titleRes = MR.strings.browse,
@@ -148,9 +141,9 @@ data object BrowseTab : Tab {
             bulkFavoriteScreenModel = bulkFavoriteScreenModel,
             // KMK <--
         )
-        LaunchedEffect(Unit) {
+        LaunchedEffect(extensionsIndex) {
             switchToExtensionTabChannel.receiveAsFlow()
-                .collectLatest { state.scrollToPage(/* SY --> */2/* SY <-- */) }
+                .collectLatest { state.scrollToPage(extensionsIndex) }
         }
 
         LaunchedEffect(Unit) {

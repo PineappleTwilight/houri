@@ -51,6 +51,7 @@ data class Manga(
     val rereading: Boolean = false,
     val rereadStartedAt: Long = 0,
     val scanlatorRangeRules: List<String> = emptyList(),
+    val isLightNovel: Boolean = false,
     // KMK <--
 ) : JavaSerializable {
 
@@ -125,6 +126,7 @@ data class Manga(
             rereading == other.rereading &&
             rereadStartedAt == other.rereadStartedAt &&
             scanlatorRangeRules == other.scanlatorRangeRules &&
+            isLightNovel == other.isLightNovel &&
             title == other.title &&
             author == other.author &&
             artist == other.artist &&
@@ -166,6 +168,7 @@ data class Manga(
         result = 31 * result + rereading.hashCode()
         result = 31 * result + rereadStartedAt.hashCode()
         result = 31 * result + scanlatorRangeRules.hashCode()
+        result = 31 * result + isLightNovel.hashCode()
         result = 31 * result + title.hashCode()
         result = 31 * result + author.hashCode()
         result = 31 * result + artist.hashCode()
@@ -303,6 +306,10 @@ enum class SequelPrequelRelation(val dexString: String?) {
 
     companion object {
         fun fromDex(mdString: String) = entries.find { it.dexString == mdString }
+
+        // KMK --> AniList v2 relationType values match the enum names.
+        fun fromAniList(alString: String) = entries.find { it.name == alString }
+        // KMK <--
     }
 }
 

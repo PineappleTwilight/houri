@@ -72,6 +72,109 @@ sealed interface AppEvent {
         override val sourceId: Long? = null
         override val mangaId: Long? = null
     }
+
+    data class ChapterStarted(
+        val mangaTitle: String,
+        val chapterName: String,
+        override val sourceId: Long?,
+        override val mangaId: Long?,
+    ) : AppEvent {
+        override val achievementEvent: AchievementEvent? = null
+        override val webhookEvent: WebhookEvent = WebhookEvent.CHAPTER_STARTED
+        override val webhookData: Map<String, String> = mapOf(
+            "manga" to mangaTitle,
+            "chapter" to chapterName,
+        )
+    }
+
+    data class ChapterRead(
+        override val webhookData: Map<String, String>,
+        override val sourceId: Long?,
+        override val mangaId: Long?,
+    ) : AppEvent {
+        override val achievementEvent: AchievementEvent? = null
+        override val webhookEvent: WebhookEvent = WebhookEvent.CHAPTER_READ
+    }
+
+    data class MangaStarted(
+        val mangaTitle: String,
+        val chapterName: String,
+        override val sourceId: Long?,
+        override val mangaId: Long?,
+    ) : AppEvent {
+        override val achievementEvent: AchievementEvent? = null
+        override val webhookEvent: WebhookEvent = WebhookEvent.NEW_MANGA_STARTED
+        override val webhookData: Map<String, String> = mapOf(
+            "manga" to mangaTitle,
+            "chapter" to chapterName,
+        )
+    }
+
+    data class MangaCompleted(
+        val mangaTitle: String,
+        val finished: Boolean,
+        override val sourceId: Long?,
+        override val mangaId: Long?,
+    ) : AppEvent {
+        override val achievementEvent: AchievementEvent? = null
+        override val webhookEvent: WebhookEvent =
+            if (finished) WebhookEvent.MANGA_FINISHED else WebhookEvent.MANGA_CAUGHT_UP
+        override val webhookData: Map<String, String> = mapOf("manga" to mangaTitle)
+    }
+
+    data class BackupCreated(
+        val location: String,
+        val automatic: Boolean,
+    ) : AppEvent {
+        override val achievementEvent: AchievementEvent? = null
+        override val webhookEvent: WebhookEvent = WebhookEvent.BACKUP_CREATED
+        override val webhookData: Map<String, String> = mapOf(
+            "location" to location,
+            "automatic" to automatic.toString(),
+        )
+        override val sourceId: Long? = null
+        override val mangaId: Long? = null
+    }
+
+    data class BackupRestored(
+        val mode: String,
+    ) : AppEvent {
+        override val achievementEvent: AchievementEvent? = null
+        override val webhookEvent: WebhookEvent = WebhookEvent.BACKUP_RESTORED
+        override val webhookData: Map<String, String> = mapOf("mode" to mode)
+        override val sourceId: Long? = null
+        override val mangaId: Long? = null
+    }
+
+    data class AppUpdated(
+        val previousVersionCode: Int,
+        val newVersionCode: Int,
+    ) : AppEvent {
+        override val achievementEvent: AchievementEvent? = null
+        override val webhookEvent: WebhookEvent = WebhookEvent.APP_UPDATED
+        override val webhookData: Map<String, String> = mapOf(
+            "previous_version_code" to previousVersionCode.toString(),
+            "new_version_code" to newVersionCode.toString(),
+        )
+        override val sourceId: Long? = null
+        override val mangaId: Long? = null
+    }
+
+    data class MangaMigrated(
+        val mangaTitle: String,
+        val fromSource: String,
+        val toSource: String,
+        override val sourceId: Long?,
+        override val mangaId: Long?,
+    ) : AppEvent {
+        override val achievementEvent: AchievementEvent? = null
+        override val webhookEvent: WebhookEvent = WebhookEvent.MANGA_MIGRATED
+        override val webhookData: Map<String, String> = mapOf(
+            "manga" to mangaTitle,
+            "from_source" to fromSource,
+            "to_source" to toSource,
+        )
+    }
 }
 
 @Inject
@@ -80,15 +183,24 @@ class AppEventBus(
     private val achievementDispatcher: AchievementDispatcher,
     private val webhookNotifier: WebhookNotifier,
 ) {
+    /**
+     * Fan out to each sink in isolation: a throwing sink is swallowed so one
+     * system's failure can never break the caller or the other system. Safe
+     * to call from any thread (both sinks post off-thread themselves).
+     */
     fun emit(event: AppEvent) {
-        event.achievementEvent?.let { achievementDispatcher.dispatchAsync(it) }
+        event.achievementEvent?.let {
+            runCatching { achievementDispatcher.dispatchAsync(it) }
+        }
         event.webhookEvent?.let { webhook ->
-            webhookNotifier.notify(
-                webhook,
-                event.webhookData,
-                sourceId = event.sourceId,
-                mangaId = event.mangaId,
-            )
+            runCatching {
+                webhookNotifier.notify(
+                    webhook,
+                    event.webhookData,
+                    sourceId = event.sourceId,
+                    mangaId = event.mangaId,
+                )
+            }
         }
     }
 }

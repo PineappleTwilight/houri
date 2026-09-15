@@ -42,6 +42,10 @@ class UpscaleEngine(
     fun effectiveBackend(): UpscalePreferences.Backend =
         backendDetector.effectiveBackend(prefs.effectiveBackend())
 
+    fun availableBackends(): List<UpscalePreferences.Backend> = backendDetector.availableBackends()
+
+    fun isNativeAvailable(): Boolean = backendDetector.isAvailable()
+
     fun backendDiagnostics(): String = buildString {
         append("mode=${prefs.effectiveMode().name}")
         append(" avail=${isAvailable()}")

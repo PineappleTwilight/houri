@@ -1,7 +1,6 @@
 package exh.md.related
 
 import dev.zacsweers.metro.AppScope
-import dev.zacsweers.metro.ContributesBinding
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
 import eu.kanade.tachiyomi.network.NetworkHelper
@@ -21,7 +20,6 @@ import tachiyomi.domain.source.service.SourceManager
 // KMK -->
 @Inject
 @SingleIn(AppScope::class)
-@ContributesBinding(AppScope::class)
 class MangaDexSequelPrequelProvider(
     private val getManga: GetManga,
     private val sourceManager: SourceManager,

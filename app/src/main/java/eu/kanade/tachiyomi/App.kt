@@ -57,9 +57,9 @@ import eu.kanade.tachiyomi.data.coil.PagePreviewKeyer
 import eu.kanade.tachiyomi.data.coil.TachiyomiImageDecoder
 import eu.kanade.tachiyomi.data.connections.discord.DiscordRPCService
 import eu.kanade.tachiyomi.data.database.DatabaseMaintenanceManager
+import eu.kanade.tachiyomi.data.event.AppEvent
 import eu.kanade.tachiyomi.data.notification.Notifications
 import eu.kanade.tachiyomi.data.sync.SyncDataJob
-import eu.kanade.tachiyomi.data.webhook.WebhookEvent
 import eu.kanade.tachiyomi.di.AppModule
 import eu.kanade.tachiyomi.di.PreferenceModule
 import eu.kanade.tachiyomi.di.SYPreferenceModule
@@ -195,6 +195,10 @@ class App : Application(), DefaultLifecycleObserver, SingletonImageLoader.Factor
             runCatching { globalAppGraph.achievementNotifier.start() }
                 .onFailure { xLogE("Failed to start achievement notifier", it) }
         }
+        // KMK -->
+        runCatching { eu.kanade.tachiyomi.ui.reader.viewer.ViewerRegistry.register(eu.kanade.tachiyomi.ui.reader.viewer.novel.NovelViewerProvider) }
+            .onFailure { xLogE("Failed to register novel viewer", it) }
+        // KMK <--
         // KMK <--
         // MetroInteropModule bridges Metro singletons to Injekt for extension backwards compat;
         // must be imported AFTER graph.inject() so Metro graph is built
@@ -343,11 +347,10 @@ class App : Application(), DefaultLifecycleObserver, SingletonImageLoader.Factor
                 logcat { "Updating last version to ${BuildConfig.VERSION_CODE}" }
                 preference.set(BuildConfig.VERSION_CODE)
                 // KMK -->
-                globalAppGraph.webhookNotifier.notify(
-                    WebhookEvent.APP_UPDATED,
-                    mapOf(
-                        "previous_version_code" to oldVersionCode.toString(),
-                        "new_version_code" to BuildConfig.VERSION_CODE.toString(),
+                globalAppGraph.appEventBus.emit(
+                    AppEvent.AppUpdated(
+                        previousVersionCode = oldVersionCode,
+                        newVersionCode = BuildConfig.VERSION_CODE,
                     ),
                 )
                 // KMK <--

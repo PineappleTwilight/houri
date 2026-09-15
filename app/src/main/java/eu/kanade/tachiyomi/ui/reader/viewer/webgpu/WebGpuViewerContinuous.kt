@@ -71,7 +71,10 @@ class WebGpuViewerContinuous(activity: ReaderActivity, val useGap: Boolean = fal
 
     override fun moveToPage(page: ReaderPage) {
         super.moveToPage(page)
-        state.scrollTo(0f)
+        // Snap without walking: scrollTo(0f) walks the page chain with live
+        // onPageChange callbacks, which re-target currentPage mid-scroll and
+        // land somewhere random. jumpToTop fires no callbacks.
+        state.jumpToTop()
     }
 
     // KMK -->

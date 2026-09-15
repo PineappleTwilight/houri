@@ -39,8 +39,14 @@ object UpscaleScalingStrategy {
     fun scaledDimensions(srcW: Int, srcH: Int, scale: Float): Pair<Int, Int> {
         if (srcW <= 0 || srcH <= 0) return 1 to 1
         val safeScale = scale.takeIf { it.isFinite() && it > 0f } ?: 1f
-        var newW = (srcW * safeScale).toInt().coerceAtLeast(1).coerceAtMost(MAX_DIM)
-        var newH = (srcH * safeScale).toInt().coerceAtLeast(1).coerceAtMost(MAX_DIM)
+        // Uniform scale first so long strips keep their aspect ratio: clamping
+        // each side independently would squash tall pages (e.g. 800x12000 @2x
+        // became 1600x8192 instead of staying 1:15).
+        var uniform = safeScale
+        if (srcW * uniform > MAX_DIM) uniform = MAX_DIM.toFloat() / srcW
+        if (srcH * uniform > MAX_DIM) uniform = (MAX_DIM.toFloat() / srcH).coerceAtMost(uniform)
+        var newW = (srcW * uniform).toInt().coerceAtLeast(1).coerceAtMost(MAX_DIM)
+        var newH = (srcH * uniform).toInt().coerceAtLeast(1).coerceAtMost(MAX_DIM)
         val pixels = newW.toLong() * newH.toLong()
         if (pixels > MAX_PIXELS) {
             val ratio = kotlin.math.sqrt(MAX_PIXELS.toDouble() / pixels.toDouble())

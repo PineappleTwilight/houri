@@ -36,11 +36,12 @@ import eu.kanade.tachiyomi.data.database.models.toDomainChapter
 import eu.kanade.tachiyomi.data.download.DownloadManager
 import eu.kanade.tachiyomi.data.download.DownloadProvider
 import eu.kanade.tachiyomi.data.download.model.Download
+import eu.kanade.tachiyomi.data.event.AppEvent
+import eu.kanade.tachiyomi.data.event.AppEventBus
 import eu.kanade.tachiyomi.data.saver.Image
 import eu.kanade.tachiyomi.data.saver.ImageSaver
 import eu.kanade.tachiyomi.data.saver.Location
 import eu.kanade.tachiyomi.data.sync.SyncDataJob
-import eu.kanade.tachiyomi.data.webhook.WebhookEvent
 import eu.kanade.tachiyomi.data.webhook.WebhookNotifier
 import eu.kanade.tachiyomi.source.model.Page
 import eu.kanade.tachiyomi.source.online.HttpSource
@@ -61,6 +62,7 @@ import eu.kanade.tachiyomi.ui.reader.viewer.pager.PagerViewer
 import eu.kanade.tachiyomi.ui.reader.viewer.pager.R2LPagerViewer
 import eu.kanade.tachiyomi.util.chapter.filterDownloaded
 import eu.kanade.tachiyomi.util.chapter.removeDuplicates
+import eu.kanade.tachiyomi.util.chapter.scanlatorBlacklistKey
 import eu.kanade.tachiyomi.util.editCover
 import eu.kanade.tachiyomi.util.lang.byteSize
 import eu.kanade.tachiyomi.util.storage.DiskUtil
@@ -161,7 +163,7 @@ class ReaderViewModel(
     private val updateManga: UpdateManga,
     private val coverCache: CoverCache,
     // KMK -->
-    private val webhookNotifier: WebhookNotifier,
+    private val appEventBus: AppEventBus,
     private val webhookPreferences: WebhookPreferences,
     private val achievementManager: tachiyomi.domain.achievement.service.AchievementManager,
     private val achievementPreferences: tachiyomi.domain.achievement.service.AchievementPreferences,
@@ -341,9 +343,19 @@ class ReaderViewModel(
         val selectedChapter = chapters.find { it.id == chapterId }
             ?: error("Requested chapter of id $chapterId not found in chapter list")
 
+        // KMK --> Blacklisted chapters never appear in-reader, regardless of skip toggles.
+        // Keep the currently opened chapter so an in-progress read never crashes.
+        val blacklist = manga.blacklistedChapters.toSet()
+        val visibleChapters = if (blacklist.isNotEmpty()) {
+            chapters.filter { scanlatorBlacklistKey(it.chapterNumber, it.scanlator) !in blacklist || it.id == chapterId }
+        } else {
+            chapters
+        }
+        // KMK <--
+
         val chaptersForReader = when {
             (readerPreferences.skipRead().get() || readerPreferences.skipFiltered().get()) -> {
-                val filteredChapters = chapters.filterNot {
+                val filteredChapters = visibleChapters.filterNot {
                     when {
                         readerPreferences.skipRead().get() && it.read -> true
                         readerPreferences.skipFiltered().get() -> {
@@ -372,7 +384,7 @@ class ReaderViewModel(
                     filteredChapters + listOf(selectedChapter)
                 }
             }
-            else -> chapters
+            else -> visibleChapters
         }
 
         chapterListImpl = chaptersForReader
@@ -408,6 +420,11 @@ class ReaderViewModel(
 
     @Volatile
     private var pendingBetweenChapterSound: Boolean = false
+
+    // KMK --> Per-session guards so achievement events fire once per chapter/manga,
+    // not on every revisit of an already-read page.
+    private val achievementCountedChapterIds = mutableSetOf<Long>()
+    private val mangaCompletedFiredFor = mutableSetOf<Long>()
     // KMK <--
 
     init {
@@ -662,14 +679,13 @@ class ReaderViewModel(
             // KMK -->
             if (chapter.chapter.last_page_read == 0 && !chapter.chapter.read) {
                 manga?.let { currentManga ->
-                    webhookNotifier.notify(
-                        WebhookEvent.CHAPTER_STARTED,
-                        mapOf(
-                            "manga" to currentManga.title,
-                            "chapter" to chapter.chapter.name,
+                    appEventBus.emit(
+                        AppEvent.ChapterStarted(
+                            mangaTitle = currentManga.title,
+                            chapterName = chapter.chapter.name,
+                            sourceId = currentManga.source,
+                            mangaId = currentManga.id,
                         ),
-                        sourceId = currentManga.source,
-                        mangaId = currentManga.id,
                     )
                 }
             }
@@ -954,8 +970,11 @@ class ReaderViewModel(
                 manga?.let { currentManga ->
                     viewModelScope.launchNonCancellable { completeRereadIfNeeded.await(currentManga.id) }
                 }
-                viewModelScope.launchNonCancellable {
-                    readerAchievementHandler.onChapterRead(getMangaReadingMode())
+                val chapterIdValue = readerChapter.chapter.id
+                if (chapterIdValue != null && achievementCountedChapterIds.add(chapterIdValue)) {
+                    viewModelScope.launchNonCancellable {
+                        readerAchievementHandler.onChapterRead(getMangaReadingMode())
+                    }
                 }
             }
             // KMK <--
@@ -1000,37 +1019,40 @@ class ReaderViewModel(
                     // KMK <--
                 }
             }
-            webhookNotifier.notify(
-                WebhookEvent.CHAPTER_READ,
-                chapterData,
-                sourceId = currentManga.source,
-                mangaId = currentManga.id,
-            )
-            if (wasFirstReadChapter) {
-                webhookNotifier.notify(
-                    WebhookEvent.NEW_MANGA_STARTED,
-                    mapOf(
-                        "manga" to currentManga.title,
-                        "chapter" to readerChapter.chapter.name,
-                    ),
+            appEventBus.emit(
+                AppEvent.ChapterRead(
+                    webhookData = chapterData,
                     sourceId = currentManga.source,
                     mangaId = currentManga.id,
+                ),
+            )
+            if (wasFirstReadChapter) {
+                appEventBus.emit(
+                    AppEvent.MangaStarted(
+                        mangaTitle = currentManga.title,
+                        chapterName = readerChapter.chapter.name,
+                        sourceId = currentManga.source,
+                        mangaId = currentManga.id,
+                    ),
                 )
             }
             if (unfilteredChapterList.isNotEmpty() &&
                 unfilteredChapterList.all { it.read } &&
-                !currentManga.rereading
+                !currentManga.rereading &&
+                mangaCompletedFiredFor.add(currentManga.id)
             ) {
                 val isPermanent = try {
                     achievementManager.isPermanentStatus(currentManga.status)
                 } catch (_: Exception) {
                     true
                 }
-                webhookNotifier.notify(
-                    if (isPermanent) WebhookEvent.MANGA_FINISHED else WebhookEvent.MANGA_CAUGHT_UP,
-                    mapOf("manga" to currentManga.title),
-                    sourceId = currentManga.source,
-                    mangaId = currentManga.id,
+                appEventBus.emit(
+                    AppEvent.MangaCompleted(
+                        mangaTitle = currentManga.title,
+                        finished = isPermanent,
+                        sourceId = currentManga.source,
+                        mangaId = currentManga.id,
+                    ),
                 )
                 readerAchievementHandler.onMangaCompleted(currentManga.status)
             }
