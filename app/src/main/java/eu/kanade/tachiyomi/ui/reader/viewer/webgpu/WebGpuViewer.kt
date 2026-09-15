@@ -464,58 +464,7 @@ open class WebGpuViewer(
 
         config.imagePropertyChangedListener = listener@{
             if (isDestroyed) return@listener
-            // KMK --> A theme change comes through here.
-            cachedBackgroundColor = null
-            cachedOnBackgroundColor = null
-            // KMK <--
-            pager.state.apply {
-                val isDual = isDualPageMode()
-                transition = when (if (isDual) config.transitionAnimationDual else config.transitionAnimation) {
-                    TransitionAnimation.BASIC -> if (isVertical) TransitionBasic.Vertical else TransitionBasic
-                    TransitionAnimation.FLIP -> TransitionFlip
-                    TransitionAnimation.FLIP_LEFT -> TransitionFlipLeft
-                    TransitionAnimation.FLIP_RIGHT -> TransitionFlipRight
-                    TransitionAnimation.STACK_LEFT -> TransitionStackLeft
-                    TransitionAnimation.STACK_RIGHT -> TransitionStackRight
-                    TransitionAnimation.STACK_UP -> TransitionStackUp
-                    TransitionAnimation.STACK_DOWN -> TransitionStackDown
-                    TransitionAnimation.SPHERE -> TransitionSphere
-                    TransitionAnimation.CUBE_INSIDE -> TransitionCube
-                    TransitionAnimation.CUBE_OUTSIDE -> TransitionCubeOuter
-                    TransitionAnimation.FADE -> TransitionFade
-                    TransitionAnimation.FADE_WHITE -> TransitionFadeWhite
-                }
-
-                when (if (isDual) config.cutoutModeDual else config.cutoutMode) {
-                    ReaderPreferences.CutoutMode.IGNORE -> avoidCutout = false
-
-                    ReaderPreferences.CutoutMode.AVOID -> {
-                        avoidCutout = true
-                        alwaysAvoidCutout = false
-                    }
-
-                    ReaderPreferences.CutoutMode.SHIFT -> {
-                        avoidCutout = true
-                        alwaysAvoidCutout = true
-                    }
-                }
-
-                (this as? ca.mpreg.webgpuviewer.viewer.ImageViewerContinuousState)?.let {
-                    // KMK -->
-                    homeScale = config.continuousMinWidth / 100f
-                    minScale = if (config.zoomOutDisabled) 0f else 0.1f
-                    // Never clobber the reader's zoom here: this listener fires on
-                    // every image-property change (theme, scale type, ...). Only
-                    // lift out of an illegal range (homeScale's own setter already
-                    // lifts scale when the floor itself rises).
-                    if (config.zoomOutDisabled && scale < homeScale) scale = homeScale
-
-                    if ((this@WebGpuViewer as? WebGpuViewerContinuous)?.useGap == true) {
-                        pageGap = config.continuousGap / 100f
-                    }
-                    // KMK <--
-                }
-            }
+            applyImageState()
 
             synchronized(lock) {
                 if (isDestroyed) return@listener
@@ -556,10 +505,90 @@ open class WebGpuViewer(
             }
         }
 
+        // KMK -->
+        /**
+         * Applies state-only reader settings (transition, cutout, zoom floors, gap,
+         * theme colors) without touching decoded pages. Prefs that change what a decode
+         * produces (crop, dual-page geometry, match-heights, theme background baking)
+         * still go through [config.imagePropertyChangedListener], which rebuilds.
+         */
+        private fun applyImageState() {
+            if (isDestroyed) return
+            // KMK --> A theme change comes through here.
+            cachedBackgroundColor = null
+            cachedOnBackgroundColor = null
+            // KMK <--
+            pager.state.apply {
+                val isDual = isDualPageMode()
+                transition = when (if (isDual) config.transitionAnimationDual else config.transitionAnimation) {
+                    TransitionAnimation.BASIC -> if (isVertical) TransitionBasic.Vertical else TransitionBasic
+                    TransitionAnimation.FLIP -> TransitionFlip
+                    TransitionAnimation.FLIP_LEFT -> TransitionFlipLeft
+                    TransitionAnimation.FLIP_RIGHT -> TransitionFlipRight
+                    TransitionAnimation.STACK_LEFT -> TransitionStackLeft
+                    TransitionAnimation.STACK_RIGHT -> TransitionStackRight
+                    TransitionAnimation.STACK_UP -> TransitionStackUp
+                    TransitionAnimation.STACK_DOWN -> TransitionStackDown
+                    TransitionAnimation.SPHERE -> TransitionSphere
+                    TransitionAnimation.CUBE_INSIDE -> TransitionCube
+                    TransitionAnimation.CUBE_OUTSIDE -> TransitionCubeOuter
+                    TransitionAnimation.FADE -> TransitionFade
+                    TransitionAnimation.FADE_WHITE -> TransitionFadeWhite
+                }
+
+                when (if (isDual) config.cutoutModeDual else config.cutoutMode) {
+                    ReaderPreferences.CutoutMode.IGNORE -> avoidCutout = false
+
+                    ReaderPreferences.CutoutMode.AVOID -> {
+                        avoidCutout = true
+                        alwaysAvoidCutout = false
+                    }
+
+                    ReaderPreferences.CutoutMode.SHIFT -> {
+                        avoidCutout = true
+                        alwaysAvoidCutout = true
+                    }
+                }
+
+                (this as? ca.mpreg.webgpuviewer.viewer.ImageViewerContinuousState)?.let {
+                    // KMK -->
+                    homeScale = config.continuousMinWidth / 100f
+                    minScale = if (config.zoomOutDisabled) 0f else 0.1f
+                    // Never clobber the reader's zoom here: these listeners fire on
+                    // state-only changes too. Only lift out of an illegal range
+                    // (homeScale's own setter already lifts scale when the floor
+                    // itself rises).
+                    if (config.zoomOutDisabled && scale < homeScale) scale = homeScale
+
+                    if ((this@WebGpuViewer as? WebGpuViewerContinuous)?.useGap == true) {
+                        pageGap = config.continuousGap / 100f
+                    }
+                    // KMK <--
+                }
+            }
+        }
+        // KMK <--
+
         config.navigationModeChangedListener = {
             val showOnStart = config.navigationOverlayOnStart || config.forceNavigationOverlay
             activity.binding.navigationOverlay.setNavigation(config.navigator, showOnStart)
         }
+
+        // KMK --> State-only changes (transition, cutout, zoom floors, gap, offset)
+        // apply live: no cache nuke, no black flash.
+        config.imageStateChangedListener = listener@{
+            if (isDestroyed) return@listener
+            applyImageState()
+            try {
+                applyPageOffset()
+            } catch (_: Exception) {
+            }
+            try {
+                pager.state.invalidate()
+            } catch (_: Exception) {
+            }
+        }
+        // KMK <--
 
         // KMK -->
         config.doubleTapZoomChangedListener = listener@{
@@ -600,6 +629,7 @@ open class WebGpuViewer(
             isDestroyed = true
         }
         config.imagePropertyChangedListener = null
+        config.imageStateChangedListener = null
         config.navigationModeChangedListener = null
         config.doubleTapZoomChangedListener = null
         try {

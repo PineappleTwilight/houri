@@ -32,6 +32,10 @@ class WebGpuConfig(
 
     var dualPageSplitChangedListener: ((Boolean) -> Unit)? = null
 
+    // KMK --> State-only changes apply live without rebuilding decoded pages.
+    var imageStateChangedListener: (() -> Unit)? = null
+    // KMK <--
+
     var imageScaleType = 1
         private set
 
@@ -178,25 +182,25 @@ class WebGpuConfig(
         readerPreferences.transitionAnimation()
             .register(
                 { transitionAnimation = it },
-                { imagePropertyChangedListener?.invoke() },
+                { imageStateChangedListener?.invoke() },
             )
 
         readerPreferences.transitionAnimationDual()
             .register(
                 { transitionAnimationDual = it },
-                { imagePropertyChangedListener?.invoke() },
+                { imageStateChangedListener?.invoke() },
             )
 
         readerPreferences.cutoutMode()
             .register(
                 { cutoutMode = it },
-                { imagePropertyChangedListener?.invoke() },
+                { imageStateChangedListener?.invoke() },
             )
 
         readerPreferences.cutoutModeDual()
             .register(
                 { cutoutModeDual = it },
-                { imagePropertyChangedListener?.invoke() },
+                { imageStateChangedListener?.invoke() },
             )
 
         readerPreferences.dualPageView()
@@ -208,27 +212,27 @@ class WebGpuConfig(
         readerPreferences.continuousMinWidth()
             .register(
                 { continuousMinWidth = it },
-                { imagePropertyChangedListener?.invoke() },
+                { imageStateChangedListener?.invoke() },
             )
 
         readerPreferences.webtoonDisableZoomOut()
             .register(
                 { zoomOutDisabled = it },
-                { imagePropertyChangedListener?.invoke() },
+                { imageStateChangedListener?.invoke() },
             )
 
         // KMK -->
         readerPreferences.continuousGap()
             .register(
                 { continuousGap = it },
-                { imagePropertyChangedListener?.invoke() },
+                { imageStateChangedListener?.invoke() },
             )
         // KMK <--
 
         readerPreferences.webgpuPageOffset()
             .register(
                 { pageOffset = it },
-                { imagePropertyChangedListener?.invoke() },
+                { imageStateChangedListener?.invoke() },
             )
 
         // KMK -->
