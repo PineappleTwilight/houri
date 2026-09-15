@@ -462,7 +462,11 @@ class TransitionPage(
         fillPage(dst, x, y, scale, backgroundColor)
         val prevCh = prevChapter?.chapter
         val nextCh = nextChapter?.chapter
-        val locale = try { java.util.Locale.getDefault() } catch (_: Exception) { null }
+        val locale = try {
+            java.util.Locale.getDefault()
+        } catch (_: Exception) {
+            null
+        }
         var text = cachedText
         if (text == null || prevCh?.id != cachedPrevId || prevCh?.name != cachedPrevName ||
             nextCh?.id != cachedNextId || nextCh?.name != cachedNextName || locale != cachedLocale
@@ -487,7 +491,11 @@ class TransitionPage(
         }
         if (text.isBlank()) return
 
-        val density = try { viewer.pager.state.density.density } catch (_: Exception) { -1f }
+        val density = try {
+            viewer.pager.state.density.density
+        } catch (_: Exception) {
+            -1f
+        }
         if (density != cachedDensity) {
             cachedDensity = density
             cachedPadding = if (density > 0f) 24f * density else 24f
