@@ -499,19 +499,21 @@
 - [x] **Manga Details**: "Fill from tracker" doesn't apply tags and publishing status from MangaBaka
   - Fixed 2026-09-13: `MangaBaka`/`MangaBakaApi`/`MangaBakaUtils`/`MangaBakaItem` now return tags + publication status for fill-from-tracker
 - [ ] **Codebase**: Remove/replace ALL old Komikku icons
-- [ ] **Simple Upscaler**: Remove redundant algorithm selection, upscaler method already covers it
-- [ ] **Chapter Blacklist**: Fix skip filtered chapters being ignored on blacklisted chapters. Blacklisted chapters still open if switching chapters inside the reader.
-- [ ] **Achievements**: Fix secret achievements not showing their proper name in toasts
+- [x] **Simple Upscaler**: Remove redundant algorithm selection, upscaler method already covers it
+- [x] **Chapter Blacklist**: Fix skip filtered chapters being ignored on blacklisted chapters. Blacklisted chapters still open if switching chapters inside the reader.
+- [x] **Achievements**: Fix secret achievements not showing their proper name in toasts
 - [ ] **Achievements**: Make toasts match the app theme
-- [ ] **WebGPU Reader**: Fix webtoon mode skipping ahead randomly, not having proper zoom, and overall being very buggy.
-- [ ] **Achievements**: Fix achievement app events sometimes triggering multiple times or at the wrong times
-- [ ] **Simple Upscaler**: Fix algorithmic upscaling causing warping on long strip manhwas/webtoons
-- [ ] **Tracker as Metadata Source**: Expand to work with any tracker and not just mangadex
+- [x] **WebGPU Reader**: Fix webtoon mode skipping ahead randomly, not having proper zoom, and overall being very buggy.
+- [x] **Achievements**: Fix achievement app events sometimes triggering multiple times or at the wrong times
+- [x] **Simple Upscaler**: Fix algorithmic upscaling causing warping on long strip manhwas/webtoons
+- [x] **Tracker as Metadata Source**: Expand to work with any tracker and not just mangadex
 - [ ] **Upscaler**: Implement proper native AI backends (vulkan/npu)
-- [ ] **Multi-Feed**: Merge into feed tab to avoid overcrowding the header
-- [ ] **App Event Framework**: Harden, improve, and migrate any old code that relies on app events into it
-- [ ] **WebGPU Reader**: UI improvements and hardening
-- [ ] **Upscaler**: Make "clear cache" button update the other relevant UI components immediately instead of needing to navigate out and then back in
+- [x] **Multi-Feed**: Merge into feed tab to avoid overcrowding the header
+- [x] **App Event Framework**: Harden, improve, and migrate any old code that relies on app events into it
+- [x] **WebGPU Reader**: UI improvements and hardening
+- [x] **Upscaler**: Make "clear cache" button update the other relevant UI components immediately instead of needing to navigate out and then back in
+- [ ] **Upscaler**: Simplify cache size UI display to reduce confusion and ambiguity
+  - Also remove redundant declaration of cache size in `UpscalePreferences`
 
 ## Chores
 - [x] Replace all Komikku icons/branding with houri icons/branding
@@ -537,6 +539,7 @@
   - 2026-09-09: all redirect URIs verified as `houri://` (bangumi `houri://bangumi-auth`, mangabaka `houri://mangabaka-auth`, shikimori `houri://shikimori-auth`, MAL PKCE with `houri://myanimelist-auth`); CLIENT_IDs kept pending provider re-registration where needed, redirects already houri
 - [ ] **Google Drive**: Update oauth token
 - [ ] **MyAnimeList**: Update oauth token
+- [ ] **Hikka**: Update oauth token
 - [x] **App**: Multithreading
   - [x] Dedicated thread for readers
   - [x] Dedicated thread for app UI
