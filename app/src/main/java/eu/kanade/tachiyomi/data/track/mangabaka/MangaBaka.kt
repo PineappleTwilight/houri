@@ -57,9 +57,21 @@ class MangaBaka(id: Long) : BaseTracker(id, "MangaBaka"), DeletableTracker {
 
     override fun get10PointScore(track: DomainTrack): Double = track.score / 10.0
 
-    override fun indexToScore(index: Int): Double = getScoreRange().toList()[index].toDouble()
+    override fun indexToScore(index: Int): Double {
+        val range = getScoreRange().toList()
+        // KMK --> defensive: score wheel / universal sync can pass ends; clamp instead of throwing
+        if (range.isEmpty()) return 0.0
+        return range[index.coerceIn(range.indices)].toDouble()
+    }
 
-    override fun displayScore(track: DomainTrack): String = track.score.toInt().toString()
+    override fun displayScore(track: DomainTrack): String {
+        // KMK --> fractional remote ratings (e.g. 85.5) and values off the user's step
+        // grid have no exact wheel entry; snap to the nearest valid step so the
+        // selector round-trips instead of crashing on indexOf(-1).
+        val steps = getScoreRange().toList()
+        if (steps.isEmpty()) return "0"
+        return steps.minByOrNull { kotlin.math.abs(it - track.score.toInt()) }?.toString() ?: "0"
+    }
 
     override fun hasNotStartedReading(status: Long): Boolean = status == PLAN_TO_READ
 

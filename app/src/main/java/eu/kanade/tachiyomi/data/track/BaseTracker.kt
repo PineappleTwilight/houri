@@ -126,7 +126,25 @@ abstract class BaseTracker(
     }
 
     override suspend fun setRemoteScore(track: Track, scoreString: String) {
-        track.score = indexToScore(getScoreList().indexOf(scoreString))
+        val scores = getScoreList()
+        var index = scores.indexOf(scoreString)
+        if (index < 0) {
+            // KMK --> score wheel strings can drift from stored values (e.g. fractional
+            // MangaBaka ratings like 85.5 displaying as "85" off the STEP_10 grid, or
+            // MangaUpdates values with extra decimals). Snap to the closest numeric
+            // entry instead of crashing in indexToScore(-1).
+            index = scores.indices.minByOrNull {
+                val candidate = scores[it].toDoubleOrNull()
+                val wanted = scoreString.toDoubleOrNull()
+                if (candidate != null && wanted != null) {
+                    kotlin.math.abs(candidate - wanted)
+                } else {
+                    Double.MAX_VALUE
+                }
+            } ?: return
+            if (scores[index].toDoubleOrNull() == null) return
+        }
+        track.score = indexToScore(index)
         updateRemote(track)
     }
 

@@ -1,10 +1,13 @@
 package eu.kanade.presentation.components
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.window.Dialog
@@ -13,7 +16,6 @@ import cafe.adriel.voyager.core.annotation.InternalVoyagerApi
 import cafe.adriel.voyager.core.lifecycle.DisposableEffectIgnoringConfiguration
 import cafe.adriel.voyager.core.screen.Screen
 import cafe.adriel.voyager.navigator.Navigator
-import eu.kanade.presentation.util.ScreenTransition
 import eu.kanade.presentation.util.UiMotion
 import eu.kanade.presentation.util.isTabletUi
 import tachiyomi.presentation.core.components.AdaptiveSheet as AdaptiveSheetImpl
@@ -32,10 +34,12 @@ fun NavigatorAdaptiveSheet(
                 enableSwipeDismiss = enableSwipeDismiss(sheetNavigator),
                 onDismissRequest = onDismissRequest,
             ) {
-                ScreenTransition(
-                    navigator = sheetNavigator,
-                    transition = {
-                        // KMK -->
+                // KMK --> sheet content must wrap instead of reusing the full-screen
+                // ScreenTransition (fillMaxSize + background), which stretched the
+                // sheet full height and left empty space below short cards.
+                AnimatedContent(
+                    targetState = sheetNavigator.lastItem,
+                    transitionSpec = {
                         fadeIn(
                             animationSpec = tween(
                                 UiMotion.SHEET_FADE_IN,
@@ -49,9 +53,15 @@ fun NavigatorAdaptiveSheet(
                                     easing = UiMotion.EMPHASIZED_ACCELERATE,
                                 ),
                             )
-                        // KMK <--
                     },
-                )
+                    modifier = Modifier.fillMaxWidth().wrapContentHeight(),
+                    label = "sheet-transition",
+                ) { sheetScreen ->
+                    sheetNavigator.saveableState("sheet-transition-${sheetScreen.key}", sheetScreen) {
+                        sheetScreen.Content()
+                    }
+                }
+                // KMK <--
 
                 BackHandler(
                     enabled = sheetNavigator.size > 1,

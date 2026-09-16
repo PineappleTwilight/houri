@@ -163,6 +163,7 @@ data class TrackInfoDialogHomeScreen(
                             TrackScoreSelectorScreen(
                                 track = it.track!!,
                                 serviceId = it.tracker.id,
+                                mangaId = mangaId,
                             ),
                         )
                     },
@@ -591,6 +592,7 @@ private data class TrackChapterSelectorScreen(
 private data class TrackScoreSelectorScreen(
     private val track: Track,
     private val serviceId: Long,
+    private val mangaId: Long = 0L,
 ) : Screen() {
 
     @Composable
@@ -600,6 +602,8 @@ private data class TrackScoreSelectorScreen(
             Model(
                 track = track,
                 tracker = globalAppGraph.trackerManager.get(serviceId)!!,
+                mangaId = mangaId,
+                serviceId = serviceId,
             )
         }
         val state by screenModel.state.collectAsState()
@@ -619,6 +623,8 @@ private data class TrackScoreSelectorScreen(
     private class Model(
         private val track: Track,
         private val tracker: Tracker,
+        private val mangaId: Long = 0L,
+        private val serviceId: Long = 0L,
     ) : StateScreenModel<Model.State>(State(tracker.displayScore(track))) {
 
         fun getSelections(): ImmutableList<String> {
@@ -632,7 +638,62 @@ private data class TrackScoreSelectorScreen(
         fun setScore() {
             screenModelScope.launchNonCancellable {
                 tracker.setRemoteScore(track.toDbTrack(), state.value.selection)
+                // KMK --> universal tracker: fan the normalized 10-point rating out to
+                // the other bound trackers (mirrors chapter/date fan-out), converting
+                // across scales so MangaBaka (0-100) and MangaUpdates (0-10) stay in sync.
+                if (mangaId != 0L) {
+                    try {
+                        val primaryScore = tracker.indexToScore(
+                            tracker.getScoreList().indexOf(state.value.selection).takeIf { it >= 0 } ?: 0,
+                        )
+                        val primary10 = tracker.get10PointScore(track.copy(score = primaryScore))
+                        val allTracks = globalAppGraph.getTracks.await(mangaId)
+                        for (other in allTracks) {
+                            if (other.trackerId == serviceId) continue
+                            val otherTracker = globalAppGraph.trackerManager.get(other.trackerId) ?: continue
+                            if (!otherTracker.isLoggedIn) continue
+                            if (otherTracker.getScoreList().isEmpty()) continue
+                            try {
+                                val targetSelection = closestScoreString(otherTracker, other, primary10) ?: continue
+                                if (otherTracker.displayScore(other) == targetSelection) continue
+                                otherTracker.setRemoteScore(other.toDbTrack(), targetSelection)
+                            } catch (_: Exception) {
+                            }
+                        }
+                    } catch (_: Exception) {
+                    }
+                }
+                // KMK <--
             }
+        }
+
+        private fun closestScoreString(
+            target: Tracker,
+            other: Track,
+            primary10: Double,
+        ): String? {
+            val options = target.getScoreList()
+            if (options.isEmpty()) return null
+            var best: String? = null
+            var bestDelta = Double.MAX_VALUE
+            for (i in options.indices) {
+                val candidateScore = try {
+                    target.indexToScore(i)
+                } catch (_: Exception) {
+                    continue
+                }
+                val candidate10 = try {
+                    target.get10PointScore(other.copy(score = candidateScore))
+                } catch (_: Exception) {
+                    continue
+                }
+                val delta = kotlin.math.abs(candidate10 - primary10)
+                if (delta < bestDelta) {
+                    bestDelta = delta
+                    best = options[i]
+                }
+            }
+            return best
         }
 
         @Immutable

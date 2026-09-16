@@ -69,9 +69,22 @@ class MangaUpdates(id: Long) : BaseTracker(id, "MangaUpdates"), DeletableTracker
 
     override fun getScoreList(): ImmutableList<String> = SCORE_LIST
 
-    override fun indexToScore(index: Int): Double = if (index == 0) 0.0 else SCORE_LIST[index].toDouble()
+    override fun indexToScore(index: Int): Double {
+        // KMK --> defensive: clamp out-of-range indices (e.g. stale -1 from a
+        // display string with extra decimals) instead of throwing.
+        if (index <= 0) return 0.0
+        val list = SCORE_LIST
+        if (index >= list.size) return 10.0
+        return list[index].toDouble()
+    }
 
-    override fun displayScore(track: DomainTrack): String = if (track.score == 0.0) "-" else track.score.toString()
+    override fun displayScore(track: DomainTrack): String {
+        // KMK --> round to one decimal so values like 8.55 snap onto the 0.1 wheel
+        // grid; 0.0 stays "-" to match index 0.
+        if (track.score == 0.0) return "-"
+        val rounded = (kotlin.math.round(track.score * 10) / 10.0)
+        return if (rounded == 0.0) "-" else rounded.toString()
+    }
 
     override suspend fun update(track: Track, didReadChapter: Boolean): Track {
         if (track.status != COMPLETE_LIST && didReadChapter) {
