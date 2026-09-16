@@ -514,6 +514,10 @@
 - [x] **Upscaler**: Make "clear cache" button update the other relevant UI components immediately instead of needing to navigate out and then back in
 - [ ] **Upscaler**: Simplify cache size UI display to reduce confusion and ambiguity
   - Also remove redundant declaration of cache size in `UpscalePreferences`
+- [ ] **Prequel/Sequels**: Properly wire a display similar to Recommendations
+  - Manga entries should be "stubs" since trackers don't add readable chapters as metadata
+  - If the user adds it to their library, it should immediately be prompted for a migration
+  - Prequels/sequels system should scan the library for the entries first to avoid needing a stub from the tracker
 
 ## Chores
 - [x] Replace all Komikku icons/branding with houri icons/branding
