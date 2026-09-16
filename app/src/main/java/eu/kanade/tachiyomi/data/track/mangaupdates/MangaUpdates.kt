@@ -71,7 +71,7 @@ class MangaUpdates(id: Long) : BaseTracker(id, "MangaUpdates"), DeletableTracker
 
     override fun indexToScore(index: Int): Double = if (index == 0) 0.0 else SCORE_LIST[index].toDouble()
 
-    override fun displayScore(track: DomainTrack): String = track.score.toString()
+    override fun displayScore(track: DomainTrack): String = if (track.score == 0.0) "-" else track.score.toString()
 
     override suspend fun update(track: Track, didReadChapter: Boolean): Track {
         if (track.status != COMPLETE_LIST && didReadChapter) {

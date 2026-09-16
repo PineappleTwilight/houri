@@ -121,7 +121,7 @@ class HikkaApi(
 
     suspend fun getRead(track: Track): HKRead? {
         return withIOContext {
-            val slug = track.tracking_url.split("/")[4]
+            val slug = runCatching { slugFromUrl(track.tracking_url) }.getOrNull() ?: return@withIOContext null
             val url = "$BASE_API_URL/read/manga/$slug".toUri().buildUpon().build()
             with(json) {
                 try {
@@ -141,7 +141,7 @@ class HikkaApi(
 
     suspend fun getManga(track: Track): TrackSearch {
         return withIOContext {
-            val slug = track.tracking_url.split("/")[4]
+            val slug = slugFromUrl(track.tracking_url)
             val url = "$BASE_API_URL/manga/$slug".toUri().buildUpon()
                 .build()
 
@@ -156,7 +156,7 @@ class HikkaApi(
 
     suspend fun deleteUserManga(track: DomainTrack) {
         return withIOContext {
-            val slug = track.remoteUrl.split("/")[4]
+            val slug = slugFromUrl(track.remoteUrl)
 
             val url = "$BASE_API_URL/read/manga/$slug".toUri().buildUpon()
                 .build()
@@ -168,7 +168,7 @@ class HikkaApi(
 
     suspend fun addUserManga(track: Track): Track {
         return withIOContext {
-            val slug = track.tracking_url.split("/")[4]
+            val slug = slugFromUrl(track.tracking_url)
 
             val url = "$BASE_API_URL/read/manga/$slug".toUri().buildUpon()
                 .build()
@@ -204,6 +204,12 @@ class HikkaApi(
 
     private val json: Json by lazy { globalAppGraph.json }
     private val authClient = client.newBuilder().addInterceptor(interceptor).build()
+
+    private fun slugFromUrl(url: String): String {
+        val slug = url.trimEnd('/').substringAfterLast('/').substringBefore('?').substringBefore('#')
+        require(slug.isNotBlank() && slug != "manga") { "Invalid Hikka tracking URL: $url" }
+        return slug
+    }
 
     companion object {
         const val BASE_API_URL = "https://api.hikka.io"

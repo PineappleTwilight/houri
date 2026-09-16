@@ -13,7 +13,7 @@ fun Track.toApiStatus() = when (status) {
     MangaBaka.PLAN_TO_READ -> "plan_to_read"
     MangaBaka.READING -> "reading"
     MangaBaka.REREADING -> "rereading"
-    else -> throw NotImplementedError("Unknown status: $status")
+    else -> "reading"
 }
 
 // KMK -->

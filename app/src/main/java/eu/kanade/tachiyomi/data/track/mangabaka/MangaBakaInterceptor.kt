@@ -18,12 +18,19 @@ class MangaBakaInterceptor(private val mangaBaka: MangaBaka) : Interceptor {
         var currentAuth = oauth ?: throw Exception("Not authenticated with MangaBaka")
 
         if (currentAuth.isExpired()) {
+            if (currentAuth.refreshToken.isBlank()) {
+                mangaBaka.logout()
+                throw Exception("MangaBaka session expired")
+            }
             val response = chain.proceed(MangaBakaApi.refreshTokenRequest(currentAuth.refreshToken))
             if (response.isSuccessful) {
                 currentAuth = json.decodeFromString(response.body.string())
                 setAuth(currentAuth)
             } else {
                 response.close()
+                // Never proceed with an expired token: force re-login instead of 401-chaining.
+                mangaBaka.logout()
+                throw Exception("MangaBaka session expired")
             }
         }
 

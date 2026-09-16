@@ -69,7 +69,7 @@ class MangaBakaApi(
                     put("progress_chapter", track.last_chapter_read)
                 }
                 if (track.score > 0) {
-                    put("rating", track.score.toInt().coerceIn(0, 100))
+                    put("rating", track.score.coerceIn(0.0, 100.0))
                 }
                 if (track.started_reading_date > 0) {
                     put("start_date", epochMillisToLocalDate(track.started_reading_date))
@@ -109,7 +109,7 @@ class MangaBakaApi(
                         .parseAs<MangaBakaListResult>()
                         .data
 
-                    val additionalData = authClient.newCall(GET("$API_BASE_URL/v1/series/${track.remote_id}"))
+                    val additionalData = client.newCall(GET("$API_BASE_URL/v1/series/${track.remote_id}"))
                         .awaitSuccess()
                         .parseAs<MangaBakaItemResult>()
                         .data
@@ -118,7 +118,7 @@ class MangaBakaApi(
                         remote_id = track.remote_id
                         title = additionalData.chooseBestTitle()
                         status = userData.getStatus()
-                        score = userData.rating?.toDouble() ?: 0.0
+                        score = userData.rating ?: 0.0
                         started_reading_date = parseIsoDateAsLocalStartOfDay(userData.startDate) ?: 0
                         finished_reading_date = parseIsoDateAsLocalStartOfDay(userData.finishDate) ?: 0
                         last_chapter_read = userData.progressChapter ?: 0.0
@@ -147,7 +147,7 @@ class MangaBakaApi(
                     put("progress_chapter", null)
                 }
                 if (track.score > 0) {
-                    put("rating", track.score.toInt().coerceIn(0, 100))
+                    put("rating", track.score.coerceIn(0.0, 100.0))
                 } else {
                     put("rating", null)
                 }
@@ -215,7 +215,7 @@ class MangaBakaApi(
                 .build()
             with(json) {
                 try {
-                    authClient.newCall(GET(url.toString()))
+                    client.newCall(GET(url.toString()))
                         .awaitSuccess()
                         .parseAs<MangaBakaItemResult>()
                         .data

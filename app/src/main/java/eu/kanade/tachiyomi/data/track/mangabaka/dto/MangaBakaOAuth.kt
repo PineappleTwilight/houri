@@ -10,12 +10,13 @@ data class MangaBakaOAuth(
     @SerialName("refresh_token")
     val refreshToken: String,
     @SerialName("expires_in")
-    val expiresIn: Long,
+    val expiresIn: Long = 3600,
     @SerialName("expires_at")
-    val expiresAt: Long,
+    val expiresAt: Long? = null,
     @SerialName("token_type")
-    val tokenType: String,
-    val scope: String,
+    val tokenType: String = "Bearer",
+    val scope: String = "",
 ) {
-    fun isExpired(): Boolean = (System.currentTimeMillis() / 1000) > (expiresAt - 60)
+    private fun effectiveExpiresAt(): Long = expiresAt ?: (System.currentTimeMillis() / 1000 + expiresIn)
+    fun isExpired(): Boolean = (System.currentTimeMillis() / 1000) > (effectiveExpiresAt() - 60)
 }

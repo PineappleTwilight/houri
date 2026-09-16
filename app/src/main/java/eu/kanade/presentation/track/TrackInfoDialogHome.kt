@@ -100,10 +100,10 @@ fun TrackInfoDialogHome(
             // unbounded and defeat the max-height cap, letting the sheet grow full-length.
             modifier = Modifier
                 .then(if (isTablet) Modifier.widthIn(max = 560.dp) else Modifier.fillMaxWidth())
-                .heightIn(max = 520.dp)
+                .heightIn(max = 400.dp)
                 .verticalScroll(rememberScrollState())
-                .padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+                .padding(8.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
             // KMK <--
         ) {
             // KMK -->
@@ -217,7 +217,7 @@ fun TrackInfoDialogHome(
                 // KMK --> collapse untracked trackers into one compact add-tracking section
                 // instead of one full row per service, so N logged-in trackers cost ~2 rows.
                 if (untrackedItems.isNotEmpty()) {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         Text(
                             text = stringResource(MR.strings.add_tracking),
                             style = MaterialTheme.typography.labelLarge,
@@ -535,7 +535,7 @@ private fun UnifiedTrackerCard(
         TrackerProgressSync.shouldHighlightMismatch(domainTracksForSync, preferredId)
     }
     val statusText = displayTrack?.let { displayTracker.getStatus(it.status)?.let { stringResource(it) } } ?: "Reading"
-    val scoreText = displayTrack?.let { displayTracker.displayScore(it) }?.takeIf { it.isNotBlank() } ?: "10.0"
+    val scoreText = displayTrack?.let { displayTracker.displayScore(it) }?.takeIf { it.isNotBlank() } ?: "—"
     val chaptersRead = displayTrack?.lastChapterRead?.toInt() ?: 0
     val totalChapters = displayTrack?.totalChapters ?: 0
     val chaptersText = if (totalChapters > 0) {
@@ -554,8 +554,8 @@ private fun UnifiedTrackerCard(
             .clip(RoundedCornerShape(16.dp))
             .background(MaterialTheme.colorScheme.surfaceContainerHighest)
             // KMK --> denser card to shorten the tracker menu
-            .padding(8.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+            .padding(6.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         // KMK --> per-tracker unsynced dot (vs preferred) + untracked icons bind via onNewSearch
         Row(
@@ -648,7 +648,7 @@ private fun UnifiedTrackerCard(
                             .weight(0.15f)
                             .clickable {
                                 val base = TrackerProgressSync.maxProgress(domainTracksForSync).toInt()
-                                val newChapter = base + 1
+                                val newChapter = maxOf(0, base - 1)
                                 scope.launch {
                                     trackItems.filter { it.track != null }.forEach { item ->
                                         try {
@@ -661,7 +661,7 @@ private fun UnifiedTrackerCard(
                             .padding(8.dp),
                         contentAlignment = Alignment.Center,
                     ) {
-                        Text(text = "+", style = MaterialTheme.typography.titleMedium)
+                        Text(text = "−", style = MaterialTheme.typography.titleMedium)
                     }
                     VerticalDivider()
                     Box(
@@ -679,7 +679,7 @@ private fun UnifiedTrackerCard(
                             .weight(0.15f)
                             .clickable {
                                 val base = TrackerProgressSync.maxProgress(domainTracksForSync).toInt()
-                                val newChapter = maxOf(0, base - 1)
+                                val newChapter = base + 1
                                 scope.launch {
                                     trackItems.filter { it.track != null }.forEach { item ->
                                         try {
@@ -692,7 +692,7 @@ private fun UnifiedTrackerCard(
                             .padding(8.dp),
                         contentAlignment = Alignment.Center,
                     ) {
-                        Text(text = "−", style = MaterialTheme.typography.titleMedium)
+                        Text(text = "+", style = MaterialTheme.typography.titleMedium)
                     }
                 }
                 HorizontalDivider()

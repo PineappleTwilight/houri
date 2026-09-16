@@ -148,7 +148,10 @@ class MangaBaka(id: Long) : BaseTracker(id, "MangaBaka"), DeletableTracker {
                 10 -> STEP_10
                 20 -> STEP_20
                 25 -> STEP_25
-                else -> throw Exception("Unknown score step size ${currentUser.ratingSteps}")
+                else -> {
+                    logcat(LogPriority.WARN) { "Unknown MangaBaka score step size ${currentUser.ratingSteps}, using $STEP_10" }
+                    STEP_10
+                }
             }
             scorePreference.set(scoreType)
             saveCredentials(currentUser.nickname ?: currentUser.preferredUsername ?: currentUser.id, oauth.accessToken)

@@ -138,7 +138,7 @@ class Anilist(id: Long) : BaseTracker(id, "AniList"), DeletableTracker {
             }
 
             POINT_3 -> when {
-                score == 0.0 -> "0"
+                score == 0.0 -> "-"
                 score <= 35 -> "😦"
                 score <= 60 -> "😐"
                 else -> "😊"

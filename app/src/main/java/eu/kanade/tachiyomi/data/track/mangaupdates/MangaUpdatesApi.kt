@@ -11,6 +11,7 @@ import eu.kanade.tachiyomi.data.track.mangaupdates.dto.MURecord
 import eu.kanade.tachiyomi.data.track.mangaupdates.dto.MUSearchResult
 import eu.kanade.tachiyomi.network.DELETE
 import eu.kanade.tachiyomi.network.GET
+import eu.kanade.tachiyomi.network.HttpException
 import eu.kanade.tachiyomi.network.POST
 import eu.kanade.tachiyomi.network.PUT
 import eu.kanade.tachiyomi.network.await
@@ -72,12 +73,8 @@ class MangaUpdatesApi(
             ),
         )
             .awaitSuccess()
-            .let {
-                if (it.code == 200) {
-                    track.status = status
-                    track.last_chapter_read = 1.0
-                }
-            }
+        track.status = status
+        track.last_chapter_read = if (hasReadChapters) 1.0 else 0.0
     }
 
     suspend fun updateSeriesListItem(track: Track) {
@@ -123,8 +120,8 @@ class MangaUpdatesApi(
                     .awaitSuccess()
                     .parseAs<MURating>()
             }
-        } catch (e: Exception) {
-            null
+        } catch (e: HttpException) {
+            if (e.code == 404) null else throw e
         }
     }
 
