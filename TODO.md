@@ -518,6 +518,9 @@
   - Manga entries should be "stubs" since trackers don't add readable chapters as metadata
   - If the user adds it to their library, it should immediately be prompted for a migration
   - Prequels/sequels system should scan the library for the entries first to avoid needing a stub from the tracker
+  - Stubbed entries don't count towards achievements
+- [ ] **Achievements**: Make imported DB library manga entries count towards achievements (e.g. user imports 100 manga from the db, we then give them the credit for having 100 manga in their library)
+- [ ] **Database**: Improve import speed and performance
 
 ## Chores
 - [x] Replace all Komikku icons/branding with houri icons/branding
