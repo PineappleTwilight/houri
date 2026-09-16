@@ -16,7 +16,7 @@ import java.security.MessageDigest
 class UpscaleCacheManager(cacheRoot: File) {
 
     private companion object {
-        const val CACHE_KEY_VERSION = "upscale-cache-v2"
+        const val CACHE_KEY_VERSION = "upscale-cache-v3"
         const val FULL_HASH_MAX_BYTES = 256 * 1024
         const val TMP_GRACE_MILLIS = 60L * 60 * 1000
     }

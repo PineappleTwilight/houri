@@ -35,6 +35,10 @@ class UpscaleEngine(
         const val MAX_INPUT_BYTES = 30 * 1024 * 1024
         const val MAX_INPUT_PIXELS = 16L * 1024 * 1024
         const val SECRET_SAME_PAGE_THRESHOLD = 5
+        // PNG above this falls back to high-quality lossy WEBP: a 2x long
+        // strip as PNG can exceed the cache's per-file cap and would silently
+        // disable upscaling for exactly the pages that need it most.
+        const val MAX_PNG_BYTES = 12 * 1024 * 1024
     }
 
     fun isAvailable(): Boolean = if (prefs.isSimpleMode()) true else backendDetector.isAvailable()
@@ -175,12 +179,19 @@ class UpscaleEngine(
         }
     }
 
-    private fun compressToWebp(bitmap: Bitmap): ByteArray? {
+    private fun compressForCache(bitmap: Bitmap): ByteArray? {
         return try {
-            val out = java.io.ByteArrayOutputStream()
-            val ok = bitmap.compress(Bitmap.CompressFormat.WEBP_LOSSY, 90, out)
+            // PNG first: pixel-exact through the Bitmap encode / libvips decode
+            // round trip. WEBP_LOSSY came back uniformly darker on the WebGPU
+            // path, so it is only the oversize fallback now.
+            val pngOut = java.io.ByteArrayOutputStream()
+            if (!bitmap.compress(Bitmap.CompressFormat.PNG, 100, pngOut)) return null
+            val png = pngOut.toByteArray().takeIf { it.isNotEmpty() }
+            if (png != null && png.size <= MAX_PNG_BYTES) return png
+            val webpOut = java.io.ByteArrayOutputStream()
+            val ok = bitmap.compress(Bitmap.CompressFormat.WEBP_LOSSY, 95, webpOut)
             if (!ok) return null
-            out.toByteArray().takeIf { it.isNotEmpty() }
+            webpOut.toByteArray().takeIf { it.isNotEmpty() }
         } catch (e: OutOfMemoryError) {
             System.gc()
             null
@@ -197,7 +208,7 @@ class UpscaleEngine(
             if (UpscaleScalingStrategy.isNearIdentityScale(scale)) return null
             scaled = UpscaleScalingStrategy.upscaleBitmap(bmp, scale)
                 ?: return null
-            return compressToWebp(scaled)
+            return compressForCache(scaled)
         } finally {
             try {
                 if (scaled != null && scaled !== bmp) scaled.recycle()
@@ -215,7 +226,7 @@ class UpscaleEngine(
             if (UpscaleScalingStrategy.isNearIdentityScale(factor)) return null
             scaled = UpscaleScalingStrategy.upscaleBitmapWithAlgo(bmp, factor, algo)
                 ?: return null
-            return compressToWebp(scaled)
+            return compressForCache(scaled)
         } finally {
             try {
                 if (scaled != null && scaled !== bmp) scaled.recycle()

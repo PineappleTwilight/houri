@@ -77,8 +77,10 @@ class WebGpuConfig(
         private set
     // KMK <--
 
-    var pageOffset = 0
+    // KMK -->
+    var pageOffset = readerPreferences.webgpuPageOffset().get()
         private set
+    // KMK <--
 
     // KMK -->
     var matchDoublePageHeights = readerPreferences.dualPageMatchHeights().get()

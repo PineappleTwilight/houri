@@ -59,6 +59,10 @@ open class WebGpuViewer(
 
     private val positionStore by lazy { WebGpuReadingPositionStore(activity) }
 
+    // KMK -->
+    private var pendingContinuousRestoreChapterId: Long? = null
+    // KMK <--
+
     open val isContinuous: Boolean = false
 
     val readerPreferences by lazy { globalAppGraph.readerPreferences }
@@ -750,6 +754,10 @@ open class WebGpuViewer(
         try {
             val cid = page.page.chapter.chapter.id
             if (cid != null && cid != -1L) {
+                // KMK --> A deferred resume restore is pending for this chapter: the
+                // viewport is not there yet, so saving now would clobber it with 0.
+                if (isContinuous && pendingContinuousRestoreChapterId == cid) return
+                // KMK <--
                 if (isContinuous) {
                     try {
                         val cont = pager as? ca.mpreg.webgpuviewer.ImageViewContinuous
@@ -813,64 +821,114 @@ open class WebGpuViewer(
         val previousPage = currentPage
         val page = previousPage ?: getPage(requestedPage)
         currentPage = getSpreadAnchor(page)
-        // KMK --> Report the spread's lastmost page, not the anchor.
-        progressPage(currentPage!!)?.let { reportPageSelected(it) }
-        // KMK <--
-        preloadPages(currentPage!!)
         // KMK --> Seamless scroll entry: the user is already reading inside the new
         // chapter (previousPage resolved there via onPageChange before the chapter
         // switch landed). Restoring the stored offset now would yank the viewport
         // to a stale position. Fresh and explicit opens still restore below.
         val alreadyInsideNewChapter =
             (previousPage as? ViewerReaderPage)?.page?.chapter == chapters.currChapter
-        if (stored != null && isContinuous && !alreadyInsideNewChapter) {
-            // Heavily improved restore: atomic position with pending queue, no arbitrary delay,
-            // handles both v2 documentY and legacy fraction, restores scale/offsetX together.
+        val needsDeferredRestore = stored != null && isContinuous && !alreadyInsideNewChapter
+        // KMK --> Arm before reporting: the report below must not save docY=0 over
+        // the stored resume the restore is about to apply.
+        pendingContinuousRestoreChapterId = if (needsDeferredRestore) chapterId else null
+        // KMK <--
+        // KMK --> Report the spread's lastmost page, not the anchor.
+        progressPage(currentPage!!)?.let { reportPageSelected(it) }
+        // KMK <--
+        preloadPages(currentPage!!)
+        if (needsDeferredRestore && stored != null) {
+            // Restoring now would measure against ProgressPage placeholders
+            // (viewport-height each), landing the viewport in empty space once
+            // real heights decode: black screen, then phantom page walks on the
+            // first scroll. Wait for the target page to decode, then restore
+            // once against real heights. Aborts if the user scrolls, navigates,
+            // or the chapter changes first.
             try {
                 val cont = pager as? ca.mpreg.webgpuviewer.ImageViewContinuous
                 val st = cont?.state
                 if (st != null) {
-                    when {
-                        stored.isV2 -> {
-                            val pos = ca.mpreg.webgpuviewer.viewer.ImageViewerContinuousState.ContinuousPosition(
-                                documentY = stored.offsetRatio,
-                                scale = stored.zoom,
-                                offsetX = stored.offsetX,
-                                pageIndexHint = stored.pageIndex,
-                                fractionWithinPage = stored.fraction,
-                            )
-                            st.restorePosition(pos, animate = false)
-                        }
-                        else -> {
-                            // legacy fraction 0..1 — restore by page+fraction.
-                            // Suppress callbacks: the scroll walk would re-drive
-                            // currentPage mid-restore and jump somewhere random.
-                            val cb = st.onPageChange
-                            st.onPageChange = null
-                            try {
-                                if (stored.fraction.isFinite() && stored.fraction > 0f) {
-                                    st.scrollToPage(stored.pageIndex, stored.fraction)
-                                }
-                            } finally {
-                                st.onPageChange = cb
-                            }
-                            val maxOffsetX = maxOf(0f, (stored.zoom - 1f) / (2f * stored.zoom))
-                            st.scale = stored.zoom.coerceIn(st.minScale, st.maxScale)
-                            st.offsetX = stored.offsetX.coerceIn(-maxOffsetX, maxOffsetX)
-                        }
+                    val restoreChapterId = chapterId
+                    val anchorPage = currentPage
+                    val startDocY = try {
+                        st.documentY
+                    } catch (_: Exception) {
+                        0f
                     }
-                    // If pages not yet available, restorePosition queues pending and will apply in captureRenderState
-                    scope.launch(AppDispatchersHolder.get().main) {
+                    scope.launch {
                         try {
-                            // retry once after layout if still pending (e.g. width==0)
-                            kotlinx.coroutines.delay(100)
-                            if (st.getPage(0) == null) return@launch
-                            // ensure pending flushed
-                            pager.state.invalidate()
-                        } catch (_: Exception) {}
+                            var ready = false
+                            var waited = 0
+                            while (waited < 100) {
+                                if (isDestroyed) return@launch
+                                if (viewerChapters?.currChapter?.chapter?.id != restoreChapterId) return@launch
+                                val target = synchronized(lock) {
+                                    findInCache(PageKey.Reader(restoreChapterId, targetIndex)) as? ViewerReaderPage
+                                }
+                                val surfaceReady = try {
+                                    pager.state.width > 0 && pager.state.height > 0
+                                } catch (_: Exception) {
+                                    false
+                                }
+                                if (surfaceReady && (target?.isDecoded == true || target?.imagePage is ErrorPage)) {
+                                    ready = true
+                                    break
+                                }
+                                kotlinx.coroutines.delay(100)
+                                waited++
+                            }
+                            if (!ready || isDestroyed) return@launch
+                            if (viewerChapters?.currChapter?.chapter?.id != restoreChapterId) return@launch
+                            if (currentPage !== anchorPage) return@launch
+                            val nowDocY = try {
+                                st.documentY
+                            } catch (_: Exception) {
+                                startDocY
+                            }
+                            if (!nowDocY.isFinite() || !startDocY.isFinite() || abs(nowDocY - startDocY) > 2f) return@launch
+                            when {
+                                stored.isV2 -> {
+                                    val pos = ca.mpreg.webgpuviewer.viewer.ImageViewerContinuousState.ContinuousPosition(
+                                        documentY = stored.offsetRatio,
+                                        scale = stored.zoom,
+                                        offsetX = stored.offsetX,
+                                        pageIndexHint = stored.pageIndex,
+                                        fractionWithinPage = stored.fraction,
+                                    )
+                                    st.restorePosition(pos, animate = false)
+                                }
+                                else -> {
+                                    // legacy fraction 0..1 — restore by page+fraction.
+                                    // Suppress callbacks: the scroll walk would re-drive
+                                    // currentPage mid-restore and jump somewhere random.
+                                    val cb = st.onPageChange
+                                    st.onPageChange = null
+                                    try {
+                                        if (stored.fraction.isFinite() && stored.fraction > 0f) {
+                                            st.scrollToPage(stored.pageIndex, stored.fraction)
+                                        }
+                                    } finally {
+                                        st.onPageChange = cb
+                                    }
+                                    val maxOffsetX = maxOf(0f, (stored.zoom - 1f) / (2f * stored.zoom))
+                                    st.scale = stored.zoom.coerceIn(st.minScale, st.maxScale)
+                                    st.offsetX = stored.offsetX.coerceIn(-maxOffsetX, maxOffsetX)
+                                }
+                            }
+                            try {
+                                pager.state.invalidate()
+                            } catch (_: Exception) {}
+                        } finally {
+                            if (pendingContinuousRestoreChapterId == restoreChapterId) {
+                                pendingContinuousRestoreChapterId = null
+                            }
+                        }
                     }
+                } else {
+                    pendingContinuousRestoreChapterId = null
                 }
-            } catch (_: Exception) {}
+            } catch (_: Exception) {
+                pendingContinuousRestoreChapterId = null
+            }
         }
 
         pager.state.apply {

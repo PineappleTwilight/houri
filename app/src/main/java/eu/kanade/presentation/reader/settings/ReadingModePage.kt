@@ -202,7 +202,12 @@ private fun PagerViewerSettings(screenModel: ReaderSettingsScreenModel) {
         pref = screenModel.preferences.dualPageSplitPaged(),
     )
 
-    if (dualPageSplitPaged) {
+    // KMK --> Dual-page invert/rotate are pager-only: the WebGPU viewer never
+    // reads them, so hide them there instead of showing dead toggles. Split
+    // stays — it drives WebGPU spreads too.
+    val pagerSettingsViewer by screenModel.viewerFlow.collectAsState()
+    val showPagerDualPageExtras = pagerSettingsViewer !is WebGpuViewer
+    if (dualPageSplitPaged && showPagerDualPageExtras) {
         CheckboxItem(
             label = stringResource(MR.strings.pref_dual_page_invert),
             pref = screenModel.preferences.dualPageInvertPaged(),
@@ -210,17 +215,20 @@ private fun PagerViewerSettings(screenModel: ReaderSettingsScreenModel) {
     }
 
     val dualPageRotateToFit by screenModel.preferences.dualPageRotateToFit().collectAsState()
-    CheckboxItem(
-        label = stringResource(MR.strings.pref_page_rotate),
-        pref = screenModel.preferences.dualPageRotateToFit(),
-    )
-
-    if (dualPageRotateToFit) {
+    if (showPagerDualPageExtras) {
         CheckboxItem(
-            label = stringResource(MR.strings.pref_page_rotate_invert),
-            pref = screenModel.preferences.dualPageRotateToFitInvert(),
+            label = stringResource(MR.strings.pref_page_rotate),
+            pref = screenModel.preferences.dualPageRotateToFit(),
         )
+
+        if (dualPageRotateToFit) {
+            CheckboxItem(
+                label = stringResource(MR.strings.pref_page_rotate_invert),
+                pref = screenModel.preferences.dualPageRotateToFitInvert(),
+            )
+        }
     }
+    // KMK <--
 
     // SY -->
     CheckboxItem(

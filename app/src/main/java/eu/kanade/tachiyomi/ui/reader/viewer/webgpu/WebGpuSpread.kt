@@ -94,6 +94,11 @@ internal fun shouldAttemptSpreadRescale(
  */
 fun WebGpuViewer.isDualPageMode(): Boolean {
     if (isContinuous) return false
+    // KMK --> The Mihon-ported dualPageView row was removed from reader settings as
+    // redundant, leaving the pref stuck at NEVER. Honor the legacy dual-page
+    // split toggle that the settings UI actually exposes.
+    if (config.dualPageSplit) return true
+    // KMK <--
     return when (config.dualPageView) {
         ReaderPreferences.DualPageView.NEVER -> false
         ReaderPreferences.DualPageView.ALWAYS -> true
