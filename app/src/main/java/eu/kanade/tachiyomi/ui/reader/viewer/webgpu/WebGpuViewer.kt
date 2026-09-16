@@ -619,13 +619,17 @@ open class WebGpuViewer(
 
             (this as? ca.mpreg.webgpuviewer.viewer.ImageViewerContinuousState)?.let {
                 // KMK -->
+                // WEBTOON (long strip, no gap) always locks zoom-out to the strip
+                // width; CONTINUOUS_VERTICAL follows the disable-zoom-out pref.
+                val isWebtoonStrip = (this@WebGpuViewer as? WebGpuViewerContinuous)?.useGap == false
+                val lockToStrip = isWebtoonStrip || config.zoomOutDisabled
                 homeScale = config.continuousMinWidth / 100f
-                minScale = if (config.zoomOutDisabled) 0f else 0.1f
+                minScale = if (lockToStrip) 0f else 0.1f
                 // Never clobber the reader's zoom here: these listeners fire on
                 // state-only changes too. Only lift out of an illegal range
                 // (homeScale's own setter already lifts scale when the floor
                 // itself rises).
-                if (config.zoomOutDisabled && scale < homeScale) scale = homeScale
+                if (lockToStrip && scale < homeScale) scale = homeScale
 
                 if ((this@WebGpuViewer as? WebGpuViewerContinuous)?.useGap == true) {
                     pageGap = config.continuousGap / 100f
