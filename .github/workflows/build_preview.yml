@@ -59,14 +59,14 @@ jobs:
         uses: InsonusK/get-latest-release@7a9ff16c8c6b7ead5d71c0f1cc61f2703170eade # v1.1.0
         with:
           myToken: ${{ github.token }}
-          exclude_types: "draft"
+          exclude_types: "draft|prerelease"
           view_top: 1
 
       - name: Curren commit
         id: current_commit
         run: |
           commit_count=$(git rev-list --count HEAD)
-          current_sha=$(git rev-parse --short HEAD)
+          current_sha=$(git rev-parse HEAD)
           echo "COMMIT_COUNT=$commit_count"
           echo "COMMIT_COUNT=$commit_count" >> $GITHUB_OUTPUT
           echo "CURRENT_SHA=$current_sha"
@@ -79,26 +79,19 @@ jobs:
           tag="${{ steps.last_release.outputs.tag_name }}"
           if [ -z "$tag" ]; then
             echo "No previous release found; using root commit as base"
-            commit_count_diff=$(git rev-list --count HEAD)
-            commit_count_diff=$((commit_count_diff > 0 ? commit_count_diff - 1 : 1))
-            prev_release_sha=$(git rev-list --max-parents=0 HEAD | head -n1 | xargs git rev-parse --short)
+            prev_release_sha=$(git rev-list --max-parents=0 HEAD | head -n1)
+          elif git rev-parse --verify --quiet "$tag^{commit}" >/dev/null; then
+            # Resolve the tag directly to its commit. Never derive the base via
+            # HEAD~N from a commit count: with merge commits, rev-list counts
+            # every commit in the range while HEAD~N walks first-parents only,
+            # so HEAD~N overshoots past the tag and leaks in previous periods.
+            prev_release_sha=$(git rev-parse "$tag^{commit}")
           else
-            commit_count_diff=$(git rev-list --count "$tag"..HEAD || echo 1)
-            if [ -z "$commit_count_diff" ] || [ "$commit_count_diff" -eq 0 ]; then
-              commit_count_diff=1
-            fi
-            # Clamp to not exceed total commits
-            total=$(git rev-list --count HEAD)
-            if [ "$commit_count_diff" -ge "$total" ]; then
-              prev_release_sha=$(git rev-list --max-parents=0 HEAD | head -n1 | xargs git rev-parse --short)
-            else
-              prev_release_sha=$(git rev-parse --short HEAD~$commit_count_diff)
-            fi
+            echo "WARNING: tag $tag not found locally; using root commit as base"
+            prev_release_sha=$(git rev-list --max-parents=0 HEAD | head -n1)
           fi
-          echo "commit_count_diff=$commit_count_diff"
-          echo "PREV_RELEASE_SHA=$prev_release_sha"
+          echo "prev_release_sha=$prev_release_sha (tag=$tag)"
           echo "PREV_RELEASE_SHA=$prev_release_sha" >> $GITHUB_OUTPUT
-          echo "PREV_TAG_NAME=$tag"
           echo "PREV_TAG_NAME=$tag" >> $GITHUB_OUTPUT
 
       - name: Prepare env
@@ -131,14 +124,20 @@ jobs:
       - name: Commit logs
         id: commit_logs
         run: |
-          # Skip commits that only touch TODO files so they don't flood release notes
+          # Skip commits that only touch TODO files so they don't flood release notes.
+          # Capped: with no previous tag the base is the root commit and the full
+          # history would burst GitHub's 1MB job-output limit.
+          MAX_COMMITS=200
+          range="${{ steps.previous_commit.outputs.PREV_RELEASE_SHA }}..${{ steps.current_commit.outputs.CURRENT_SHA }}"
+          total=$(git rev-list --count "$range")
           echo "COMMIT_LOGS<<{delimiter}
-          $(git log --no-merges --pretty=format:"%H|%an|%s" "${{ steps.previous_commit.outputs.PREV_RELEASE_SHA }}..${{ steps.current_commit.outputs.CURRENT_SHA }}" \
+          $(git log --no-merges --max-count=$MAX_COMMITS --pretty=format:"%H|%an|%s" "$range" \
             | while IFS='|' read -r hash author subject; do
                 if git diff-tree --no-commit-id --name-only -r "$hash" < /dev/null | grep -qviE '^(todo\.md|docs/todo\.md)$'; then
                   printf -- "- %s (@%s)\n" "$subject" "$author"
                 fi
               done)
+          $([ "$total" -gt "$MAX_COMMITS" ] && echo "- …and $((total - MAX_COMMITS)) more")
           {delimiter}" >> $GITHUB_OUTPUT
 
   build-app:
