@@ -464,4 +464,8 @@
     <string name="pref_upscale_manga_summary">Use AI upscaling for this manga (pages cached per model). Disabled by default.</string>
     <string name="pref_webgpu_page_offset">WebGPU page offset</string>
     <string name="pref_webgpu_page_offset_summary">Horizontal offset for paged pages (-50% left, 50% right). Mirrors legacy pager offset.</string>
+    <string name="pref_webgpu_dark_mode">Dark mode filter</string>
+    <string name="pref_webgpu_dark_mode_summary">Smart-invert pages for night reading. White becomes black, art stays readable.</string>
+    <string name="pref_webgpu_dark_mode_amoled">True black (AMOLED)</string>
+    <string name="pref_webgpu_dark_mode_amoled_summary">Crush near-blacks to pure black to save battery on OLED screens.</string>
 </resources>

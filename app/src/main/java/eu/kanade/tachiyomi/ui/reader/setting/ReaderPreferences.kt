@@ -215,6 +215,12 @@ class ReaderPreferences(
     fun webgpuPageOffset() = preferenceStore.getInt("webgpu_page_offset", 0)
     // KMK <--
 
+    // KMK -->
+    fun webgpuDarkMode() = preferenceStore.getBoolean("webgpu_dark_mode", false)
+
+    fun webgpuDarkModeAmoled() = preferenceStore.getBoolean("webgpu_dark_mode_amoled", false)
+    // KMK <--
+
     // endregion
     // Mihon <--
 

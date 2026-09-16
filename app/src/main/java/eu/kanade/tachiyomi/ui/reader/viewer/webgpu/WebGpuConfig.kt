@@ -86,6 +86,14 @@ class WebGpuConfig(
     // KMK <--
 
     // KMK -->
+    var webgpuDarkMode = readerPreferences.webgpuDarkMode().get()
+        private set
+
+    var webgpuDarkModeAmoled = readerPreferences.webgpuDarkModeAmoled().get()
+        private set
+    // KMK <--
+
+    // KMK -->
     private val pagedDoubleTapZoomPref = readerPreferences.pagedDoubleTapZoomEnabled()
     private val webtoonDoubleTapZoomPref = readerPreferences.webtoonDoubleTapZoomEnabled()
 
@@ -240,6 +248,20 @@ class WebGpuConfig(
             .register(
                 { matchDoublePageHeights = it },
                 { imagePropertyChangedListener?.invoke() },
+            )
+        // KMK <--
+
+        // KMK -->
+        readerPreferences.webgpuDarkMode()
+            .register(
+                { webgpuDarkMode = it },
+                { imageStateChangedListener?.invoke() },
+            )
+
+        readerPreferences.webgpuDarkModeAmoled()
+            .register(
+                { webgpuDarkModeAmoled = it },
+                { imageStateChangedListener?.invoke() },
             )
         // KMK <--
     }

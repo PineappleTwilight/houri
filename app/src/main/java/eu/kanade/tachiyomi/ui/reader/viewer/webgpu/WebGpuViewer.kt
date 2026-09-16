@@ -80,6 +80,10 @@ open class WebGpuViewer(
     // KMK <--
 
     // KMK -->
+    private val darkModeFilter = WebGpuDarkModeFilter()
+    // KMK <--
+
+    // KMK -->
     /** Resolved once: decodeReaderPage runs per page on the decode thread. */
     internal val isLowRamDevice: Boolean by lazy {
         try {
@@ -569,6 +573,7 @@ open class WebGpuViewer(
             } catch (_: Exception) {}
         }
         applyPageOffset()
+        applyImageState()
         // KMK <--
     }
 
@@ -584,6 +589,22 @@ open class WebGpuViewer(
         // KMK --> A theme change comes through here.
         cachedBackgroundColor = null
         cachedOnBackgroundColor = null
+        // KMK <--
+        // KMK -->
+        try {
+            darkModeFilter.amoled = config.webgpuDarkModeAmoled
+            darkModeFilter.enabled = config.webgpuDarkMode
+            val current = pager.state.filters.filters
+            val hasFilter = current.any { it === darkModeFilter }
+            if (config.webgpuDarkMode && !hasFilter) {
+                pager.state.filters.filters = current + darkModeFilter
+            } else if (!config.webgpuDarkMode && hasFilter) {
+                pager.state.filters.filters = current.filterNot { it === darkModeFilter }
+            } else if (config.webgpuDarkMode) {
+                pager.state.invalidate()
+            }
+        } catch (_: Exception) {
+        }
         // KMK <--
         pager.state.apply {
             val isDual = isDualPageMode()

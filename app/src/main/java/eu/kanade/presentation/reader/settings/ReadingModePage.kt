@@ -1,5 +1,6 @@
 package eu.kanade.presentation.reader.settings
 
+import androidx.compose.foundation.layout.Box
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -7,6 +8,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import eu.kanade.domain.manga.model.readerOrientation
 import eu.kanade.domain.manga.model.readingMode
 import eu.kanade.tachiyomi.ui.reader.setting.ReaderOrientation
@@ -16,6 +19,7 @@ import eu.kanade.tachiyomi.ui.reader.setting.ReadingMode
 import eu.kanade.tachiyomi.ui.reader.viewer.webgpu.WebGpuViewer
 import eu.kanade.tachiyomi.ui.reader.viewer.webgpu.isDualPageMode
 import eu.kanade.tachiyomi.ui.reader.viewer.webtoon.WebtoonViewer
+import tachiyomi.core.common.preference.toggle
 import tachiyomi.i18n.MR
 import tachiyomi.i18n.kmk.KMR
 import tachiyomi.i18n.sy.SYMR
@@ -400,6 +404,22 @@ private fun WebGpuViewerSettings(screenModel: ReaderSettingsScreenModel) {
         onChange = { screenModel.preferences.webgpuPageOffset().set(it) },
         pillColor = MaterialTheme.colorScheme.surfaceContainerHighest,
     )
+    // KMK <--
+
+    // KMK -->
+    val webgpuDarkMode by screenModel.preferences.webgpuDarkMode().collectAsState()
+    CheckboxItem(
+        label = stringResource(KMR.strings.pref_webgpu_dark_mode),
+        pref = screenModel.preferences.webgpuDarkMode(),
+    )
+    val webgpuDarkModeAmoled by screenModel.preferences.webgpuDarkModeAmoled().collectAsState()
+    Box(modifier = Modifier.alpha(if (webgpuDarkMode) 1f else 0.38f)) {
+        CheckboxItem(
+            label = stringResource(KMR.strings.pref_webgpu_dark_mode_amoled),
+            checked = webgpuDarkModeAmoled,
+            onClick = { if (webgpuDarkMode) screenModel.preferences.webgpuDarkModeAmoled().toggle() },
+        )
+    }
     // KMK <--
 
     // KMK --> Hide rows that do nothing in the continuous modes.
