@@ -7,12 +7,14 @@ object LibrarySearchParser {
         when (prefix.lowercase()) {
             "a" -> "artist"
             "c", "char" -> "character"
+            "cat" -> "category"
             "f" -> "female"
             "g", "creator", "circle" -> "group"
             "l", "lang" -> "language"
             "m" -> "male"
             "p", "series" -> "parody"
             "r" -> "reclass"
+            "sub", "subcat" -> "subcategory"
             else -> prefix.lowercase()
         }
 
@@ -92,6 +94,9 @@ object LibrarySearchParser {
         "a", "c", "char", "f", "g", "creator", "circle", "l", "lang", "m", "p", "series", "r",
         "title", "author", "source", "genre", "tag", "tags", "status", "tracker",
         "desc", "description", "uploader", "id", "src",
+        // KMK --> library category/subcategory search
+        "category", "cat", "subcategory", "sub", "subcat",
+        // KMK <--
     )
 }
 // KMK <--

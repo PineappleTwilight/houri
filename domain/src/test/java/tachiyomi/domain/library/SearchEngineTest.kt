@@ -88,6 +88,22 @@ class SearchEngineTest {
     }
 
     @Test
+    fun `category and subcategory fields route to namespace`() {
+        LibrarySearchParser.parse("category:Hentai") shouldBe listOf(
+            LibrarySearchToken.Field("category", "Hentai"),
+        )
+        LibrarySearchParser.parse("cat:Hentai") shouldBe listOf(
+            LibrarySearchToken.Field("category", "Hentai"),
+        )
+        LibrarySearchParser.parse("subcategory:Kawakami") shouldBe listOf(
+            LibrarySearchToken.Field("subcategory", "Kawakami"),
+        )
+        LibrarySearchParser.parse("sub:Kawakami") shouldBe listOf(
+            LibrarySearchToken.Field("subcategory", "Kawakami"),
+        )
+    }
+
+    @Test
     fun `field names are case-insensitive, values keep their case`() {
         LibrarySearchParser.parse("Genre:Action") shouldBe listOf(
             LibrarySearchToken.Field("genre", "Action"),

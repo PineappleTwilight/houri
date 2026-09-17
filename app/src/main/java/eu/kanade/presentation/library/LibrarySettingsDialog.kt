@@ -31,11 +31,8 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastForEach
 import dev.icerock.moko.resources.StringResource
-import eu.kanade.presentation.category.hierarchicalVisualName
-import eu.kanade.presentation.category.sortedByHierarchy
 import eu.kanade.presentation.components.TabbedDialog
 import eu.kanade.presentation.components.TabbedDialogPaddings
-import eu.kanade.presentation.more.settings.widget.TriStateListDialog
 import eu.kanade.tachiyomi.R
 import eu.kanade.tachiyomi.ui.library.LibrarySettingsScreenModel
 import eu.kanade.tachiyomi.util.system.isReleaseBuildType
@@ -76,6 +73,7 @@ fun LibrarySettingsDialog(
     // SY <--
     // KMK -->
     categories: List<Category>,
+    itemCount: (Category) -> Int,
     // KMK <--
 ) {
     TabbedDialog(
@@ -99,6 +97,7 @@ fun LibrarySettingsDialog(
                     screenModel = screenModel,
                     // KMK -->
                     categories = categories,
+                    itemCount = itemCount,
                     // KMK <--
                 )
                 1 -> SortPage(
@@ -124,6 +123,7 @@ fun LibrarySettingsDialog(
 private fun ColumnScope.FilterPage(
     screenModel: LibrarySettingsScreenModel,
     categories: List<Category>,
+    itemCount: (Category) -> Int,
 ) {
     val filterDownloaded by screenModel.libraryPreferences.filterDownloaded().collectAsState()
     val downloadedOnly by screenModel.preferences.downloadedOnly().collectAsState()
@@ -194,6 +194,7 @@ private fun ColumnScope.FilterPage(
     CategoriesFilter(
         libraryPreferences = screenModel.libraryPreferences,
         categories = categories,
+        itemCount = itemCount,
     )
     // KMK <--
 
@@ -489,6 +490,7 @@ private fun ColumnScope.GroupPage(
 private fun CategoriesFilter(
     libraryPreferences: LibraryPreferences,
     categories: List<Category>,
+    itemCount: (Category) -> Int,
 ) {
     val filterCategories by libraryPreferences.filterCategories().collectAsState()
 
@@ -499,18 +501,12 @@ private fun CategoriesFilter(
 
     var showCategoriesDialog by rememberSaveable { mutableStateOf(false) }
     if (showCategoriesDialog) {
-        // KMK -->
-        val orderedCategories = categories.sortedByHierarchy()
-        // KMK <--
-        TriStateListDialog(
-            title = stringResource(MR.strings.categories),
-            message = stringResource(KMR.strings.pref_library_filter_categories_details),
-            items = orderedCategories,
+        CategoryFilterDialog(
+            categories = categories,
             initialChecked = included.mapNotNull { id -> categories.find { it.id.toString() == id } },
             initialInversed = excluded.mapNotNull { id -> categories.find { it.id.toString() == id } },
-            // KMK -->
-            itemLabel = { it.hierarchicalVisualName },
-            // KMK <--
+            itemCount = itemCount,
+            message = stringResource(KMR.strings.pref_library_filter_categories_details),
             onDismissRequest = { showCategoriesDialog = false },
             onValueChanged = { newIncluded, newExcluded ->
                 filterCategoriesInclude.set(newIncluded.map { it.id.toString() }.toSet())

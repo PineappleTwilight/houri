@@ -382,6 +382,16 @@ data object LibraryTab : Tab {
         val onDismissRequest = screenModel::closeDialog
         when (val dialog = state.dialog) {
             is LibraryScreenModel.Dialog.SettingsSheet -> run {
+                // KMK --> per-category item counts for the filter dialog
+                val filterCounts = remember(state.libraryData.favorites) {
+                    buildMap<Long, Int> {
+                        state.libraryData.favorites.forEach { item ->
+                            item.libraryManga.categories.forEach { id ->
+                                put(id, (get(id) ?: 0) + 1)
+                            }
+                        }
+                    }
+                }
                 LibrarySettingsDialog(
                     onDismissRequest = onDismissRequest,
                     screenModel = settingsScreenModel,
@@ -391,6 +401,7 @@ data object LibraryTab : Tab {
                     // SY <--
                     // KMK -->
                     categories = state.libraryData.categories.filterNot(Category::isSystemCategory),
+                    itemCount = { filterCounts[it.id] ?: 0 },
                     // KMK <--
                 )
             }

@@ -218,7 +218,7 @@ class LibraryScreenModel(
                             // SY -->
                             // it.filter { m -> m.matches(searchQuery) }
                             // Filter query
-                            filterLibrary(it, searchQuery, trackingFilters)
+                            filterLibrary(it, searchQuery, trackingFilters, categories)
                             // SY <--
                         }
                     }
@@ -1280,7 +1280,14 @@ class LibraryScreenModel(
         mutableState.update { it.copy(dialog = Dialog.RecommendationSearchSheet(mangaList)) }
     }
 
-    private suspend fun filterLibrary(unfiltered: List<LibraryItem>, query: String?, loggedInTrackServices: Map<Long, TriState>): List<LibraryItem> {
+    private suspend fun filterLibrary(
+        unfiltered: List<LibraryItem>,
+        query: String?,
+        loggedInTrackServices: Map<Long, TriState>,
+        // KMK -->
+        categories: List<Category>,
+        // KMK <--
+    ): List<LibraryItem> {
         return if (unfiltered.isNotEmpty() && !query.isNullOrBlank()) {
             // AZ -->
             if (query.trim().lowercase() == "mangadex-dmca") {
@@ -1345,6 +1352,9 @@ class LibraryScreenModel(
                             searchTags = tagsById[mangaId],
                             searchTitles = titlesById[mangaId],
                             loggedInTrackServices = loggedInTrackServices,
+                            // KMK -->
+                            allCategories = categories,
+                            // KMK <--
                         )
                     } else {
                         filterManga(
@@ -1353,6 +1363,9 @@ class LibraryScreenModel(
                             tracks = tracks[mangaId],
                             source = sources[sourceId],
                             loggedInTrackServices = loggedInTrackServices,
+                            // KMK -->
+                            allCategories = categories,
+                            // KMK <--
                         )
                     }
                 }
@@ -1371,11 +1384,18 @@ class LibraryScreenModel(
         searchTags: List<SearchTag>? = null,
         searchTitles: List<SearchTitle>? = null,
         loggedInTrackServices: Map<Long, TriState>,
+        // KMK -->
+        allCategories: List<Category> = emptyList(),
+        // KMK <--
     ): Boolean {
         val manga = libraryManga.manga
         val sourceIdString = manga.source.takeUnless { it == LocalSource.ID }?.toString()
         val genre = if (checkGenre) manga.genre.orEmpty() else emptyList()
         val context = globalAppGraph.context
+        // KMK --> names of categories/subcategories this entry belongs to
+        val categoryById = allCategories.associateBy { it.id }
+        val assignedCategories = libraryManga.categories.mapNotNull { categoryById[it] }
+        // KMK <--
         return queries.all { queryComponent ->
             when (queryComponent.excluded) {
                 false -> when (queryComponent) {
@@ -1387,6 +1407,9 @@ class LibraryScreenModel(
                             (manga.description?.contains(query, true) == true) ||
                             (source?.name?.contains(query, true) == true) ||
                             (sourceIdString != null && sourceIdString == query) ||
+                            // KMK --> plain text also matches assigned category/subcategory names
+                            assignedCategories.fastAny { it.name.contains(query, true) } ||
+                            // KMK <--
                             (
                                 loggedInTrackServices.isNotEmpty() &&
                                     tracks != null &&
@@ -1410,6 +1433,9 @@ class LibraryScreenModel(
                             sourceIdString = sourceIdString,
                             searchTags = searchTags,
                             searchTitles = searchTitles,
+                            // KMK -->
+                            assignedCategories = assignedCategories,
+                            // KMK <--
                         )
                         // KMK <--
                     }
@@ -1426,6 +1452,9 @@ class LibraryScreenModel(
                                     (manga.description?.contains(query, true) != true) &&
                                     (source?.name?.contains(query, true) != true) &&
                                     (sourceIdString != null && sourceIdString != query) &&
+                                    // KMK --> exclusion mirrors the category match above
+                                    (!assignedCategories.fastAny { it.name.contains(query, true) }) &&
+                                    // KMK <--
                                     (
                                         loggedInTrackServices.isEmpty() ||
                                             tracks == null ||
@@ -1449,6 +1478,9 @@ class LibraryScreenModel(
                             sourceIdString = sourceIdString,
                             searchTags = searchTags,
                             searchTitles = searchTitles,
+                            // KMK -->
+                            assignedCategories = assignedCategories,
+                            // KMK <--
                         )
                         // KMK <--
                     }
@@ -1483,6 +1515,9 @@ class LibraryScreenModel(
         sourceIdString: String?,
         searchTags: List<SearchTag>?,
         searchTitles: List<SearchTitle>?,
+        // KMK -->
+        assignedCategories: List<Category> = emptyList(),
+        // KMK <--
     ): Boolean {
         val manga = libraryManga.manga
         fun tagsMatch(): Boolean {
@@ -1533,6 +1568,14 @@ class LibraryScreenModel(
             "tracker" ->
                 tracks != null && tracks.isNotEmpty() &&
                     (tag.isBlank() || filterTracks(tag, tracks, globalAppGraph.context))
+            // KMK --> category/subcategory field search
+            "category", "cat" ->
+                (tag.isBlank() && assignedCategories.isNotEmpty()) ||
+                    assignedCategories.fastAny { it.name.contains(tag, true) }
+            "subcategory", "sub", "subcat" ->
+                (tag.isBlank() && assignedCategories.any { it.parentId != 0L }) ||
+                    assignedCategories.fastAny { it.parentId != 0L && it.name.contains(tag, true) }
+            // KMK <--
             else -> tagsMatch()
         }
     }
