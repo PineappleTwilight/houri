@@ -13,13 +13,16 @@ import java.nio.ByteOrder
 /**
  * Intelligent dark-mode filter for the WebGPU reader.
  *
- * Only achromatic pixels (shades of white/black/gray: paper, ink, screentones)
- * are swapped — paper-white becomes black, ink-black becomes white, gray tones
- * invert. Chromatic (colored) pixels pass through untouched, so color pages keep
- * their original colors instead of turning into photo-negatives.
+ * Strict achromatic-only policy: a pixel is touched only when it is a shade of
+ * white, black or gray (absolute channel spread under 0.06). Anything carrying
+ * real color passes through untouched. Dark achromatic strokes swap
+ * unconditionally so lettering stays legible, flat achromatic 3x3 chunks
+ * bucket-swap so scanned paper inverts with no JPEG-noise speckle, and
+ * remaining near-gray pixels (antialiased edges) take a narrow blend.
+ * Near-transparent taps are excluded from the chunk vote.
  *
- * AMOLED subtoggle: crushes near-blacks (inverted-paper residue, JPEG noise) to
- * pure black so OLED pixels turn fully off and save battery.
+ * AMOLED subtoggle: crushes near-blacks (inverted-paper residue) to pure black
+ * so OLED pixels turn fully off and save battery.
  *
  * Runs as a post-process [FilterFullscreen] pass, so it applies live with no page
  * re-decode. Disabled by default; [active] is [enabled] only.
@@ -30,6 +33,24 @@ class WebGpuDarkModeFilter(
 
     @Volatile
     var amoled: Boolean = amoled
+        set(value) {
+            if (field == value) return
+            field = value
+            uniformsDirty = true
+            invalidate()
+        }
+
+    @Volatile
+    var tolerance: Float = 0.06f
+        set(value) {
+            if (field == value) return
+            field = value
+            uniformsDirty = true
+            invalidate()
+        }
+
+    @Volatile
+    var chunkRange: Float = 0.10f
         set(value) {
             if (field == value) return
             field = value
@@ -59,9 +80,9 @@ class WebGpuDarkModeFilter(
             val b = uniformBytes
             b.clear()
             b.putFloat(if (amoled) 1f else 0f)
-            b.putFloat(0f)
-            b.putFloat(0f)
-            b.putFloat(0f)
+            b.putFloat(tolerance)
+            b.putFloat(tolerance + 0.03f)
+            b.putFloat(chunkRange)
             b.flip()
             device.queue.writeBuffer(uniforms, 0, b)
         }
@@ -80,30 +101,63 @@ class WebGpuDarkModeFilter(
         const val FRAGMENT = """
 struct Params {
     amoled: f32,
-    _pad0: f32,
-    _pad1: f32,
-    _pad2: f32,
+    tol: f32,
+    gate: f32,
+    range: f32,
 }
 @group(0) @binding(0) var<uniform> params: Params;
 @group(0) @binding(1) var src: texture_2d<f32>;
 
+fn spreadOf(c: vec3<f32>) -> f32 {
+    return max(c.r, max(c.g, c.b)) - min(c.r, min(c.g, c.b));
+}
+
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
-    let texel = textureLoad(src, vec2<i32>(in.position.xy), 0);
+    let fragCoord = vec2<i32>(in.position.xy);
+    let texel = textureLoad(src, fragCoord, 0);
     if (texel.a <= 0.0) { return texel; }
-    let c = texel.rgb / texel.a;
-    // Saturation gate: 0 for shades of white/black/gray, ~1 for colors.
-    let mx = max(c.r, max(c.g, c.b));
-    let mn = min(c.r, min(c.g, c.b));
-    var sat = 0.0;
-    if (mx > 0.0001) {
-        sat = (mx - mn) / mx;
+    let c = texel.rgb / max(texel.a, 0.1);
+    let spread = spreadOf(c);
+    // Hard gate: any real color passes through untouched.
+    if (spread >= params.gate) { return texel; }
+    // Bucket-select probe: min/max luma and max spread over the 3x3 chunk
+    // around this pixel. Near-transparent taps (feathered bubble fringes,
+    // page margins) are excluded from the vote: unpremultiplying them
+    // amplifies quantization noise into false color/variance.
+    let maxC = vec2<i32>(textureDimensions(src)) - vec2<i32>(1, 1);
+    var minL = 1.0;
+    var maxL = 0.0;
+    var chunkSpread = 0.0;
+    var hits = 0;
+    for (var oy = -1; oy <= 1; oy = oy + 1) {
+        for (var ox = -1; ox <= 1; ox = ox + 1) {
+            let p = clamp(fragCoord + vec2<i32>(ox, oy), vec2<i32>(0, 0), maxC);
+            let t = textureLoad(src, p, 0);
+            if (t.a < 0.1) { continue; }
+            hits = hits + 1;
+            let nc = t.rgb / t.a;
+            chunkSpread = max(chunkSpread, spreadOf(nc));
+            let l = dot(nc, vec3<f32>(0.299, 0.587, 0.114));
+            minL = min(minL, l);
+            maxL = max(maxL, l);
+        }
     }
-    // 1 for achromatic pixels, 0 for colored ones, smooth blend between so
-    // tinted paper/antialiased text edges don't get a hard cutoff.
-    let gray = 1.0 - smoothstep(0.15, 0.35, sat);
-    let swapped = vec3<f32>(1.0) - c;
-    var out_c = mix(c, swapped, gray);
+    var out_c: vec3<f32>;
+    let centerLuma = dot(c, vec3<f32>(0.299, 0.587, 0.114));
+    if (centerLuma < 0.5 && spread < params.tol) {
+        // Ink: dark achromatic strokes swap regardless of neighborhood, so
+        // lettering stays legible. Deliberately before the chunk vote.
+        out_c = vec3<f32>(1.0) - c;
+    } else if (hits > 0 && chunkSpread < params.tol && (maxL - minL) < params.range) {
+        // Bucket fill: one flat shade of paper or ink swaps cleanly.
+        out_c = vec3<f32>(1.0) - c;
+    } else {
+        // Near-gray stragglers (antialiased edges) blend; visibly tinted
+        // pixels never reach here.
+        let gray = 1.0 - smoothstep(params.tol - 0.02, params.gate, spread);
+        out_c = mix(c, vec3<f32>(1.0) - c, gray);
+    }
     if (params.amoled > 0.5) {
         let luma = dot(out_c, vec3<f32>(0.299, 0.587, 0.114));
         if (luma < 0.08) {

@@ -468,4 +468,8 @@
     <string name="pref_webgpu_dark_mode_summary">Smart-invert pages for night reading. White becomes black, art stays readable.</string>
     <string name="pref_webgpu_dark_mode_amoled">True black (AMOLED)</string>
     <string name="pref_webgpu_dark_mode_amoled_summary">Crush near-blacks to pure black to save battery on OLED screens.</string>
+    <string name="pref_webgpu_dark_mode_tolerance">Gray tolerance</string>
+    <string name="pref_webgpu_dark_mode_tolerance_summary">How much color a pixel may carry and still count as gray. Higher catches tinted paper, lower protects colors.</string>
+    <string name="pref_webgpu_dark_mode_chunk_range">Chunk flatness</string>
+    <string name="pref_webgpu_dark_mode_chunk_range_summary">How uniform a neighborhood must be to swap as one flat shade. Higher merges noisy paper, lower protects texture.</string>
 </resources>

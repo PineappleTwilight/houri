@@ -113,6 +113,12 @@ class WebGpuConfig(
 
     var webgpuDarkModeAmoled = readerPreferences.webgpuDarkModeAmoled().get()
         private set
+
+    var darkModeTolerance = readerPreferences.webgpuDarkModeTolerance().get() / 100f
+        private set
+
+    var darkModeChunkRange = readerPreferences.webgpuDarkModeChunkRange().get() / 100f
+        private set
     // KMK <--
 
     // KMK -->
@@ -284,6 +290,18 @@ class WebGpuConfig(
         readerPreferences.webgpuDarkModeAmoled()
             .register(
                 { webgpuDarkModeAmoled = it },
+                { imageStateChangedListener?.invoke() },
+            )
+
+        readerPreferences.webgpuDarkModeTolerance()
+            .register(
+                { darkModeTolerance = it / 100f },
+                { imageStateChangedListener?.invoke() },
+            )
+
+        readerPreferences.webgpuDarkModeChunkRange()
+            .register(
+                { darkModeChunkRange = it / 100f },
                 { imageStateChangedListener?.invoke() },
             )
         // KMK <--

@@ -215,6 +215,10 @@ class ReaderPreferences(
     fun webgpuDarkMode() = preferenceStore.getBoolean("webgpu_dark_mode", false)
 
     fun webgpuDarkModeAmoled() = preferenceStore.getBoolean("webgpu_dark_mode_amoled", false)
+
+    fun webgpuDarkModeTolerance() = preferenceStore.getInt("webgpu_dark_mode_tolerance", 6)
+
+    fun webgpuDarkModeChunkRange() = preferenceStore.getInt("webgpu_dark_mode_chunk_range", 10)
     // KMK <--
 
     // endregion
@@ -346,6 +350,11 @@ class ReaderPreferences(
         // KMK -->
         const val WEBGPU_PAGE_OFFSET_MIN = -50
         const val WEBGPU_PAGE_OFFSET_MAX = 50
+
+        const val WEBGPU_DARK_MODE_TOLERANCE_MIN = 1
+        const val WEBGPU_DARK_MODE_TOLERANCE_MAX = 20
+        const val WEBGPU_DARK_MODE_CHUNK_RANGE_MIN = 2
+        const val WEBGPU_DARK_MODE_CHUNK_RANGE_MAX = 30
         // KMK <--
 
         const val MILLI_CONVERSION = 100

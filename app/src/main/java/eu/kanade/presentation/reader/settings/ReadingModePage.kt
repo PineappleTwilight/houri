@@ -441,6 +441,26 @@ private fun WebGpuViewerSettings(screenModel: ReaderSettingsScreenModel) {
             onClick = { if (webgpuDarkMode) screenModel.preferences.webgpuDarkModeAmoled().toggle() },
         )
     }
+    if (webgpuDarkMode) {
+        val darkModeTolerance by screenModel.preferences.webgpuDarkModeTolerance().collectAsState()
+        SliderItem(
+            value = darkModeTolerance,
+            valueRange = ReaderPreferences.WEBGPU_DARK_MODE_TOLERANCE_MIN..ReaderPreferences.WEBGPU_DARK_MODE_TOLERANCE_MAX,
+            label = stringResource(KMR.strings.pref_webgpu_dark_mode_tolerance),
+            valueString = "%.2f".format(darkModeTolerance / 100f),
+            onChange = { screenModel.preferences.webgpuDarkModeTolerance().set(it) },
+            pillColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+        )
+        val darkModeChunkRange by screenModel.preferences.webgpuDarkModeChunkRange().collectAsState()
+        SliderItem(
+            value = darkModeChunkRange,
+            valueRange = ReaderPreferences.WEBGPU_DARK_MODE_CHUNK_RANGE_MIN..ReaderPreferences.WEBGPU_DARK_MODE_CHUNK_RANGE_MAX,
+            label = stringResource(KMR.strings.pref_webgpu_dark_mode_chunk_range),
+            valueString = "%.2f".format(darkModeChunkRange / 100f),
+            onChange = { screenModel.preferences.webgpuDarkModeChunkRange().set(it) },
+            pillColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+        )
+    }
     // KMK <--
 
     // KMK --> Hide rows that do nothing in the continuous modes.

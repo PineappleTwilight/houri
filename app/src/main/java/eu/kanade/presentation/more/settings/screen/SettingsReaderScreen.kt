@@ -537,6 +537,10 @@ object SettingsReaderScreen : SearchableSettings {
         val webgpuPageOffset by webgpuPageOffsetPref.collectAsState()
         val webgpuDarkModePref = readerPreferences.webgpuDarkMode()
         val webgpuDarkMode by webgpuDarkModePref.collectAsState()
+        val darkModeTolerancePref = readerPreferences.webgpuDarkModeTolerance()
+        val darkModeTolerance by darkModeTolerancePref.collectAsState()
+        val darkModeChunkRangePref = readerPreferences.webgpuDarkModeChunkRange()
+        val darkModeChunkRange by darkModeChunkRangePref.collectAsState()
         val continuousMinWidthPref = readerPreferences.continuousMinWidth()
         val continuousMinWidth by continuousMinWidthPref.collectAsState()
         val continuousGapPref = readerPreferences.continuousGap()
@@ -559,6 +563,22 @@ object SettingsReaderScreen : SearchableSettings {
                 Preference.PreferenceItem.SwitchPreference(
                     preference = readerPreferences.webgpuDarkModeAmoled(),
                     title = stringResource(KMR.strings.pref_webgpu_dark_mode_amoled),
+                    enabled = webgpuDarkMode,
+                ),
+                Preference.PreferenceItem.SliderPreference(
+                    value = darkModeTolerance,
+                    valueRange = ReaderPreferences.WEBGPU_DARK_MODE_TOLERANCE_MIN..ReaderPreferences.WEBGPU_DARK_MODE_TOLERANCE_MAX,
+                    title = stringResource(KMR.strings.pref_webgpu_dark_mode_tolerance),
+                    valueString = "%.2f".format(darkModeTolerance / 100f),
+                    onValueChanged = { darkModeTolerancePref.set(it) },
+                    enabled = webgpuDarkMode,
+                ),
+                Preference.PreferenceItem.SliderPreference(
+                    value = darkModeChunkRange,
+                    valueRange = ReaderPreferences.WEBGPU_DARK_MODE_CHUNK_RANGE_MIN..ReaderPreferences.WEBGPU_DARK_MODE_CHUNK_RANGE_MAX,
+                    title = stringResource(KMR.strings.pref_webgpu_dark_mode_chunk_range),
+                    valueString = "%.2f".format(darkModeChunkRange / 100f),
+                    onValueChanged = { darkModeChunkRangePref.set(it) },
                     enabled = webgpuDarkMode,
                 ),
                 Preference.PreferenceItem.ListPreference(

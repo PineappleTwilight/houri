@@ -596,6 +596,8 @@ open class WebGpuViewer(
         // KMK -->
         try {
             darkModeFilter.amoled = config.webgpuDarkModeAmoled
+            darkModeFilter.tolerance = config.darkModeTolerance
+            darkModeFilter.chunkRange = config.darkModeChunkRange
             darkModeFilter.enabled = config.webgpuDarkMode
             val current = pager.state.filters.filters
             val hasFilter = current.any { it === darkModeFilter }
