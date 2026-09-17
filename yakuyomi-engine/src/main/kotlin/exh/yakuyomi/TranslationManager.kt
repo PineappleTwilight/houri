@@ -274,6 +274,13 @@ class TranslationManager(
         null
     }
 
+    // KMK --> Title for the per-manga cache sidecar: first line of the manga
+    // context grounding ("title\ndesc\ntags"), which the screen reads back even
+    // after the manga leaves the library.
+    private suspend fun mangaTitleFor(mangaId: Long): String? =
+        mangaContextProvider(mangaId)?.lineSequence()?.firstOrNull()?.takeIf { it.isNotBlank() }
+    // KMK <--
+
     suspend fun translatePage(
         mangaId: Long,
         chapterId: Long,
@@ -302,7 +309,7 @@ class TranslationManager(
                     val bytes = f.readBytes()
                     if (bytes.isNotEmpty()) {
                         if ((prefs.saveTranslatedPages().get() && prefs.autoSaveWhileReading().get()) || prefs.mangaTranslatorCachePermanent().get()) {
-                            pageStore.save(mangaId, chapterId, pageIndex, bytes)
+                            pageStore.save(mangaId, chapterId, pageIndex, bytes, mangaTitleFor(mangaId))
                         }
                         status.pageCached(mangaId, chapterId, pageIndex)
                         return@withContext bytes
@@ -368,6 +375,9 @@ class TranslationManager(
             rawBreadcrumb
         }
         val mangaContext = mangaContextProvider(mangaId) ?: ""
+        // KMK --> Reuse the already-fetched grounding for the cache sidecar (no extra lookup).
+        val mangaTitle = mangaContext.lineSequence().firstOrNull()?.takeIf { it.isNotBlank() }
+        // KMK <--
 
         status.pageTranslating(mangaId, chapterId, pageIndex)
 
@@ -383,7 +393,7 @@ class TranslationManager(
                     }
                     try {
                         if (prefs.mangaTranslatorCachePermanent().get() || prefs.saveTranslatedPages().get()) {
-                            pageStore.save(mangaId, chapterId, pageIndex, webp)
+                            pageStore.save(mangaId, chapterId, pageIndex, webp, mangaTitle)
                         }
                     } catch (_: Exception) {}
                     try {
@@ -530,7 +540,7 @@ class TranslationManager(
                         cache.put(pageHash, targetLang, model, webp)
                     }
                     if (prefs.saveTranslatedPages().get() && prefs.autoSaveWhileReading().get()) {
-                        pageStore.save(mangaId, chapterId, pageIndex, webp)
+                        pageStore.save(mangaId, chapterId, pageIndex, webp, mangaTitle)
                     }
                     val translatedTexts = result.analysis?.regions?.map { it.translatedText } ?: emptyList()
                     try {

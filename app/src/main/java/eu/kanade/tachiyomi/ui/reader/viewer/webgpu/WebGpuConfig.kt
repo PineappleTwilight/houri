@@ -9,6 +9,7 @@ import eu.kanade.tachiyomi.ui.reader.viewer.navigation.EdgeNavigation
 import eu.kanade.tachiyomi.ui.reader.viewer.navigation.KindlishNavigation
 import eu.kanade.tachiyomi.ui.reader.viewer.navigation.LNavigation
 import eu.kanade.tachiyomi.ui.reader.viewer.navigation.RightAndLeftNavigation
+import eu.kanade.tachiyomi.ui.reader.viewer.pager.PagerConfig
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.launchIn
@@ -65,6 +66,20 @@ class WebGpuConfig(
 
     var dualPageView = ReaderPreferences.DualPageView.NEVER
         private set
+
+    // KMK -->
+    /**
+     * Single/double/automatic page layout, same switch as the legacy pager
+     * ([PagerConfig.PageLayout]). Previously ignored here, so the layout chips
+     * and the bottom-bar toggle did nothing in the WebGPU reader.
+     */
+    var doublePages = readerPreferences.pageLayout().get() == PagerConfig.PageLayout.DOUBLE_PAGES &&
+        !readerPreferences.dualPageSplitPaged().get()
+        private set
+
+    var autoDoublePages = readerPreferences.pageLayout().get() == PagerConfig.PageLayout.AUTOMATIC
+        private set
+    // KMK <--
 
     var continuousMinWidth = 100
         private set
@@ -218,6 +233,25 @@ class WebGpuConfig(
                 { dualPageView = it },
                 { imagePropertyChangedListener?.invoke() },
             )
+
+        // KMK -->
+        readerPreferences.pageLayout()
+            .register(
+                {
+                    autoDoublePages = it == PagerConfig.PageLayout.AUTOMATIC
+                    if (!autoDoublePages) {
+                        doublePages = it == PagerConfig.PageLayout.DOUBLE_PAGES && dualPageSplit == false
+                    }
+                },
+                {
+                    autoDoublePages = it == PagerConfig.PageLayout.AUTOMATIC
+                    if (!autoDoublePages) {
+                        doublePages = it == PagerConfig.PageLayout.DOUBLE_PAGES && dualPageSplit == false
+                    }
+                    imagePropertyChangedListener?.invoke()
+                },
+            )
+        // KMK <--
 
         readerPreferences.continuousMinWidth()
             .register(

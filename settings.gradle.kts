@@ -52,7 +52,7 @@ dependencyResolutionManagement {
 
 enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
 
-rootProject.name = "Komikku"
+rootProject.name = "Houri"
 include(":app")
 include(":core-metadata")
 include(":core:archive")

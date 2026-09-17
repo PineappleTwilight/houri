@@ -1,6 +1,7 @@
 // Mihon -->
 package eu.kanade.tachiyomi.ui.reader.viewer.webgpu
 
+import android.content.res.Configuration
 import android.graphics.Bitmap
 import androidx.core.graphics.createBitmap
 import ca.mpreg.imagedecoder.ImageDecoder
@@ -96,8 +97,14 @@ fun WebGpuViewer.isDualPageMode(): Boolean {
     if (isContinuous) return false
     // KMK --> The Mihon-ported dualPageView row was removed from reader settings as
     // redundant, leaving the pref stuck at NEVER. Honor the legacy dual-page
-    // split toggle that the settings UI actually exposes.
+    // split toggle that the settings UI actually exposes, plus the pager's
+    // single/double/automatic layout switch (automatic pairs pages in landscape,
+    // mirroring PagerViewer's setDoublePageMode).
     if (config.dualPageSplit) return true
+    if (config.doublePages) return true
+    if (config.autoDoublePages) {
+        return activity.resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+    }
     // KMK <--
     return when (config.dualPageView) {
         ReaderPreferences.DualPageView.NEVER -> false

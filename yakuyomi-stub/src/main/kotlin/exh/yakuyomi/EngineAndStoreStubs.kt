@@ -155,6 +155,9 @@ class TranslatedPageStore(
     companion object {
         private const val MAX_SAVED_BYTES = 256L * 1024 * 1024
         private const val MAX_SAVED_CHAPTERS = 40
+        // KMK --> Mirrors the engine store so shared readers stay flavor-agnostic.
+        const val TITLE_FILE = "title.txt"
+        // KMK <--
     }
 
     private fun baseDir(): java.io.File = java.io.File(context.filesDir, "yakuyomi_saved").apply { mkdirs() }
@@ -174,7 +177,7 @@ class TranslatedPageStore(
             null
         }
     }
-    fun save(mangaId: Long, chapterId: Long, pageIndex: Int, webpBytes: ByteArray) {
+    fun save(mangaId: Long, chapterId: Long, pageIndex: Int, webpBytes: ByteArray, mangaTitle: String? = null) {
         if (webpBytes.isEmpty() || webpBytes.size > 5 * 1024 * 1024) return
         if (pageIndex < 0 || pageIndex > 5000) return
         val f = pageFile(mangaId, chapterId, pageIndex)
@@ -188,8 +191,32 @@ class TranslatedPageStore(
                 tmp.delete()
             }
         } catch (_: Exception) {}
+        saveTitle(mangaId, mangaTitle)
         pruneIfNeeded()
     }
+    // KMK --> Title sidecar mirrors the engine store so the cache screen names
+    // entries the same way on every flavor.
+    fun saveTitle(mangaId: Long, title: String?) {
+        val clean = title?.takeIf { it.isNotBlank() }?.take(200) ?: return
+        try {
+            val dir = java.io.File(baseDir(), "$mangaId").apply { mkdirs() }
+            val f = java.io.File(dir, TITLE_FILE)
+            if (!f.isFile || f.readText() != clean) {
+                f.writeText(clean)
+            }
+        } catch (_: Exception) {}
+    }
+    fun loadTitle(mangaId: Long): String? {
+        return try {
+            java.io.File(baseDir(), "$mangaId/$TITLE_FILE")
+                .takeIf { it.isFile }
+                ?.readText()
+                ?.takeIf { it.isNotBlank() }
+        } catch (_: Exception) {
+            null
+        }
+    }
+    // KMK <--
     fun clearForChapter(mangaId: Long, chapterId: Long) {
         try {
             chapterDir(mangaId, chapterId).deleteRecursively()

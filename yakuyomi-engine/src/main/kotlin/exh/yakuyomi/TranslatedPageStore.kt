@@ -5,6 +5,7 @@ import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
 import java.io.File
+import java.util.concurrent.ConcurrentHashMap
 
 @SingleIn(AppScope::class)
 @Inject
@@ -15,7 +16,16 @@ class TranslatedPageStore(
         // Keep disk usage bounded: these are per-chapter saved WEBPs, separate from the hash cache.
         private const val MAX_SAVED_BYTES = 256L * 1024 * 1024
         private const val MAX_SAVED_CHAPTERS = 40
+
+        // KMK --> Sidecar holding the manga title next to its cached pages, so the
+        // per-manga cache screen can name entries after the manga leaves the library.
+        const val TITLE_FILE = "title.txt"
+        // KMK <--
     }
+
+    // KMK --> Titles already on disk this process: skips re-reading on every save.
+    private val lastTitles = ConcurrentHashMap<Long, String>()
+    // KMK <--
 
     private fun baseDir(): File = File(context.filesDir, "yakuyomi_saved").apply { mkdirs() }
 
@@ -38,7 +48,7 @@ class TranslatedPageStore(
         }
     }
 
-    fun save(mangaId: Long, chapterId: Long, pageIndex: Int, webpBytes: ByteArray) {
+    fun save(mangaId: Long, chapterId: Long, pageIndex: Int, webpBytes: ByteArray, mangaTitle: String? = null) {
         if (webpBytes.isEmpty() || webpBytes.size > 5 * 1024 * 1024) return
         if (pageIndex < 0 || pageIndex > 5000) return
         val f = pageFile(mangaId, chapterId, pageIndex)
@@ -52,8 +62,38 @@ class TranslatedPageStore(
                 tmp.delete()
             }
         } catch (_: Exception) {}
+        saveTitle(mangaId, mangaTitle)
         pruneIfNeeded()
     }
+
+    // KMK --> Persists the manga title beside its cache (see TITLE_FILE). Written only
+    // when missing or changed, so steady-state page saves cost a map lookup.
+    fun saveTitle(mangaId: Long, title: String?) {
+        val clean = title?.takeIf { it.isNotBlank() }?.take(200) ?: return
+        if (lastTitles[mangaId] == clean) return
+        try {
+            val dir = File(baseDir(), "$mangaId").apply { mkdirs() }
+            val f = File(dir, TITLE_FILE)
+            if (!f.isFile || f.readText() != clean) {
+                f.writeText(clean)
+            }
+            lastTitles[mangaId] = clean
+        } catch (_: Exception) {}
+    }
+
+    fun loadTitle(mangaId: Long): String? {
+        lastTitles[mangaId]?.let { return it }
+        return try {
+            File(baseDir(), "$mangaId/$TITLE_FILE")
+                .takeIf { it.isFile }
+                ?.readText()
+                ?.takeIf { it.isNotBlank() }
+                ?.also { lastTitles[mangaId] = it }
+        } catch (_: Exception) {
+            null
+        }
+    }
+    // KMK <--
 
     fun clearForChapter(mangaId: Long, chapterId: Long) {
         try {

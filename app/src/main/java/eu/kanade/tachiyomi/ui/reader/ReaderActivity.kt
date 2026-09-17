@@ -106,6 +106,8 @@ import eu.kanade.tachiyomi.ui.reader.setting.ReadingMode
 import eu.kanade.tachiyomi.ui.reader.viewer.ReaderProgressIndicator
 import eu.kanade.tachiyomi.ui.reader.viewer.pager.PagerConfig
 import eu.kanade.tachiyomi.ui.reader.viewer.pager.PagerViewer
+import eu.kanade.tachiyomi.ui.reader.viewer.webgpu.WebGpuViewer
+import eu.kanade.tachiyomi.ui.reader.viewer.webgpu.isDualPageMode
 import eu.kanade.tachiyomi.ui.webview.WebViewActivity
 import eu.kanade.tachiyomi.util.system.isNightMode
 import eu.kanade.tachiyomi.util.system.openInBrowser
@@ -299,7 +301,9 @@ class ReaderActivity : BaseActivity() {
         preferences.highQualityRenderer().changes()
             .drop(1)
             .onEach {
-                updateViewer()
+                // KMK --> Renderer switch must rebuild even when the mode is unchanged.
+                updateViewer(force = true)
+                // KMK <--
                 viewModel.state.value.viewerChapters?.let(::setChapters)
             }
             .launchIn(lifecycleScope)
@@ -807,6 +811,19 @@ class ReaderActivity : BaseActivity() {
                         config.doublePages = !config.doublePages
                         reloadChapters(config.doublePages, true)
                     }
+                        // KMK --> WebGPU keeps no transient override: persist the effective
+                        // mode explicitly so the single/double switch does something there too.
+                        ?: (viewModel.state.value.viewer as? WebGpuViewer)?.let { webGpuViewer ->
+                            val toDouble = !webGpuViewer.isDualPageMode()
+                            readerPreferences.pageLayout().set(
+                                if (toDouble) {
+                                    PagerConfig.PageLayout.DOUBLE_PAGES
+                                } else {
+                                    PagerConfig.PageLayout.SINGLE_PAGE
+                                },
+                            )
+                        }
+                    // KMK <--
                 } else {
                     readerPreferences.pageLayout().set(1 - readerPreferences.pageLayout().get())
                 }
@@ -980,13 +997,25 @@ class ReaderActivity : BaseActivity() {
         }
     }
 
+    // KMK --> Last reading mode a viewer was built for. Orientation-only manga
+    // refreshes resolve to the same mode, so the viewer is reused instead of
+    // destroyed and rebuilt (each rebuild drops decoded pages and risks landing
+    // on the legacy fallback, which would hide the WebGPU settings mid-session).
+    private var lastViewerReadingMode: Int? = null
+    // KMK <--
+
     /**
      * Called from the presenter when a manga is ready. Used to instantiate the appropriate viewer.
      */
-    private fun updateViewer() {
+    private fun updateViewer(force: Boolean = false) {
+        val mode = viewModel.getMangaReadingMode()
         val prevViewer = viewModel.state.value.viewer
+        if (!force && prevViewer != null && lastViewerReadingMode == mode) {
+            setOrientation(viewModel.getMangaOrientation())
+            return
+        }
         val newViewer = ReadingMode.toViewer(
-            viewModel.getMangaReadingMode(),
+            mode,
             this,
             // KMK -->
             seedColor = seedColorStatic()?.toArgb(),
@@ -1008,6 +1037,9 @@ class ReaderActivity : BaseActivity() {
             binding.viewerContainer.removeAllViews()
         }
         viewModel.onViewerLoaded(newViewer)
+        // KMK --> Record only after a successful build so a throw retries next time.
+        lastViewerReadingMode = mode
+        // KMK <--
         updateViewerInset(readerPreferences.fullscreen().get(), readerPreferences.drawUnderCutout().get())
         binding.viewerContainer.addView(newViewer.getView())
 

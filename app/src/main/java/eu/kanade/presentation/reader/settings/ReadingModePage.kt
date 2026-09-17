@@ -1,5 +1,6 @@
 package eu.kanade.presentation.reader.settings
 
+import android.content.res.Configuration
 import androidx.compose.foundation.layout.Box
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
@@ -10,15 +11,19 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
 import eu.kanade.domain.manga.model.readerOrientation
 import eu.kanade.domain.manga.model.readingMode
 import eu.kanade.tachiyomi.ui.reader.setting.ReaderOrientation
 import eu.kanade.tachiyomi.ui.reader.setting.ReaderPreferences
 import eu.kanade.tachiyomi.ui.reader.setting.ReaderSettingsScreenModel
 import eu.kanade.tachiyomi.ui.reader.setting.ReadingMode
+import eu.kanade.tachiyomi.ui.reader.viewer.pager.PagerConfig
 import eu.kanade.tachiyomi.ui.reader.viewer.webgpu.WebGpuViewer
-import eu.kanade.tachiyomi.ui.reader.viewer.webgpu.isDualPageMode
 import eu.kanade.tachiyomi.ui.reader.viewer.webtoon.WebtoonViewer
+import exh.yakuyomi.DeviceMemory
+import mihon.app.di.globalAppGraph
 import tachiyomi.core.common.preference.toggle
 import tachiyomi.i18n.MR
 import tachiyomi.i18n.kmk.KMR
@@ -102,7 +107,15 @@ internal fun ReadingModePage(screenModel: ReaderSettingsScreenModel) {
     }
 
     val viewer by screenModel.viewerFlow.collectAsState()
-    if (viewer is WebtoonViewer) {
+    // KMK --> Follow the configured renderer (HQ toggle + RAM gate), not just the live
+    // viewer instance: a re-entry that lands on the legacy fallback must not hide the
+    // WebGPU settings for the rest of the session. Prefs persist and apply on recovery.
+    val context = LocalContext.current
+    val hqRendererOn by globalAppGraph.basePreferences.highQualityRenderer().collectAsState()
+    val webGpuSupported = remember(context) { DeviceMemory.isWebGpuSupported(context) }
+    val webGpuConfigured = hqRendererOn && webGpuSupported
+    // KMK <--
+    if (viewer is WebtoonViewer && !webGpuConfigured) {
         WebtoonViewerSettings(
             screenModel,
             // KMK -->
@@ -115,7 +128,7 @@ internal fun ReadingModePage(screenModel: ReaderSettingsScreenModel) {
     } else {
         PagerViewerSettings(screenModel)
         // Mihon -->
-        if (viewer is WebGpuViewer) {
+        if (viewer is WebGpuViewer || webGpuConfigured) {
             WebGpuViewerSettings(screenModel)
         }
         // Mihon <--
@@ -442,7 +455,21 @@ private fun WebGpuViewerSettings(screenModel: ReaderSettingsScreenModel) {
     )
     // KMK <--
 
-    val isDual = (viewer as? WebGpuViewer)?.isDualPageMode() == true
+    // KMK --> Derived from prefs (not the viewer instance) so the single/dual rows
+    // swap immediately when the layout switch or split toggle changes. Mirrors
+    // WebGpuViewer.isDualPageMode minus the legacy dualPageView fallback.
+    val dualSplitEnabled by screenModel.preferences.dualPageSplitPaged().collectAsState()
+    val pageLayoutMode by screenModel.preferences.pageLayout().collectAsState()
+    val isDual = (viewer as? WebGpuViewer)?.isContinuous == false &&
+        (
+            dualSplitEnabled ||
+                pageLayoutMode == PagerConfig.PageLayout.DOUBLE_PAGES ||
+                (
+                    pageLayoutMode == PagerConfig.PageLayout.AUTOMATIC &&
+                        LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
+                    )
+            )
+    // KMK <--
 
     if (isDual) {
         val transitionAnimationDual by screenModel.preferences.transitionAnimationDual().collectAsState()

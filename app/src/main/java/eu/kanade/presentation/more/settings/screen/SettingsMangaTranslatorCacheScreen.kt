@@ -27,18 +27,28 @@ import cafe.adriel.voyager.core.screen.Screen
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
 import eu.kanade.tachiyomi.util.system.toast
+import exh.yakuyomi.TranslatedPageStore
+import mihon.app.di.globalAppGraph
+import tachiyomi.core.common.util.lang.withIOContext
 import java.io.File
 
 object SettingsMangaTranslatorCacheScreen : Screen {
+    // KMK --> Cache dirs are keyed by manga id; the title sidecar (written at save
+    // time) names them even after library removal, raw id is the last resort.
+    private data class CacheEntry(val dir: File, val title: String?)
+    // KMK <--
+
     @Composable
     override fun Content() {
         val context = LocalContext.current
         val navigator = LocalNavigator.currentOrThrow
-        var entries by remember { mutableStateOf<List<File>>(emptyList()) }
+        var entries by remember { mutableStateOf<List<CacheEntry>>(emptyList()) }
         var refreshTick by remember { mutableStateOf(0) }
 
         LaunchedEffect(refreshTick) {
-            entries = listSavedMangaDirs(context)
+            entries = withIOContext {
+                listSavedMangaDirs(context).map { dir -> CacheEntry(dir, resolveTitle(context, dir.name)) }
+            }
         }
 
         Column(
@@ -64,14 +74,17 @@ object SettingsMangaTranslatorCacheScreen : Screen {
             }
             Text(text = "${entries.size} manga with cached translations", style = MaterialTheme.typography.bodyMedium)
             LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(entries) { mangaDir ->
+                items(entries) { entry ->
+                    val mangaDir = entry.dir
                     val mangaId = mangaDir.name
                     val chapters = mangaDir.listFiles()?.filter { it.isDirectory }?.size ?: 0
                     val pages = mangaDir.listFiles()?.flatMap { it.listFiles()?.toList() ?: emptyList() }?.size ?: 0
                     val sizeKb = mangaDir.listFiles()?.flatMap { it.listFiles()?.toList() ?: emptyList() }?.sumOf { it.length() }?.div(1024) ?: 0
                     Card(modifier = Modifier.fillMaxWidth()) {
                         Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                            Text(text = "Manga $mangaId", style = MaterialTheme.typography.titleSmall)
+                            // KMK --> Sidecar title survives library removal; raw id is the last resort.
+                            Text(text = entry.title ?: "Manga $mangaId", style = MaterialTheme.typography.titleSmall)
+                            // KMK <--
                             Text(text = "$chapters chapters · $pages pages · $sizeKb KB", style = MaterialTheme.typography.bodySmall)
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 TextButton(onClick = {
@@ -87,9 +100,26 @@ object SettingsMangaTranslatorCacheScreen : Screen {
         }
     }
 
+    // KMK --> Sidecar first (survives library removal), then the database (covers caches
+    // saved before sidecars existed), then null so the caller falls back to the raw id.
+    private suspend fun resolveTitle(context: android.content.Context, mangaIdRaw: String): String? {
+        val id = mangaIdRaw.toLongOrNull() ?: return null
+        runCatching {
+            File(context.filesDir, "yakuyomi_saved/$id/${TranslatedPageStore.TITLE_FILE}")
+                .takeIf { it.isFile }
+                ?.readText()
+                ?.takeIf { it.isNotBlank() }
+        }.getOrNull()?.let { return it }
+        return runCatching { globalAppGraph.getManga.await(id)?.title }.getOrNull()
+    }
+    // KMK <--
+
     private fun listSavedMangaDirs(context: android.content.Context): List<File> {
         val base = File(context.filesDir, "yakuyomi_saved")
         if (!base.exists()) return emptyList()
-        return base.listFiles()?.filter { it.isDirectory }?.sortedByDescending { it.lastModified() } ?: emptyList()
+        return base.listFiles()
+            ?.filter { it.isDirectory && it.listFiles()?.any { child -> child.isDirectory } == true }
+            ?.sortedByDescending { it.lastModified() }
+            ?: emptyList()
     }
 }
