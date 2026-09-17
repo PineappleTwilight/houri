@@ -27,6 +27,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextDecoration
+import androidx.core.text.BidiFormatter
 import sh.calvin.reorderable.ReorderableCollectionItemScope
 import tachiyomi.domain.category.model.Category
 import tachiyomi.i18n.MR
@@ -100,7 +101,12 @@ fun ReorderableCollectionItemScope.CategoryListItem(
                 }
             }
             Text(
-                text = if (mangaCount > 0) "${category.name} ($mangaCount)" else category.name,
+                // KMK --> isolate the name so the count never reorders under bidi
+                text = if (mangaCount > 0) {
+                    "${BidiFormatter.getInstance().unicodeWrap(category.name)} ($mangaCount)"
+                } else {
+                    category.name
+                },
                 // KMK -->
                 color = LocalContentColor.current.let { if (category.hidden) it.copy(alpha = 0.6f) else it },
                 textDecoration = TextDecoration.LineThrough.takeIf { category.hidden },

@@ -38,6 +38,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
+import androidx.core.text.BidiFormatter
 import eu.kanade.presentation.category.hierarchicalVisualName
 import eu.kanade.presentation.category.sortedByHierarchy
 import tachiyomi.domain.category.model.Category
@@ -191,7 +192,7 @@ fun CategoryFilterDialog(
                                     ),
                                 )
                                 val count = itemCount(row.category)
-                                val label = row.category.hierarchicalVisualName
+                                val label = BidiFormatter.getInstance().unicodeWrap(row.category.hierarchicalVisualName)
                                 Text(
                                     text = if (count > 0) "$label ($count)" else label,
                                 )
