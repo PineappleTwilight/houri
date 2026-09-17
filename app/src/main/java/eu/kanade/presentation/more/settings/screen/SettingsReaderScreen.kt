@@ -107,6 +107,9 @@ object SettingsReaderScreen : SearchableSettings {
             // SY -->
             getContinuousVerticalGroup(readerPreferences = readerPref),
             // SY <--
+            // Mihon -->
+            getWebGpuGroup(readerPreferences = readerPref),
+            // Mihon <--
             getNavigationGroup(readerPreferences = readerPref),
             getActionsGroup(readerPreferences = readerPref),
             // SY -->
@@ -525,6 +528,89 @@ object SettingsReaderScreen : SearchableSettings {
     }
     // SY <--
 
+    // Mihon -->
+    @Composable
+    private fun getWebGpuGroup(readerPreferences: ReaderPreferences): Preference.PreferenceGroup {
+        val numberFormat = remember { NumberFormat.getPercentInstance() }
+
+        val webgpuPageOffsetPref = readerPreferences.webgpuPageOffset()
+        val webgpuPageOffset by webgpuPageOffsetPref.collectAsState()
+        val webgpuDarkModePref = readerPreferences.webgpuDarkMode()
+        val webgpuDarkMode by webgpuDarkModePref.collectAsState()
+        val continuousMinWidthPref = readerPreferences.continuousMinWidth()
+        val continuousMinWidth by continuousMinWidthPref.collectAsState()
+        val continuousGapPref = readerPreferences.continuousGap()
+        val continuousGap by continuousGapPref.collectAsState()
+
+        return Preference.PreferenceGroup(
+            title = stringResource(MR.strings.webgpu_viewer),
+            preferenceItems = persistentListOf(
+                Preference.PreferenceItem.SliderPreference(
+                    value = webgpuPageOffset,
+                    valueRange = ReaderPreferences.WEBGPU_PAGE_OFFSET_MIN..ReaderPreferences.WEBGPU_PAGE_OFFSET_MAX,
+                    title = stringResource(KMR.strings.pref_webgpu_page_offset),
+                    valueString = "$webgpuPageOffset%",
+                    onValueChanged = { webgpuPageOffsetPref.set(it) },
+                ),
+                Preference.PreferenceItem.SwitchPreference(
+                    preference = webgpuDarkModePref,
+                    title = stringResource(KMR.strings.pref_webgpu_dark_mode),
+                ),
+                Preference.PreferenceItem.SwitchPreference(
+                    preference = readerPreferences.webgpuDarkModeAmoled(),
+                    title = stringResource(KMR.strings.pref_webgpu_dark_mode_amoled),
+                    enabled = webgpuDarkMode,
+                ),
+                Preference.PreferenceItem.ListPreference(
+                    preference = readerPreferences.transitionAnimation(),
+                    entries = ReaderPreferences.TransitionAnimation.entries
+                        .associateWith { stringResource(it.titleRes) }
+                        .toImmutableMap(),
+                    title = stringResource(MR.strings.pref_transition_animation),
+                ),
+                Preference.PreferenceItem.ListPreference(
+                    preference = readerPreferences.transitionAnimationDual(),
+                    entries = (
+                        ReaderPreferences.TransitionAnimation.entries - ReaderPreferences.TransitionAnimation.FLIP_LEFT -
+                            ReaderPreferences.TransitionAnimation.FLIP_RIGHT
+                        )
+                        .associateWith { stringResource(it.titleRes) }
+                        .toImmutableMap(),
+                    title = stringResource(MR.strings.pref_transition_animation_dual),
+                ),
+                Preference.PreferenceItem.ListPreference(
+                    preference = readerPreferences.cutoutMode(),
+                    entries = ReaderPreferences.CutoutMode.entries
+                        .associateWith { stringResource(it.titleRes) }
+                        .toImmutableMap(),
+                    title = stringResource(MR.strings.pref_cutout_mode),
+                ),
+                Preference.PreferenceItem.ListPreference(
+                    preference = readerPreferences.cutoutModeDual(),
+                    entries = ReaderPreferences.CutoutMode.entries
+                        .associateWith { stringResource(it.titleRes) }
+                        .toImmutableMap(),
+                    title = stringResource(MR.strings.pref_cutout_mode_dual),
+                ),
+                Preference.PreferenceItem.SliderPreference(
+                    value = continuousMinWidth,
+                    valueRange = 1..100,
+                    title = stringResource(MR.strings.pref_continuous_minwidth),
+                    valueString = numberFormat.format(continuousMinWidth / 100f),
+                    onValueChanged = { continuousMinWidthPref.set(it) },
+                ),
+                Preference.PreferenceItem.SliderPreference(
+                    value = continuousGap,
+                    valueRange = 1..100,
+                    title = stringResource(MR.strings.pref_continuous_gap),
+                    valueString = numberFormat.format(continuousGap / 100f),
+                    onValueChanged = { continuousGapPref.set(it) },
+                ),
+            ),
+        )
+    }
+    // Mihon <--
+
     @Composable
     private fun getNavigationGroup(readerPreferences: ReaderPreferences): Preference.PreferenceGroup {
         val readWithVolumeKeysPref = readerPreferences.readWithVolumeKeys()
@@ -667,7 +753,7 @@ object SettingsReaderScreen : SearchableSettings {
                 Preference.PreferenceItem.ListPreference(
                     preference = readerPreferences.centerMarginType(),
                     entries = ReaderPreferences.CenterMarginTypes
-                        .mapIndexed { index, it -> index + 1 to stringResource(it) }
+                        .mapIndexed { index, it -> index to stringResource(it) }
                         .toMap()
                         .toImmutableMap(),
                     title = stringResource(SYMR.strings.center_margin),

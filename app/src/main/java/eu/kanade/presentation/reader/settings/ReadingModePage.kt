@@ -457,7 +457,7 @@ private fun WebGpuViewerSettings(screenModel: ReaderSettingsScreenModel) {
 
     // KMK --> Derived from prefs (not the viewer instance) so the single/dual rows
     // swap immediately when the layout switch or split toggle changes. Mirrors
-    // WebGpuViewer.isDualPageMode minus the legacy dualPageView fallback.
+    // WebGpuViewer.isDualPageMode.
     val dualSplitEnabled by screenModel.preferences.dualPageSplitPaged().collectAsState()
     val pageLayoutMode by screenModel.preferences.pageLayout().collectAsState()
     val isDual = (viewer as? WebGpuViewer)?.isContinuous == false &&

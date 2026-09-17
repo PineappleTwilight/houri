@@ -64,9 +64,6 @@ class WebGpuConfig(
     var cutoutModeDual = ReaderPreferences.CutoutMode.AVOID
         private set
 
-    var dualPageView = ReaderPreferences.DualPageView.NEVER
-        private set
-
     // KMK -->
     /**
      * Single/double/automatic page layout, same switch as the legacy pager
@@ -78,6 +75,14 @@ class WebGpuConfig(
         private set
 
     var autoDoublePages = readerPreferences.pageLayout().get() == PagerConfig.PageLayout.AUTOMATIC
+        private set
+
+    /**
+     * Pairing direction for spreads, same switch as the legacy pager
+     * ([PagerConfig.invertDoublePages]). Unlike the pager it is not gated on
+     * the split toggle: both split and double layout modes pair pages here.
+     */
+    var invertDoublePages = false
         private set
     // KMK <--
 
@@ -189,21 +194,6 @@ class WebGpuConfig(
                 },
             )
 
-        readerPreferences.dualPageInvertPaged()
-            .register({ dualPageInvert = it }, { imagePropertyChangedListener?.invoke() })
-
-        readerPreferences.dualPageRotateToFit()
-            .register(
-                { dualPageRotateToFit = it },
-                { imagePropertyChangedListener?.invoke() },
-            )
-
-        readerPreferences.dualPageRotateToFitInvert()
-            .register(
-                { dualPageRotateToFitInvert = it },
-                { imagePropertyChangedListener?.invoke() },
-            )
-
         readerPreferences.transitionAnimation()
             .register(
                 { transitionAnimation = it },
@@ -228,12 +218,6 @@ class WebGpuConfig(
                 { imageStateChangedListener?.invoke() },
             )
 
-        readerPreferences.dualPageView()
-            .register(
-                { dualPageView = it },
-                { imagePropertyChangedListener?.invoke() },
-            )
-
         // KMK -->
         readerPreferences.pageLayout()
             .register(
@@ -251,6 +235,9 @@ class WebGpuConfig(
                     imagePropertyChangedListener?.invoke()
                 },
             )
+
+        readerPreferences.invertDoublePages()
+            .register({ invertDoublePages = it }, { imagePropertyChangedListener?.invoke() })
         // KMK <--
 
         readerPreferences.continuousMinWidth()

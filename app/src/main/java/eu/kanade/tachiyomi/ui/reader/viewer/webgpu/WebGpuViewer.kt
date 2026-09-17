@@ -156,10 +156,9 @@ open class WebGpuViewer(
         return if (half) (w / 2).coerceAtLeast(8) else w.coerceAtLeast(8)
     }
 
-    /** The half a spread opens on: right reading right-to-left, left otherwise. */
-    private val anchorPosition get() = if (isReversed) SpreadPosition.RIGHT else SpreadPosition.LEFT
+    private val anchorPosition get() = if (isReversed xor config.invertDoublePages) SpreadPosition.RIGHT else SpreadPosition.LEFT
 
-    private val partnerPosition get() = if (isReversed) SpreadPosition.LEFT else SpreadPosition.RIGHT
+    private val partnerPosition get() = if (isReversed xor config.invertDoublePages) SpreadPosition.LEFT else SpreadPosition.RIGHT
 
     /**
      * Which half a page falls on when nothing tags the file: alternating from its spread's start,

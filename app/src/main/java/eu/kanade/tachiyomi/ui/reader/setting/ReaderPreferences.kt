@@ -134,10 +134,6 @@ class ReaderPreferences(
 
     fun dualPageRotateToFitInvertWebtoon() = preferenceStore.getBoolean("pref_dual_page_rotate_invert_webtoon", false)
 
-    // Mihon -->
-    fun dualPageView() = preferenceStore.getEnum("pref_dual_page_view", DualPageView.NEVER)
-    // Mihon <--
-
     // KMK -->
     fun dualPageMatchHeights() = preferenceStore.getBoolean("pref_dual_page_match_heights", true)
     // KMK <--
@@ -312,14 +308,6 @@ class ReaderPreferences(
         R20_9(KMR.strings.scale_type_20_9, 9f / 20f),
     }
     // KMK <--
-
-    // Mihon -->
-    enum class DualPageView(val titleRes: StringResource) {
-        NEVER(MR.strings.dual_page_view_never),
-        ALWAYS(MR.strings.dual_page_view_always),
-        WIDE(MR.strings.dual_page_view_wide),
-    }
-    // Mihon <--
 
     // Mihon -->
     enum class TransitionAnimation(val titleRes: StringResource) {

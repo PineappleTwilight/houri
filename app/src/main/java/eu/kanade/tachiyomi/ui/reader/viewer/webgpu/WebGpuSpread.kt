@@ -8,7 +8,6 @@ import ca.mpreg.imagedecoder.ImageDecoder
 import ca.mpreg.webgpuviewer.renderer.Image
 import ca.mpreg.webgpuviewer.renderer.Image.Companion.invoke
 import ca.mpreg.webgpuviewer.viewer.ImagePage
-import eu.kanade.tachiyomi.ui.reader.setting.ReaderPreferences
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -92,29 +91,18 @@ internal fun shouldAttemptSpreadRescale(
 /**
  * Check if dual page mode is currently active based on config and view dimensions.
  * Dual page is never active for continuous (scrolling) viewers.
+ * Single source of truth: the legacy split toggle plus the pager's
+ * single/double/automatic layout switch (automatic pairs pages in landscape,
+ * mirroring PagerViewer's setDoublePageMode).
  */
 fun WebGpuViewer.isDualPageMode(): Boolean {
     if (isContinuous) return false
-    // KMK --> The Mihon-ported dualPageView row was removed from reader settings as
-    // redundant, leaving the pref stuck at NEVER. Honor the legacy dual-page
-    // split toggle that the settings UI actually exposes, plus the pager's
-    // single/double/automatic layout switch (automatic pairs pages in landscape,
-    // mirroring PagerViewer's setDoublePageMode).
     if (config.dualPageSplit) return true
     if (config.doublePages) return true
     if (config.autoDoublePages) {
         return activity.resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
     }
-    // KMK <--
-    return when (config.dualPageView) {
-        ReaderPreferences.DualPageView.NEVER -> false
-        ReaderPreferences.DualPageView.ALWAYS -> true
-        ReaderPreferences.DualPageView.WIDE -> {
-            val width = pager.state.width
-            val height = pager.state.height
-            width > 0 && height > 0 && width.toFloat() / height > 1f
-        }
-    }
+    return false
 }
 
 /**
@@ -131,8 +119,8 @@ internal fun WebGpuViewer.canFormSpread(page: ViewerReaderPage): Boolean {
 /** Who [page] pairs with, or null. One verdict for [buildSpreadPage] and progress reporting. */
 internal fun WebGpuViewer.spreadPartner(page: ViewerReaderPage): ViewerReaderPage? {
     if (!isDualPageMode()) return null
-    val anchorPosition = if (isReversed) SpreadPosition.RIGHT else SpreadPosition.LEFT
-    val partnerPosition = if (isReversed) SpreadPosition.LEFT else SpreadPosition.RIGHT
+    val anchorPosition = if (isReversed xor config.invertDoublePages) SpreadPosition.RIGHT else SpreadPosition.LEFT
+    val partnerPosition = if (isReversed xor config.invertDoublePages) SpreadPosition.LEFT else SpreadPosition.RIGHT
     if (page.spreadPosition != anchorPosition) return null
     val next = (page.next as? ViewerReaderPage)?.takeIf { it.page.chapter == page.page.chapter } ?: return null
     return next.takeIf { it.spreadPosition == partnerPosition && canPairShapes(page, it) }
@@ -154,8 +142,8 @@ internal fun WebGpuViewer.getSpreadAnchor(page: ViewerPage): ViewerPage {
     if (!isDualPageMode()) return page
     if (page !is ViewerReaderPage) return page
 
-    val anchorPosition = if (isReversed) SpreadPosition.RIGHT else SpreadPosition.LEFT
-    val partnerPosition = if (isReversed) SpreadPosition.LEFT else SpreadPosition.RIGHT
+    val anchorPosition = if (isReversed xor config.invertDoublePages) SpreadPosition.RIGHT else SpreadPosition.LEFT
+    val partnerPosition = if (isReversed xor config.invertDoublePages) SpreadPosition.LEFT else SpreadPosition.RIGHT
 
     // If this is a partner page, check if previous is anchor
     if (page.spreadPosition == partnerPosition) {
