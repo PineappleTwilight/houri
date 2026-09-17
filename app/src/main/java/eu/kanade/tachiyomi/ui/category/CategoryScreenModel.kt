@@ -5,9 +5,12 @@ import cafe.adriel.voyager.core.model.StateScreenModel
 import cafe.adriel.voyager.core.model.screenModelScope
 import dev.icerock.moko.resources.StringResource
 import kotlinx.collections.immutable.ImmutableList
+import kotlinx.collections.immutable.ImmutableMap
 import kotlinx.collections.immutable.toImmutableList
+import kotlinx.collections.immutable.toPersistentMap
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -21,6 +24,8 @@ import tachiyomi.domain.category.interactor.ReorderCategory
 import tachiyomi.domain.category.interactor.UpdateCategory
 import tachiyomi.domain.category.model.Category
 import tachiyomi.domain.category.model.CategoryUpdate
+import tachiyomi.domain.library.service.LibraryPreferences
+import tachiyomi.domain.manga.interactor.GetLibraryManga
 import tachiyomi.i18n.MR
 
 class CategoryScreenModel(
@@ -32,6 +37,8 @@ class CategoryScreenModel(
     // KMK -->
     private val hideCategory: HideCategory = globalAppGraph.hideCategory,
     private val updateCategory: UpdateCategory = globalAppGraph.updateCategory,
+    private val getLibraryManga: GetLibraryManga = globalAppGraph.getLibraryManga,
+    private val libraryPreferences: LibraryPreferences = globalAppGraph.libraryPreferences,
     // KMK <--
 ) : StateScreenModel<CategoryScreenState>(CategoryScreenState.Loading) {
 
@@ -40,14 +47,34 @@ class CategoryScreenModel(
 
     init {
         screenModelScope.launch {
-            getCategories.subscribe()
-                .collectLatest { categories ->
+            combine(
+                getCategories.subscribe(),
+                getLibraryManga.subscribe(),
+            ) { categories, libraryManga ->
+                val counts = mutableMapOf<Long, Int>()
+                for (item in libraryManga) {
+                    for (categoryId in item.categories) {
+                        counts[categoryId] = (counts[categoryId] ?: 0) + 1
+                    }
+                }
+                categories.filterNot(Category::isSystemCategory) to counts.toPersistentMap()
+            }
+                .collectLatest { (categories, counts) ->
                     mutableState.update {
-                        CategoryScreenState.Success(
-                            categories = categories
-                                .filterNot(Category::isSystemCategory)
-                                .toImmutableList(),
-                        )
+                        when (it) {
+                            CategoryScreenState.Loading -> CategoryScreenState.Success(
+                                categories = categories.toImmutableList(),
+                                mangaCounts = counts,
+                                collapsedIds = libraryPreferences.categoryManagerCollapsedIds().get()
+                                    .mapNotNull(String::toLongOrNull)
+                                    .toSet(),
+                                sortMode = libraryPreferences.categoryManagerSortMode().get(),
+                            )
+                            is CategoryScreenState.Success -> it.copy(
+                                categories = categories.toImmutableList(),
+                                mangaCounts = counts,
+                            )
+                        }
                     }
                 }
         }
@@ -128,6 +155,50 @@ class CategoryScreenModel(
         }
     }
 
+    // KMK -->
+    fun setSearchQuery(query: String) {
+        mutableState.update {
+            if (it is CategoryScreenState.Success) it.copy(searchQuery = query) else it
+        }
+    }
+
+    fun toggleCollapsed(categoryId: Long) {
+        mutableState.update {
+            if (it !is CategoryScreenState.Success) return@update it
+            val collapsed = if (categoryId in it.collapsedIds) {
+                it.collapsedIds - categoryId
+            } else {
+                it.collapsedIds + categoryId
+            }
+            libraryPreferences.categoryManagerCollapsedIds().set(collapsed.map(Long::toString).toSet())
+            it.copy(collapsedIds = collapsed)
+        }
+    }
+
+    fun expandAll() {
+        libraryPreferences.categoryManagerCollapsedIds().set(emptySet())
+        mutableState.update {
+            if (it is CategoryScreenState.Success) it.copy(collapsedIds = emptySet()) else it
+        }
+    }
+
+    fun collapseAll() {
+        mutableState.update {
+            if (it !is CategoryScreenState.Success) return@update it
+            val collapsed = it.categories.filter { category -> category.parentId == 0L }.map { it.id }.toSet()
+            libraryPreferences.categoryManagerCollapsedIds().set(collapsed.map(Long::toString).toSet())
+            it.copy(collapsedIds = collapsed)
+        }
+    }
+
+    fun setSortMode(mode: Int) {
+        libraryPreferences.categoryManagerSortMode().set(mode)
+        mutableState.update {
+            if (it is CategoryScreenState.Success) it.copy(sortMode = mode) else it
+        }
+    }
+    // KMK <--
+
     fun showDialog(dialog: CategoryDialog) {
         mutableState.update {
             when (it) {
@@ -170,9 +241,25 @@ sealed interface CategoryScreenState {
     data class Success(
         val categories: ImmutableList<Category>,
         val dialog: CategoryDialog? = null,
+        // KMK -->
+        val mangaCounts: ImmutableMap<Long, Int> = kotlinx.collections.immutable.persistentMapOf(),
+        val searchQuery: String = "",
+        val collapsedIds: Set<Long> = emptySet(),
+        val sortMode: Int = CategoryManagerSort.MANUAL,
+        // KMK <--
     ) : CategoryScreenState {
 
         val isEmpty: Boolean
             get() = categories.isEmpty()
     }
 }
+
+// KMK -->
+object CategoryManagerSort {
+    const val MANUAL = 0
+    const val AZ = 1
+    const val ZA = 2
+    const val MOST_ITEMS = 3
+    const val LEAST_ITEMS = 4
+}
+// KMK <--

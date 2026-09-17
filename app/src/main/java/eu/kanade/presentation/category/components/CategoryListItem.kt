@@ -9,6 +9,8 @@ import androidx.compose.material.icons.outlined.CreateNewFolder
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.DragHandle
 import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.outlined.ExpandLess
+import androidx.compose.material.icons.outlined.ExpandMore
 import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material.icons.outlined.VisibilityOff
@@ -41,6 +43,10 @@ fun ReorderableCollectionItemScope.CategoryListItem(
     onCreateSubcategory: (() -> Unit)? = null,
     isTopLevel: Boolean = true,
     subcategoryCount: Int = 0,
+    showDragHandle: Boolean = true,
+    mangaCount: Int = 0,
+    expanded: Boolean? = null,
+    onToggleExpand: (() -> Unit)? = null,
     // KMK <--
     modifier: Modifier = Modifier,
 ) {
@@ -56,13 +62,23 @@ fun ReorderableCollectionItemScope.CategoryListItem(
                 ),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Icon(
-                imageVector = Icons.Outlined.DragHandle,
-                contentDescription = null,
-                modifier = Modifier
-                    .padding(MaterialTheme.padding.medium)
-                    .draggableHandle(),
-            )
+            if (showDragHandle) {
+                Icon(
+                    imageVector = Icons.Outlined.DragHandle,
+                    contentDescription = null,
+                    modifier = Modifier
+                        .padding(MaterialTheme.padding.medium)
+                        .draggableHandle(),
+                )
+            }
+            if (expanded != null && onToggleExpand != null) {
+                IconButton(onClick = onToggleExpand) {
+                    Icon(
+                        imageVector = if (expanded) Icons.Outlined.ExpandLess else Icons.Outlined.ExpandMore,
+                        contentDescription = null,
+                    )
+                }
+            }
             if (isTopLevel && subcategoryCount > 0) {
                 BadgedBox(
                     badge = { Badge { Text(subcategoryCount.toString()) } },
@@ -75,7 +91,7 @@ fun ReorderableCollectionItemScope.CategoryListItem(
                 }
             }
             Text(
-                text = category.name,
+                text = if (mangaCount > 0) "${category.name} ($mangaCount)" else category.name,
                 // KMK -->
                 color = LocalContentColor.current.let { if (category.hidden) it.copy(alpha = 0.6f) else it },
                 textDecoration = TextDecoration.LineThrough.takeIf { category.hidden },

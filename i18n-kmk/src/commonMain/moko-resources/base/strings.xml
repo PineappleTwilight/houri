@@ -472,4 +472,13 @@
     <string name="pref_webgpu_dark_mode_tolerance_summary">How much color a pixel may carry and still count as gray. Higher catches tinted paper, lower protects colors.</string>
     <string name="pref_webgpu_dark_mode_chunk_range">Chunk flatness</string>
     <string name="pref_webgpu_dark_mode_chunk_range_summary">How uniform a neighborhood must be to swap as one flat shade. Higher merges noisy paper, lower protects texture.</string>
+    <string name="category_manager_search">Search categories and subcategories…</string>
+    <string name="category_manager_sort">Sort subcategories</string>
+    <string name="category_manager_sort_manual">Manual</string>
+    <string name="category_manager_sort_az">A → Z</string>
+    <string name="category_manager_sort_za">Z → A</string>
+    <string name="category_manager_sort_most">Most items</string>
+    <string name="category_manager_sort_least">Least items</string>
+    <string name="category_manager_expand_all">Expand all</string>
+    <string name="category_manager_collapse_all">Collapse all</string>
 </resources>

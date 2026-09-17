@@ -46,6 +46,15 @@ class CategoryScreen : Screen() {
             onClickHide = screenModel::hideCategory,
             onCreateSubcategory = { screenModel.showDialog(CategoryDialog.CreateSubcategory(it)) },
             onReparentSubcategory = screenModel::reparentSubcategory,
+            searchQuery = successState.searchQuery,
+            onSearchQuery = screenModel::setSearchQuery,
+            collapsedIds = successState.collapsedIds,
+            onToggleCollapsed = screenModel::toggleCollapsed,
+            onExpandAll = screenModel::expandAll,
+            onCollapseAll = screenModel::collapseAll,
+            sortMode = successState.sortMode,
+            onSortMode = screenModel::setSortMode,
+            mangaCounts = successState.mangaCounts,
             // KMK <--
             navigateUp = navigator::pop,
         )

@@ -248,6 +248,10 @@ class LibraryPreferences(
         "pref_library_update_subcategory_scope",
         SubcategoryUpdateScope.WHOLE_CATEGORY,
     )
+
+    fun categoryManagerSortMode() = preferenceStore.getInt("pref_category_manager_sort_mode", 0)
+
+    fun categoryManagerCollapsedIds() = preferenceStore.getStringSet("pref_category_manager_collapsed_ids", emptySet())
     // KMK <--
 
     // endregion
