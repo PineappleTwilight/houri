@@ -133,6 +133,7 @@ import tachiyomi.domain.category.interactor.DeleteCategory
 import tachiyomi.domain.category.interactor.DeleteOrphanedSubcategories
 import tachiyomi.domain.category.interactor.GetCategories
 import tachiyomi.domain.category.interactor.HideCategory
+import tachiyomi.domain.category.interactor.MergeCategories
 import tachiyomi.domain.category.interactor.RenameCategory
 import tachiyomi.domain.category.interactor.ReorderCategory
 import tachiyomi.domain.category.interactor.ResetCategoryFlags
@@ -420,6 +421,7 @@ interface AppGraph : ViewModelGraph {
     val insertSavedSearch: InsertSavedSearch
     val libraryUpdateStatus: LibraryUpdateStatus
     val mergeMangaBySmartSearch: MergeMangaBySmartSearch
+    val mergeCategories: MergeCategories
     val migrateMangaUseCase: MigrateMangaUseCase
     val pagePreviewCache: PagePreviewCache
     val removeExtensionStore: RemoveExtensionStore

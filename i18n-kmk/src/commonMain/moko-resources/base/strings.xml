@@ -481,4 +481,12 @@
     <string name="category_manager_sort_least">Least items</string>
     <string name="category_manager_expand_all">Expand all</string>
     <string name="category_manager_collapse_all">Collapse all</string>
+    <string name="category_manager_select">Select</string>
+    <string name="category_manager_show">Show</string>
+    <string name="category_manager_move">Move</string>
+    <string name="category_manager_merge">Merge</string>
+    <string name="category_manager_move_title">Move to category</string>
+    <string name="category_manager_merge_title">Merge into subcategory</string>
+    <string name="category_manager_delete_many">Delete %d subcategories? This cannot be undone.</string>
+    <string name="category_manager_delete_many_title">Delete selected</string>
 </resources>

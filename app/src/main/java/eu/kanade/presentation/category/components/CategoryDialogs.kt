@@ -12,6 +12,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TriStateCheckbox
@@ -35,9 +36,114 @@ import kotlinx.coroutines.delay
 import tachiyomi.core.common.preference.CheckboxState
 import tachiyomi.domain.category.model.Category
 import tachiyomi.i18n.MR
+import tachiyomi.i18n.kmk.KMR
 import tachiyomi.presentation.core.components.material.padding
 import tachiyomi.presentation.core.i18n.stringResource
 import kotlin.time.Duration.Companion.seconds
+
+// KMK -->
+@Composable
+fun CategoryMoveDialog(
+    parents: ImmutableList<Category>,
+    excludeParentId: Long? = null,
+    onDismissRequest: () -> Unit,
+    onConfirm: (Long) -> Unit,
+) {
+    var selected by remember { mutableStateOf(parents.firstOrNull { it.id != excludeParentId }?.id) }
+    AlertDialog(
+        onDismissRequest = onDismissRequest,
+        confirmButton = {
+            TextButton(
+                enabled = selected != null,
+                onClick = {
+                    selected?.let(onConfirm)
+                    onDismissRequest()
+                },
+            ) {
+                Text(text = stringResource(KMR.strings.category_manager_move))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismissRequest) {
+                Text(text = stringResource(MR.strings.action_cancel))
+            }
+        },
+        title = { Text(text = stringResource(KMR.strings.category_manager_move_title)) },
+        text = {
+            Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                parents.forEach { parent ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable(enabled = parent.id != excludeParentId) { selected = parent.id },
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        RadioButton(
+                            selected = selected == parent.id,
+                            enabled = parent.id != excludeParentId,
+                            onClick = { selected = parent.id },
+                        )
+                        Text(
+                            text = parent.name,
+                            modifier = Modifier.padding(horizontal = MaterialTheme.padding.medium),
+                        )
+                    }
+                }
+            }
+        },
+    )
+}
+
+@Composable
+fun CategoryMergeDialog(
+    candidates: ImmutableList<Category>,
+    onDismissRequest: () -> Unit,
+    onConfirm: (Long) -> Unit,
+) {
+    var selected by remember { mutableStateOf(candidates.firstOrNull()?.id) }
+    AlertDialog(
+        onDismissRequest = onDismissRequest,
+        confirmButton = {
+            TextButton(
+                enabled = selected != null && candidates.size >= 2,
+                onClick = {
+                    selected?.let(onConfirm)
+                    onDismissRequest()
+                },
+            ) {
+                Text(text = stringResource(KMR.strings.category_manager_merge))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismissRequest) {
+                Text(text = stringResource(MR.strings.action_cancel))
+            }
+        },
+        title = { Text(text = stringResource(KMR.strings.category_manager_merge_title)) },
+        text = {
+            Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                candidates.forEach { candidate ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { selected = candidate.id },
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        RadioButton(
+                            selected = selected == candidate.id,
+                            onClick = { selected = candidate.id },
+                        )
+                        Text(
+                            text = candidate.name,
+                            modifier = Modifier.padding(horizontal = MaterialTheme.padding.medium),
+                        )
+                    }
+                }
+            }
+        },
+    )
+}
+// KMK <--
 
 @Composable
 fun CategoryCreateDialog(

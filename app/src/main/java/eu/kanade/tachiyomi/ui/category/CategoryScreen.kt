@@ -12,11 +12,15 @@ import cafe.adriel.voyager.navigator.currentOrThrow
 import eu.kanade.presentation.category.CategoryScreen
 import eu.kanade.presentation.category.components.CategoryCreateDialog
 import eu.kanade.presentation.category.components.CategoryDeleteDialog
+import eu.kanade.presentation.category.components.CategoryMergeDialog
+import eu.kanade.presentation.category.components.CategoryMoveDialog
 import eu.kanade.presentation.category.components.CategoryRenameDialog
 import eu.kanade.presentation.util.Screen
 import eu.kanade.tachiyomi.util.system.toast
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.flow.collectLatest
+import tachiyomi.i18n.kmk.KMR
+import tachiyomi.presentation.core.i18n.stringResource
 import tachiyomi.presentation.core.screens.LoadingScreen
 
 class CategoryScreen : Screen() {
@@ -55,6 +59,22 @@ class CategoryScreen : Screen() {
             sortMode = successState.sortMode,
             onSortMode = screenModel::setSortMode,
             mangaCounts = successState.mangaCounts,
+            selectMode = successState.selectMode,
+            selectedIds = successState.selectedIds,
+            onToggleSelectMode = screenModel::toggleSelectMode,
+            onToggleSelection = screenModel::toggleSelection,
+            onSelectVisible = screenModel::selectIds,
+            onBulkHide = { screenModel.bulkSetHidden(true) },
+            onBulkShow = { screenModel.bulkSetHidden(false) },
+            onShowMoveDialog = {
+                screenModel.showDialog(CategoryDialog.MoveSubcategories(successState.selectedIds.toList()))
+            },
+            onShowMergeDialog = {
+                screenModel.showDialog(CategoryDialog.MergeSubcategories(successState.selectedIds.toList()))
+            },
+            onShowDeleteMany = {
+                screenModel.showDialog(CategoryDialog.DeleteMany(successState.selectedIds.toList()))
+            },
             // KMK <--
             navigateUp = navigator::pop,
         )
@@ -94,6 +114,35 @@ class CategoryScreen : Screen() {
                     category = dialog.category.name,
                 )
             }
+            // KMK -->
+            is CategoryDialog.MoveSubcategories -> {
+                val parents = successState.categories.filter { it.parentId == 0L }.toImmutableList()
+                CategoryMoveDialog(
+                    parents = parents,
+                    onDismissRequest = screenModel::dismissDialog,
+                    onConfirm = { parentId -> screenModel.bulkMove(dialog.ids, parentId) },
+                )
+            }
+            is CategoryDialog.MergeSubcategories -> {
+                val byId = successState.categories.associateBy { it.id }
+                CategoryMergeDialog(
+                    candidates = dialog.ids.mapNotNull { byId[it] }.toImmutableList(),
+                    onDismissRequest = screenModel::dismissDialog,
+                    onConfirm = { targetId ->
+                        screenModel.mergeInto(targetId, dialog.ids.filter { it != targetId })
+                    },
+                )
+            }
+            is CategoryDialog.DeleteMany -> {
+                CategoryDeleteDialog(
+                    onDismissRequest = screenModel::dismissDialog,
+                    onDelete = { screenModel.bulkDelete(dialog.ids) },
+                    category = "",
+                    title = stringResource(KMR.strings.category_manager_delete_many_title),
+                    text = stringResource(KMR.strings.category_manager_delete_many, dialog.ids.size),
+                )
+            }
+            // KMK <--
         }
 
         LaunchedEffect(Unit) {

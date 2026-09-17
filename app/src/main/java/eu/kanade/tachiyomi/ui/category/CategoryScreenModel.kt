@@ -19,6 +19,7 @@ import tachiyomi.domain.category.interactor.CreateCategoryWithName
 import tachiyomi.domain.category.interactor.DeleteCategory
 import tachiyomi.domain.category.interactor.GetCategories
 import tachiyomi.domain.category.interactor.HideCategory
+import tachiyomi.domain.category.interactor.MergeCategories
 import tachiyomi.domain.category.interactor.RenameCategory
 import tachiyomi.domain.category.interactor.ReorderCategory
 import tachiyomi.domain.category.interactor.UpdateCategory
@@ -37,6 +38,7 @@ class CategoryScreenModel(
     // KMK -->
     private val hideCategory: HideCategory = globalAppGraph.hideCategory,
     private val updateCategory: UpdateCategory = globalAppGraph.updateCategory,
+    private val mergeCategories: MergeCategories = globalAppGraph.mergeCategories,
     private val getLibraryManga: GetLibraryManga = globalAppGraph.getLibraryManga,
     private val libraryPreferences: LibraryPreferences = globalAppGraph.libraryPreferences,
     // KMK <--
@@ -197,6 +199,106 @@ class CategoryScreenModel(
             if (it is CategoryScreenState.Success) it.copy(sortMode = mode) else it
         }
     }
+
+    fun toggleSelectMode() {
+        mutableState.update {
+            if (it is CategoryScreenState.Success) {
+                it.copy(selectMode = !it.selectMode, selectedIds = emptySet())
+            } else {
+                it
+            }
+        }
+    }
+
+    fun toggleSelection(categoryId: Long) {
+        mutableState.update {
+            if (it !is CategoryScreenState.Success) return@update it
+            val selected = if (categoryId in it.selectedIds) {
+                it.selectedIds - categoryId
+            } else {
+                it.selectedIds + categoryId
+            }
+            it.copy(selectedIds = selected)
+        }
+    }
+
+    fun selectIds(ids: Set<Long>) {
+        mutableState.update {
+            if (it is CategoryScreenState.Success) it.copy(selectedIds = ids) else it
+        }
+    }
+
+    fun bulkSetHidden(hidden: Boolean) {
+        val ids = selectedIds() ?: return
+        screenModelScope.launch {
+            var failed = false
+            for (id in ids) {
+                val result = updateCategory.await(CategoryUpdate(id = id, hidden = hidden))
+                if (result is UpdateCategory.Result.Error) failed = true
+            }
+            if (failed) _events.send(CategoryEvent.InternalError)
+            clearSelection()
+        }
+    }
+
+    fun bulkDelete(ids: List<Long>) {
+        screenModelScope.launch {
+            var failed = false
+            for (id in ids) {
+                val result = deleteCategory.await(categoryId = id)
+                if (result is DeleteCategory.Result.InternalError) failed = true
+            }
+            if (failed) _events.send(CategoryEvent.InternalError)
+            clearSelection()
+        }
+    }
+
+    fun bulkMove(ids: List<Long>, newParentId: Long) {
+        screenModelScope.launch {
+            val state = mutableState.value as? CategoryScreenState.Success ?: return@launch
+            val byId = state.categories.associateBy { it.id }
+            var appendIndex = state.categories.count { it.parentId == newParentId }
+            var failed = false
+            for (id in ids) {
+                val category = byId[id] ?: continue
+                if (category.parentId == newParentId) continue
+                val updateResult = updateCategory.await(CategoryUpdate(id = id, parentId = newParentId))
+                if (updateResult is UpdateCategory.Result.Error) {
+                    failed = true
+                    continue
+                }
+                val reorderResult = reorderCategory.await(category.copy(parentId = newParentId), appendIndex++)
+                if (reorderResult is ReorderCategory.Result.InternalError) failed = true
+            }
+            if (failed) _events.send(CategoryEvent.InternalError)
+            clearSelection()
+        }
+    }
+
+    fun mergeInto(targetId: Long, sourceIds: List<Long>) {
+        screenModelScope.launch {
+            when (mergeCategories.await(targetId, sourceIds)) {
+                is MergeCategories.Result.InternalError -> _events.send(CategoryEvent.InternalError)
+                else -> {}
+            }
+            clearSelection()
+        }
+    }
+
+    private fun selectedIds(): Set<Long>? {
+        val state = mutableState.value as? CategoryScreenState.Success ?: return null
+        return state.selectedIds.takeIf { it.isNotEmpty() }
+    }
+
+    private fun clearSelection() {
+        mutableState.update {
+            if (it is CategoryScreenState.Success) {
+                it.copy(selectMode = false, selectedIds = emptySet(), dialog = null)
+            } else {
+                it
+            }
+        }
+    }
     // KMK <--
 
     fun showDialog(dialog: CategoryDialog) {
@@ -222,6 +324,9 @@ sealed interface CategoryDialog {
     data object Create : CategoryDialog
     // KMK -->
     data class CreateSubcategory(val parent: Category) : CategoryDialog
+    data class MoveSubcategories(val ids: List<Long>) : CategoryDialog
+    data class MergeSubcategories(val ids: List<Long>) : CategoryDialog
+    data class DeleteMany(val ids: List<Long>) : CategoryDialog
     // KMK <--
     data class Rename(val category: Category) : CategoryDialog
     data class Delete(val category: Category) : CategoryDialog
@@ -246,6 +351,8 @@ sealed interface CategoryScreenState {
         val searchQuery: String = "",
         val collapsedIds: Set<Long> = emptySet(),
         val sortMode: Int = CategoryManagerSort.MANUAL,
+        val selectMode: Boolean = false,
+        val selectedIds: Set<Long> = emptySet(),
         // KMK <--
     ) : CategoryScreenState {
 

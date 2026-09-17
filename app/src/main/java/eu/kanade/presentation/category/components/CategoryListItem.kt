@@ -16,6 +16,7 @@ import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -47,6 +48,8 @@ fun ReorderableCollectionItemScope.CategoryListItem(
     mangaCount: Int = 0,
     expanded: Boolean? = null,
     onToggleExpand: (() -> Unit)? = null,
+    selected: Boolean? = null,
+    onToggleSelection: (() -> Unit)? = null,
     // KMK <--
     modifier: Modifier = Modifier,
 ) {
@@ -54,7 +57,7 @@ fun ReorderableCollectionItemScope.CategoryListItem(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .clickable(onClick = onRename)
+                .clickable(onClick = { (onToggleSelection ?: onRename)() })
                 .padding(vertical = MaterialTheme.padding.small)
                 .padding(
                     start = MaterialTheme.padding.small,
@@ -69,6 +72,12 @@ fun ReorderableCollectionItemScope.CategoryListItem(
                     modifier = Modifier
                         .padding(MaterialTheme.padding.medium)
                         .draggableHandle(),
+                )
+            }
+            if (selected != null && onToggleSelection != null) {
+                Checkbox(
+                    checked = selected,
+                    onCheckedChange = { onToggleSelection() },
                 )
             }
             if (expanded != null && onToggleExpand != null) {

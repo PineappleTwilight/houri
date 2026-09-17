@@ -12,6 +12,7 @@ import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Checklist
 import androidx.compose.material.icons.outlined.ExpandLess
 import androidx.compose.material.icons.outlined.ExpandMore
 import androidx.compose.material.icons.outlined.Search
@@ -72,6 +73,16 @@ fun CategoryScreen(
     sortMode: Int,
     onSortMode: (Int) -> Unit,
     mangaCounts: ImmutableMap<Long, Int>,
+    selectMode: Boolean,
+    selectedIds: Set<Long>,
+    onToggleSelectMode: () -> Unit,
+    onToggleSelection: (Long) -> Unit,
+    onSelectVisible: (Set<Long>) -> Unit,
+    onBulkHide: () -> Unit,
+    onBulkShow: () -> Unit,
+    onShowMoveDialog: () -> Unit,
+    onShowMergeDialog: () -> Unit,
+    onShowDeleteMany: () -> Unit,
     // KMK <--
     navigateUp: () -> Unit,
 ) {
@@ -82,6 +93,14 @@ fun CategoryScreen(
                 title = stringResource(MR.strings.action_edit_categories),
                 navigateUp = navigateUp,
                 scrollBehavior = scrollBehavior,
+                actions = {
+                    IconButton(onClick = onToggleSelectMode) {
+                        Icon(
+                            imageVector = Icons.Outlined.Checklist,
+                            contentDescription = stringResource(KMR.strings.category_manager_select),
+                        )
+                    }
+                },
             )
         },
         floatingActionButton = {
@@ -119,6 +138,15 @@ fun CategoryScreen(
             sortMode = sortMode,
             onSortMode = onSortMode,
             mangaCounts = mangaCounts,
+            selectMode = selectMode,
+            selectedIds = selectedIds,
+            onToggleSelection = onToggleSelection,
+            onSelectVisible = onSelectVisible,
+            onBulkHide = onBulkHide,
+            onBulkShow = onBulkShow,
+            onShowMoveDialog = onShowMoveDialog,
+            onShowMergeDialog = onShowMergeDialog,
+            onShowDeleteMany = onShowDeleteMany,
             // KMK <--
         )
     }
@@ -145,6 +173,15 @@ private fun CategoryContent(
     sortMode: Int,
     onSortMode: (Int) -> Unit,
     mangaCounts: ImmutableMap<Long, Int>,
+    selectMode: Boolean,
+    selectedIds: Set<Long>,
+    onToggleSelection: (Long) -> Unit,
+    onSelectVisible: (Set<Long>) -> Unit,
+    onBulkHide: () -> Unit,
+    onBulkShow: () -> Unit,
+    onShowMoveDialog: () -> Unit,
+    onShowMergeDialog: () -> Unit,
+    onShowDeleteMany: () -> Unit,
     // KMK <--
 ) {
     val query = searchQuery.trim()
@@ -192,7 +229,7 @@ private fun CategoryContent(
         }
     }
     // Manual drag-reorder only makes sense on the unfiltered, manually-sorted list.
-    val reorderEnabled = query.isEmpty() && sortMode == CategoryManagerSort.MANUAL
+    val reorderEnabled = query.isEmpty() && sortMode == CategoryManagerSort.MANUAL && !selectMode
     // KMK <--
     val rowState = remember { rows.toMutableStateList() }
     val reorderableState = rememberReorderableLazyListState(lazyListState, paddingValues) { from, to ->
@@ -271,6 +308,33 @@ private fun CategoryContent(
                 }
             }
         }
+        if (selectMode) {
+            item(key = "category-manager-bulk") {
+                Row(
+                    modifier = Modifier.fillMaxWidth().animateItem(),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    TextButton(onClick = { onSelectVisible(rows.map { it.category.id }.toSet()) }) {
+                        Text(stringResource(KMR.strings.category_manager_select))
+                    }
+                    TextButton(onClick = onBulkHide, enabled = selectedIds.isNotEmpty()) {
+                        Text(stringResource(KMR.strings.action_hide))
+                    }
+                    TextButton(onClick = onBulkShow, enabled = selectedIds.isNotEmpty()) {
+                        Text(stringResource(KMR.strings.category_manager_show))
+                    }
+                    TextButton(onClick = onShowMoveDialog, enabled = selectedIds.isNotEmpty()) {
+                        Text(stringResource(KMR.strings.category_manager_move))
+                    }
+                    TextButton(onClick = onShowMergeDialog, enabled = selectedIds.size >= 2) {
+                        Text(stringResource(KMR.strings.category_manager_merge))
+                    }
+                    TextButton(onClick = onShowDeleteMany, enabled = selectedIds.isNotEmpty()) {
+                        Text(stringResource(MR.strings.action_delete))
+                    }
+                }
+            }
+        }
         // KMK <--
         items(
             items = rowState,
@@ -296,6 +360,8 @@ private fun CategoryContent(
                     mangaCount = row.mangaCount,
                     expanded = (!row.collapsed).takeIf { row.isTopLevel && (subMap[row.category.id]?.size ?: 0) > 0 },
                     onToggleExpand = ({ onToggleCollapsed(row.category.id) }).takeIf { row.isTopLevel },
+                    selected = (row.category.id in selectedIds).takeIf { selectMode },
+                    onToggleSelection = ({ onToggleSelection(row.category.id) }).takeIf { selectMode },
                 )
                 // KMK <--
             }
