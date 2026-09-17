@@ -803,7 +803,12 @@ class ReaderActivity : BaseActivity() {
                 viewModel.getMangaReadingMode(resolveDefault = true),
             ),
             dualPageSplitEnabled = dualPageSplitPaged,
-            doublePages = state.doublePages,
+            // KMK --> The shift button gates on dual-page mode; the viewmodel
+            // flag is pager-driven, so consult a live WebGPU viewer too. Read
+            // at menu composition (fresh each open), never stale on rotation.
+            doublePages = state.doublePages ||
+                (viewModel.state.value.viewer as? WebGpuViewer)?.isDualPageMode() == true,
+            // KMK <--
             onClickChapterList = viewModel::openChapterListDialog,
             onClickPageLayout = {
                 if (readerPreferences.pageLayout().get() == PagerConfig.PageLayout.AUTOMATIC) {
@@ -973,13 +978,24 @@ class ReaderActivity : BaseActivity() {
     }
 
     private fun shiftDoublePages() {
-        val viewer = viewModel.state.value.viewer as? PagerViewer ?: return
-        viewer.config.let { config ->
-            config.shiftDoublePage = !config.shiftDoublePage
-            viewModel.state.value.viewerChapters?.let {
-                viewer.updateShifting()
-                viewer.setChaptersInternal(it)
-                invalidateOptionsMenu()
+        val viewer = viewModel.state.value.viewer
+        // KMK --> Ported from the legacy pager: the bottom-bar shift button
+        // re-pairs WebGPU spreads from the cover instead of leaving it solo.
+        if (viewer is WebGpuViewer) {
+            viewer.config.shiftDoublePage = !viewer.config.shiftDoublePage
+            viewer.refreshSpreads()
+            invalidateOptionsMenu()
+            return
+        }
+        // KMK <--
+        (viewer as? PagerViewer)?.let { pagerViewer ->
+            pagerViewer.config.let { config ->
+                config.shiftDoublePage = !config.shiftDoublePage
+                viewModel.state.value.viewerChapters?.let {
+                    pagerViewer.updateShifting()
+                    pagerViewer.setChaptersInternal(it)
+                    invalidateOptionsMenu()
+                }
             }
         }
     }

@@ -177,8 +177,11 @@ open class WebGpuViewer(
      * that page broke. Defaults to 1 - page 0 is the cover, and pairs with nothing.
      */
     private fun spreadStartIndex(chapterId: Long?, index: Int): Int {
-        val lone = synchronized(lock) { loneIndices[chapterId]?.lower(index) } ?: return 1
-        return lone + 1
+        val base = synchronized(lock) { loneIndices[chapterId]?.lower(index) }?.plus(1) ?: 1
+        // Shifted pairing starts one page earlier, so the cover pairs instead
+        // of standing solo — the WebGPU equivalent of the legacy pager's
+        // shift button. Lone-page segmentation is preserved either way.
+        return if (config.shiftDoublePage) (base - 1).coerceAtLeast(0) else base
     }
 
     /** Registers whether [page] stands alone, for [spreadStartIndex]. Must hold [lock]. */
@@ -321,6 +324,20 @@ open class WebGpuViewer(
             }
             val w = if (pager.width > 0) pager.width else activity.resources.displayMetrics.widthPixels
             pager.translationX = w * offset / 100f * 0.5f
+        } catch (_: Exception) {
+        }
+    }
+    // KMK <--
+
+    // KMK -->
+    /**
+     * Re-resolves spread pairing after [WebGpuConfig.shiftDoublePage] toggles.
+     * Positions derive live, so a re-fetch is enough to re-pair everything.
+     */
+    fun refreshSpreads() {
+        if (isDestroyed) return
+        try {
+            pager.state.invalidate()
         } catch (_: Exception) {
         }
     }

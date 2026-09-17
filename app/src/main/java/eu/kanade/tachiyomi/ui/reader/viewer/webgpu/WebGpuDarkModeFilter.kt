@@ -13,13 +13,17 @@ import java.nio.ByteOrder
 /**
  * Intelligent dark-mode filter for the WebGPU reader.
  *
- * Strict achromatic-only policy: a pixel is touched only when it is a shade of
- * white, black or gray (absolute channel spread under 0.06). Anything carrying
- * real color passes through untouched. Dark achromatic strokes swap
- * unconditionally so lettering stays legible, flat achromatic 3x3 chunks
- * bucket-swap so scanned paper inverts with no JPEG-noise speckle, and
- * remaining near-gray pixels (antialiased edges) take a narrow blend.
- * Near-transparent taps are excluded from the chunk vote.
+ * Per-pixel, hue-preserving policy: a pixel's achromatic weight comes from its
+ * channel spread (shades of white, black or gray swap; anything carrying real
+ * color only dims). Grays take a luminance invert that carries the chroma
+ * along, so tinted paper turns dark warm/cool gray instead of hue-shifting
+ * (a naive RGB 1-c turns beige skin-shadows blue). Saturated art keeps its
+ * hue and is only dimmed, never brightened.
+ *
+ * Deliberately neighborhood-free: the previous 3x3 chunk vote produced block
+ * boundaries (split speech bubbles, posterized faces, speckled windows) on
+ * full-color pages. A smooth per-pixel blend cannot disagree with its
+ * neighbor, so there are no seams; it is also 9x fewer taps per pixel.
  *
  * AMOLED subtoggle: crushes near-blacks (inverted-paper residue) to pure black
  * so OLED pixels turn fully off and save battery.
@@ -49,6 +53,12 @@ class WebGpuDarkModeFilter(
             invalidate()
         }
 
+    /**
+     * Color-dim amount (0.02..0.30): saturated pixels keep their hue and are
+     * scaled by (1 - this), so the slider reads "higher = darker colors".
+     * Kept under the legacy [ReaderPreferences.webgpuDarkModeChunkRange] key
+     * so existing user values carry over as dim strength.
+     */
     @Volatile
     var chunkRange: Float = 0.10f
         set(value) {
@@ -82,7 +92,9 @@ class WebGpuDarkModeFilter(
             b.putFloat(if (amoled) 1f else 0f)
             b.putFloat(tolerance)
             b.putFloat(tolerance + 0.03f)
-            b.putFloat(chunkRange)
+            // Slot 3 now carries the color-dim factor directly (1 - dim amount)
+            // so the shader stays branch-free; see chunkRange KDoc.
+            b.putFloat((1f - chunkRange).coerceIn(0.5f, 1f))
             b.flip()
             device.queue.writeBuffer(uniforms, 0, b)
         }
@@ -103,7 +115,7 @@ struct Params {
     amoled: f32,
     tol: f32,
     gate: f32,
-    range: f32,
+    dim: f32,
 }
 @group(0) @binding(0) var<uniform> params: Params;
 @group(0) @binding(1) var src: texture_2d<f32>;
@@ -119,45 +131,21 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     if (texel.a <= 0.0) { return texel; }
     let c = texel.rgb / max(texel.a, 0.1);
     let spread = spreadOf(c);
-    // Hard gate: any real color passes through untouched.
-    if (spread >= params.gate) { return texel; }
-    // Bucket-select probe: min/max luma and max spread over the 3x3 chunk
-    // around this pixel. Near-transparent taps (feathered bubble fringes,
-    // page margins) are excluded from the vote: unpremultiplying them
-    // amplifies quantization noise into false color/variance.
-    let maxC = vec2<i32>(textureDimensions(src)) - vec2<i32>(1, 1);
-    var minL = 1.0;
-    var maxL = 0.0;
-    var chunkSpread = 0.0;
-    var hits = 0;
-    for (var oy = -1; oy <= 1; oy = oy + 1) {
-        for (var ox = -1; ox <= 1; ox = ox + 1) {
-            let p = clamp(fragCoord + vec2<i32>(ox, oy), vec2<i32>(0, 0), maxC);
-            let t = textureLoad(src, p, 0);
-            if (t.a < 0.1) { continue; }
-            hits = hits + 1;
-            let nc = t.rgb / t.a;
-            chunkSpread = max(chunkSpread, spreadOf(nc));
-            let l = dot(nc, vec3<f32>(0.299, 0.587, 0.114));
-            minL = min(minL, l);
-            maxL = max(maxL, l);
-        }
-    }
-    var out_c: vec3<f32>;
-    let centerLuma = dot(c, vec3<f32>(0.299, 0.587, 0.114));
-    if (centerLuma < 0.5 && spread < params.tol) {
-        // Ink: dark achromatic strokes swap regardless of neighborhood, so
-        // lettering stays legible. Deliberately before the chunk vote.
-        out_c = vec3<f32>(1.0) - c;
-    } else if (hits > 0 && chunkSpread < params.tol && (maxL - minL) < params.range) {
-        // Bucket fill: one flat shade of paper or ink swaps cleanly.
-        out_c = vec3<f32>(1.0) - c;
-    } else {
-        // Near-gray stragglers (antialiased edges) blend; visibly tinted
-        // pixels never reach here.
-        let gray = 1.0 - smoothstep(params.tol - 0.02, params.gate, spread);
-        out_c = mix(c, vec3<f32>(1.0) - c, gray);
-    }
+    let lum = dot(c, vec3<f32>(0.299, 0.587, 0.114));
+    // Achromatic weight: grays fully swap, real color only dims.
+    // Smoothstep (no neighborhood vote) so neighbors can never disagree:
+    // no split bubbles, no posterized patches, no speckle.
+    let w = 1.0 - smoothstep(params.tol - 0.02, params.gate, spread);
+    // Hue-preserving invert: flip luminance, carry chroma along at slightly
+    // reduced strength. Pure gray collapses to exactly 1-lum; tinted paper
+    // lands on a dark gray of the same warmth instead of hue-shifting
+    // (naive 1-c turns beige skin-shadows blue).
+    let chroma = c - vec3<f32>(lum);
+    let inv = clamp(vec3<f32>(1.0 - lum) + chroma * 0.9, vec3<f32>(0.0), vec3<f32>(1.0));
+    // Saturated art keeps its hue, only darkens: never brightened, so night
+    // skies stay night and skin stays skin.
+    let dimmed = c * params.dim;
+    var out_c = mix(dimmed, inv, w);
     if (params.amoled > 0.5) {
         let luma = dot(out_c, vec3<f32>(0.299, 0.587, 0.114));
         if (luma < 0.08) {

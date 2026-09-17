@@ -86,6 +86,16 @@ class WebGpuConfig(
         private set
     // KMK <--
 
+    // KMK -->
+    /**
+     * Transient spread-shift toggle, ported from the legacy pager's shift button
+     * ([eu.kanade.tachiyomi.ui.reader.viewer.pager.PagerConfig.shiftDoublePage]):
+     * when true, dual-page pairing starts at page 0 instead of leaving the
+     * cover solo, fixing mis-paired spreads. Toggled from the reader bottom
+     * bar; not persisted, reset on viewer rebuild.
+     */
+    var shiftDoublePage = false
+
     var continuousMinWidth = 100
         private set
 
