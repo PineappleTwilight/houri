@@ -387,6 +387,11 @@ jobs:
 
             ${{ needs.prepare-build.outputs.COMMIT_LOGS }}
 
+            ##### Which APK?
+            - `Houri-arm64-v8a-*` — standard build with the on-device AI translation (MTL) engine. Pick this if unsure; it suits most modern devices.
+            - `Houri-armeabi-v7a-*`, `Houri-x86_64-*`, `Houri-x86-*` — same MTL build for older ARM or Intel devices.
+            - `Houri-nomtl-*` — lightweight builds without the MTL engine: smaller download, but AI translation is unavailable.
+
             ##### Based on
 
             **Full Changelog**: [${{ github.repository }}@${{ needs.prepare-build.outputs.PREV_TAG_NAME }}...${{ needs.prepare-build.outputs.VERSION_TAG }}](https://github.com/${{ github.repository }}/compare/${{ needs.prepare-build.outputs.PREV_TAG_NAME }}...${{ needs.prepare-build.outputs.VERSION_TAG }})
