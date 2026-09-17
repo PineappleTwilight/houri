@@ -129,21 +129,34 @@ jobs:
         run: |
           set -e
           tag="${{ steps.last_release.outputs.tag_name }}"
+          current_tag="${{ needs.check-version.outputs.VERSION_TAG }}"
+          if [ -z "$tag" ] || ! git rev-parse --verify --quiet "$tag^{commit}" >/dev/null; then
+            # The release lookup came back empty or points at a tag we don't
+            # have: fall back to the newest local version tag instead of the
+            # root commit (which would dump the entire repo history into the
+            # notes). Never derive the base via HEAD~N from a commit count:
+            # with merge commits, rev-list counts every commit in the range
+            # while HEAD~N walks first-parents only, so HEAD~N overshoots past
+            # the tag and leaks in previous periods.
+            echo "Previous release tag '$tag' missing or unresolvable; falling back to local tag list"
+            git fetch origin --tags --force
+            tag=$(git tag --list 'v*' --sort=-v:refname | grep -vx "$current_tag" | head -n1 || true)
+          fi
           if [ -z "$tag" ]; then
-            echo "No previous release; using root commit as base"
-            prev_release_sha=$(git rev-list --max-parents=0 HEAD | head -n1)
+            echo "No previous tag at all; using previous commit as base"
+            prev_release_sha=$(git rev-parse HEAD~1)
           elif git rev-parse --verify --quiet "$tag^{commit}" >/dev/null; then
-            # Resolve the tag directly to its commit. Never derive the base via
-            # HEAD~N from a commit count: with merge commits, rev-list counts
-            # every commit in the range while HEAD~N walks first-parents only,
-            # so HEAD~N overshoots past the tag and leaks in previous periods.
+            # Resolve the tag directly to its commit.
             prev_release_sha=$(git rev-parse "$tag^{commit}")
           else
-            echo "WARNING: tag $tag not found locally; using root commit as base"
-            prev_release_sha=$(git rev-list --max-parents=0 HEAD | head -n1)
+            echo "WARNING: tag $tag not found locally; using previous commit as base"
+            prev_release_sha=$(git rev-parse HEAD~1)
           fi
           echo "prev_release_sha=$prev_release_sha (tag=$tag)"
           echo "PREV_RELEASE_SHA=$prev_release_sha" >> $GITHUB_OUTPUT
+          # An empty base would break the compare link in the release body;
+          # point it at the current tag (empty diff) instead.
+          if [ -z "$tag" ]; then tag="$current_tag"; fi
           echo "PREV_TAG_NAME=$tag" >> $GITHUB_OUTPUT
 
       - name: TODO checklist since last release
@@ -156,8 +169,9 @@ jobs:
         id: commit_logs
         run: |
           # Skip commits that only touch TODO files so they don't flood release notes.
-          # Capped: with no previous tag the base is the root commit and the full
-          # history would burst GitHub's 1MB job-output limit.
+          # Capped: the base is always a real previous tag (or HEAD~1), so the
+          # range stays small; the cap is only a backstop against pathological
+          # histories bursting GitHub's 1MB job-output limit.
           MAX_COMMITS=200
           range="${{ steps.previous_commit.outputs.PREV_RELEASE_SHA }}..${{ steps.current_commit.outputs.CURRENT_SHA }}"
           total=$(git rev-list --count "$range")
