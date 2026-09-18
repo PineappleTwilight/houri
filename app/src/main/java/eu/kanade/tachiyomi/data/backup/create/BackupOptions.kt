@@ -21,6 +21,13 @@ data class BackupOptions(
     val customInfo: Boolean = true,
     val savedSearchesFeeds: Boolean = true,
     // SY <--
+    // KMK -->
+    /**
+     * Category ids to include in a manual backup. Null means all categories.
+     * Kept outside [asBooleanArray] so worker payloads stay back-compatible.
+     */
+    val includedCategoryIds: Set<Long>? = null,
+    // KMK <--
 ) {
 
     fun asBooleanArray() = booleanArrayOf(

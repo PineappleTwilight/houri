@@ -30,6 +30,7 @@ import okio.sink
 import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.core.common.util.system.logcat
 import tachiyomi.domain.backup.service.BackupPreferences
+import tachiyomi.domain.category.interactor.GetCategories
 import tachiyomi.domain.manga.interactor.GetFavorites
 import tachiyomi.domain.manga.interactor.GetMergedManga
 import tachiyomi.domain.manga.model.Manga
@@ -49,6 +50,9 @@ class BackupCreator(
     private val getFavorites: GetFavorites = globalAppGraph.getFavorites,
     private val backupPreferences: BackupPreferences = globalAppGraph.backupPreferences,
     private val mangaRepository: MangaRepository = globalAppGraph.mangaRepository,
+    // KMK -->
+    private val getCategories: GetCategories = globalAppGraph.getCategories,
+    // KMK <--
 
     private val categoriesBackupCreator: CategoriesBackupCreator = CategoriesBackupCreator(),
     private val mangaBackupCreator: MangaBackupCreator = MangaBackupCreator(),
@@ -92,8 +96,20 @@ class BackupCreator(
             // SY -->
             val mergedManga = getMergedManga.await()
             // SY <--
+            // KMK -->
+            val includedCategoryIds = options.includedCategoryIds
+            val allManga = getFavorites.await() + nonFavoriteManga /* SY --> */ + mergedManga /* SY <-- */
+            val mangaToBackup = if (includedCategoryIds == null) {
+                allManga
+            } else {
+                allManga.filter { manga ->
+                    val categoryIds = getCategories.await(manga.id).map { it.id }.toSet()
+                    categoryIds.isEmpty() || categoryIds.intersect(includedCategoryIds).isNotEmpty()
+                }
+            }
+            // KMK <--
             val backupManga =
-                backupMangas(getFavorites.await() + nonFavoriteManga /* SY --> */ + mergedManga /* SY <-- */, options)
+                backupMangas(mangaToBackup, options)
 
             val backup = Backup(
                 backupManga = backupManga,
@@ -145,7 +161,11 @@ class BackupCreator(
     suspend fun backupCategories(options: BackupOptions): List<BackupCategory> {
         if (!options.categories) return emptyList()
 
-        return categoriesBackupCreator()
+        val categories = categoriesBackupCreator()
+        // KMK -->
+        val includedCategoryIds = options.includedCategoryIds ?: return categories
+        return categories.filter { it.id in includedCategoryIds }
+        // KMK <--
     }
 
     suspend fun backupMangas(mangas: List<Manga>, options: BackupOptions): List<BackupManga> {

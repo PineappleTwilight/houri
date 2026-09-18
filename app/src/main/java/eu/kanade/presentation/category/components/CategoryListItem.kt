@@ -27,6 +27,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.core.text.BidiFormatter
 import sh.calvin.reorderable.ReorderableCollectionItemScope
 import tachiyomi.domain.category.model.Category
@@ -111,6 +112,8 @@ fun ReorderableCollectionItemScope.CategoryListItem(
                 color = LocalContentColor.current.let { if (category.hidden) it.copy(alpha = 0.6f) else it },
                 textDecoration = TextDecoration.LineThrough.takeIf { category.hidden },
                 // KMK <--
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f),
             )
             IconButton(onClick = onRename) {

@@ -159,8 +159,12 @@ class MangaRestorer(
                 // SY <--
                 favorite = manga.favorite,
                 lastUpdate = manga.lastUpdate,
-                nextUpdate = null,
-                calculateInterval = null,
+                // KMK -->
+                // Preserve the backup's update schedule when it carries one; null
+                // keeps the existing row values via coalesce (issue #12).
+                nextUpdate = manga.nextUpdate.takeIf { it != 0L },
+                calculateInterval = manga.fetchInterval.takeIf { it != 0 }?.toLong(),
+                // KMK <--
                 initialized = manga.initialized,
                 viewer = manga.viewerFlags,
                 chapterFlags = manga.chapterFlags,
@@ -347,8 +351,11 @@ class MangaRestorer(
                 // SY <--
                 favorite = manga.favorite,
                 lastUpdate = manga.lastUpdate,
-                nextUpdate = 0L,
-                calculateInterval = 0L,
+                // KMK -->
+                // Preserve the backup's update schedule (0 for legacy backups = today's behavior).
+                nextUpdate = manga.nextUpdate,
+                calculateInterval = manga.fetchInterval.toLong(),
+                // KMK <--
                 initialized = manga.initialized,
                 viewerFlags = manga.viewerFlags,
                 chapterFlags = manga.chapterFlags,
@@ -382,7 +389,13 @@ class MangaRestorer(
         restoreTracking(manga, tracks)
         restoreHistory(manga, history)
         restoreExcludedScanlators(manga, excludedScanlators)
-        updateManga.awaitUpdateFetchInterval(manga, now, currentFetchWindow)
+        // KMK -->
+        // Trust the backup's update schedule when it carries one. Recalculating here
+        // collapses every title's predicted date to today + interval (issue #12).
+        if (manga.nextUpdate == 0L || manga.fetchInterval == 0) {
+            updateManga.awaitUpdateFetchInterval(manga, now, currentFetchWindow)
+        }
+        // KMK <--
         // SY -->
         restoreMergedMangaReferencesForManga(manga.id, mergedMangaReferences)
         flatMetadata?.let { restoreFlatMetadata(manga.id, it) }

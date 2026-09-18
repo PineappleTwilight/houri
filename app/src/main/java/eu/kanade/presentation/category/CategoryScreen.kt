@@ -232,12 +232,19 @@ private fun CategoryContent(
     val reorderEnabled = query.isEmpty() && sortMode == CategoryManagerSort.MANUAL && !selectMode
     // KMK <--
     val rowState = remember { rows.toMutableStateList() }
+    // KMK --> defer the DB commit until the drag ends: writing on every onMove
+    // churns the categories flow mid-gesture and fights the drag, leaving rows stuck.
+    var pendingDrop by remember { mutableStateOf<Pair<CategoryRow, Int>?>(null) }
     val reorderableState = rememberReorderableLazyListState(lazyListState, paddingValues) { from, to ->
         val moved = rowState.removeAt(from.index)
         rowState.add(to.index, moved)
+        pendingDrop = moved to to.index
+    }
+
+    fun commitDrop(moved: CategoryRow, dropIndex: Int) {
         if (!moved.isTopLevel) {
             var newParentId = moved.category.parentId
-            for (i in to.index - 1 downTo 0) {
+            for (i in dropIndex - 1 downTo 0) {
                 if (rowState[i].isTopLevel) {
                     newParentId = rowState[i].category.id
                     break
@@ -245,7 +252,7 @@ private fun CategoryContent(
             }
             if (newParentId != moved.category.parentId) {
                 var countBefore = 0
-                for (i in 0 until to.index) {
+                for (i in 0 until dropIndex) {
                     if (!rowState[i].isTopLevel) {
                         var parentForI = moved.category.parentId
                         for (k in i - 1 downTo 0) {
@@ -258,13 +265,23 @@ private fun CategoryContent(
                     }
                 }
                 onReparentSubcategory(moved.category, newParentId, countBefore.coerceAtLeast(0))
-                return@rememberReorderableLazyListState
+                return
             }
-            val simpleIndex = rowState.take(to.index).count { !it.isTopLevel && it.category.parentId == moved.category.parentId }
+            val simpleIndex = rowState.take(dropIndex).count { !it.isTopLevel && it.category.parentId == moved.category.parentId }
             onChangeOrder(moved.category, simpleIndex.coerceAtLeast(0))
         } else {
-            val siblingIndex = rowState.take(to.index).count { it.isTopLevel }
+            val siblingIndex = rowState.take(dropIndex).count { it.isTopLevel }
             onChangeOrder(moved.category, siblingIndex.coerceAtLeast(0))
+        }
+    }
+    // KMK <--
+
+    LaunchedEffect(reorderableState.isAnyItemDragging) {
+        if (!reorderableState.isAnyItemDragging) {
+            pendingDrop?.let { (moved, index) ->
+                pendingDrop = null
+                commitDrop(moved, index)
+            }
         }
     }
 

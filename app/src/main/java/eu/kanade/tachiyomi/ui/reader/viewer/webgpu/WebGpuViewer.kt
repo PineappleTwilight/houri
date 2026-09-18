@@ -633,7 +633,7 @@ open class WebGpuViewer(
             val isDual = isDualPageMode()
             transition = when (if (isDual) config.transitionAnimationDual else config.transitionAnimation) {
                 // KMK -->
-                TransitionAnimation.NONE -> TransitionNone
+                TransitionAnimation.NONE -> if (isVertical) TransitionNone.Vertical else TransitionNone
                 // KMK <--
                 TransitionAnimation.BASIC -> if (isVertical) TransitionBasic.Vertical else TransitionBasic
                 TransitionAnimation.FLIP -> TransitionFlip

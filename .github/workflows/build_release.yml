@@ -232,8 +232,18 @@ jobs:
         run: ./gradlew spotlessCheck --build-cache
 
 
-      - name: Build app
-        run: ./gradlew assembleMtlRelease assembleNomtlRelease -Pinclude-telemetry -Penable-updater --build-cache --parallel
+      # Split flavors into sequential steps: with --parallel a single invocation can
+      # overlap both flavors' R8 minify tasks (release has shrink on), doubling peak
+      # heap and OOMing the runner. Sequential steps peak at one R8.
+      - name: Build app (mtl)
+        run: ./gradlew assembleMtlRelease -Pinclude-telemetry -Penable-updater --build-cache --parallel
+        env:
+          CCACHE_DIR: /home/runner/.ccache
+          CMAKE_C_COMPILER_LAUNCHER: ccache
+          CMAKE_CXX_COMPILER_LAUNCHER: ccache
+
+      - name: Build app (nomtl)
+        run: ./gradlew assembleNomtlRelease -Pinclude-telemetry -Penable-updater --build-cache --parallel
         env:
           CCACHE_DIR: /home/runner/.ccache
           CMAKE_C_COMPILER_LAUNCHER: ccache

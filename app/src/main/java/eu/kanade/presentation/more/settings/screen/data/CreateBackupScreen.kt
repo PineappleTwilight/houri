@@ -13,6 +13,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.platform.LocalContext
 import cafe.adriel.voyager.core.model.StateScreenModel
 import cafe.adriel.voyager.core.model.rememberScreenModel
+import cafe.adriel.voyager.core.model.screenModelScope
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
 import eu.kanade.presentation.components.AppBar
@@ -24,8 +25,17 @@ import eu.kanade.tachiyomi.data.backup.create.BackupOptions
 import eu.kanade.tachiyomi.util.system.DeviceUtil
 import eu.kanade.tachiyomi.util.system.toast
 import kotlinx.collections.immutable.ImmutableList
+import kotlinx.collections.immutable.persistentListOf
+import kotlinx.collections.immutable.toImmutableList
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
+import mihon.app.di.globalAppGraph
+import tachiyomi.domain.category.interactor.GetCategories
+import tachiyomi.domain.category.model.Category
 import tachiyomi.i18n.MR
+import tachiyomi.i18n.kmk.KMR
 import tachiyomi.presentation.core.components.LabeledCheckbox
 import tachiyomi.presentation.core.components.LazyColumnWithAction
 import tachiyomi.presentation.core.components.SectionCard
@@ -92,6 +102,22 @@ class CreateBackupScreen : Screen() {
                     }
                 }
 
+                // KMK -->
+                if (state.options.libraryEntries && state.allCategories.isNotEmpty()) {
+                    item {
+                        SectionCard(KMR.strings.backup_included_categories) {
+                            state.allCategories.forEach { category ->
+                                LabeledCheckbox(
+                                    label = category.name,
+                                    checked = state.options.includedCategoryIds?.contains(category.id) ?: true,
+                                    onCheckedChange = { model.toggleCategory(category.id, it) },
+                                )
+                            }
+                        }
+                    }
+                }
+                // KMK <--
+
                 item {
                     SectionCard(MR.strings.label_settings) {
                         Options(BackupOptions.settingsOptions, state, model)
@@ -120,7 +146,21 @@ class CreateBackupScreen : Screen() {
     }
 }
 
-private class CreateBackupScreenModel : StateScreenModel<CreateBackupScreenModel.State>(State()) {
+private class CreateBackupScreenModel(
+    // KMK -->
+    private val getCategories: GetCategories = globalAppGraph.getCategories,
+    // KMK <--
+) : StateScreenModel<CreateBackupScreenModel.State>(State()) {
+
+    // KMK -->
+    init {
+        screenModelScope.launch {
+            getCategories.subscribe()
+                .map { categories -> categories.filterNot { it.isSystemCategory }.toImmutableList() }
+                .collect { categories -> mutableState.update { it.copy(allCategories = categories) } }
+        }
+    }
+    // KMK <--
 
     fun toggle(setter: (BackupOptions, Boolean) -> BackupOptions, enabled: Boolean) {
         mutableState.update {
@@ -130,6 +170,21 @@ private class CreateBackupScreenModel : StateScreenModel<CreateBackupScreenModel
         }
     }
 
+    // KMK -->
+    fun toggleCategory(categoryId: Long, enabled: Boolean) {
+        mutableState.update { state ->
+            val allIds = state.allCategories.map { it.id }.toSet()
+            val current = state.options.includedCategoryIds ?: allIds
+            val updated = if (enabled) current + categoryId else current - categoryId
+            state.copy(
+                options = state.options.copy(
+                    includedCategoryIds = updated.takeUnless { it == allIds },
+                ),
+            )
+        }
+    }
+    // KMK <--
+
     fun createBackup(context: Context, uri: Uri) {
         BackupCreateJob.startNow(context, uri, state.value.options)
     }
@@ -137,5 +192,8 @@ private class CreateBackupScreenModel : StateScreenModel<CreateBackupScreenModel
     @Immutable
     data class State(
         val options: BackupOptions = BackupOptions(),
+        // KMK -->
+        val allCategories: ImmutableList<Category> = persistentListOf(),
+        // KMK <--
     )
 }

@@ -490,4 +490,6 @@
     <string name="category_manager_merge_title">Merge into subcategory</string>
     <string name="category_manager_delete_many">Delete %d subcategories? This cannot be undone.</string>
     <string name="category_manager_delete_many_title">Delete selected</string>
+    <!-- Backup -->
+    <string name="backup_included_categories">Included categories</string>
 </resources>

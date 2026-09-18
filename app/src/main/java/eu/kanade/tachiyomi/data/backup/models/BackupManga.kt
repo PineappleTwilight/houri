@@ -46,6 +46,9 @@ class BackupManga(
     @ProtoNumber(110) var notes: String = "",
     @ProtoNumber(111) var initialized: Boolean = false,
     @ProtoNumber(112) var memo: ByteArray = JsonObjectEmptyBytes,
+    @ProtoNumber(113) var lastUpdate: Long = 0,
+    @ProtoNumber(114) var nextUpdate: Long = 0,
+    @ProtoNumber(115) var fetchInterval: Int = 0,
 
     // KMK specific values
     @ProtoNumber(610) var rereadCount: Int = 0,
@@ -87,6 +90,9 @@ class BackupManga(
             updateStrategy = this@BackupManga.updateStrategy,
             lastModifiedAt = this@BackupManga.lastModifiedAt,
             favoriteModifiedAt = this@BackupManga.favoriteModifiedAt,
+            lastUpdate = this@BackupManga.lastUpdate,
+            nextUpdate = this@BackupManga.nextUpdate,
+            fetchInterval = this@BackupManga.fetchInterval,
             version = this@BackupManga.version,
             notes = this@BackupManga.notes,
             initialized = this@BackupManga.initialized,

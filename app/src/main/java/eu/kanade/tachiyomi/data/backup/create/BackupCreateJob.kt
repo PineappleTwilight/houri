@@ -50,9 +50,17 @@ class BackupCreateJob(private val context: Context, workerParams: WorkerParamete
 
         val options = inputData.getBooleanArray(OPTIONS_KEY)?.let { BackupOptions.fromBooleanArray(it) }
             ?: BackupOptions()
+        // KMK -->
+        val includedCategoryIds = inputData.getLongArray(CATEGORY_IDS_KEY)?.toSet()?.takeIf { it.isNotEmpty() }
+        // KMK <--
 
         return try {
-            val location = BackupCreator(context, isAutoBackup).backup(uri, options)
+            val location = BackupCreator(context, isAutoBackup).backup(
+                uri,
+                // KMK -->
+                options.copy(includedCategoryIds = includedCategoryIds),
+                // KMK <--
+            )
             if (!isAutoBackup) {
                 notifier.showBackupComplete(UniFile.fromUri(context, location.toUri())!!)
                 // KMK -->
@@ -127,6 +135,9 @@ class BackupCreateJob(private val context: Context, workerParams: WorkerParamete
                 IS_AUTO_BACKUP_KEY to false,
                 LOCATION_URI_KEY to uri.toString(),
                 OPTIONS_KEY to options.asBooleanArray(),
+                // KMK -->
+                CATEGORY_IDS_KEY to (options.includedCategoryIds?.toLongArray() ?: longArrayOf()),
+                // KMK <--
             )
             val request = OneTimeWorkRequestBuilder<BackupCreateJob>()
                 .addTag(TAG_MANUAL)
@@ -155,3 +166,6 @@ private const val TAG_MANUAL = "$TAG_AUTO:manual"
 private const val IS_AUTO_BACKUP_KEY = "is_auto_backup" // Boolean
 private const val LOCATION_URI_KEY = "location_uri" // String
 private const val OPTIONS_KEY = "options" // BooleanArray
+// KMK -->
+private const val CATEGORY_IDS_KEY = "category_ids" // LongArray, empty means all
+// KMK <--

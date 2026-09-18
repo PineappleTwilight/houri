@@ -155,6 +155,12 @@ fun Project.configureTest() {
         testLogging {
             events(TestLogEvent.PASSED, TestLogEvent.SKIPPED, TestLogEvent.FAILED)
         }
+        // Cap test JVMs: with --parallel every module's tests run at once and each
+        // forks unbounded workers by default, which OOM'd CI runners after the R8
+        // builds. One fork queue per module with a 2g heap keeps peak bounded while
+        // module-level parallelism still comes from Gradle workers.
+        maxParallelForks = 1
+        maxHeapSize = "2g"
     }
 }
 
