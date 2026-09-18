@@ -37,6 +37,7 @@ import eu.kanade.domain.source.service.SourcePreferences
 import eu.kanade.domain.source.service.SourcePreferences.DataSaver
 import eu.kanade.domain.ui.UiPreferences
 import eu.kanade.presentation.more.settings.Preference
+import eu.kanade.presentation.more.settings.PreferenceDependency
 import eu.kanade.presentation.more.settings.screen.advanced.ClearDatabaseScreen
 import eu.kanade.presentation.more.settings.screen.debug.DebugInfoScreen
 import eu.kanade.tachiyomi.R
@@ -416,7 +417,7 @@ object SettingsAdvancedScreen : SearchableSettings {
                     preference = libraryPreferences.showSmartScanlatorInDetails(),
                     title = stringResource(KMR.strings.pref_show_smart_scanlator_details),
                     subtitle = stringResource(KMR.strings.pref_show_smart_scanlator_details_summary),
-                    enabled = libraryPreferences.smartScanlatorMerge().get(),
+                    dependsOn = PreferenceDependency(libraryPreferences.smartScanlatorMerge()),
                 ),
                 // KMK <--
             ),
@@ -718,7 +719,6 @@ object SettingsAdvancedScreen : SearchableSettings {
     @Composable
     private fun getDataSaverGroup(): Preference.PreferenceGroup {
         val sourcePreferences = remember { globalAppGraph.sourcePreferences }
-        val dataSaver by sourcePreferences.dataSaver().collectAsState()
         return Preference.PreferenceGroup(
             title = stringResource(SYMR.strings.data_saver),
             preferenceItems = persistentListOf(
@@ -736,22 +736,37 @@ object SettingsAdvancedScreen : SearchableSettings {
                     preference = sourcePreferences.dataSaverServer(),
                     title = stringResource(SYMR.strings.bandwidth_data_saver_server),
                     subtitle = stringResource(SYMR.strings.data_saver_server_summary),
-                    enabled = dataSaver == DataSaver.BANDWIDTH_HERO,
+                    dependsOn = PreferenceDependency(
+                        sourcePreferences.dataSaver(),
+                        expected = DataSaver.BANDWIDTH_HERO,
+                    ),
                 ),
                 Preference.PreferenceItem.SwitchPreference(
                     preference = sourcePreferences.dataSaverDownloader(),
                     title = stringResource(SYMR.strings.data_saver_downloader),
-                    enabled = dataSaver != DataSaver.NONE,
+                    dependsOn = PreferenceDependency(
+                        sourcePreferences.dataSaver(),
+                        expected = DataSaver.NONE,
+                        invert = true,
+                    ),
                 ),
                 Preference.PreferenceItem.SwitchPreference(
                     preference = sourcePreferences.dataSaverIgnoreJpeg(),
                     title = stringResource(SYMR.strings.data_saver_ignore_jpeg),
-                    enabled = dataSaver != DataSaver.NONE,
+                    dependsOn = PreferenceDependency(
+                        sourcePreferences.dataSaver(),
+                        expected = DataSaver.NONE,
+                        invert = true,
+                    ),
                 ),
                 Preference.PreferenceItem.SwitchPreference(
                     preference = sourcePreferences.dataSaverIgnoreGif(),
                     title = stringResource(SYMR.strings.data_saver_ignore_gif),
-                    enabled = dataSaver != DataSaver.NONE,
+                    dependsOn = PreferenceDependency(
+                        sourcePreferences.dataSaver(),
+                        expected = DataSaver.NONE,
+                        invert = true,
+                    ),
                 ),
                 Preference.PreferenceItem.ListPreference(
                     preference = sourcePreferences.dataSaverImageQuality(),
@@ -767,7 +782,11 @@ object SettingsAdvancedScreen : SearchableSettings {
                     ).associateBy { it.trimEnd('%').toInt() }.toImmutableMap(),
                     title = stringResource(SYMR.strings.data_saver_image_quality),
                     subtitle = stringResource(SYMR.strings.data_saver_image_quality_summary),
-                    enabled = dataSaver != DataSaver.NONE,
+                    dependsOn = PreferenceDependency(
+                        sourcePreferences.dataSaver(),
+                        expected = DataSaver.NONE,
+                        invert = true,
+                    ),
                 ),
                 run {
                     val dataSaverImageFormatJpeg by sourcePreferences.dataSaverImageFormatJpeg()
@@ -780,13 +799,20 @@ object SettingsAdvancedScreen : SearchableSettings {
                         } else {
                             stringResource(SYMR.strings.data_saver_image_format_summary_off)
                         },
-                        enabled = dataSaver != DataSaver.NONE,
+                        dependsOn = PreferenceDependency(
+                            sourcePreferences.dataSaver(),
+                            expected = DataSaver.NONE,
+                            invert = true,
+                        ),
                     )
                 },
                 Preference.PreferenceItem.SwitchPreference(
                     preference = sourcePreferences.dataSaverColorBW(),
                     title = stringResource(SYMR.strings.data_saver_color_bw),
-                    enabled = dataSaver == DataSaver.BANDWIDTH_HERO,
+                    dependsOn = PreferenceDependency(
+                        sourcePreferences.dataSaver(),
+                        expected = DataSaver.BANDWIDTH_HERO,
+                    ),
                 ),
             ),
         )

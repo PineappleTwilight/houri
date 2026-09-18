@@ -5,6 +5,7 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -15,6 +16,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.structuralEqualityPolicy
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.unit.dp
 import eu.kanade.presentation.more.settings.widget.ConnectionPreferenceWidget
 import eu.kanade.presentation.more.settings.widget.EditTextPreferenceWidget
@@ -33,6 +35,14 @@ import tachiyomi.presentation.core.util.collectAsState
 
 val LocalPreferenceHighlighted = compositionLocalOf(structuralEqualityPolicy()) { false }
 val LocalPreferenceMinHeight = compositionLocalOf(structuralEqualityPolicy()) { 56.dp }
+// KMK -->
+/**
+ * False inside a row that failed its gates but stays visible via `grayOut = true`.
+ * Widgets read this to disable their own click targets; [StatusWrapper] dims the row.
+ */
+val LocalPreferenceEnabled = compositionLocalOf(structuralEqualityPolicy()) { true }
+private const val SOFT_DISABLED_ALPHA = 0.38f
+// KMK <--
 
 @Composable
 fun StatusWrapper(
@@ -40,16 +50,32 @@ fun StatusWrapper(
     highlightKey: String?,
     content: @Composable () -> Unit,
 ) {
-    val enabled = item.enabled
+    val visible = item.isVisible()
+    // KMK -->
+    val interactive = item.isInteractive()
+    // KMK <--
     val highlighted = item.title == highlightKey
     AnimatedVisibility(
-        visible = enabled,
+        visible = visible,
         enter = expandVertically() + fadeIn(),
         exit = shrinkVertically() + fadeOut(),
         content = {
             CompositionLocalProvider(
                 LocalPreferenceHighlighted provides highlighted,
-                content = content,
+                // KMK -->
+                LocalPreferenceEnabled provides interactive,
+                // KMK <--
+                content = {
+                    // KMK -->
+                    if (interactive) {
+                        content()
+                    } else {
+                        Box(modifier = Modifier.alpha(SOFT_DISABLED_ALPHA)) {
+                            content()
+                        }
+                    }
+                    // KMK <--
+                },
             )
         },
     )
@@ -61,6 +87,9 @@ internal fun PreferenceItem(
     highlightKey: String?,
 ) {
     val scope = rememberCoroutineScope()
+    // KMK --> standalone click targets outside BasePreferenceWidget read this directly.
+    val interactive = item.isInteractive()
+    // KMK <--
     StatusWrapper(
         item = item,
         highlightKey = highlightKey,
@@ -91,9 +120,13 @@ internal fun PreferenceItem(
                     subtitle = item.subtitle,
                     valueString = item.valueString.takeUnless { it.isNullOrEmpty() } ?: item.value.toString(),
                     onChange = {
-                        scope.launch {
-                            item.onValueChanged(it)
+                        // KMK --> BaseSliderItem has no enabled param; guard here.
+                        if (interactive) {
+                            scope.launch {
+                                item.onValueChanged(it)
+                            }
                         }
+                        // KMK <--
                     },
                     titleStyle = MaterialTheme.typography.titleLarge.copy(fontSize = TitleFontSize),
                     modifier = Modifier.padding(
@@ -173,7 +206,13 @@ internal fun PreferenceItem(
                 TrackingPreferenceWidget(
                     tracker = item.tracker,
                     checked = isLoggedIn,
-                    onClick = { if (isLoggedIn) item.logout() else item.login() },
+                    // KMK --> standalone widget: guard here (see LocalPreferenceEnabled).
+                    onClick = {
+                        if (interactive) {
+                            if (isLoggedIn) item.logout() else item.login()
+                        }
+                    },
+                    // KMK <--
                 )
             }
             // AM (CONNECTIONS) -->
@@ -182,7 +221,13 @@ internal fun PreferenceItem(
                 ConnectionPreferenceWidget(
                     service = item.service,
                     checked = isLoggedIn,
-                    onClick = { if (isLoggedIn) item.openSettings() else item.login() },
+                    // KMK --> standalone widget: guard here (see LocalPreferenceEnabled).
+                    onClick = {
+                        if (interactive) {
+                            if (isLoggedIn) item.openSettings() else item.login()
+                        }
+                    },
+                    // KMK <--
                     subtitle = item.subtitle,
                 )
             }

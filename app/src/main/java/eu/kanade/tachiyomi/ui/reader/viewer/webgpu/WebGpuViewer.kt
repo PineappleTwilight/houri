@@ -16,6 +16,7 @@ import ca.mpreg.webgpuviewer.transition.TransitionFadeWhite
 import ca.mpreg.webgpuviewer.transition.TransitionFlip
 import ca.mpreg.webgpuviewer.transition.TransitionFlipLeft
 import ca.mpreg.webgpuviewer.transition.TransitionFlipRight
+import ca.mpreg.webgpuviewer.transition.TransitionNone
 import ca.mpreg.webgpuviewer.transition.TransitionSphere
 import ca.mpreg.webgpuviewer.transition.TransitionStackDown
 import ca.mpreg.webgpuviewer.transition.TransitionStackLeft
@@ -631,6 +632,9 @@ open class WebGpuViewer(
         pager.state.apply {
             val isDual = isDualPageMode()
             transition = when (if (isDual) config.transitionAnimationDual else config.transitionAnimation) {
+                // KMK -->
+                TransitionAnimation.NONE -> TransitionNone
+                // KMK <--
                 TransitionAnimation.BASIC -> if (isVertical) TransitionBasic.Vertical else TransitionBasic
                 TransitionAnimation.FLIP -> TransitionFlip
                 TransitionAnimation.FLIP_LEFT -> TransitionFlipLeft

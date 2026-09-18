@@ -7,13 +7,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.app.ActivityCompat
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
 import com.materialkolor.PaletteStyle
-import eu.kanade.core.preference.asState
 import eu.kanade.domain.ui.UiPreferences
 import eu.kanade.domain.ui.model.AppTheme
 import eu.kanade.domain.ui.model.NavigationRailAlignment
@@ -22,6 +20,7 @@ import eu.kanade.domain.ui.model.TabletUiMode
 import eu.kanade.domain.ui.model.ThemeMode
 import eu.kanade.domain.ui.model.setAppCompatDelegateThemeMode
 import eu.kanade.presentation.more.settings.Preference
+import eu.kanade.presentation.more.settings.PreferenceDependency
 import eu.kanade.presentation.more.settings.screen.appearance.AppCustomThemeColorPickerScreen
 import eu.kanade.presentation.more.settings.screen.appearance.AppLanguageScreen
 import eu.kanade.presentation.more.settings.widget.AppThemeModePreferenceWidget
@@ -105,7 +104,7 @@ object SettingsAppearanceScreen : SearchableSettings {
                 Preference.PreferenceItem.TextPreference(
                     title = stringResource(KMR.strings.pref_custom_color),
                     subtitle = stringResource(KMR.strings.custom_color_description),
-                    enabled = appTheme == AppTheme.CUSTOM,
+                    dependsOn = PreferenceDependency(appThemePref, expected = AppTheme.CUSTOM),
                     onClick = { navigator.push(AppCustomThemeColorPickerScreen()) },
                 ),
                 Preference.PreferenceItem.ListPreference(
@@ -135,7 +134,7 @@ object SettingsAppearanceScreen : SearchableSettings {
                         }
                         .toImmutableMap(),
                     title = stringResource(KMR.strings.pref_custom_theme_style),
-                    enabled = appTheme == AppTheme.CUSTOM,
+                    dependsOn = PreferenceDependency(appThemePref, expected = AppTheme.CUSTOM),
                     onValueChanged = {
                         (context as? Activity)?.let { ActivityCompat.recreate(it) }
                         true
@@ -145,7 +144,7 @@ object SettingsAppearanceScreen : SearchableSettings {
                 Preference.PreferenceItem.SwitchPreference(
                     preference = amoledPref,
                     title = stringResource(MR.strings.pref_dark_theme_pure_black),
-                    enabled = themeMode != ThemeMode.LIGHT,
+                    dependsOn = PreferenceDependency(themeModePref, expected = ThemeMode.LIGHT, invert = true),
                     onValueChanged = {
                         (context as? Activity)?.let { ActivityCompat.recreate(it) }
                         true
@@ -160,10 +159,6 @@ object SettingsAppearanceScreen : SearchableSettings {
     private fun getMangaInfoThemeGroup(
         uiPreferences: UiPreferences,
     ): Preference.PreferenceGroup {
-        val scope = rememberCoroutineScope()
-        val mangaInfoThemeCoverBased by remember {
-            globalAppGraph.uiPreferences.themeCoverBased().asState(scope)
-        }
         return Preference.PreferenceGroup(
             title = stringResource(KMR.strings.pref_manga_info),
             preferenceItems = persistentListOf(
@@ -198,7 +193,7 @@ object SettingsAppearanceScreen : SearchableSettings {
                         }
                         .toImmutableMap(),
                     title = stringResource(KMR.strings.pref_theme_cover_based_style),
-                    enabled = mangaInfoThemeCoverBased,
+                    dependsOn = PreferenceDependency(uiPreferences.themeCoverBased()),
                 ),
                 Preference.PreferenceItem.SwitchPreference(
                     preference = uiPreferences.usePanoramaCoverMangaInfo(),

@@ -50,9 +50,12 @@ fun PreferenceScreen(
             when (preference) {
                 // Create Preference Group
                 is Preference.PreferenceGroup -> {
-                    if (!preference.enabled) return@fastForEachIndexed
-
                     item {
+                        // KMK --> isVisible covers enabled + dependsOn + mtlOnly + ramGated.
+                        // Must run inside item{}: this scope is not @Composable so the
+                        // @Composable gate check cannot run here.
+                        if (!preference.isVisible()) return@item
+                        // KMK <--
                         Column {
                             PreferenceGroupHeader(title = preference.title)
                         }
@@ -64,6 +67,7 @@ fun PreferenceScreen(
                         )
                     }
                     item {
+                        if (!preference.isVisible()) return@item
                         if (i < items.lastIndex) {
                             Spacer(modifier = Modifier.height(12.dp))
                         }

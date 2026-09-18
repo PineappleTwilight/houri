@@ -49,6 +49,7 @@ import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
 import eu.kanade.presentation.components.UpIcon
 import eu.kanade.presentation.more.settings.Preference
+import eu.kanade.presentation.more.settings.filterVisible
 import eu.kanade.presentation.util.Screen
 import tachiyomi.i18n.MR
 import tachiyomi.presentation.core.components.material.Scaffold
@@ -175,20 +176,18 @@ private fun SearchResult(
         value = index.asSequence()
             .flatMap { settingsData ->
                 settingsData.contents.asSequence()
-                    // Only search from enabled prefs and one with valid title
-                    .filter { it.enabled && it.title.isNotBlank() }
-                    // Flatten items contained inside *enabled* PreferenceGroup
+                    // KMK --> contents are pre-filtered by filterVisible() in getIndex():
+                    // only rows that actually exist on screen are searchable.
+                    .filter { it.title.isNotBlank() }
+                    // Flatten items contained inside PreferenceGroup
                     .flatMap { p ->
                         when (p) {
                             is Preference.PreferenceGroup -> {
-                                if (p.enabled) {
-                                    p.preferenceItems.asSequence()
-                                        .filter { it.enabled && it.title.isNotBlank() }
-                                        .map { p.title to it }
-                                } else {
-                                    emptySequence()
-                                }
+                                p.preferenceItems.asSequence()
+                                    .filter { it.title.isNotBlank() }
+                                    .map { p.title to it }
                             }
+                            // KMK <--
                             is Preference.PreferenceItem<*, *> -> sequenceOf(null to p)
                         }
                     }
@@ -273,7 +272,10 @@ private fun getIndex() = settingScreens
         SettingsData(
             title = stringResource(screen.getTitleRes()),
             route = screen,
-            contents = screen.getPreferences(),
+            // KMK --> resolve visibility here (composable context) so the search index
+            // and the rendered screen agree on which rows exist.
+            contents = screen.getPreferences().filterVisible(),
+            // KMK <--
         )
     }
 

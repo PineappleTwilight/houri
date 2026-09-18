@@ -20,6 +20,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import eu.kanade.presentation.connection.components.ConnectionLogoIcon
+import eu.kanade.presentation.more.settings.LocalPreferenceEnabled
 import eu.kanade.presentation.more.settings.LocalPreferenceHighlighted
 import eu.kanade.presentation.more.settings.LocalPreferenceMinHeight
 import eu.kanade.tachiyomi.data.connections.ConnectionsService
@@ -38,11 +39,16 @@ fun ConnectionPreferenceWidget(
 ) {
     val highlighted = LocalPreferenceHighlighted.current
     val minHeight = LocalPreferenceMinHeight.current
+    // KMK -->
+    val rowEnabled = LocalPreferenceEnabled.current
+    // KMK <--
     Box(modifier = Modifier.highlightBackground(highlighted)) {
         Row(
             modifier = modifier
                 .sizeIn(minHeight = minHeight)
-                .clickable(enabled = onClick != null, onClick = { onClick?.invoke() })
+                // KMK -->
+                .clickable(enabled = onClick != null && rowEnabled, onClick = { onClick?.invoke() })
+                // KMK <--
                 .fillMaxWidth()
                 .padding(horizontal = PrefsHorizontalPadding),
             verticalAlignment = Alignment.CenterVertically,

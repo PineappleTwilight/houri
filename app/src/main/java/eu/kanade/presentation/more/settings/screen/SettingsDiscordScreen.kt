@@ -32,6 +32,7 @@ import eu.kanade.domain.connections.service.ConnectionsPreferences
 import eu.kanade.presentation.category.hierarchicalVisualName
 import eu.kanade.presentation.category.sortedByHierarchy
 import eu.kanade.presentation.more.settings.Preference
+import eu.kanade.presentation.more.settings.PreferenceDependency
 import eu.kanade.presentation.more.settings.widget.TextPreferenceWidget
 import eu.kanade.tachiyomi.data.connections.ConnectionsManager
 import kotlinx.collections.immutable.persistentListOf
@@ -43,7 +44,6 @@ import tachiyomi.i18n.MR
 import tachiyomi.i18n.kmk.KMR
 import tachiyomi.presentation.core.components.material.padding
 import tachiyomi.presentation.core.i18n.stringResource
-import tachiyomi.presentation.core.util.collectAsState
 
 object SettingsDiscordScreen : SearchableSettings {
     @Suppress("unused")
@@ -78,10 +78,6 @@ object SettingsDiscordScreen : SearchableSettings {
         val showButtonsPref = connectionsPreferences.discordShowButtons()
         val showDownloadButtonPref = connectionsPreferences.discordShowDownloadButton()
         val showDiscordButtonPref = connectionsPreferences.discordShowDiscordButton()
-        val showProgressEnabled by showProgressPref.collectAsState()
-
-        val enableDRPC by enableDRPCPref.collectAsState()
-        val showButtons by showButtonsPref.collectAsState()
 
         var dialog by remember { mutableStateOf<Any?>(null) }
         dialog?.run {
@@ -177,17 +173,16 @@ object SettingsDiscordScreen : SearchableSettings {
                             0 to stringResource(KMR.strings.pref_discord_idle),
                             1 to stringResource(KMR.strings.pref_discord_online),
                         ),
-                        enabled = enableDRPC,
+                        dependsOn = PreferenceDependency(enableDRPCPref),
                     ),
                 ),
             ),
             getRPCIncognitoGroup(
                 connectionsPreferences = connectionsPreferences,
-                enabled = enableDRPC,
             ),
             Preference.PreferenceGroup(
                 title = stringResource(KMR.strings.pref_category_discord_customization),
-                enabled = enableDRPC,
+                dependsOn = PreferenceDependency(enableDRPCPref),
                 preferenceItems = persistentListOf(
                     Preference.PreferenceItem.TextPreference(
                         title = stringResource(KMR.strings.pref_discord_custom_message),
@@ -204,14 +199,14 @@ object SettingsDiscordScreen : SearchableSettings {
                         preference = connectionsPreferences.discordShowPageProgress(),
                         title = stringResource(KMR.strings.pref_discord_show_page_progress),
                         subtitle = stringResource(KMR.strings.pref_discord_show_page_progress_summary),
-                        enabled = showProgressEnabled,
+                        dependsOn = PreferenceDependency(showProgressPref),
                     ),
                     // KMK <--
                     Preference.PreferenceItem.SwitchPreference(
                         preference = useChapterTitlesPref,
                         title = stringResource(KMR.strings.show_chapters_titles_title),
                         subtitle = stringResource(KMR.strings.show_chapters_titles_subtitle),
-                        enabled = showProgressEnabled,
+                        dependsOn = PreferenceDependency(showProgressPref),
                     ),
                     Preference.PreferenceItem.SwitchPreference(
                         preference = showTimestampPref,
@@ -227,13 +222,13 @@ object SettingsDiscordScreen : SearchableSettings {
                         preference = showDownloadButtonPref,
                         title = stringResource(KMR.strings.pref_discord_show_download_button),
                         subtitle = stringResource(KMR.strings.pref_discord_show_download_button_summary),
-                        enabled = showButtons,
+                        dependsOn = PreferenceDependency(showButtonsPref),
                     ),
                     Preference.PreferenceItem.SwitchPreference(
                         preference = showDiscordButtonPref,
                         title = stringResource(KMR.strings.pref_discord_show_discord_button),
                         subtitle = stringResource(KMR.strings.pref_discord_show_discord_button_summary),
-                        enabled = showButtons,
+                        dependsOn = PreferenceDependency(showButtonsPref),
                     ),
                 ),
             ),
@@ -258,7 +253,6 @@ object SettingsDiscordScreen : SearchableSettings {
     @Composable
     private fun getRPCIncognitoGroup(
         connectionsPreferences: ConnectionsPreferences,
-        enabled: Boolean,
     ): Preference.PreferenceGroup {
         val getCategories = remember { globalAppGraph.getCategories }
         val allCategories by getCategories.subscribe().collectAsState(initial = emptyList())
@@ -288,7 +282,7 @@ object SettingsDiscordScreen : SearchableSettings {
                     stringResource(KMR.strings.pref_discord_incognito_categories_details),
                 ),
             ),
-            enabled = enabled,
+            dependsOn = PreferenceDependency(connectionsPreferences.enableDiscordRPC()),
         )
     }
 }

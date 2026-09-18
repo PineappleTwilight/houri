@@ -16,6 +16,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import eu.kanade.presentation.more.settings.LocalPreferenceEnabled
 import eu.kanade.presentation.more.settings.LocalPreferenceHighlighted
 import eu.kanade.presentation.track.components.TrackLogoIcon
 import eu.kanade.tachiyomi.data.track.Tracker
@@ -30,10 +31,15 @@ fun TrackingPreferenceWidget(
     onClick: (() -> Unit)? = null,
 ) {
     val highlighted = LocalPreferenceHighlighted.current
+    // KMK -->
+    val rowEnabled = LocalPreferenceEnabled.current
+    // KMK <--
     Box(modifier = Modifier.highlightBackground(highlighted)) {
         Row(
             modifier = modifier
-                .clickable(enabled = onClick != null, onClick = { onClick?.invoke() })
+                // KMK -->
+                .clickable(enabled = onClick != null && rowEnabled, onClick = { onClick?.invoke() })
+                // KMK <--
                 .fillMaxWidth()
                 .padding(horizontal = PrefsHorizontalPadding, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,

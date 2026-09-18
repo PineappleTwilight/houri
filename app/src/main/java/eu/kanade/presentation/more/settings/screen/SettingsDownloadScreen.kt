@@ -12,6 +12,7 @@ import androidx.compose.ui.util.fastMap
 import eu.kanade.presentation.category.hierarchicalVisualName
 import eu.kanade.presentation.category.sortedByHierarchy
 import eu.kanade.presentation.more.settings.Preference
+import eu.kanade.presentation.more.settings.PreferenceDependency
 import eu.kanade.presentation.more.settings.widget.TriStateListDialog
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.persistentMapOf
@@ -146,8 +147,6 @@ object SettingsDownloadScreen : SearchableSettings {
         val downloadNewChapterCategoriesPref = downloadPreferences.downloadNewChapterCategories()
         val downloadNewChapterCategoriesExcludePref = downloadPreferences.downloadNewChapterCategoriesExclude()
 
-        val downloadNewChapters by downloadNewChaptersPref.collectAsState()
-
         val included by downloadNewChapterCategoriesPref.collectAsState()
         val excluded by downloadNewChapterCategoriesExcludePref.collectAsState()
         var showDialog by rememberSaveable { mutableStateOf(false) }
@@ -183,7 +182,7 @@ object SettingsDownloadScreen : SearchableSettings {
                 Preference.PreferenceItem.SwitchPreference(
                     preference = downloadNewUnreadChaptersOnlyPref,
                     title = stringResource(MR.strings.pref_download_new_unread_chapters_only),
-                    enabled = downloadNewChapters,
+                    dependsOn = PreferenceDependency(downloadNewChaptersPref),
                 ),
                 Preference.PreferenceItem.TextPreference(
                     title = stringResource(MR.strings.categories),
@@ -192,7 +191,7 @@ object SettingsDownloadScreen : SearchableSettings {
                         included = included,
                         excluded = excluded,
                     ),
-                    enabled = downloadNewChapters,
+                    dependsOn = PreferenceDependency(downloadNewChaptersPref),
                     onClick = { showDialog = true },
                 ),
             ),

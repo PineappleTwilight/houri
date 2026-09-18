@@ -5,6 +5,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import dev.icerock.moko.resources.StringResource
 import eu.kanade.presentation.more.settings.Preference
+import eu.kanade.presentation.more.settings.PreferenceDependency
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.ImmutableMap
 import kotlinx.collections.immutable.persistentListOf
@@ -40,6 +41,12 @@ class SettingDefinition<T>(
     val subtitleRes: StringResource? = null,
     val bind: PreferenceStore.(SettingKey<T>) -> PreferenceData<T>,
     val makeItem: @Composable (PreferenceData<T>, Boolean) -> Preference.PreferenceItem<out Any, out Any>,
+    // KMK --> visibility gates threaded into the built item (see Preference.isVisible).
+    val dependsOn: PreferenceDependency? = null,
+    val mtlOnly: Boolean = false,
+    val ramGated: Boolean = false,
+    val grayOut: Boolean = false,
+    // KMK <--
 )
 
 /**
@@ -68,6 +75,12 @@ fun switchSetting(
     key: SettingKey<Boolean>,
     titleRes: StringResource,
     subtitleRes: StringResource? = null,
+    // KMK -->
+    dependsOn: PreferenceDependency? = null,
+    mtlOnly: Boolean = false,
+    ramGated: Boolean = false,
+    grayOut: Boolean = false,
+    // KMK <--
 ): SettingDefinition<Boolean> {
     return SettingDefinition(
         key = key,
@@ -80,8 +93,18 @@ fun switchSetting(
                 title = stringResource(titleRes),
                 subtitle = subtitleRes?.let { stringResource(it) },
                 enabled = enabled,
+                // KMK -->
+                dependsOn = dependsOn,
+                mtlOnly = mtlOnly,
+                ramGated = ramGated,
+                grayOut = grayOut,
+                // KMK <--
             )
         },
+        dependsOn = dependsOn,
+        mtlOnly = mtlOnly,
+        ramGated = ramGated,
+        grayOut = grayOut,
     )
 }
 
@@ -90,6 +113,12 @@ fun editTextSetting(
     titleRes: StringResource,
     subtitleRes: StringResource? = null,
     validator: (String) -> Boolean = { it.isNotBlank() },
+    // KMK -->
+    dependsOn: PreferenceDependency? = null,
+    mtlOnly: Boolean = false,
+    ramGated: Boolean = false,
+    grayOut: Boolean = false,
+    // KMK <--
 ): SettingDefinition<String> {
     return SettingDefinition(
         key = key,
@@ -104,8 +133,18 @@ fun editTextSetting(
                 subtitle = subtitleRes?.let { stringResource(it) } ?: "%s",
                 enabled = enabled,
                 validator = validator,
+                // KMK -->
+                dependsOn = dependsOn,
+                mtlOnly = mtlOnly,
+                ramGated = ramGated,
+                grayOut = grayOut,
+                // KMK <--
             )
         },
+        dependsOn = dependsOn,
+        mtlOnly = mtlOnly,
+        ramGated = ramGated,
+        grayOut = grayOut,
     )
 }
 
@@ -115,6 +154,12 @@ fun intSliderSetting(
     subtitleRes: StringResource? = null,
     valueRange: IntProgression,
     valueFormat: @Composable (Int) -> String = { it.toString() },
+    // KMK -->
+    dependsOn: PreferenceDependency? = null,
+    mtlOnly: Boolean = false,
+    ramGated: Boolean = false,
+    grayOut: Boolean = false,
+    // KMK <--
 ): SettingDefinition<Int> {
     return SettingDefinition(
         key = key,
@@ -133,8 +178,18 @@ fun intSliderSetting(
                 valueRange = valueRange,
                 enabled = enabled,
                 onValueChanged = { preference.set(it) },
+                // KMK -->
+                dependsOn = dependsOn,
+                mtlOnly = mtlOnly,
+                ramGated = ramGated,
+                grayOut = grayOut,
+                // KMK <--
             )
         },
+        dependsOn = dependsOn,
+        mtlOnly = mtlOnly,
+        ramGated = ramGated,
+        grayOut = grayOut,
     )
 }
 
@@ -143,6 +198,12 @@ fun multiSelectSetting(
     titleRes: StringResource,
     subtitleRes: StringResource? = null,
     entries: @Composable () -> ImmutableMap<String, String>,
+    // KMK -->
+    dependsOn: PreferenceDependency? = null,
+    mtlOnly: Boolean = false,
+    ramGated: Boolean = false,
+    grayOut: Boolean = false,
+    // KMK <--
 ): SettingDefinition<Set<String>> {
     return SettingDefinition(
         key = key,
@@ -157,8 +218,18 @@ fun multiSelectSetting(
                 // Match the hand-built default: "%s" previews the current selection.
                 subtitle = subtitleRes?.let { stringResource(it) } ?: "%s",
                 enabled = enabled,
+                // KMK -->
+                dependsOn = dependsOn,
+                mtlOnly = mtlOnly,
+                ramGated = ramGated,
+                grayOut = grayOut,
+                // KMK <--
             )
         },
+        dependsOn = dependsOn,
+        mtlOnly = mtlOnly,
+        ramGated = ramGated,
+        grayOut = grayOut,
     )
 }
 
@@ -173,6 +244,12 @@ fun <T : Any> listSetting(
     subtitleRes: StringResource? = null,
     entries: @Composable () -> ImmutableMap<T, String>,
     bind: PreferenceStore.(SettingKey<T>) -> PreferenceData<T>,
+    // KMK -->
+    dependsOn: PreferenceDependency? = null,
+    mtlOnly: Boolean = false,
+    ramGated: Boolean = false,
+    grayOut: Boolean = false,
+    // KMK <--
 ): SettingDefinition<T> {
     return SettingDefinition(
         key = key,
@@ -187,8 +264,18 @@ fun <T : Any> listSetting(
                 // Match the hand-built default: "%s" previews the current entry.
                 subtitle = subtitleRes?.let { stringResource(it) } ?: "%s",
                 enabled = enabled,
+                // KMK -->
+                dependsOn = dependsOn,
+                mtlOnly = mtlOnly,
+                ramGated = ramGated,
+                grayOut = grayOut,
+                // KMK <--
             )
         },
+        dependsOn = dependsOn,
+        mtlOnly = mtlOnly,
+        ramGated = ramGated,
+        grayOut = grayOut,
     )
 }
 // KMK <--

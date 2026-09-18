@@ -218,6 +218,10 @@ object SettingsUpscalerScreen : SearchableSettings {
             add(
                 Preference.PreferenceItem.CustomPreference(
                     title = "Upscale models",
+                    // KMK --> native upscaler weights are only usable with the MTL engine
+                    // (nomtl builds force Simple mode, which needs no models).
+                    mtlOnly = true,
+                    // KMK <--
                     content = {
                         Column(modifier = Modifier.padding(horizontal = MaterialTheme.padding.medium, vertical = 8.dp)) {
                             when (modelStatus.state) {
@@ -266,6 +270,9 @@ object SettingsUpscalerScreen : SearchableSettings {
                         }
                     },
                     enabled = enabled && !isSimple,
+                    // KMK -->
+                    mtlOnly = true,
+                    // KMK <--
                 ),
             )
             add(
@@ -274,6 +281,9 @@ object SettingsUpscalerScreen : SearchableSettings {
                     subtitle = "Remove downloaded ncnn upscaler weights",
                     onClick = { modelManager.clearModels() },
                     enabled = enabled && !isSimple && modelStatus.state != eu.kanade.tachiyomi.ui.reader.setting.UpscaleModelManager.State.DOWNLOADING,
+                    // KMK -->
+                    mtlOnly = true,
+                    // KMK <--
                 ),
             )
             add(

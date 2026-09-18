@@ -46,6 +46,7 @@ import androidx.compose.ui.window.DialogProperties
 import eu.kanade.domain.source.service.SourcePreferences
 import eu.kanade.presentation.library.components.SyncFavoritesWarningDialog
 import eu.kanade.presentation.more.settings.Preference
+import eu.kanade.presentation.more.settings.PreferenceDependency
 import eu.kanade.tachiyomi.ui.webview.WebViewActivity
 import eu.kanade.tachiyomi.util.system.toast
 import exh.eh.EHentaiUpdateWorker
@@ -139,7 +140,6 @@ object SettingsEhScreen : SearchableSettings {
         val getFlatMetadataById: GetFlatMetadataById = remember { globalAppGraph.getFlatMetadataById }
         val deleteFavoriteEntries: DeleteFavoriteEntries = remember { globalAppGraph.deleteFavoriteEntries }
         val getExhFavoriteMangaWithMetadata: GetExhFavoriteMangaWithMetadata = remember { globalAppGraph.getExhFavoriteMangaWithMetadata }
-        val exhentaiEnabled by exhPreferences.enableExhentai().collectAsState()
         var runConfigureDialog by remember { mutableStateOf(false) }
         val openWarnConfigureDialogController = { runConfigureDialog = true }
 
@@ -160,16 +160,16 @@ object SettingsEhScreen : SearchableSettings {
                 stringResource(SYMR.strings.ehentai_prefs_account_settings),
                 preferenceItems = persistentListOf(
                     getLoginPreference(exhPreferences, openWarnConfigureDialogController),
-                    useHentaiAtHome(exhentaiEnabled, exhPreferences),
-                    useJapaneseTitle(exhentaiEnabled, exhPreferences),
-                    useOriginalImages(exhentaiEnabled, exhPreferences),
-                    watchedTags(exhentaiEnabled),
-                    tagFilterThreshold(exhentaiEnabled, exhPreferences),
-                    tagWatchingThreshold(exhentaiEnabled, exhPreferences),
-                    settingsLanguages(exhentaiEnabled, exhPreferences),
-                    enabledCategories(exhentaiEnabled, exhPreferences),
-                    watchedListDefaultState(exhentaiEnabled, exhPreferences),
-                    imageQuality(exhentaiEnabled, exhPreferences),
+                    useHentaiAtHome(exhPreferences),
+                    useJapaneseTitle(exhPreferences),
+                    useOriginalImages(exhPreferences),
+                    watchedTags(exhPreferences),
+                    tagFilterThreshold(exhPreferences),
+                    tagWatchingThreshold(exhPreferences),
+                    settingsLanguages(exhPreferences),
+                    enabledCategories(exhPreferences),
+                    watchedListDefaultState(exhPreferences),
+                    imageQuality(exhPreferences),
                     enhancedEhentaiView(exhPreferences),
                 ),
             ),
@@ -266,7 +266,6 @@ object SettingsEhScreen : SearchableSettings {
 
     @Composable
     fun useHentaiAtHome(
-        exhentaiEnabled: Boolean,
         exhPreferences: ExhPreferences,
     ): Preference.PreferenceItem.ListPreference<Int> {
         return Preference.PreferenceItem.ListPreference(
@@ -277,13 +276,12 @@ object SettingsEhScreen : SearchableSettings {
             ),
             title = stringResource(SYMR.strings.use_hentai_at_home),
             subtitle = stringResource(SYMR.strings.use_hentai_at_home_summary),
-            enabled = exhentaiEnabled,
+            dependsOn = PreferenceDependency(exhPreferences.enableExhentai()),
         )
     }
 
     @Composable
     fun useJapaneseTitle(
-        exhentaiEnabled: Boolean,
         exhPreferences: ExhPreferences,
     ): Preference.PreferenceItem.SwitchPreference {
         val value by exhPreferences.useJapaneseTitle().collectAsState()
@@ -295,13 +293,12 @@ object SettingsEhScreen : SearchableSettings {
             } else {
                 stringResource(SYMR.strings.show_japanese_titles_option_2)
             },
-            enabled = exhentaiEnabled,
+            dependsOn = PreferenceDependency(exhPreferences.enableExhentai()),
         )
     }
 
     @Composable
     fun useOriginalImages(
-        exhentaiEnabled: Boolean,
         exhPreferences: ExhPreferences,
     ): Preference.PreferenceItem.SwitchPreference {
         val value by exhPreferences.exhUseOriginalImages().collectAsState()
@@ -313,17 +310,17 @@ object SettingsEhScreen : SearchableSettings {
             } else {
                 stringResource(SYMR.strings.use_original_images_off)
             },
-            enabled = exhentaiEnabled,
+            dependsOn = PreferenceDependency(exhPreferences.enableExhentai()),
         )
     }
 
     @Composable
-    fun watchedTags(exhentaiEnabled: Boolean): Preference.PreferenceItem.TextPreference {
+    fun watchedTags(exhPreferences: ExhPreferences): Preference.PreferenceItem.TextPreference {
         val context = LocalContext.current
         return Preference.PreferenceItem.TextPreference(
             title = stringResource(SYMR.strings.watched_tags),
             subtitle = stringResource(SYMR.strings.watched_tags_summary),
-            enabled = exhentaiEnabled,
+            dependsOn = PreferenceDependency(exhPreferences.enableExhentai()),
             onClick = {
                 context.startActivity(
                     WebViewActivity.newIntent(
@@ -401,7 +398,6 @@ object SettingsEhScreen : SearchableSettings {
 
     @Composable
     fun tagFilterThreshold(
-        exhentaiEnabled: Boolean,
         exhPreferences: ExhPreferences,
     ): Preference.PreferenceItem.TextPreference {
         val value by exhPreferences.ehTagFilterValue().collectAsState()
@@ -422,7 +418,7 @@ object SettingsEhScreen : SearchableSettings {
         return Preference.PreferenceItem.TextPreference(
             title = stringResource(SYMR.strings.tag_filtering_threshold),
             subtitle = stringResource(SYMR.strings.tag_filtering_threshhold_summary, value),
-            enabled = exhentaiEnabled,
+            dependsOn = PreferenceDependency(exhPreferences.enableExhentai()),
             onClick = {
                 dialogOpen = true
             },
@@ -431,7 +427,6 @@ object SettingsEhScreen : SearchableSettings {
 
     @Composable
     fun tagWatchingThreshold(
-        exhentaiEnabled: Boolean,
         exhPreferences: ExhPreferences,
     ): Preference.PreferenceItem.TextPreference {
         val value by exhPreferences.ehTagWatchingValue().collectAsState()
@@ -452,7 +447,7 @@ object SettingsEhScreen : SearchableSettings {
         return Preference.PreferenceItem.TextPreference(
             title = stringResource(SYMR.strings.tag_watching_threshhold),
             subtitle = stringResource(SYMR.strings.tag_watching_threshhold_summary, value),
-            enabled = exhentaiEnabled,
+            dependsOn = PreferenceDependency(exhPreferences.enableExhentai()),
             onClick = {
                 dialogOpen = true
             },
@@ -654,7 +649,6 @@ object SettingsEhScreen : SearchableSettings {
 
     @Composable
     fun settingsLanguages(
-        exhentaiEnabled: Boolean,
         exhPreferences: ExhPreferences,
     ): Preference.PreferenceItem.TextPreference {
         val value by exhPreferences.exhSettingsLanguages().collectAsState()
@@ -672,7 +666,7 @@ object SettingsEhScreen : SearchableSettings {
         return Preference.PreferenceItem.TextPreference(
             title = stringResource(SYMR.strings.language_filtering),
             subtitle = stringResource(SYMR.strings.language_filtering_summary),
-            enabled = exhentaiEnabled,
+            dependsOn = PreferenceDependency(exhPreferences.enableExhentai()),
             onClick = {
                 dialogOpen = true
             },
@@ -820,7 +814,6 @@ object SettingsEhScreen : SearchableSettings {
 
     @Composable
     fun enabledCategories(
-        exhentaiEnabled: Boolean,
         exhPreferences: ExhPreferences,
     ): Preference.PreferenceItem.TextPreference {
         val value by exhPreferences.exhEnabledCategories().collectAsState()
@@ -838,7 +831,7 @@ object SettingsEhScreen : SearchableSettings {
         return Preference.PreferenceItem.TextPreference(
             title = stringResource(SYMR.strings.frong_page_categories),
             subtitle = stringResource(SYMR.strings.fromt_page_categories_summary),
-            enabled = exhentaiEnabled,
+            dependsOn = PreferenceDependency(exhPreferences.enableExhentai()),
             onClick = {
                 dialogOpen = true
             },
@@ -847,20 +840,18 @@ object SettingsEhScreen : SearchableSettings {
 
     @Composable
     fun watchedListDefaultState(
-        exhentaiEnabled: Boolean,
         exhPreferences: ExhPreferences,
     ): Preference.PreferenceItem.SwitchPreference {
         return Preference.PreferenceItem.SwitchPreference(
             preference = exhPreferences.exhWatchedListDefaultState(),
             title = stringResource(SYMR.strings.watched_list_default),
             subtitle = stringResource(SYMR.strings.watched_list_state_summary),
-            enabled = exhentaiEnabled,
+            dependsOn = PreferenceDependency(exhPreferences.enableExhentai()),
         )
     }
 
     @Composable
     fun imageQuality(
-        exhentaiEnabled: Boolean,
         exhPreferences: ExhPreferences,
     ): Preference.PreferenceItem.ListPreference<String> {
         return Preference.PreferenceItem.ListPreference(
@@ -875,7 +866,7 @@ object SettingsEhScreen : SearchableSettings {
             ),
             title = stringResource(SYMR.strings.eh_image_quality_summary),
             subtitle = stringResource(SYMR.strings.eh_image_quality),
-            enabled = exhentaiEnabled,
+            dependsOn = PreferenceDependency(exhPreferences.enableExhentai()),
         )
     }
 

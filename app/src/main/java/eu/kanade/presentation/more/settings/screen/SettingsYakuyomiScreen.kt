@@ -30,6 +30,7 @@ import androidx.compose.ui.unit.dp
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
 import eu.kanade.presentation.more.settings.Preference
+import eu.kanade.presentation.more.settings.PreferenceDependency
 import eu.kanade.tachiyomi.util.system.toast
 import exh.yakuyomi.ModelCatalog
 import kotlinx.collections.immutable.persistentListOf
@@ -262,6 +263,9 @@ object SettingsYakuyomiScreen : SearchableSettings {
                             title = stringResource(KMR.strings.pref_yakuyomi_font_family),
                             subtitle = stringResource(KMR.strings.pref_yakuyomi_font_family_summary) + ": %s",
                             enabled = enabled,
+                            // KMK --> on-device typesetting only; MangaTranslator returns finished images.
+                            mtlOnly = true,
+                            // KMK <--
                         ),
                     )
                     add(
@@ -279,6 +283,9 @@ object SettingsYakuyomiScreen : SearchableSettings {
                             title = stringResource(KMR.strings.pref_yakuyomi_text_color),
                             subtitle = stringResource(KMR.strings.pref_yakuyomi_text_color_summary) + ": %s",
                             enabled = enabled,
+                            // KMK -->
+                            mtlOnly = true,
+                            // KMK <--
                         ),
                     )
                 } else {
@@ -373,6 +380,10 @@ object SettingsYakuyomiScreen : SearchableSettings {
 
         val isLocalProvider = provider == "local"
         val isMangatranslatorProvider = provider == "mangatranslator"
+        // KMK --> no-MTL builds only ever translate via MangaTranslator (stub errors out
+        // every other provider), so offering them would show options that can never work.
+        val isNomtl = eu.kanade.tachiyomi.BuildConfig.IS_NOMTL
+        // KMK <--
 
         LaunchedEffect(provider) {
             if (isMangatranslatorProvider && !prefs.enabled().get()) {
@@ -389,11 +400,17 @@ object SettingsYakuyomiScreen : SearchableSettings {
                         title = stringResource(KMR.strings.pref_yakuyomi_gemini_nano),
                         subtitle = stringResource(KMR.strings.pref_yakuyomi_gemini_nano_summary),
                         enabled = enabled,
+                        // KMK --> on-device Nano needs the MTL engine; stub builds always report unavailable.
+                        mtlOnly = true,
+                        // KMK <--
                     ),
                 )
                 add(
                     Preference.PreferenceItem.CustomPreference(
                         title = "Gemini Nano device status",
+                        // KMK -->
+                        mtlOnly = true,
+                        // KMK <--
                         content = {
                             var statusText by remember { mutableStateOf("Checking…") }
                             var nanoRefreshTick by remember { mutableStateOf(0) }
@@ -441,15 +458,23 @@ object SettingsYakuyomiScreen : SearchableSettings {
                 add(
                     Preference.PreferenceItem.ListPreference(
                         preference = prefs.provider(),
-                        entries = persistentMapOf(
-                            "openrouter" to "OpenRouter",
-                            "gemini" to "Gemini",
-                            "opencode_zen" to "OpenCode Zen",
-                            "nvidia_nim" to "NVIDIA NIM",
-                            "custom_openai" to "Custom OpenAI",
-                            "local" to "Local (On-device LLM)",
-                            "mangatranslator" to "MangaTranslator (remote)",
-                        ),
+                        // KMK --> nomtl: only MangaTranslator can ever translate (see above).
+                        entries = if (isNomtl) {
+                            persistentMapOf(
+                                "mangatranslator" to "MangaTranslator (remote)",
+                            )
+                        } else {
+                            persistentMapOf(
+                                "openrouter" to "OpenRouter",
+                                "gemini" to "Gemini",
+                                "opencode_zen" to "OpenCode Zen",
+                                "nvidia_nim" to "NVIDIA NIM",
+                                "custom_openai" to "Custom OpenAI",
+                                "local" to "Local (On-device LLM)",
+                                "mangatranslator" to "MangaTranslator (remote)",
+                            )
+                        },
+                        // KMK <--
                         title = stringResource(KMR.strings.pref_yakuyomi_provider),
                         enabled = enabled,
                     ),
@@ -462,6 +487,9 @@ object SettingsYakuyomiScreen : SearchableSettings {
                             title = stringResource(KMR.strings.pref_yakuyomi_api_key),
                             subtitle = apiKeySubtitle,
                             enabled = enabled,
+                            // KMK --> cloud LLM keys are unusable without the MTL engine.
+                            mtlOnly = true,
+                            // KMK <--
                         ),
                     )
                     add(
@@ -472,6 +500,9 @@ object SettingsYakuyomiScreen : SearchableSettings {
                             subtitle = "%s",
                             subtitleProvider = { v, _ -> v },
                             enabled = enabled,
+                            // KMK -->
+                            mtlOnly = true,
+                            // KMK <--
                         ),
                     )
                     add(
@@ -488,6 +519,9 @@ object SettingsYakuyomiScreen : SearchableSettings {
                                 refreshTick = refreshTick + 1
                             },
                             enabled = enabled,
+                            // KMK -->
+                            mtlOnly = true,
+                            // KMK <--
                         ),
                     )
                 }
@@ -509,6 +543,9 @@ object SettingsYakuyomiScreen : SearchableSettings {
                             "Base URL for OpenAI-compatible endpoint, e.g. https://api.example.com/v1"
                         },
                         enabled = enabled && provider == "custom_openai",
+                        // KMK --> only meaningful while the custom provider is selected.
+                        dependsOn = PreferenceDependency(source = prefs.provider(), expected = "custom_openai"),
+                        // KMK <--
                     ),
                 )
                 add(
@@ -610,6 +647,9 @@ object SettingsYakuyomiScreen : SearchableSettings {
 
         return Preference.PreferenceGroup(
             title = "Local (On-device LLM)",
+            // KMK --> downloading multi-GB LLM weights is pointless on low-RAM devices.
+            ramGated = true,
+            // KMK <--
             preferenceItems = buildList {
                 add(
                     Preference.PreferenceItem.ListPreference(
@@ -741,6 +781,10 @@ object SettingsYakuyomiScreen : SearchableSettings {
         }
         return Preference.PreferenceGroup(
             title = stringResource(KMR.strings.mtl_models_title),
+            // KMK --> on-device model weights need both the MTL engine and enough RAM.
+            mtlOnly = true,
+            ramGated = true,
+            // KMK <--
             preferenceItems = persistentListOf(
                 Preference.PreferenceItem.CustomPreference(
                     title = stringResource(KMR.strings.mtl_models_title),
@@ -826,6 +870,9 @@ object SettingsYakuyomiScreen : SearchableSettings {
         val customActive = remember { modelManager.customUrlsActive() }
         return Preference.PreferenceGroup(
             title = "Remote model URLs",
+            // KMK --> custom on-device model URLs are meaningless without the MTL engine.
+            mtlOnly = true,
+            // KMK <--
             preferenceItems = persistentListOf(
                 Preference.PreferenceItem.InfoPreference(
                     title = "Use https URLs to override the built-in model manifest or individual OCR/detector/inpainter files. Leave blank to use the default GitHub releases. Requires re-download to take effect.",
@@ -936,6 +983,9 @@ object SettingsYakuyomiScreen : SearchableSettings {
                             title = stringResource(KMR.strings.pref_yakuyomi_offline_fallback),
                             subtitle = "Keep original art when the API call fails (otherwise pages are marked failed and retried)",
                             enabled = enabled,
+                            // KMK --> on-device pipeline behavior; MangaTranslator manages its own fallback.
+                            mtlOnly = true,
+                            // KMK <--
                         ),
                     )
                     add(
@@ -944,6 +994,9 @@ object SettingsYakuyomiScreen : SearchableSettings {
                             title = stringResource(KMR.strings.pref_yakuyomi_cache_enabled),
                             subtitle = "Cache translated pages per model (WEBP, 32MB cap, 30d expiry)",
                             enabled = enabled,
+                            // KMK -->
+                            mtlOnly = true,
+                            // KMK <--
                         ),
                     )
                     add(
@@ -952,6 +1005,9 @@ object SettingsYakuyomiScreen : SearchableSettings {
                             title = stringResource(KMR.strings.pref_yakuyomi_auto_download),
                             subtitle = "Prewarm translation when chapters are downloaded (respects per-manga toggle)",
                             enabled = enabled,
+                            // KMK -->
+                            mtlOnly = true,
+                            // KMK <--
                         ),
                     )
                     add(
@@ -960,6 +1016,9 @@ object SettingsYakuyomiScreen : SearchableSettings {
                             title = "Save translated pages to chapter folder",
                             subtitle = "Keep translated WEBP images alongside originals to avoid re-translating",
                             enabled = enabled,
+                            // KMK -->
+                            mtlOnly = true,
+                            // KMK <--
                         ),
                     )
                 } else {

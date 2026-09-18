@@ -5,15 +5,14 @@ import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.platform.LocalContext
 import androidx.fragment.app.FragmentActivity
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
-import eu.kanade.core.preference.asState
 import eu.kanade.domain.source.service.SourcePreferences
 import eu.kanade.domain.ui.UiPreferences
 import eu.kanade.presentation.more.settings.Preference
+import eu.kanade.presentation.more.settings.PreferenceDependency
 import eu.kanade.presentation.more.settings.screen.browse.ExtensionStoresScreen
 import eu.kanade.tachiyomi.ui.category.sources.SourceCategoryScreen
 import eu.kanade.tachiyomi.util.system.AuthenticatorUtil.authenticate
@@ -47,13 +46,8 @@ object SettingsBrowseScreen : SearchableSettings {
         val reposCount by getExtensionStoreCountAsFlow().collectAsState(0)
 
         // SY -->
-        val scope = rememberCoroutineScope()
-        val hideFeedTab by remember { globalAppGraph.uiPreferences.hideFeedTab().asState(scope) }
         val uiPreferences = remember { globalAppGraph.uiPreferences }
         // SY <--
-        // KMK -->
-        val relatedMangasInOverflow by uiPreferences.expandRelatedMangas().collectAsState()
-        // KMK <--
         return listOf(
             // SY -->
             Preference.PreferenceGroup(
@@ -69,11 +63,11 @@ object SettingsBrowseScreen : SearchableSettings {
                         preference = uiPreferences.expandRelatedMangas(),
                         title = stringResource(KMR.strings.pref_expand_related_mangas),
                         subtitle = stringResource(KMR.strings.pref_expand_related_mangas_summary),
-                        enabled = sourcePreferences.relatedMangas().get(),
+                        dependsOn = PreferenceDependency(sourcePreferences.relatedMangas()),
                     ),
                     Preference.PreferenceItem.SwitchPreference(
                         preference = uiPreferences.relatedMangasInOverflow(),
-                        enabled = !relatedMangasInOverflow,
+                        dependsOn = PreferenceDependency(uiPreferences.expandRelatedMangas(), invert = true),
                         title = stringResource(KMR.strings.put_related_mangas_in_overflow),
                         subtitle = stringResource(KMR.strings.put_related_mangas_in_overflow_summary),
                     ),
@@ -81,7 +75,7 @@ object SettingsBrowseScreen : SearchableSettings {
                         preference = uiPreferences.showHomeOnRelatedMangas(),
                         title = stringResource(KMR.strings.pref_show_home_on_related_mangas),
                         subtitle = stringResource(KMR.strings.pref_show_home_on_related_mangas_summary),
-                        enabled = sourcePreferences.relatedMangas().get(),
+                        dependsOn = PreferenceDependency(sourcePreferences.relatedMangas()),
                     ),
                     Preference.PreferenceItem.SwitchPreference(
                         preference = uiPreferences.showSequelPrequel(),
@@ -127,7 +121,7 @@ object SettingsBrowseScreen : SearchableSettings {
                         preference = uiPreferences.feedTabInFront(),
                         title = stringResource(SYMR.strings.pref_feed_position),
                         subtitle = stringResource(SYMR.strings.pref_feed_position_summery),
-                        enabled = hideFeedTab.not(),
+                        dependsOn = PreferenceDependency(uiPreferences.hideFeedTab(), invert = true),
                     ),
                     // KMK -->
                     Preference.PreferenceItem.SwitchPreference(

@@ -1732,6 +1732,10 @@ fun TranslateMangaInfoToggle(manga: tachiyomi.domain.manga.model.Manga) {
     }
 
     if (!globalEnabled) return
+    // KMK --> stub TranslationManager.translateMangaInfo always returns null in no-MTL
+    // builds (LLM info translation needs the engine), so the toggle could never succeed.
+    if (eu.kanade.tachiyomi.BuildConfig.IS_NOMTL) return
+    // KMK <--
     androidx.compose.foundation.layout.Column(
         modifier = Modifier
             .fillMaxWidth()

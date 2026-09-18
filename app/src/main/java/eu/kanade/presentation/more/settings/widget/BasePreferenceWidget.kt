@@ -29,6 +29,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import eu.kanade.presentation.more.settings.LocalPreferenceEnabled
 import eu.kanade.presentation.more.settings.LocalPreferenceHighlighted
 import eu.kanade.presentation.more.settings.LocalPreferenceMinHeight
 import kotlinx.coroutines.delay
@@ -45,11 +46,16 @@ internal fun BasePreferenceWidget(
 ) {
     val highlighted = LocalPreferenceHighlighted.current
     val minHeight = LocalPreferenceMinHeight.current
+    // KMK -->
+    val rowEnabled = LocalPreferenceEnabled.current
+    // KMK <--
     Row(
         modifier = modifier
             .highlightBackground(highlighted)
             .sizeIn(minHeight = minHeight)
-            .clickable(enabled = onClick != null, onClick = { onClick?.invoke() })
+            // KMK --> greyed-out rows keep layout but drop the click target.
+            .clickable(enabled = onClick != null && rowEnabled, onClick = { onClick?.invoke() })
+            // KMK <--
             .fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
     ) {

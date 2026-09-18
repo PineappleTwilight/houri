@@ -315,6 +315,9 @@ class ReaderPreferences(
 
     // Mihon -->
     enum class TransitionAnimation(val titleRes: StringResource) {
+        // KMK -->
+        NONE(KMR.strings.transition_animation_none),
+        // KMK <--
         BASIC(MR.strings.transition_animation_basic),
         FLIP(MR.strings.transition_animation_flip),
         FLIP_LEFT(MR.strings.transition_animation_flip_left),

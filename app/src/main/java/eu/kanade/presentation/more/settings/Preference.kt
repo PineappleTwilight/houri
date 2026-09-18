@@ -16,6 +16,26 @@ sealed class Preference {
     abstract val title: String
     abstract val enabled: Boolean
 
+    // KMK -->
+    /**
+     * Declarative visibility gates, resolved by [isVisible]. Unlike [enabled] (which only
+     * greys/hides via [StatusWrapper]), these describe *why* a row can never be usable:
+     *
+     * @param dependsOn hide unless another component's state matches ([PreferenceDependency]).
+     * @param mtlOnly hide in no-MTL (`nomtl`) builds where the on-device engine is absent.
+     * @param ramGated hide on devices without enough RAM for the on-device MTL pipeline.
+     * @param grayOut show dimmed and non-interactive instead of hiding when a gate fails.
+     */
+    abstract val dependsOn: PreferenceDependency?
+    abstract val mtlOnly: Boolean
+    abstract val ramGated: Boolean
+    /**
+     * When true, a row that fails its gates stays visible but rendered dimmed and
+     * non-interactive, instead of being removed. Opt-in only; default hides.
+     */
+    abstract val grayOut: Boolean
+    // KMK <--
+
     sealed class PreferenceItem<T, R> : Preference() {
         // SY -->
         abstract val subtitle: CharSequence?
@@ -33,6 +53,12 @@ sealed class Preference {
             override val enabled: Boolean = true,
             override val icon: ImageVector? = null,
             val onClick: (() -> Unit)? = null,
+            // KMK -->
+            override val dependsOn: PreferenceDependency? = null,
+            override val mtlOnly: Boolean = false,
+            override val ramGated: Boolean = false,
+            override val grayOut: Boolean = false,
+            // KMK <--
         ) : PreferenceItem<String, Unit>() {
             override val onValueChanged: suspend (value: String) -> Unit = {}
         }
@@ -46,6 +72,12 @@ sealed class Preference {
             override val subtitle: CharSequence? = null,
             override val enabled: Boolean = true,
             override val onValueChanged: suspend (value: Boolean) -> Boolean = { true },
+            // KMK -->
+            override val dependsOn: PreferenceDependency? = null,
+            override val mtlOnly: Boolean = false,
+            override val ramGated: Boolean = false,
+            override val grayOut: Boolean = false,
+            // KMK <--
         ) : PreferenceItem<Boolean, Boolean>() {
             override val icon: ImageVector? = null
         }
@@ -62,6 +94,12 @@ sealed class Preference {
             @IntRange(from = 0) val steps: Int = with(valueRange) { (last - first) - 1 },
             override val enabled: Boolean = true,
             override val onValueChanged: suspend (value: Int) -> Unit = {},
+            // KMK -->
+            override val dependsOn: PreferenceDependency? = null,
+            override val mtlOnly: Boolean = false,
+            override val ramGated: Boolean = false,
+            override val grayOut: Boolean = false,
+            // KMK <--
         ) : PreferenceItem<Int, Unit>() {
             override val icon: ImageVector? = null
         }
@@ -80,6 +118,12 @@ sealed class Preference {
             override val icon: ImageVector? = null,
             override val enabled: Boolean = true,
             override val onValueChanged: suspend (value: T) -> Boolean = { true },
+            // KMK -->
+            override val dependsOn: PreferenceDependency? = null,
+            override val mtlOnly: Boolean = false,
+            override val ramGated: Boolean = false,
+            override val grayOut: Boolean = false,
+            // KMK <--
         ) : PreferenceItem<T, Boolean>() {
             internal fun internalSet(value: Any) = preference.set(value as T)
             internal suspend fun internalOnValueChanged(value: Any) = onValueChanged(value as T)
@@ -102,6 +146,12 @@ sealed class Preference {
             override val icon: ImageVector? = null,
             override val enabled: Boolean = true,
             override val onValueChanged: suspend (value: String) -> Unit = {},
+            // KMK -->
+            override val dependsOn: PreferenceDependency? = null,
+            override val mtlOnly: Boolean = false,
+            override val ramGated: Boolean = false,
+            override val grayOut: Boolean = false,
+            // KMK <--
         ) : PreferenceItem<String, Unit>()
 
         /**
@@ -126,6 +176,12 @@ sealed class Preference {
             override val icon: ImageVector? = null,
             override val enabled: Boolean = true,
             override val onValueChanged: suspend (value: Set<String>) -> Boolean = { true },
+            // KMK -->
+            override val dependsOn: PreferenceDependency? = null,
+            override val mtlOnly: Boolean = false,
+            override val ramGated: Boolean = false,
+            override val grayOut: Boolean = false,
+            // KMK <--
         ) : PreferenceItem<Set<String>, Boolean>()
 
         /**
@@ -138,6 +194,12 @@ sealed class Preference {
             override val enabled: Boolean = true,
             override val onValueChanged: suspend (value: String) -> Boolean = { true },
             val validator: (String) -> Boolean = { it.isNotBlank() },
+            // KMK -->
+            override val dependsOn: PreferenceDependency? = null,
+            override val mtlOnly: Boolean = false,
+            override val ramGated: Boolean = false,
+            override val grayOut: Boolean = false,
+            // KMK <--
         ) : PreferenceItem<String, Boolean>() {
             override val icon: ImageVector? = null
         }
@@ -149,6 +211,12 @@ sealed class Preference {
             val tracker: Tracker,
             val login: () -> Unit,
             val logout: () -> Unit,
+            // KMK -->
+            override val dependsOn: PreferenceDependency? = null,
+            override val mtlOnly: Boolean = false,
+            override val ramGated: Boolean = false,
+            override val grayOut: Boolean = false,
+            // KMK <--
         ) : PreferenceItem<String, Unit>() {
             override val title: String = ""
             override val enabled: Boolean = true
@@ -167,6 +235,12 @@ sealed class Preference {
             val login: () -> Unit,
             val openSettings: () -> Unit,
             override val subtitle: String? = null,
+            // KMK -->
+            override val dependsOn: PreferenceDependency? = null,
+            override val mtlOnly: Boolean = false,
+            override val ramGated: Boolean = false,
+            override val grayOut: Boolean = false,
+            // KMK <--
         ) : PreferenceItem<String, Unit>() {
             override val enabled: Boolean = true
             override val icon: ImageVector? = null
@@ -176,6 +250,12 @@ sealed class Preference {
 
         data class InfoPreference(
             override val title: String,
+            // KMK -->
+            override val dependsOn: PreferenceDependency? = null,
+            override val mtlOnly: Boolean = false,
+            override val ramGated: Boolean = false,
+            override val grayOut: Boolean = false,
+            // KMK <--
         ) : PreferenceItem<String, Unit>() {
             override val subtitle: String? = null
             override val enabled: Boolean = true
@@ -185,6 +265,12 @@ sealed class Preference {
 
         data class CustomPreference(
             override val title: String,
+            // KMK -->
+            override val dependsOn: PreferenceDependency? = null,
+            override val mtlOnly: Boolean = false,
+            override val ramGated: Boolean = false,
+            override val grayOut: Boolean = false,
+            // KMK <--
             val content: @Composable () -> Unit,
         ) : PreferenceItem<Unit, Unit>() {
             override val enabled: Boolean = true
@@ -199,5 +285,11 @@ sealed class Preference {
         override val enabled: Boolean = true,
 
         val preferenceItems: ImmutableList<PreferenceItem<out Any, out Any>>,
+        // KMK -->
+        override val dependsOn: PreferenceDependency? = null,
+        override val mtlOnly: Boolean = false,
+        override val ramGated: Boolean = false,
+        override val grayOut: Boolean = false,
+        // KMK <--
     ) : Preference()
 }
