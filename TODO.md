@@ -502,7 +502,8 @@
 - [x] **Simple Upscaler**: Remove redundant algorithm selection, upscaler method already covers it
 - [x] **Chapter Blacklist**: Fix skip filtered chapters being ignored on blacklisted chapters. Blacklisted chapters still open if switching chapters inside the reader.
 - [x] **Achievements**: Fix secret achievements not showing their proper name in toasts
-- [ ] **Achievements**: Make toasts match the app theme
+- [x] **Achievements**: Make toasts match the app theme
+  - Fixed 2026-09-17: `ToastExtensions.toast()` now uses the receiver context instead of `applicationContext`, so `AchievementNotifier.themedToastContext()` wrapper (night mode + app theme overlays) actually applies
 - [x] **WebGPU Reader**: Fix webtoon mode skipping ahead randomly, not having proper zoom, and overall being very buggy.
 - [x] **Achievements**: Fix achievement app events sometimes triggering multiple times or at the wrong times
 - [x] **Simple Upscaler**: Fix algorithmic upscaling causing warping on long strip manhwas/webtoons
@@ -512,14 +513,16 @@
 - [x] **App Event Framework**: Harden, improve, and migrate any old code that relies on app events into it
 - [x] **WebGPU Reader**: UI improvements and hardening
 - [x] **Upscaler**: Make "clear cache" button update the other relevant UI components immediately instead of needing to navigate out and then back in
-- [ ] **Upscaler**: Simplify cache size UI display to reduce confusion and ambiguity
+- [x] **Upscaler**: Simplify cache size UI display to reduce confusion and ambiguity
+  - Fixed 2026-09-17: centralized `MAX_CACHE_BYTES`/`TTL_DAYS` + `formatSummary()` in `UpscaleCacheManager`, single-line "X MB of 200 MB • N files • 30-day TTL" in `SettingsUpscalerScreen` (was dual MB+KB math + hardcoded "200MB"/"30-day TTL" strings)
   - Also remove redundant declaration of cache size in `UpscalePreferences`
 - [ ] **Prequel/Sequels**: Properly wire a display similar to Recommendations
   - Manga entries should be "stubs" since trackers don't add readable chapters as metadata
   - If the user adds it to their library, it should immediately be prompted for a migration
   - Prequels/sequels system should scan the library for the entries first to avoid needing a stub from the tracker
   - Stubbed entries don't count towards achievements
-- [ ] **Achievements**: Make imported DB library manga entries count towards achievements (e.g. user imports 100 manga from the db, we then give them the credit for having 100 manga in their library)
+- [x] **Achievements**: Make imported DB library manga entries count towards achievements (e.g. user imports 100 manga from the db, we then give them the credit for having 100 manga in their library)
+  - Fixed 2026-09-17: `BackupRestorer` now calls `achievementManager.onLibraryCountChanged(getLibraryManga().size)` after library restores (organic increments stay suppressed, library/backlog unlocks still credit)
 - [ ] **Database**: Improve import speed and performance
 
 ## Chores

@@ -153,6 +153,21 @@ class BackupRestorer(
             }
         } finally {
             if (prevSuppress != null) achievementPrefs?.suppressOrganicForImport = prevSuppress
+            // KMK --> credit imported library entries towards library/backlog achievements
+            // (restore runs with organic increments suppressed, so library_X unlocks
+            // would otherwise never fire for DB imports).
+            try {
+                if (options.libraryEntries) {
+                    val graph = mihon.app.di.globalAppGraph
+                    val count = try {
+                        graph.mangaRepository.getLibraryManga().size.toLong()
+                    } catch (_: Exception) {
+                        -1L
+                    }
+                    if (count >= 0) graph.achievementManager.onLibraryCountChanged(count)
+                }
+            } catch (_: Exception) {}
+            // KMK <--
         }
     }
 

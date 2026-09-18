@@ -193,12 +193,10 @@ object SettingsUpscalerScreen : SearchableSettings {
                     preference = prefs.cacheEnabled(),
                     title = stringResource(KMR.strings.pref_upscale_cache),
                     subtitle = if (cacheEnabled) {
-                        val mb = cacheBytes / (1024 * 1024)
-                        val kb = (cacheBytes % (1024 * 1024)) / 1024
                         if (cacheBytes == 0L) {
                             stringResource(KMR.strings.pref_upscale_cache_summary)
                         } else {
-                            "Cached $cacheCount files • ${mb}MB ${kb}KB / 200MB • 30-day TTL"
+                            eu.kanade.tachiyomi.ui.reader.setting.UpscaleCacheManager.formatSummary(cacheBytes, cacheCount)
                         }
                     } else {
                         stringResource(KMR.strings.pref_upscale_cache_summary) + " (disabled)"
@@ -209,7 +207,7 @@ object SettingsUpscalerScreen : SearchableSettings {
             add(
                 Preference.PreferenceItem.TextPreference(
                     title = stringResource(KMR.strings.pref_upscale_clear_cache),
-                    subtitle = if (cacheBytes > 0) "Clear $cacheCount files (${cacheBytes / 1024} KB)" else stringResource(KMR.strings.pref_upscale_clear_cache_summary),
+                    subtitle = if (cacheBytes > 0) eu.kanade.tachiyomi.ui.reader.setting.UpscaleCacheManager.formatSummary(cacheBytes, cacheCount) else stringResource(KMR.strings.pref_upscale_clear_cache_summary),
                     onClick = {
                         engine.clearCache()
                         cacheRefreshTick++

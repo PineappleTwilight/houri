@@ -15,10 +15,23 @@ import java.security.MessageDigest
  */
 class UpscaleCacheManager(cacheRoot: File) {
 
-    private companion object {
-        const val CACHE_KEY_VERSION = "upscale-cache-v3"
-        const val FULL_HASH_MAX_BYTES = 256 * 1024
-        const val TMP_GRACE_MILLIS = 60L * 60 * 1000
+    companion object {
+        private const val CACHE_KEY_VERSION = "upscale-cache-v3"
+        private const val FULL_HASH_MAX_BYTES = 256 * 1024
+        private const val TMP_GRACE_MILLIS = 60L * 60 * 1000
+        const val MAX_CACHE_BYTES = 200L * 1024 * 1024
+        const val TTL_DAYS = 30L
+
+        fun formatBytes(bytes: Long): String {
+            if (bytes <= 0) return "0 MB"
+            val mb = bytes / (1024 * 1024)
+            val kb = (bytes % (1024 * 1024)) / 1024
+            return if (mb == 0L) "$kb KB" else "$mb.${(kb / 102.4).toInt()} MB"
+        }
+
+        fun formatSummary(bytes: Long, count: Int): String {
+            return "${formatBytes(bytes)} of ${formatBytes(MAX_CACHE_BYTES)} • $count files • $TTL_DAYS-day TTL"
+        }
     }
 
     private val cacheDir: File = File(cacheRoot, "upscale_cache").apply {
@@ -26,9 +39,9 @@ class UpscaleCacheManager(cacheRoot: File) {
             mkdirs()
         } catch (_: Exception) {}
     }
-    private val maxCacheBytes = 200L * 1024 * 1024
+    private val maxCacheBytes = MAX_CACHE_BYTES
     private val maxSingleFileBytes = 20L * 1024 * 1024
-    private val ttlMillis = 30L * 24 * 60 * 60 * 1000
+    private val ttlMillis = TTL_DAYS * 24 * 60 * 60 * 1000
     private val lock = Any()
 
     fun cacheKey(bytes: ByteArray, factor: Float, model: String): String {

@@ -30,7 +30,10 @@ fun Context.toast(
     duration: Int = Toast.LENGTH_SHORT,
     block: (Toast) -> Unit = {},
 ): Toast {
-    return Toast.makeText(applicationContext, text.orEmpty(), duration).also {
+    // KMK --> use the receiver context (not applicationContext) so callers passing a
+    // themed wrapper (e.g. achievement toasts) keep the app theme instead of
+    // falling back to the unthemed system toast style.
+    return Toast.makeText(this, text.orEmpty(), duration).also {
         block(it)
         it.show()
     }
