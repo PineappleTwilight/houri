@@ -160,6 +160,50 @@ fun FeedShimmer(modifier: Modifier = Modifier) {
 }
 
 @Composable
+fun MangaDetailTabletShimmer(modifier: Modifier = Modifier) {
+    TwoPanelBox(
+        modifier = modifier,
+        startContent = {
+            Column(
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(12.dp),
+            ) {
+                Row(horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(16.dp)) {
+                    Box(
+                        modifier = Modifier
+                            .size(120.dp, 180.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .shimmer(),
+                    )
+                    Column(
+                        verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.weight(1f),
+                    ) {
+                        ShimmerBox(height = 18.dp, width = 160.dp)
+                        ShimmerBox(height = 12.dp, width = 100.dp)
+                        Spacer(modifier = Modifier.height(8.dp))
+                        ShimmerBox(height = 10.dp)
+                        ShimmerBox(height = 10.dp, width = 140.dp)
+                    }
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                ShimmerBox(height = 36.dp)
+                ShimmerBox(height = 10.dp)
+                ShimmerBox(height = 10.dp)
+                ShimmerBox(height = 10.dp, width = 200.dp)
+            }
+        },
+        endContent = {
+            Column(modifier = Modifier.padding(vertical = 16.dp)) {
+                ShimmerBox(height = 24.dp, width = 180.dp, modifier = Modifier.padding(horizontal = 16.dp))
+                Spacer(modifier = Modifier.height(8.dp))
+                ChapterListShimmer()
+            }
+        },
+    )
+}
+
+@Composable
 fun MangaDetailShimmer(modifier: Modifier = Modifier) {
     Column(modifier = modifier.fillMaxWidth().padding(16.dp), verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(12.dp)) {
         Row(horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(16.dp)) {

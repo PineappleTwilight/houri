@@ -143,7 +143,11 @@ class MangaScreen(
     override fun Content() {
         if (!ifSourcesLoaded()) {
             androidx.compose.animation.Crossfade(targetState = true, label = "sourcesLoading") { _ ->
-                tachiyomi.presentation.core.components.MangaDetailShimmer()
+                if (isTabletUi()) {
+                    tachiyomi.presentation.core.components.MangaDetailTabletShimmer()
+                } else {
+                    tachiyomi.presentation.core.components.MangaDetailShimmer()
+                }
             }
             return
         }
@@ -166,7 +170,11 @@ class MangaScreen(
 
         if (state is MangaScreenModel.State.Loading) {
             androidx.compose.animation.Crossfade(targetState = true, label = "mangaLoading") { _ ->
-                tachiyomi.presentation.core.components.MangaDetailShimmer()
+                if (isTabletUi()) {
+                    tachiyomi.presentation.core.components.MangaDetailTabletShimmer()
+                } else {
+                    tachiyomi.presentation.core.components.MangaDetailShimmer()
+                }
             }
             return
         }
