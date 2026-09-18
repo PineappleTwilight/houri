@@ -466,8 +466,10 @@
   - Fixed 2026-09-11: `UnifiedTrackerCard` `+`/`−` now directly `scope.launch { trackItems.filter(track!=null).forEach { it.tracker.setRemoteLastChapterRead(it.track!!.toDbTrack(), newChapter) } }` (was `forEach { onChapterClick(it) }` pushing duplicate selectors); `TrackChapterSelectorScreen.Model.setChapter()` now also loops `globalAppGraph.getTracks.await(mangaId)` and syncs other trackers to same `newChapter` via `setRemoteLastChapterRead`, ensuring AniList/Kitsu/etc. stay in sync
 - [x] **Universal Tracker**: Fix being unable to bind another tracker into an entry
   - Fixed 2026-09-11: `TrackInfoItemEmpty` icon now `TrackLogoIcon(tracker, onClick = onNewSearch)` (was no-op); `UnifiedTrackerCard` icons already handle `onOpenInBrowser`/`onCopyLink`, and for untracked fallback `onNewSearch` via same path; discovered case (AniList icon press with no track) now opens `TrackerSearchScreen` via `Model.newSearch`
-- [ ] **AI Upscaler**: Add AI model download links
-- [ ] **AI Upscaler**: Ensure Vulkan and NPU backends are available and selectable
+- [x] **AI Upscaler**: Add AI model download links
+  - Fixed 2026-09-18: verified `UpscaleModelManager.FALLBACK_MODELS` already ships 6 ncnn weights (Real-CUGAN/ESRGAN/Waifu2x param+bin via `releases/download/upscale-v1`) with size/hash verification + `SettingsUpscalerScreen` download/cancel/redownload/clear UI
+- [x] **AI Upscaler**: Ensure Vulkan and NPU backends are available and selectable
+  - Fixed 2026-09-18: verified `UpscaleBackendDetector.availableBackends()` already gates entries (Vulkan via `hasSystemFeature`, NPU via ORT class probe) and `SettingsUpscalerScreen` only lists available backends; CPU fallback always present
   - Should be excluded if device doesn't support them
 - [x] **App**: Transition UI animations to a smoother system
   - Fixed 2026-09-13: new shared `UiMotion` system (M3 emphasized `cubic-bezier(0.2,0,0,1)`, enter/exit 300/250ms); `DefaultNavigatorScreenTransition` now 300/250ms emphasized slide 1/6 + fade via pure `navigatorTransition(pop)` (was 180ms `LinearOutSlowIn`); tab switches use `materialFadeThrough` 220ms with scale step (was flat 160ms fade); sheet fade threaded through `UiMotion` with decelerate/accelerate easings; bottom bar 220ms emphasized. Note: Compose animations always run on the main thread — smoothness comes from cheaper frames (fade/scale/slide are compositor-friendly) + opaque backgrounds (already present), not a separate thread.
@@ -498,7 +500,8 @@
   - Fixed 2026-09-13: `TrackInfoDialogHome`/`TrackSearch` no longer caps at 2 bound trackers
 - [x] **Manga Details**: "Fill from tracker" doesn't apply tags and publishing status from MangaBaka
   - Fixed 2026-09-13: `MangaBaka`/`MangaBakaApi`/`MangaBakaUtils`/`MangaBakaItem` now return tags + publication status for fill-from-tracker
-- [ ] **Codebase**: Remove/replace ALL old Komikku icons
+- [x] **Codebase**: Remove/replace ALL old Komikku icons
+  - Fixed 2026-09-18: visually inspected every raster drawable (source icons, houri, brand, mipmap) — launcher/splash/houri pineapple all Houri-branded; deleted Komikku-era `mipmap/extension.png` (blue puzzle from "repo icon for Komikku & Keiyoushi (#291)") and pointed the unknown-repo fallback in `ExtensionStoresContent.repoResId` at `R.mipmap.houri`; rebranded OpenRouter `HTTP-Referer`/`X-Title` to Houri. Remaining `komikku` hits intentionally kept: upstream docs URLs (no Houri docs site), `@since komikku/extensions-lib` ABI KDoc, `UniFile` Maven coords, `app.komikku` telemetry/benchmark package ids
 - [x] **Simple Upscaler**: Remove redundant algorithm selection, upscaler method already covers it
 - [x] **Chapter Blacklist**: Fix skip filtered chapters being ignored on blacklisted chapters. Blacklisted chapters still open if switching chapters inside the reader.
 - [x] **Achievements**: Fix secret achievements not showing their proper name in toasts
@@ -516,14 +519,16 @@
 - [x] **Upscaler**: Simplify cache size UI display to reduce confusion and ambiguity
   - Fixed 2026-09-17: centralized `MAX_CACHE_BYTES`/`TTL_DAYS` + `formatSummary()` in `UpscaleCacheManager`, single-line "X MB of 200 MB • N files • 30-day TTL" in `SettingsUpscalerScreen` (was dual MB+KB math + hardcoded "200MB"/"30-day TTL" strings)
   - Also remove redundant declaration of cache size in `UpscalePreferences`
-- [ ] **Prequel/Sequels**: Properly wire a display similar to Recommendations
+- [x] **Prequel/Sequels**: Properly wire a display similar to Recommendations
+  - Fixed 2026-09-18: `MangaScreenModel.resolveSequelPrequel` now scans the library first (`getDuplicateLibraryManga`, prefers the favorite match) and lands on the existing library entry instead of opening a duplicate stub; favoriting a stub still raises the existing `DuplicateManga` dialog with a migrate prompt. `fetchSequelPrequel` loads library titles in one query so `SequelPrequelRow` shows an "In library" (`MR.strings.in_library`) badge. Stubs stay non-favorite via `insertNetworkManga`, so they never count towards library/achievement stats
   - Manga entries should be "stubs" since trackers don't add readable chapters as metadata
   - If the user adds it to their library, it should immediately be prompted for a migration
   - Prequels/sequels system should scan the library for the entries first to avoid needing a stub from the tracker
   - Stubbed entries don't count towards achievements
 - [x] **Achievements**: Make imported DB library manga entries count towards achievements (e.g. user imports 100 manga from the db, we then give them the credit for having 100 manga in their library)
   - Fixed 2026-09-17: `BackupRestorer` now calls `achievementManager.onLibraryCountChanged(getLibraryManga().size)` after library restores (organic increments stay suppressed, library/backlog unlocks still credit)
-- [ ] **Database**: Improve import speed and performance
+- [x] **Database**: Improve import speed and performance
+  - Fixed 2026-09-18: `MangaRestorer.restoreNewManga` skips the second `updateManga` write when all non-insert columns (reread/scanlator/LN flags) hold defaults — saves one write per imported manga, which dominates large-library restores
 
 ## Chores
 - [x] Replace all Komikku icons/branding with houri icons/branding

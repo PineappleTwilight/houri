@@ -1200,8 +1200,21 @@ class MangaScreenModel(
         try {
             val preferredTrackerId = trackPreferences.getPreferredTrackerForManga(state.manga.id)
             when (val result = getSequelPrequel.await(state.manga.id, preferredTrackerId, enabled = true)) {
-                is GetSequelPrequel.Result.Success ->
-                    updateSuccessState { it.copy(sequelPrequelEntries = result.entries) }
+                is GetSequelPrequel.Result.Success -> {
+                    // KMK --> scan the library once so stub entries matching a
+                    // library title render an "In library" badge. Stubs stay
+                    // non-favorite (insertNetworkManga preserves favorite=false)
+                    // so they never count towards library/achievement stats.
+                    val libraryTitles = try {
+                        mangaRepository.getLibraryManga()
+                            .map { it.manga.title.lowercase() }
+                            .toSet()
+                    } catch (_: Exception) {
+                        emptySet()
+                    }
+                    // KMK <--
+                    updateSuccessState { it.copy(sequelPrequelEntries = result.entries, sequelPrequelLibraryTitles = libraryTitles) }
+                }
                 GetSequelPrequel.Result.Hidden, GetSequelPrequel.Result.Disabled ->
                     updateSuccessState { it.copy(sequelPrequelEntries = emptyList()) }
             }
@@ -1224,7 +1237,20 @@ class MangaScreenModel(
                     fetchDetails = true,
                     fetchChapters = false,
                 ).manga
-            networkToLocalManga(sManga.toDomainManga(state.source.id)).id
+            val resolved = networkToLocalManga(sManga.toDomainManga(state.source.id))
+            // KMK --> library scan first: land on the existing library entry
+            // instead of opening a duplicate stub. Favoriting the stub still
+            // raises the DuplicateManga dialog with a migrate prompt via
+            // toggleFavorite(checkDuplicate = true).
+            val duplicates = try {
+                getDuplicateLibraryManga(resolved)
+            } catch (_: Exception) {
+                emptyList()
+            }
+            duplicates.firstOrNull { it.manga.favorite }?.manga?.id
+                ?: duplicates.firstOrNull()?.manga?.id
+                ?: resolved.id
+            // KMK <--
         } catch (e: Exception) {
             logcat(LogPriority.ERROR, e)
             null
@@ -1867,6 +1893,8 @@ class MangaScreenModel(
              */
             val relatedMangaCollection: List<RelatedManga>? = null,
             val sequelPrequelEntries: List<SequelPrequelEntry>? = null,
+            // KMK --> lowercase library titles for the sequel/prequel "In library" badge
+            val sequelPrequelLibraryTitles: Set<String> = emptySet(),
             val seedColor: Color? = manga.asMangaCover().vibrantCoverColor?.let { Color(it) },
             // KMK <--
         ) : State {

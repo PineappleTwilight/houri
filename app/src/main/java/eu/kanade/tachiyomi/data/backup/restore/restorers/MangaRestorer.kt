@@ -193,8 +193,19 @@ class MangaRestorer(
             id = insertManga(manga),
         )
         // KMK -->
-        // Persist columns that are not part of the insert statement (rereading support)
-        updateManga(newManga)
+        // Persist columns that are not part of the insert statement (rereading support).
+        // Skipped for the common case where they all hold defaults — saves one
+        // write per imported manga, which dominates large-library import time.
+        if (manga.rereadCount != 0 ||
+            manga.rereading ||
+            manga.rereadStartedAt != 0L ||
+            manga.scanlatorPriority.isNotEmpty() ||
+            manga.blacklistedChapters.isNotEmpty() ||
+            manga.scanlatorRangeRules.isNotEmpty() ||
+            manga.isLightNovel
+        ) {
+            updateManga(newManga)
+        }
         // KMK <--
         return newManga
     }

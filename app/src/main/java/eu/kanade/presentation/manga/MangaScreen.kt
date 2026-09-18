@@ -843,6 +843,7 @@ private fun MangaScreenSmallImpl(
                                 entries = state.sequelPrequelEntries,
                                 enabled = showSequelPrequel,
                                 onEntryClick = onSequelPrequelClick,
+                                inLibraryTitles = state.sequelPrequelLibraryTitles,
                             )
                         }
                     }
@@ -1392,6 +1393,7 @@ private fun MangaScreenLargeImpl(
                                         entries = state.sequelPrequelEntries,
                                         enabled = showSequelPrequel,
                                         onEntryClick = onSequelPrequelClick,
+                                        inLibraryTitles = state.sequelPrequelLibraryTitles,
                                     )
                                 }
                             }

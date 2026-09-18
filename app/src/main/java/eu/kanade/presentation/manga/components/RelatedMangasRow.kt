@@ -29,6 +29,7 @@ import exh.util.isLewd
 import tachiyomi.domain.manga.model.Manga
 import tachiyomi.domain.manga.model.SequelPrequelEntry
 import tachiyomi.domain.manga.model.asMangaCover
+import tachiyomi.i18n.MR
 import tachiyomi.i18n.kmk.KMR
 import tachiyomi.presentation.core.components.material.padding
 import tachiyomi.presentation.core.i18n.stringResource
@@ -120,6 +121,9 @@ fun SequelPrequelRow(
     entries: List<SequelPrequelEntry>?,
     enabled: Boolean,
     onEntryClick: (SequelPrequelEntry) -> Unit,
+    // KMK --> lowercase library titles; matches render an "In library" badge
+    inLibraryTitles: Set<String> = emptySet(),
+    // KMK <--
 ) {
     if (!shouldShowSequelPrequel(enabled, entries)) return
     Column(modifier = Modifier.padding(horizontal = MaterialTheme.padding.medium)) {
@@ -132,14 +136,18 @@ fun SequelPrequelRow(
             horizontalArrangement = Arrangement.spacedBy(MaterialTheme.padding.extraSmall),
         ) {
             items(entries!!, key = { "sequel-prequel-${it.relation}-${it.url}" }) { entry ->
-                SequelPrequelCard(entry = entry, onClick = { onEntryClick(entry) })
+                SequelPrequelCard(
+                    entry = entry,
+                    inLibrary = entry.title.lowercase() in inLibraryTitles,
+                    onClick = { onEntryClick(entry) },
+                )
             }
         }
     }
 }
 
 @Composable
-private fun SequelPrequelCard(entry: SequelPrequelEntry, onClick: () -> Unit) {
+private fun SequelPrequelCard(entry: SequelPrequelEntry, inLibrary: Boolean, onClick: () -> Unit) {
     Column(
         modifier = Modifier
             .width(160.dp)
@@ -157,6 +165,13 @@ private fun SequelPrequelCard(entry: SequelPrequelEntry, onClick: () -> Unit) {
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
         )
+        if (inLibrary) {
+            Text(
+                text = stringResource(MR.strings.in_library),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.tertiary,
+            )
+        }
     }
 }
 // KMK <--
