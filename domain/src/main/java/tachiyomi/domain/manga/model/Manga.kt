@@ -299,9 +299,34 @@ data class Manga(
 }
 
 // KMK -->
+// Relationship kinds are the MangaBaka taxonomy
+// (https://mangabaka.org/data/mcp series_get_relationships); AniList v2
+// relationType values use the same UPPER_SNAKE names. Per-type visibility
+// toggles are planned but not coded yet, so every known kind resolves.
 enum class SequelPrequelRelation(val dexString: String?) {
+    ADAPTATION(null),
+    ALTERNATIVE(null),
+    CAMEO(null),
+    CHARACTER_FOCUS(null),
+    COMPILATION(null),
+    CONTAINS(null),
+    CROSSOVER(null),
+    EXPANSION(null),
+    MAIN(null),
+    MAIN_STORY(null),
+    OTHER(null),
+    PARENT(null),
+    PARODY(null),
     PREQUEL("prequel"),
+    REBOOT(null),
+    REMAKE(null),
     SEQUEL("sequel"),
+    SERIES(null),
+    SIDE_STORY(null),
+    SOURCE(null),
+    SPIN_OFF(null),
+    SUMMARY(null),
+    UNCOLLECTED(null),
     ;
 
     companion object {
@@ -309,6 +334,10 @@ enum class SequelPrequelRelation(val dexString: String?) {
 
         // KMK --> AniList v2 relationType values match the enum names.
         fun fromAniList(alString: String) = entries.find { it.name == alString }
+
+        // KMK --> MangaBaka relationships_v2 relation_type values are the
+        // same kinds in lowercase snake_case ("side_story", "spin_off", ...).
+        fun fromMangaBaka(mbString: String) = entries.find { it.name == mbString.uppercase() }
         // KMK <--
     }
 }

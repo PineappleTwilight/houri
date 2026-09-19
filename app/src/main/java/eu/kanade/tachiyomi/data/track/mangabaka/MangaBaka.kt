@@ -155,8 +155,9 @@ class MangaBaka(id: Long) : BaseTracker(id, "MangaBaka"), DeletableTracker {
         // KMK <--
     }
 
-    // KMK --> relations come from the series-detail payload; only prequel/sequel
-    // edges resolve, titles need one detail fetch per related id (usually 1-2)
+    // KMK --> relations come from the series-detail payload; every known
+    // kind resolves and is labeled in the row (per-type toggles not coded yet).
+    // Titles need one detail fetch per related id (usually 1-2).
     override suspend fun getRelatedEntries(remoteId: Long): List<SequelPrequelEntry>? {
         val item = try {
             api.getSeriesItem(remoteId)
@@ -165,8 +166,7 @@ class MangaBaka(id: Long) : BaseTracker(id, "MangaBaka"), DeletableTracker {
             null
         } ?: return null
         val entries = item.relationshipsV2.orEmpty().mapNotNull { rel ->
-            val relation = SequelPrequelRelation.fromAniList(rel.relationType.uppercase())
-                ?.takeIf { it == SequelPrequelRelation.PREQUEL || it == SequelPrequelRelation.SEQUEL }
+            val relation = SequelPrequelRelation.fromMangaBaka(rel.relationType)
                 ?: return@mapNotNull null
             val details = try {
                 api.getMangaDetails(rel.toSeriesId.toInt())

@@ -155,7 +155,8 @@ private fun SequelPrequelCard(entry: SequelPrequelEntry, inLibrary: Boolean, onC
             .padding(vertical = MaterialTheme.padding.extraSmall),
     ) {
         Text(
-            text = entry.relation.name.lowercase().replaceFirstChar { it.uppercase() },
+            // KMK --> UPPER_SNAKE kinds ("SIDE_STORY") render as "Side story"
+        text = entry.relation.name.lowercase().replace('_', ' ').replaceFirstChar { it.uppercase() },
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.primary,
         )
