@@ -74,8 +74,17 @@ class GetSequelPrequel(
         } catch (_: Exception) {
             return Result.Hidden
         }
+        // KMK --> never cache empty results: bindings change (a tracker is
+        // bound after the first view, an API hiccups) and a cached empty
+        // would hide later-available relations until the 24h TTL expires.
+        if (entries.isEmpty()) return Result.Hidden
         cache.put(mangaId, entries)
-        return if (entries.isEmpty()) Result.Hidden else Result.Success(entries)
+        return Result.Success(entries)
+    }
+
+    /** Drops the cached entry so the next [await] refetches (e.g. after track bindings change). */
+    fun invalidate(mangaId: Long) {
+        cache.invalidate(mangaId)
     }
 
     sealed interface Result {
