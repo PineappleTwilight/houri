@@ -28,6 +28,8 @@ data class MangaBakaItem(
     val type: String,
     val rating: Double?,
     val titles: List<MangaBakaItemTitle>?,
+    // KMK --> series-detail payloads carry relationships_v2; absent on search items
+    val relationshipsV2: List<MangaBakaRelationship>? = null,
 ) {
     fun chooseBestTitle(): String {
         val bestTitlePerLanguage = TITLE_PRIORITIES.associateWith { lang ->
@@ -48,6 +50,16 @@ data class MangaBakaItem(
             ?: "ID: $id - Could not find name! (report on the MangaBaka Discord)"
     }
 }
+
+@Serializable
+data class MangaBakaRelationship(
+    @SerialName("to_series_id")
+    val toSeriesId: Long,
+    @SerialName("relation_type")
+    val relationType: String,
+)
+
+// KMK <--
 
 @Serializable
 data class MangaBakaCover(

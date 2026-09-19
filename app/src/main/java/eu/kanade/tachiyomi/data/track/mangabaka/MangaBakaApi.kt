@@ -209,6 +209,11 @@ class MangaBakaApi(
     }
 
     suspend fun getMangaDetails(id: Int): TrackSearch? {
+        return getSeriesItem(id.toLong())?.let { parseSearchItem(it) }
+    }
+
+    // KMK --> raw series-detail fetch for relations; unauthenticated like getMangaDetails
+    suspend fun getSeriesItem(id: Long): MangaBakaItem? {
         return withIOContext {
             val url = "$API_BASE_URL/v1/series".toUri().buildUpon()
                 .appendPath(id.toString())
@@ -219,7 +224,6 @@ class MangaBakaApi(
                         .awaitSuccess()
                         .parseAs<MangaBakaItemResult>()
                         .data
-                        .let { parseSearchItem(it) }
                 } catch (e: HttpException) {
                     if (e.code == 404) {
                         return@with null
@@ -229,6 +233,7 @@ class MangaBakaApi(
             }
         }
     }
+    // KMK <--
 
     suspend fun getCurrentUser(): MangaBakaUserProfile {
         return withIOContext {

@@ -5,6 +5,7 @@ import dev.zacsweers.metro.ContributesBinding
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
 import eu.kanade.domain.track.service.TrackPreferences
+import exh.md.related.MangaDexSequelPrequelProvider
 import tachiyomi.domain.manga.interactor.GetManga
 import tachiyomi.domain.manga.interactor.SequelPrequelProvider
 import tachiyomi.domain.manga.model.SequelPrequelEntry
@@ -20,6 +21,10 @@ import tachiyomi.domain.track.interactor.GetTracks
  * Results stay cached in
  * [tachiyomi.domain.manga.interactor.RelatedMangaCache] (24h TTL), so tracker
  * APIs see at most one fetch per manga per day.
+ *
+ * When no tracker in the chain yields relations (untracked manga, or none of
+ * the bound services expose relations), the MangaDex API is tried as a
+ * last resort for MangaDex-based manga, preserving the pre-rework behavior.
  */
 @Inject
 @SingleIn(AppScope::class)
@@ -29,6 +34,7 @@ class TrackerSequelPrequelProvider(
     private val getTracks: GetTracks,
     private val trackerManager: TrackerManager,
     private val trackPreferences: TrackPreferences,
+    private val mangaDexFallback: MangaDexSequelPrequelProvider,
 ) : SequelPrequelProvider {
     override suspend fun fetch(mangaId: Long, preferredTrackerId: Long?): List<SequelPrequelEntry> {
         getManga.await(mangaId) ?: return emptyList()
@@ -52,7 +58,11 @@ class TrackerSequelPrequelProvider(
             }.orEmpty()
             if (entries.isNotEmpty()) return entries
         }
-        return emptyList()
+        return try {
+            mangaDexFallback.fetch(mangaId, preferredTrackerId)
+        } catch (_: Exception) {
+            emptyList()
+        }
     }
 }
 // KMK <--

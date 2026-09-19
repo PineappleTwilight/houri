@@ -16,6 +16,8 @@ import kotlinx.serialization.json.Json
 import logcat.LogPriority
 import mihon.app.di.globalAppGraph
 import tachiyomi.core.common.util.system.logcat
+import tachiyomi.domain.manga.model.SequelPrequelEntry
+import tachiyomi.domain.manga.model.SequelPrequelRelation
 import tachiyomi.i18n.MR
 import tachiyomi.domain.track.model.Track as DomainTrack
 
@@ -152,6 +154,37 @@ class MangaBaka(id: Long) : BaseTracker(id, "MangaBaka"), DeletableTracker {
         return remote.toMangaMetadata(track.remoteId)
         // KMK <--
     }
+
+    // KMK --> relations come from the series-detail payload; only prequel/sequel
+    // edges resolve, titles need one detail fetch per related id (usually 1-2)
+    override suspend fun getRelatedEntries(remoteId: Long): List<SequelPrequelEntry>? {
+        val item = try {
+            api.getSeriesItem(remoteId)
+        } catch (e: Exception) {
+            logcat(LogPriority.WARN, e) { "MangaBaka relations lookup failed for '$remoteId'" }
+            null
+        } ?: return null
+        val entries = item.relationshipsV2.orEmpty().mapNotNull { rel ->
+            val relation = SequelPrequelRelation.fromAniList(rel.relationType.uppercase())
+                ?.takeIf { it == SequelPrequelRelation.PREQUEL || it == SequelPrequelRelation.SEQUEL }
+                ?: return@mapNotNull null
+            val details = try {
+                api.getMangaDetails(rel.toSeriesId.toInt())
+            } catch (e: Exception) {
+                logcat(LogPriority.WARN, e) { "MangaBaka related title lookup failed for '${rel.toSeriesId}'" }
+                null
+            }
+            val title = details?.title?.ifBlank { null } ?: return@mapNotNull null
+            SequelPrequelEntry(
+                title = title,
+                url = details.tracking_url,
+                relation = relation,
+                trackerId = id,
+            )
+        }
+        return entries.ifEmpty { null }
+    }
+    // KMK <--
 
     override suspend fun login(username: String, password: String) = login(password)
 
