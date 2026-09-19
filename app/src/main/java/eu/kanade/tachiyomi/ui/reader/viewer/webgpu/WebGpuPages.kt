@@ -7,10 +7,12 @@ import android.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import androidx.webgpu.GPUDevice
 import androidx.webgpu.GPUTexture
 import ca.mpreg.webgpuviewer.draw.Draw
 import ca.mpreg.webgpuviewer.draw.TextAlign
 import ca.mpreg.webgpuviewer.draw.uploadTexture
+import ca.mpreg.webgpuviewer.renderer.WebGpuRenderer
 import ca.mpreg.webgpuviewer.viewer.ImagePage
 import eu.kanade.tachiyomi.R
 import eu.kanade.tachiyomi.ui.reader.model.ReaderChapter
@@ -380,29 +382,55 @@ class ProgressPage(
 
     /**
      * Splash-screen pineapple spinning over the load percentage. The icon is uploaded once
-     * and shared; the spin eases per revolution like the splash exit loop.
+     * per GPU device and shared; the spin eases per revolution like the splash exit loop.
      */
     private fun drawSplashPineapple(cx: Float, cy: Float, full: Float, dst: GPUTexture) {
         val texture = loadPineappleTexture() ?: return
         val sizePx = full * 0.55f
         val t = (System.currentTimeMillis() % 1200L) / 1200f
         val eased = if (t < 0.5f) 4f * t * t * t else 1f - (-2f * t + 2f).let { it * it * it } / 2f
-        sprite(texture, cx, cy, sizePx, dst, eased * 2f * PI.toFloat(), 0xFFFFFFFF.toInt())
-        val textPx = (full * 0.09f).coerceAtLeast(12f)
-        text(
-            dst,
-            viewer.activity.baseContext,
-            FontFamily.Default,
-            "${(progress * 100).toInt()}%",
-            cx,
-            cy + sizePx * 0.5f + textPx * 1.1f,
-            textPx,
-            foregroundColor,
-            align = TextAlign.Center,
-        )
+        // KMK --> Tint with the reader on-background color, not white: ic_houri is a white
+        // monochrome vector, so a white tint is invisible on light reader backgrounds.
+        sprite(texture, cx, cy, sizePx, dst, eased * 2f * PI.toFloat(), foregroundColor)
+        // KMK <--
+        // KMK --> Percentage only once bytes actually arrive; unknown-length and cached
+        // loads never advance progressFlow, so 0% would stick forever. The spinning
+        // pineapple above is the indeterminate indicator until then.
+        if (progress > 0f) {
+            val textPx = (full * 0.09f).coerceAtLeast(12f)
+            text(
+                dst,
+                viewer.activity.baseContext,
+                FontFamily.Default,
+                "${(progress * 100).toInt()}%",
+                cx,
+                cy + sizePx * 0.5f + textPx * 1.1f,
+                textPx,
+                foregroundColor,
+                align = TextAlign.Center,
+            )
+        }
+        // KMK <--
     }
 
     private fun loadPineappleTexture(): GPUTexture? {
+        // KMK --> The upload binds the texture to the creating GPUDevice, so the shared
+        // cache must follow device recreation (device-lost re-init) - a texture from
+        // the old device draws nothing.
+        val device = try {
+            WebGpuRenderer.device
+        } catch (_: Exception) {
+            return pineappleTexture
+        }
+        if (pineappleDevice !== device) {
+            try {
+                pineappleTexture?.destroy()
+            } catch (_: Exception) {
+            }
+            pineappleTexture = null
+            pineappleDevice = device
+        }
+        // KMK <--
         pineappleTexture?.let { return it }
         val context = try {
             viewer.activity.baseContext
@@ -440,6 +468,11 @@ class ProgressPage(
 
         @Volatile
         private var pineappleTexture: GPUTexture? = null
+
+        // KMK --> Device the cached texture was uploaded to; see loadPineappleTexture.
+        @Volatile
+        private var pineappleDevice: GPUDevice? = null
+        // KMK <--
     }
 }
 
