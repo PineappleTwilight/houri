@@ -1324,6 +1324,17 @@ private fun MangaScreenLargeImpl(
                             )
                         }
                         // SY <--
+                        // KMK --> Tablet: sequels & prequels live in the info
+                        // pane, not above the chapter list (mirrors phone layout).
+                        if (showSequelPrequel) {
+                            SequelPrequelRow(
+                                entries = state.sequelPrequelEntries,
+                                enabled = showSequelPrequel,
+                                onEntryClick = onSequelPrequelClick,
+                                inLibraryTitles = state.sequelPrequelLibraryTitles,
+                            )
+                        }
+                        // KMK <--
                     }
                 },
                 endContent = {
@@ -1383,22 +1394,6 @@ private fun MangaScreenLargeImpl(
                                 }
                             }
                             // KMK <--
-                            // KMK -->
-                            if (showSequelPrequel) {
-                                item(
-                                    key = MangaScreenItem.SEQUEL_PREQUEL,
-                                    contentType = MangaScreenItem.SEQUEL_PREQUEL,
-                                ) {
-                                    SequelPrequelRow(
-                                        entries = state.sequelPrequelEntries,
-                                        enabled = showSequelPrequel,
-                                        onEntryClick = onSequelPrequelClick,
-                                        inLibraryTitles = state.sequelPrequelLibraryTitles,
-                                    )
-                                }
-                            }
-                            // KMK <--
-
                             // KMK -->
                             item(key = "scanlator-preference-${state.manga.id}-end") {
                                 val entryNavigator = LocalNavigator.currentOrThrow
