@@ -236,9 +236,18 @@ private fun CategoryContent(
     // churns the categories flow mid-gesture and fights the drag, leaving rows stuck.
     var pendingDrop by remember { mutableStateOf<Pair<CategoryRow, Int>?>(null) }
     val reorderableState = rememberReorderableLazyListState(lazyListState, paddingValues) { from, to ->
-        val moved = rowState.removeAt(from.index)
-        rowState.add(to.index, moved)
-        pendingDrop = moved to to.index
+        // KMK -->
+        // from.index/to.index are ABSOLUTE LazyColumn indices (they include the two header
+        // item()s above the category rows), so resolve rowState positions by stable item key
+        // instead. Guard -1: the dragged row may hover the unwrapped header items, which have
+        // no entry in rowState.
+        val fromRow = rowState.indexOfFirst { it.category.key == from.key }
+        val toRow = rowState.indexOfFirst { it.category.key == to.key }
+        if (fromRow == -1 || toRow == -1) return@rememberReorderableLazyListState
+        val moved = rowState.removeAt(fromRow)
+        rowState.add(toRow, moved)
+        pendingDrop = moved to toRow
+        // KMK <--
     }
 
     fun commitDrop(moved: CategoryRow, dropIndex: Int) {
