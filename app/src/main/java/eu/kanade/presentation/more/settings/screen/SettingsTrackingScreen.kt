@@ -64,6 +64,7 @@ import tachiyomi.i18n.kmk.KMR
 import tachiyomi.i18n.sy.SYMR
 import tachiyomi.presentation.core.components.material.padding
 import tachiyomi.presentation.core.i18n.stringResource
+import tachiyomi.presentation.core.util.collectAsState
 
 object SettingsTrackingScreen : SearchableSettings {
     @Suppress("unused")
@@ -90,6 +91,9 @@ object SettingsTrackingScreen : SearchableSettings {
         val trackPreferences = remember { globalAppGraph.trackPreferences }
         val trackerManager = remember { globalAppGraph.trackerManager }
         val sourceManager = remember { globalAppGraph.sourceManager }
+        // KMK --> appwide priority tracker: star set by long-press below.
+        val priorityTrackerId by trackPreferences.priorityTrackerId().collectAsState()
+        // KMK <--
 
         var dialog by remember { mutableStateOf<Any?>(null) }
         dialog?.run {
@@ -182,6 +186,14 @@ object SettingsTrackingScreen : SearchableSettings {
                                     }
                                 },
                                 logout = { dialog = LogoutDialog(tracker) },
+                                // KMK --> long-press a logged-in tracker to star it as priority.
+                                isPriority = tracker.id == priorityTrackerId,
+                                onLongClick = {
+                                    trackPreferences.setPriorityTrackerId(
+                                        if (tracker.id == priorityTrackerId) null else tracker.id,
+                                    )
+                                },
+                                // KMK <--
                             )
                         } + listOf(Preference.PreferenceItem.InfoPreference(stringResource(MR.strings.tracking_info)))
                     ).toImmutableList(),
@@ -195,6 +207,14 @@ object SettingsTrackingScreen : SearchableSettings {
                                 tracker = service,
                                 login = { (service as EnhancedTracker).loginNoop() },
                                 logout = service::logout,
+                                // KMK --> same priority star as the services group above.
+                                isPriority = service.id == priorityTrackerId,
+                                onLongClick = {
+                                    trackPreferences.setPriorityTrackerId(
+                                        if (service.id == priorityTrackerId) null else service.id,
+                                    )
+                                },
+                                // KMK <--
                             )
                         } + listOf(Preference.PreferenceItem.InfoPreference(enhancedTrackerInfo))
                     ).toImmutableList(),

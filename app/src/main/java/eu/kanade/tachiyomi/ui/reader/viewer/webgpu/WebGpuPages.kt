@@ -1,20 +1,26 @@
 // Mihon -->
 package eu.kanade.tachiyomi.ui.reader.viewer.webgpu
 
+import android.graphics.Bitmap
+import android.graphics.Canvas
 import android.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import androidx.webgpu.GPUTexture
+import ca.mpreg.webgpuviewer.draw.Draw
 import ca.mpreg.webgpuviewer.draw.TextAlign
+import ca.mpreg.webgpuviewer.draw.uploadTexture
 import ca.mpreg.webgpuviewer.viewer.ImagePage
+import eu.kanade.tachiyomi.R
 import eu.kanade.tachiyomi.ui.reader.model.ReaderChapter
 import eu.kanade.tachiyomi.ui.reader.model.ReaderPage
 import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.i18n.MR
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
 import kotlin.math.PI
-import kotlin.math.cos
 import kotlin.math.min
-import kotlin.math.sin
 
 /**
  * Page-processing state for [ViewerPage]s in the WebGPU viewers.
@@ -367,56 +373,73 @@ class ProgressPage(
         }
         if (full <= 0f || full < 8f) return
         try {
-            drawProgressRing(cx, cy, full)
-            drawSpinningPineapple(cx, cy, full)
+            drawSplashPineapple(cx, cy, full, dst)
         } catch (_: Exception) {
         }
     }
 
-    /** Dotted ring around the pineapple that fills with [progress]. */
-    private fun drawProgressRing(cx: Float, cy: Float, full: Float) {
-        val ringR = full * 0.42f
-        val dotR = full * 0.05f
-        val dots = 12
-        val lit = (progress * dots).toInt().coerceIn(0, dots)
-        val dim = 0x30FFFFFF.toInt()
-        for (i in 0 until dots) {
-            val a = -PI.toFloat() / 2f + i * (2f * PI.toFloat() / dots)
-            val dx = cx + cos(a) * ringR
-            val dy = cy + sin(a) * ringR
-            circle(dx, dy, dotR, if (i < lit) foregroundColor else dim)
-        }
+    /**
+     * Splash-screen pineapple spinning over the load percentage. The icon is uploaded once
+     * and shared; the spin eases per revolution like the splash exit loop.
+     */
+    private fun drawSplashPineapple(cx: Float, cy: Float, full: Float, dst: GPUTexture) {
+        val texture = loadPineappleTexture() ?: return
+        val sizePx = full * 0.55f
+        val t = (System.currentTimeMillis() % 1200L) / 1200f
+        val eased = if (t < 0.5f) 4f * t * t * t else 1f - (-2f * t + 2f).let { it * it * it } / 2f
+        sprite(texture, cx, cy, sizePx, dst, eased * 2f * PI.toFloat(), 0xFFFFFFFF.toInt())
+        val textPx = (full * 0.09f).coerceAtLeast(12f)
+        text(
+            dst,
+            viewer.activity.baseContext,
+            FontFamily.Default,
+            "${(progress * 100).toInt()}%",
+            cx,
+            cy + sizePx * 0.5f + textPx * 1.1f,
+            textPx,
+            foregroundColor,
+            align = TextAlign.Center,
+        )
     }
 
-    /** Spinning pineapple: golden body with leaves orbiting it, time-based so it animates live. */
-    private fun drawSpinningPineapple(cx: Float, cy: Float, full: Float) {
-        val bodyR = full * 0.20f
-        val bodyCx = cx
-        val bodyCy = cy + bodyR * 0.30f
-        val gold = 0xFFE0A52E.toInt()
-        val goldDark = 0xFFB9781E.toInt()
-        val leafGreen = 0xFF43A047.toInt()
-        val leafDark = 0xFF2E7D32.toInt()
-
-        // Body
-        circle(bodyCx, bodyCy, bodyR, gold)
-        // Facet shading (reads as a pineapple body, not a plain disc)
-        circle(bodyCx - bodyR * 0.42f, bodyCy - bodyR * 0.28f, bodyR * 0.16f, goldDark)
-        circle(bodyCx + bodyR * 0.42f, bodyCy + bodyR * 0.30f, bodyR * 0.14f, goldDark)
-        circle(bodyCx, bodyCy + bodyR * 0.48f, bodyR * 0.12f, goldDark)
-
-        // Crown leaves orbiting the body center = the "spin".
-        val spin = (System.currentTimeMillis() % 900L) / 900f * 2f * PI.toFloat()
-        val leafR = bodyR * 1.30f
-        val leaf = bodyR * 0.30f
-        val leaves = 6
-        for (i in 0 until leaves) {
-            val a = spin + i * (2f * PI.toFloat() / leaves)
-            val lx = bodyCx + cos(a) * leafR * 0.70f
-            val ly = bodyCy - sin(a) * leafR * 0.55f
-            rect(lx - leaf / 2f, ly - leaf / 2f, leaf, leaf, leafGreen)
-            circle(lx, ly, leaf * 0.18f, leafDark)
+    private fun loadPineappleTexture(): GPUTexture? {
+        pineappleTexture?.let { return it }
+        val context = try {
+            viewer.activity.baseContext
+        } catch (_: Exception) {
+            return null
         }
+        val drawable = try {
+            ContextCompat.getDrawable(context, R.drawable.ic_houri)
+        } catch (_: Exception) {
+            null
+        } ?: return null
+        val bitmap = try {
+            Bitmap.createBitmap(PINEAPPLE_PX, PINEAPPLE_PX, Bitmap.Config.ARGB_8888)
+        } catch (_: Exception) {
+            return null
+        }
+        drawable.setBounds(0, 0, PINEAPPLE_PX, PINEAPPLE_PX)
+        drawable.draw(Canvas(bitmap))
+        val argb = IntArray(PINEAPPLE_PX * PINEAPPLE_PX)
+        bitmap.getPixels(argb, 0, PINEAPPLE_PX, 0, 0, PINEAPPLE_PX, PINEAPPLE_PX)
+        bitmap.recycle()
+        val buffer = ByteBuffer.allocateDirect(argb.size * Int.SIZE_BYTES).order(ByteOrder.nativeOrder())
+        for (px in argb) {
+            buffer.put((px shr 16 and 0xFF).toByte())
+            buffer.put((px shr 8 and 0xFF).toByte())
+            buffer.put((px and 0xFF).toByte())
+            buffer.put((px ushr 24 and 0xFF).toByte())
+        }
+        buffer.flip()
+        return Draw.uploadTexture(PINEAPPLE_PX, PINEAPPLE_PX, buffer).also { pineappleTexture = it }
+    }
+
+    companion object {
+        private const val PINEAPPLE_PX = 512
+
+        @Volatile
+        private var pineappleTexture: GPUTexture? = null
     }
 }
 

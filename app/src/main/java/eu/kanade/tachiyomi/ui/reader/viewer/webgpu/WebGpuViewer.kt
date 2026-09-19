@@ -858,7 +858,10 @@ open class WebGpuViewer(
         progressPage(currentPage!!)?.let { reportPageSelected(it) }
         // KMK <--
         preloadPages(currentPage!!)
-        if (needsDeferredRestore && stored != null) {
+        // needsDeferredRestore already implies stored != null; takeIf keeps that
+        // in one place and gives the restore coroutine a smart-cast value.
+        val deferredStored = stored?.takeIf { needsDeferredRestore }
+        if (deferredStored != null) {
             // Restoring now would measure against ProgressPage placeholders
             // (viewport-height each), landing the viewport in empty space once
             // real heights decode: black screen, then phantom page walks on the
@@ -908,13 +911,13 @@ open class WebGpuViewer(
                             }
                             if (!nowDocY.isFinite() || !startDocY.isFinite() || abs(nowDocY - startDocY) > 2f) return@launch
                             when {
-                                stored.isV2 -> {
+                                deferredStored.isV2 -> {
                                     val pos = ca.mpreg.webgpuviewer.viewer.ImageViewerContinuousState.ContinuousPosition(
-                                        documentY = stored.offsetRatio,
-                                        scale = stored.zoom,
-                                        offsetX = stored.offsetX,
-                                        pageIndexHint = stored.pageIndex,
-                                        fractionWithinPage = stored.fraction,
+                                        documentY = deferredStored.offsetRatio,
+                                        scale = deferredStored.zoom,
+                                        offsetX = deferredStored.offsetX,
+                                        pageIndexHint = deferredStored.pageIndex,
+                                        fractionWithinPage = deferredStored.fraction,
                                     )
                                     st.restorePosition(pos, animate = false)
                                 }
@@ -925,15 +928,15 @@ open class WebGpuViewer(
                                     val cb = st.onPageChange
                                     st.onPageChange = null
                                     try {
-                                        if (stored.fraction.isFinite() && stored.fraction > 0f) {
-                                            st.scrollToPage(stored.pageIndex, stored.fraction)
+                                        if (deferredStored.fraction.isFinite() && deferredStored.fraction > 0f) {
+                                            st.scrollToPage(deferredStored.pageIndex, deferredStored.fraction)
                                         }
                                     } finally {
                                         st.onPageChange = cb
                                     }
-                                    val maxOffsetX = maxOf(0f, (stored.zoom - 1f) / (2f * stored.zoom))
-                                    st.scale = stored.zoom.coerceIn(st.minScale, st.maxScale)
-                                    st.offsetX = stored.offsetX.coerceIn(-maxOffsetX, maxOffsetX)
+                                    val maxOffsetX = maxOf(0f, (deferredStored.zoom - 1f) / (2f * deferredStored.zoom))
+                                    st.scale = deferredStored.zoom.coerceIn(st.minScale, st.maxScale)
+                                    st.offsetX = deferredStored.offsetX.coerceIn(-maxOffsetX, maxOffsetX)
                                 }
                             }
                             try {

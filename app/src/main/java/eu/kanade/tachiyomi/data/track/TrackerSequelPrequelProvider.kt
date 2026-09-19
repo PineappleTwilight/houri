@@ -4,20 +4,20 @@ import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.ContributesBinding
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
-import eu.kanade.tachiyomi.data.track.anilist.Anilist
-import exh.md.related.MangaDexSequelPrequelProvider
+import eu.kanade.domain.track.service.TrackPreferences
 import tachiyomi.domain.manga.interactor.GetManga
 import tachiyomi.domain.manga.interactor.SequelPrequelProvider
 import tachiyomi.domain.manga.model.SequelPrequelEntry
-import tachiyomi.domain.manga.model.SequelPrequelRelation
 import tachiyomi.domain.track.interactor.GetTracks
 
 // KMK -->
 /**
- * Sequel/prequel provider that follows the user's preferred tracker instead of
- * assuming MangaDex. AniList-bound entries resolve via the public relations
- * edge; anything else (or an empty AniList result) falls back to the MangaDex
- * provider, which no-ops for non-MangaDex sources. Results stay cached in
+ * Sequel/prequel provider that follows tracker metadata instead of MangaDex:
+ * the per-manga preferred tracker first, then the appwide priority tracker,
+ * then every other logged-in tracker in order. Each service reports its
+ * relations via [BaseTracker.getRelatedEntries] (null when unsupported —
+ * currently only AniList), so services added later plug in with one override.
+ * Results stay cached in
  * [tachiyomi.domain.manga.interactor.RelatedMangaCache] (24h TTL), so tracker
  * APIs see at most one fetch per manga per day.
  */
@@ -28,7 +28,7 @@ class TrackerSequelPrequelProvider(
     private val getManga: GetManga,
     private val getTracks: GetTracks,
     private val trackerManager: TrackerManager,
-    private val mangaDexProvider: MangaDexSequelPrequelProvider,
+    private val trackPreferences: TrackPreferences,
 ) : SequelPrequelProvider {
     override suspend fun fetch(mangaId: Long, preferredTrackerId: Long?): List<SequelPrequelEntry> {
         getManga.await(mangaId) ?: return emptyList()
@@ -37,34 +37,22 @@ class TrackerSequelPrequelProvider(
         } catch (_: Exception) {
             emptyList()
         }
-        val anilistTrack = tracks.find { it.trackerId == preferredTrackerId && it.trackerId == TrackerManager.ANILIST }
-            ?: tracks.find { it.trackerId == TrackerManager.ANILIST }?.takeIf { preferredTrackerId == null }
-        if (anilistTrack != null && anilistTrack.remoteId > 0) {
-            val relations = try {
-                (trackerManager.get(TrackerManager.ANILIST) as? Anilist)
-                    ?.getMangaRelations(anilistTrack.remoteId)
+        val orderedIds = (
+            listOfNotNull(preferredTrackerId, trackPreferences.getPriorityTrackerId()) +
+                trackerManager.trackers.filter { it.isLoggedIn }.map { it.id }
+            ).distinct()
+        for (trackerId in orderedIds) {
+            val service = trackerManager.get(trackerId) as? BaseTracker ?: continue
+            if (!service.isLoggedIn) continue
+            val remoteId = tracks.find { it.trackerId == trackerId }?.remoteId?.takeIf { it > 0 } ?: continue
+            val entries = try {
+                service.getRelatedEntries(remoteId)
             } catch (_: Exception) {
                 null
-            }
-            val entries = relations?.data?.media?.relations?.edges?.mapNotNull { edge ->
-                val relation = SequelPrequelRelation.fromAniList(edge.relationType)
-                    ?.takeIf { it == SequelPrequelRelation.PREQUEL || it == SequelPrequelRelation.SEQUEL }
-                    ?: return@mapNotNull null
-                val title = edge.node.title.display()?.ifBlank { null } ?: return@mapNotNull null
-                SequelPrequelEntry(
-                    title = title,
-                    url = edge.node.siteUrl,
-                    relation = relation,
-                    trackerId = TrackerManager.ANILIST,
-                )
             }.orEmpty()
             if (entries.isNotEmpty()) return entries
         }
-        return try {
-            mangaDexProvider.fetch(mangaId, preferredTrackerId)
-        } catch (_: Exception) {
-            emptyList()
-        }
+        return emptyList()
     }
 }
 // KMK <--

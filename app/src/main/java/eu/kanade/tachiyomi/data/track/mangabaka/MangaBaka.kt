@@ -9,6 +9,7 @@ import eu.kanade.tachiyomi.data.track.core.TrackerLoginMode
 import eu.kanade.tachiyomi.data.track.mangabaka.dto.MangaBakaOAuth
 import eu.kanade.tachiyomi.data.track.model.TrackMangaMetadata
 import eu.kanade.tachiyomi.data.track.model.TrackSearch
+import eu.kanade.tachiyomi.network.HttpException
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.serialization.json.Json
@@ -102,24 +103,29 @@ class MangaBaka(id: Long) : BaseTracker(id, "MangaBaka"), DeletableTracker {
         track: Track,
         hasReadChapters: Boolean,
     ): Track {
-        val remoteTrack = api.findLibManga(track)
-        return if (remoteTrack != null) {
-            track.copyPersonalFrom(remoteTrack, copyRemotePrivate = false)
-            track.title = remoteTrack.title
-            track.remote_id = remoteTrack.remote_id
-
-            if (track.status != COMPLETED) {
-                val isRereading = track.status == REREADING
-                track.status = if (!isRereading && hasReadChapters) READING else track.status
-            }
-
-            update(track)
-        } else {
+        val remoteTrack = api.findLibManga(track) ?: run {
             track.status = if (hasReadChapters) READING else PLAN_TO_READ
             track.score = 0.0
 
-            api.addLibManga(track)
+            try {
+                return api.addLibManga(track)
+            } catch (e: HttpException) {
+                // KMK --> 409 means the entry already exists server-side (added on the
+                // website, or a lost find response); adopt it instead of crashing.
+                if (e.code != 409) throw e
+                api.findLibManga(track) ?: throw e
+            }
         }
+        track.copyPersonalFrom(remoteTrack, copyRemotePrivate = false)
+        track.title = remoteTrack.title
+        track.remote_id = remoteTrack.remote_id
+
+        if (track.status != COMPLETED) {
+            val isRereading = track.status == REREADING
+            track.status = if (!isRereading && hasReadChapters) READING else track.status
+        }
+
+        return update(track)
     }
 
     override suspend fun search(query: String): List<TrackSearch> {

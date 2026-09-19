@@ -212,6 +212,8 @@ sealed class Preference {
             val login: () -> Unit,
             val logout: () -> Unit,
             // KMK -->
+            val isPriority: Boolean = false,
+            val onLongClick: (() -> Unit)? = null,
             override val dependsOn: PreferenceDependency? = null,
             override val mtlOnly: Boolean = false,
             override val ramGated: Boolean = false,

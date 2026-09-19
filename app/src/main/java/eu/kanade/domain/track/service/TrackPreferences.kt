@@ -63,6 +63,19 @@ class TrackPreferences(
     // KMK -->
     fun autoSyncProgressFromTrackers() = preferenceStore.getBoolean("pref_auto_sync_progress_from_trackers_key", true)
 
+    /**
+     * Appwide priority tracker for tracker-backed metadata (sequels/prequels).
+     * 0 (default) means none — callers fall back to logged-in trackers in order.
+     * Set by long-pressing a logged-in tracker in the tracking settings.
+     */
+    fun priorityTrackerId() = preferenceStore.getLong("pref_priority_tracker_id", 0L)
+
+    fun getPriorityTrackerId(): Long? = priorityTrackerId().get().takeIf { it > 0L }
+
+    fun setPriorityTrackerId(trackerId: Long?) {
+        priorityTrackerId().set(trackerId?.takeIf { it > 0L } ?: 0L)
+    }
+
     fun preferredTrackerForManga() = preferenceStore.getString("pref_preferred_tracker_for_manga", "")
 
     fun preferredTrackerForCategory() = preferenceStore.getString("pref_preferred_tracker_for_category", "")

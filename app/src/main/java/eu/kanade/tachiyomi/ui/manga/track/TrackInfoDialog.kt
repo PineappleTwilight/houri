@@ -1013,7 +1013,24 @@ data class TrackerSearchScreen(
         }
 
         fun registerTracking(item: TrackSearch) {
-            screenModelScope.launchNonCancellable { tracker.register(item, mangaId) }
+            screenModelScope.launchNonCancellable {
+                // KMK --> an uncaught register (e.g. MangaBaka 409 on an already-added
+                // entry) used to take down the app with a FATAL; surface it as a toast.
+                try {
+                    tracker.register(item, mangaId)
+                } catch (e: Exception) {
+                    logcat(LogPriority.ERROR, e) { "Failed to register tracking on ${tracker.name}" }
+                    withUIContext {
+                        globalAppGraph.context.toast(
+                            globalAppGraph.context.stringResource(
+                                MR.strings.track_error,
+                                tracker.name,
+                                e.message ?: "",
+                            ),
+                        )
+                    }
+                }
+            }
         }
 
         fun updateSelection(selected: TrackSearch) {

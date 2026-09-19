@@ -385,10 +385,15 @@ object SettingsYakuyomiScreen : SearchableSettings {
         val isNomtl = eu.kanade.tachiyomi.BuildConfig.IS_NOMTL
         // KMK <--
 
+        // KMK --> auto-enable when the user *switches to* MangaTranslator (it is the only
+        // provider that can translate without the MTL engine), but never on plain screen
+        // entry — otherwise the toggle can never stay off.
+        var lastProvider by remember { mutableStateOf(provider) }
         LaunchedEffect(provider) {
-            if (isMangatranslatorProvider && !prefs.enabled().get()) {
+            if (isMangatranslatorProvider && lastProvider != "mangatranslator" && !prefs.enabled().get()) {
                 prefs.enabled().set(true)
             }
+            lastProvider = provider
         }
 
         return Preference.PreferenceGroup(

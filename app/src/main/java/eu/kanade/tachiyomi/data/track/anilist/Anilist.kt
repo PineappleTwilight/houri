@@ -17,6 +17,8 @@ import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.serialization.json.Json
 import mihon.app.di.globalAppGraph
+import tachiyomi.domain.manga.model.SequelPrequelEntry
+import tachiyomi.domain.manga.model.SequelPrequelRelation
 import tachiyomi.i18n.MR
 import tachiyomi.domain.track.model.Track as DomainTrack
 
@@ -250,6 +252,23 @@ class Anilist(id: Long) : BaseTracker(id, "AniList"), DeletableTracker {
             xLogW("Error during getMangaRelations '$mediaId': ${e.message}", e)
             null
         }
+    }
+
+    override suspend fun getRelatedEntries(remoteId: Long): List<SequelPrequelEntry>? {
+        val relations = getMangaRelations(remoteId) ?: return null
+        val entries = relations.data?.media?.relations?.edges?.mapNotNull { edge ->
+            val relation = SequelPrequelRelation.fromAniList(edge.relationType)
+                ?.takeIf { it == SequelPrequelRelation.PREQUEL || it == SequelPrequelRelation.SEQUEL }
+                ?: return@mapNotNull null
+            val title = edge.node.title.display()?.ifBlank { null } ?: return@mapNotNull null
+            SequelPrequelEntry(
+                title = title,
+                url = edge.node.siteUrl,
+                relation = relation,
+                trackerId = id,
+            )
+        }.orEmpty()
+        return entries.ifEmpty { null }
     }
     // KMK <--
 

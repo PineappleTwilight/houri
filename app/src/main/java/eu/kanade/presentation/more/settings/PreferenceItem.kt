@@ -212,6 +212,10 @@ internal fun PreferenceItem(
                             if (isLoggedIn) item.logout() else item.login()
                         }
                     },
+                    isPriority = item.isPriority,
+                    onLongClick = item.onLongClick?.takeIf { interactive && isLoggedIn }?.let { longClick ->
+                        { longClick() }
+                    },
                     // KMK <--
                 )
             }

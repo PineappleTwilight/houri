@@ -18,6 +18,7 @@ import mihon.app.di.globalAppGraph
 import okhttp3.OkHttpClient
 import tachiyomi.core.common.util.lang.withIOContext
 import tachiyomi.core.common.util.system.logcat
+import tachiyomi.domain.manga.model.SequelPrequelEntry
 import tachiyomi.domain.track.interactor.InsertTrack
 import tachiyomi.domain.track.model.Track as DomainTrack
 
@@ -181,6 +182,15 @@ abstract class BaseTracker(
         throw NotImplementedError("Not implemented.")
     }
     // SY <--
+
+    // KMK -->
+    /**
+     * Sequel/prequel entries for this service's [remoteId], or null when the
+     * service exposes no relations API. The sequel/prequel provider tries the
+     * priority tracker first, then every other logged-in tracker in order.
+     */
+    open suspend fun getRelatedEntries(remoteId: Long): List<SequelPrequelEntry>? = null
+    // KMK <--
 
     private suspend fun updateRemote(track: Track): Unit = withIOContext {
         try {
