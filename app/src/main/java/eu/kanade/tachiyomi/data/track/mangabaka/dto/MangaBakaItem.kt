@@ -29,6 +29,7 @@ data class MangaBakaItem(
     val rating: Double?,
     val titles: List<MangaBakaItemTitle>?,
     // KMK --> series-detail payloads carry relationships_v2; absent on search items
+    @SerialName("relationships_v2")
     val relationshipsV2: List<MangaBakaRelationship>? = null,
 ) {
     fun chooseBestTitle(): String {
