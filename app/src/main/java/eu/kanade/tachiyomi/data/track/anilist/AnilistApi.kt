@@ -549,6 +549,11 @@ class AnilistApi(val client: OkHttpClient, interceptor: AnilistInterceptor) {
                                     |userPreferred
                                 |}
                                 |siteUrl
+                                # KMK --> cover for the sequel/prequel card
+                                |coverImage {
+                                    |large
+                                |}
+                                # KMK <--
                             |}
                         |}
                     |}

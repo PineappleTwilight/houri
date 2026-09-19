@@ -266,6 +266,9 @@ class Anilist(id: Long) : BaseTracker(id, "AniList"), DeletableTracker {
                 url = edge.node.siteUrl,
                 relation = relation,
                 trackerId = id,
+                // KMK --> cover for the sequel/prequel card
+                coverUrl = edge.node.coverImage?.large,
+                // KMK <--
             )
         }.orEmpty()
         return entries.ifEmpty { null }

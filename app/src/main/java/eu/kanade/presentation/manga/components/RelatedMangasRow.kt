@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -148,30 +149,42 @@ fun SequelPrequelRow(
 
 @Composable
 private fun SequelPrequelCard(entry: SequelPrequelEntry, inLibrary: Boolean, onClick: () -> Unit) {
-    Column(
+    Row(
         modifier = Modifier
-            .width(160.dp)
+            .width(216.dp)
             .clickable(onClick = onClick)
             .padding(vertical = MaterialTheme.padding.extraSmall),
+        horizontalArrangement = Arrangement.spacedBy(MaterialTheme.padding.extraSmall),
     ) {
-        Text(
-            // KMK --> UPPER_SNAKE kinds ("SIDE_STORY") render as "Side story"
-        text = entry.relation.name.lowercase().replace('_', ' ').replaceFirstChar { it.uppercase() },
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.primary,
-        )
-        Text(
-            text = entry.title,
-            style = MaterialTheme.typography.bodyMedium,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis,
-        )
-        if (inLibrary) {
-            Text(
-                text = stringResource(MR.strings.in_library),
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.tertiary,
+        // KMK --> cover thumbnail when the tracker supplied one; text-only card otherwise
+        if (entry.coverUrl != null) {
+            MangaCover.Book(
+                data = entry.coverUrl,
+                modifier = Modifier.width(64.dp),
+                contentDescription = entry.title,
             )
+        }
+        // KMK <--
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                // KMK --> UPPER_SNAKE kinds ("SIDE_STORY") render as "Side story"
+                text = entry.relation.name.lowercase().replace('_', ' ').replaceFirstChar { it.uppercase() },
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.primary,
+            )
+            Text(
+                text = entry.title,
+                style = MaterialTheme.typography.bodyMedium,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+            if (inLibrary) {
+                Text(
+                    text = stringResource(MR.strings.in_library),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.tertiary,
+                )
+            }
         }
     }
 }

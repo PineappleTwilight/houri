@@ -68,7 +68,11 @@ data class MangaBakaCover(
     val x150: MangaBakaScaledCover? = null,
     val x250: MangaBakaScaledCover? = null,
     val x350: MangaBakaScaledCover? = null,
-)
+) {
+    // KMK --> largest-first cover pick, shared by search and the sequel/prequel cards
+    fun bestUrl(): String? = raw?.url ?: x350?.x1 ?: x250?.x1 ?: x150?.x1
+    // KMK <--
+}
 
 @Serializable
 data class MangaBakaScaledCover(

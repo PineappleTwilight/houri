@@ -36,6 +36,9 @@ data class ALRelationNode(
     val id: Long,
     val title: ALRelationTitle,
     val siteUrl: String,
+    // KMK --> cover for the sequel/prequel card; nullable so older cached payloads still parse
+    val coverImage: ItemCover? = null,
+    // KMK <--
 )
 
 @Serializable

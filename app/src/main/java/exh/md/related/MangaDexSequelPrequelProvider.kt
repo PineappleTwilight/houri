@@ -6,6 +6,7 @@ import dev.zacsweers.metro.SingleIn
 import eu.kanade.tachiyomi.network.NetworkHelper
 import eu.kanade.tachiyomi.source.online.all.MangaDex
 import exh.md.service.MangaDexService
+import exh.md.utils.MdConstants
 import exh.md.utils.MdUtil
 import exh.md.utils.MdUtil.Companion.baseUrl
 import exh.source.getMainSource
@@ -47,14 +48,22 @@ class MangaDexSequelPrequelProvider(
         if (pairs.isEmpty()) return emptyList()
 
         val titlesById = service.viewMangas(pairs.map { it.first }.distinct())
-            .data.associateBy({ it.id }, { it.attributes })
+            .data.associateBy({ it.id })
         return pairs.mapNotNull { (relatedId, relation) ->
-            val attributes = titlesById[relatedId] ?: return@mapNotNull null
+            val dto = titlesById[relatedId] ?: return@mapNotNull null
+            val attributes = dto.attributes
+            // KMK --> viewMangas already includes cover_art; no extra fetch
+            val coverUrl = dto.relationships
+                .firstOrNull { it.type == MdConstants.Types.coverArt }
+                ?.attributes?.fileName
+                ?.let { MdUtil.cdnCoverUrl(relatedId, it) }
+            // KMK <--
             SequelPrequelEntry(
                 title = MdUtil.getTitleFromManga(attributes, lang, true).ifBlank { return@mapNotNull null },
                 url = MdUtil.buildMangaUrl(relatedId),
                 relation = relation,
                 trackerId = preferredTrackerId,
+                coverUrl = coverUrl,
             )
         }
     }

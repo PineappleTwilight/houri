@@ -347,6 +347,9 @@ data class SequelPrequelEntry(
     val url: String,
     val relation: SequelPrequelRelation,
     val trackerId: Long? = null,
+    // KMK --> cover thumbnail for the sequel/prequel card; null keeps the text-only card
+    val coverUrl: String? = null,
+    // KMK <--
 )
 
 object SequelPrequelSettingKeys {

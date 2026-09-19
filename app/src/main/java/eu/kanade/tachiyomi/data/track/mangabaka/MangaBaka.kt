@@ -180,6 +180,9 @@ class MangaBaka(id: Long) : BaseTracker(id, "MangaBaka"), DeletableTracker {
                 url = details.tracking_url,
                 relation = relation,
                 trackerId = id,
+                // KMK --> details payload already carries the cover; no extra fetch
+                coverUrl = details.cover_url.ifBlank { null },
+                // KMK <--
             )
         }
         return entries.ifEmpty { null }
