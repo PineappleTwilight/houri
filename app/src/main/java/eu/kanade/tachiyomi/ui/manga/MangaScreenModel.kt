@@ -1612,9 +1612,24 @@ class MangaScreenModel(
 
     // Track sheet - start
 
+    // KMK --> inputs watched to refetch sequel/prequel relations
+    // when tracker bindings change (see observeTrackers below).
+    private data class SequelPrequelInputs(
+        val trackKeys: Set<Pair<Long, Long>>,
+        val loggedInTrackerIds: Set<Long>,
+        val preferredTrackerId: Long?,
+    )
+    // KMK <--
+
     private fun observeTrackers() {
         val state = successState
         val manga = state?.manga ?: return
+
+        // KMK --> last tracker inputs seen by the sequel/prequel
+        // refetch hook in the collector below (null until the
+        // first emission, which init already fetched for).
+        var sequelPrequelInputs: SequelPrequelInputs? = null
+        // KMK <--
 
         screenModelScope.launchIO {
             combine(
@@ -1657,23 +1672,48 @@ class MangaScreenModel(
                     } else {
                         tracks
                     }
-                    supportedTrackerTracks
+                    // KMK --> carry the sequel/prequel inputs alongside
+                    // the badge count so track bindings, logins and the
+                    // preferred tracker can trigger a refetch below.
+                    val visibleTracks = supportedTrackerTracks
                         .filter {
                             it.trackerId != trackerManager.mdList.id ||
                                 it.status != FollowStatus.UNFOLLOWED.long
                         }
-                        .size to supportedTrackers.isNotEmpty()
+                    Triple(
+                        visibleTracks.size,
+                        supportedTrackers.isNotEmpty(),
+                        SequelPrequelInputs(
+                            trackKeys = visibleTracks.map { it.trackerId to it.remoteId }.toSet(),
+                            loggedInTrackerIds = supportedTrackers.map { it.id }.toSet(),
+                            preferredTrackerId = trackPreferences.getPreferredTrackerForManga(manga.id),
+                        ),
+                    )
+                    // KMK <--
                 }
                 // SY <--
                 .flowWithLifecycle(lifecycle)
                 .distinctUntilChanged()
-                .collectLatest { (trackingCount, hasLoggedInTrackers) ->
+                .collectLatest { (trackingCount, hasLoggedInTrackers, sequelInputs) ->
                     updateSuccessState {
                         it.copy(
                             trackingCount = trackingCount,
                             hasLoggedInTrackers = hasLoggedInTrackers,
                         )
                     }
+                    // KMK --> refetch sequel/prequel relations when tracker
+                    // inputs change (bind/unbind, login/logout, preferred
+                    // switch): the first fetch may have returned Hidden
+                    // before a tracker was bound, and empty results are not
+                    // cached, so invalidate + re-query surfaces the new
+                    // relations immediately. Skipped on the first emission
+                    // because the screen-init fetch already ran for it.
+                    if (sequelPrequelInputs != null && sequelPrequelInputs != sequelInputs) {
+                        getSequelPrequel.invalidate(manga.id)
+                        fetchSequelPrequel()
+                    }
+                    sequelPrequelInputs = sequelInputs
+                    // KMK <--
                 }
         }
     }
