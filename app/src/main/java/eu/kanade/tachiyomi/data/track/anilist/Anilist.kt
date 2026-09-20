@@ -273,6 +273,11 @@ class Anilist(id: Long) : BaseTracker(id, "AniList"), DeletableTracker {
         }.orEmpty()
         return entries.ifEmpty { null }
     }
+
+    override fun parseRelatedEntryId(url: String): Long? {
+        // siteUrl looks like https://anilist.co/manga/12345/Title-Here
+        return url.substringAfter("/manga/", "").substringBefore("/").toLongOrNull()
+    }
     // KMK <--
 
     // SY -->

@@ -190,6 +190,14 @@ abstract class BaseTracker(
      * priority tracker first, then every other logged-in tracker in order.
      */
     open suspend fun getRelatedEntries(remoteId: Long): List<SequelPrequelEntry>? = null
+
+    /**
+     * Extracts this service's remote id from a [SequelPrequelEntry.url] it
+     * produced (AniList siteUrl, MangaBaka tracking_url), or null when the url
+     * is not one of ours. Lets tap resolution build the stub from our own
+     * metadata instead of falling through to the website.
+     */
+    open fun parseRelatedEntryId(url: String): Long? = null
     // KMK <--
 
     private suspend fun updateRemote(track: Track): Unit = withIOContext {

@@ -54,6 +54,7 @@ import eu.kanade.tachiyomi.data.download.DownloadCache
 import eu.kanade.tachiyomi.data.download.DownloadManager
 import eu.kanade.tachiyomi.data.download.DownloadProvider
 import eu.kanade.tachiyomi.data.download.model.Download
+import eu.kanade.tachiyomi.data.track.BaseTracker
 import eu.kanade.tachiyomi.data.track.EnhancedTracker
 import eu.kanade.tachiyomi.data.track.TrackerManager
 import eu.kanade.tachiyomi.data.track.mdlist.MdList
@@ -105,6 +106,8 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 import logcat.LogPriority
 import mihon.app.di.globalAppGraph
 import mihon.domain.chapter.interactor.FilterChaptersForDownload
@@ -157,9 +160,11 @@ import tachiyomi.domain.manga.model.MangaUpdate
 import tachiyomi.domain.manga.model.MangaWithChapterCount
 import tachiyomi.domain.manga.model.MergeMangaSettingsUpdate
 import tachiyomi.domain.manga.model.MergedMangaReference
+import tachiyomi.domain.manga.model.SEQUEL_PREQUEL_STUB_MEMO_KEY
 import tachiyomi.domain.manga.model.SequelPrequelEntry
 import tachiyomi.domain.manga.model.applyFilter
 import tachiyomi.domain.manga.model.asMangaCover
+import tachiyomi.domain.manga.model.isSequelPrequelStub
 import tachiyomi.domain.manga.repository.MangaRepository
 import tachiyomi.domain.source.model.StubSource
 import tachiyomi.domain.source.service.SourceManager
@@ -470,7 +475,9 @@ class MangaScreenModel(
             }
 
             val needRefreshInfo = !manga.initialized
-            val needRefreshChapter = chapters.isEmpty()
+            // KMK --> tracker stubs carry no readable chapters, so skip the
+            // chapter refresh that would only fail against the tracker url.
+            val needRefreshChapter = chapters.isEmpty() && !manga.isSequelPrequelStub()
 
             // Show what we have earlier
             mutableState.update {
@@ -1226,6 +1233,22 @@ class MangaScreenModel(
 
     suspend fun resolveSequelPrequel(entry: SequelPrequelEntry): Long? {
         val state = successState ?: return null
+        // KMK --> library first: land on the existing library entry without
+        // creating a stub or hitting any network.
+        try {
+            mangaRepository.getLibraryManga()
+                .firstOrNull { it.manga.title.equals(entry.title, ignoreCase = true) }
+                ?.let { return it.manga.id }
+        } catch (_: Exception) {
+        }
+        // KMK --> tracker stub: metadata comes from the tracker that reported
+        // the relation, since trackers carry no readable chapters.
+        try {
+            resolveTrackerStub(entry, state.source.id)?.let { return it }
+        } catch (e: Exception) {
+            logcat(LogPriority.ERROR, e)
+        }
+        // KMK --> in-source resolution (e.g. MangaDex fallback urls).
         return try {
             val sManga = (state.source as? ResolvableSource)?.getManga(entry.url)
                 ?: state.source.getMangaUpdate(
@@ -1250,11 +1273,56 @@ class MangaScreenModel(
             duplicates.firstOrNull { it.manga.favorite }?.manga?.id
                 ?: duplicates.firstOrNull()?.manga?.id
                 ?: resolved.id
-            // KMK <--
         } catch (e: Exception) {
             logcat(LogPriority.ERROR, e)
             null
         }
+    }
+
+    private suspend fun resolveTrackerStub(entry: SequelPrequelEntry, sourceId: Long): Long? {
+        val trackerId = entry.trackerId ?: return null
+        val service = trackerManager.get(trackerId) as? BaseTracker ?: return null
+        if (!service.isLoggedIn) return null
+        val remoteId = service.parseRelatedEntryId(entry.url) ?: return null
+        val metadata = service.getMangaMetadata(
+            Track(
+                id = -1L,
+                mangaId = -1L,
+                trackerId = trackerId,
+                remoteId = remoteId,
+                libraryId = null,
+                title = entry.title,
+                lastChapterRead = 0.0,
+                totalChapters = 0L,
+                status = 0L,
+                score = 0.0,
+                remoteUrl = entry.url,
+                startDate = 0L,
+                finishDate = 0L,
+                private = false,
+            ),
+        )
+        val sManga = SManga.create().apply {
+            url = entry.url
+            title = metadata.title?.ifBlank { null } ?: entry.title
+            thumbnail_url = metadata.thumbnailUrl?.ifBlank { null } ?: entry.coverUrl
+            description = metadata.description
+            author = metadata.authors
+            artist = metadata.artists
+            genre = metadata.tags?.joinToString(", ")
+            status = metadata.status?.toInt() ?: SManga.UNKNOWN
+            initialized = true
+            memo = buildJsonObject { put(SEQUEL_PREQUEL_STUB_MEMO_KEY, true) }
+        }
+        val resolved = networkToLocalManga(sManga.toDomainManga(sourceId))
+        val duplicates = try {
+            getDuplicateLibraryManga(resolved)
+        } catch (_: Exception) {
+            emptyList()
+        }
+        return duplicates.firstOrNull { it.manga.favorite }?.manga?.id
+            ?: duplicates.firstOrNull()?.manga?.id
+            ?: resolved.id
     }
     // KMK <--
 

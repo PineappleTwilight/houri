@@ -14,6 +14,9 @@ data class Achievement(
     val isRotating: Boolean = false,
     val icon: String = "🏆",
     val unlockedAt: Long? = null,
+    // KMK --> true when the achievement needs the on-device MTL engine, so
+    // nomtl builds (yakuyomi-stub) can hide it instead of showing unwinnable.
+    val requiresMtl: Boolean = false,
 ) {
     val isUnlocked: Boolean get() = unlockedAt != null
     // Negative achievements do not count toward progress/rank.
@@ -73,10 +76,16 @@ object Achievements {
         isNegative: Boolean = false,
         isRotating: Boolean = false,
         icon: String = "🏆",
-    ) = Achievement(id, title, description, tier, category, isSecret, isNegative, isRotating, icon)
+        requiresMtl: Boolean = false,
+    ) = Achievement(id, title, description, tier, category, isSecret, isNegative, isRotating, icon, null, requiresMtl)
+
+    // KMK --> set once from App.onCreate (domain has no BuildConfig of its
+    // own). Filters MTL-engine achievements out of every consumer at once:
+    // lists, counts, stats totals and unlock lookups stay consistent.
+    var excludeMtlOnly: Boolean = false
 
     val all: List<Achievement> by lazy {
-        listOf(
+        val list = listOf(
             // === READING — milestones (organic only) ===
             a("first_chapter", "First Steps", "Read your first chapter organically", AchievementTier.BRONZE, icon = "🌱"),
             a("ten_chapters", "Getting Started", "Read 10 chapters organically", AchievementTier.BRONZE, AchievementCategory.READING, icon = "🌿"),
@@ -165,18 +174,18 @@ object Achievements {
             a("tracker_mangaupdates", "MangaUpdates Maven", "Use MangaUpdates tracker", AchievementTier.BRONZE, AchievementCategory.TRACKER, icon = "🦉"),
             a("tracker_anilist", "AniLyst", "Use AniList tracker", AchievementTier.BRONZE, AchievementCategory.TRACKER, icon = "🌸"),
             // === TRANSLATION / MTL (blanket AI) ===
-            a("translator", "Polyglot", "Translate a chapter", AchievementTier.SILVER, AchievementCategory.TRANSLATION, icon = "🌐"),
-            a("translator_five", "Interpreter", "Translate 5 chapters", AchievementTier.SILVER, AchievementCategory.TRANSLATION, icon = "🗣️"),
-            a("translator_ten", "Bridge Builder", "Translate 10 chapters", AchievementTier.GOLD, AchievementCategory.TRANSLATION, icon = "🌉"),
-            a("translator_fifty", "United Nations", "Translate 50 chapters", AchievementTier.PLATINUM, AchievementCategory.TRANSLATION, icon = "🏛️"),
-            a("translator_hundred", "Babel Fish", "Translate 100 chapters", AchievementTier.LEGENDARY, AchievementCategory.TRANSLATION, icon = "🐟"),
-            a("mtl_offline", "Offline Polyglot", "Translate with Gemini Nano offline fallback", AchievementTier.SILVER, AchievementCategory.TRANSLATION, icon = "📴"),
-            a("mtl_local", "Local LLM Whisperer", "Translate with a local GGUF model", AchievementTier.GOLD, AchievementCategory.TRANSLATION, icon = "🤖"),
-            a("mtl_vision", "Eagle Eye", "Translate with vision-aware local model (mmproj)", AchievementTier.GOLD, AchievementCategory.TRANSLATION, icon = "🦅"),
-            a("mtl_glossary", "Glossarian", "Create a translation glossary", AchievementTier.BRONZE, AchievementCategory.TRANSLATION, icon = "📖"),
-            a("mtl_info", "Info Translator", "Translate manga title/description", AchievementTier.BRONZE, AchievementCategory.TRANSLATION, icon = "🏷️"),
-            a("mtl_auto_download", "Auto Translator", "Enable auto-translate on download", AchievementTier.BRONZE, AchievementCategory.TRANSLATION, icon = "🤹"),
-            a("upscale_first", "Sharp Eye", "Upscale a page (MTL-gated)", AchievementTier.BRONZE, AchievementCategory.TRANSLATION, icon = "🔍"),
+            a("translator", "Polyglot", "Translate a chapter", AchievementTier.SILVER, AchievementCategory.TRANSLATION, icon = "🌐", requiresMtl = true),
+            a("translator_five", "Interpreter", "Translate 5 chapters", AchievementTier.SILVER, AchievementCategory.TRANSLATION, icon = "🗣️", requiresMtl = true),
+            a("translator_ten", "Bridge Builder", "Translate 10 chapters", AchievementTier.GOLD, AchievementCategory.TRANSLATION, icon = "🌉", requiresMtl = true),
+            a("translator_fifty", "United Nations", "Translate 50 chapters", AchievementTier.PLATINUM, AchievementCategory.TRANSLATION, icon = "🏛️", requiresMtl = true),
+            a("translator_hundred", "Babel Fish", "Translate 100 chapters", AchievementTier.LEGENDARY, AchievementCategory.TRANSLATION, icon = "🐟", requiresMtl = true),
+            a("mtl_offline", "Offline Polyglot", "Translate with Gemini Nano offline fallback", AchievementTier.SILVER, AchievementCategory.TRANSLATION, icon = "📴", requiresMtl = true),
+            a("mtl_local", "Local LLM Whisperer", "Translate with a local GGUF model", AchievementTier.GOLD, AchievementCategory.TRANSLATION, icon = "🤖", requiresMtl = true),
+            a("mtl_vision", "Eagle Eye", "Translate with vision-aware local model (mmproj)", AchievementTier.GOLD, AchievementCategory.TRANSLATION, icon = "🦅", requiresMtl = true),
+            a("mtl_glossary", "Glossarian", "Create a translation glossary", AchievementTier.BRONZE, AchievementCategory.TRANSLATION, icon = "📖", requiresMtl = true),
+            a("mtl_info", "Info Translator", "Translate manga title/description", AchievementTier.BRONZE, AchievementCategory.TRANSLATION, icon = "🏷️", requiresMtl = true),
+            a("mtl_auto_download", "Auto Translator", "Enable auto-translate on download", AchievementTier.BRONZE, AchievementCategory.TRANSLATION, icon = "🤹", requiresMtl = true),
+            a("upscale_first", "Sharp Eye", "Upscale a page", AchievementTier.BRONZE, AchievementCategory.TRANSLATION, icon = "🔍"),
             a("upscale_ten", "HD Fan", "Upscale 10 pages", AchievementTier.SILVER, AchievementCategory.TRANSLATION, icon = "🖥️"),
             a("upscale_hundred", "Pixel Purist", "Upscale 100 pages", AchievementTier.GOLD, AchievementCategory.TRANSLATION, icon = "🎞️"),
             a("upscale_vulkan", "Vulkan Forged", "Upscale with Vulkan backend", AchievementTier.SILVER, AchievementCategory.TRANSLATION, icon = "🌋"),
@@ -299,12 +308,13 @@ object Achievements {
             a("secret_mango_double", "Double Mango", "Find the mango easter egg twice", AchievementTier.GOLD, AchievementCategory.SOCIAL, isSecret = true, icon = "🥭"),
             a("secret_jxl", "JXL Pioneer", "Open a JPG-XL image", AchievementTier.SILVER, AchievementCategory.EXPLORATION, isSecret = true, icon = "🖼️"),
             a("secret_webgpu_rescue", "GPU Survivor", "Recover from a WebGPU black-screen preload", AchievementTier.BRONZE, AchievementCategory.EXPLORATION, isSecret = true, icon = "🚑"),
-            a("secret_anki", "Anki Overlord", "Export 100 vocabulary words from translations", AchievementTier.GOLD, AchievementCategory.TRANSLATION, isSecret = true, icon = "🧠"),
+            a("secret_anki", "Anki Overlord", "Export 100 vocabulary words from translations", AchievementTier.GOLD, AchievementCategory.TRANSLATION, isSecret = true, icon = "🧠", requiresMtl = true),
             a("secret_all_secret", "Secret Hunter", "Unlock 10 secret achievements", AchievementTier.PLATINUM, AchievementCategory.SOCIAL, isSecret = true, icon = "🕵️"),
             a("secret_platinum_club", "Platinum Club", "Unlock every PLATINUM achievement", AchievementTier.LEGENDARY, AchievementCategory.SOCIAL, isSecret = true, icon = "🏆"),
             a("secret_100_percent", "Houri 100%", "Unlock all non-secret achievements", AchievementTier.MYTHIC, AchievementCategory.SOCIAL, isSecret = true, icon = "🌟"),
             a("secret_mythic_hoard", "Mythic Hoard", "Unlock 5 MYTHIC achievements", AchievementTier.MYTHIC, AchievementCategory.SOCIAL, isSecret = true, icon = "🐲"),
         )
+        if (excludeMtlOnly) list.filterNot { it.requiresMtl } else list
     }
 
     fun forId(id: String) = all.find { it.id == id }

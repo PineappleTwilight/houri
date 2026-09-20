@@ -187,6 +187,11 @@ class MangaBaka(id: Long) : BaseTracker(id, "MangaBaka"), DeletableTracker {
         }
         return entries.ifEmpty { null }
     }
+
+    override fun parseRelatedEntryId(url: String): Long? {
+        // tracking_url looks like https://mangabaka.org/12345
+        return url.substringAfterLast("/").toLongOrNull()
+    }
     // KMK <--
 
     override suspend fun login(username: String, password: String) = login(password)

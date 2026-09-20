@@ -37,7 +37,7 @@ class TrackerSequelPrequelProvider(
     private val mangaDexFallback: MangaDexSequelPrequelProvider,
 ) : SequelPrequelProvider {
     override suspend fun fetch(mangaId: Long, preferredTrackerId: Long?): List<SequelPrequelEntry> {
-        getManga.await(mangaId) ?: return emptyList()
+        val manga = getManga.await(mangaId) ?: return emptyList()
         val tracks = try {
             getTracks.await(mangaId)
         } catch (_: Exception) {
@@ -51,6 +51,21 @@ class TrackerSequelPrequelProvider(
             val service = trackerManager.get(trackerId) as? BaseTracker ?: continue
             if (!service.isLoggedIn) continue
             val remoteId = tracks.find { it.trackerId == trackerId }?.remoteId?.takeIf { it > 0 } ?: continue
+            val entries = try {
+                service.getRelatedEntries(remoteId)
+            } catch (_: Exception) {
+                null
+            }.orEmpty()
+            if (entries.isNotEmpty()) return entries
+        }
+        // KMK --> stubs carry the tracker's own url but no bound track row, so
+        // the loop above never matches them. Let a logged-in tracker claim the
+        // url directly, making sequel/prequel rows recursive: stubs show their
+        // own relations too.
+        for (trackerId in orderedIds) {
+            val service = trackerManager.get(trackerId) as? BaseTracker ?: continue
+            if (!service.isLoggedIn) continue
+            val remoteId = service.parseRelatedEntryId(manga.url) ?: continue
             val entries = try {
                 service.getRelatedEntries(remoteId)
             } catch (_: Exception) {

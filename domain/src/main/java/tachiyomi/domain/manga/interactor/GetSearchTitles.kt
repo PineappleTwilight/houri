@@ -5,6 +5,7 @@ import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
 import exh.metadata.sql.models.SearchTitle
 import tachiyomi.domain.manga.model.SequelPrequelEntry
+import tachiyomi.domain.manga.model.SequelPrequelRelation
 import tachiyomi.domain.manga.repository.MangaMetadataRepository
 
 @Inject
@@ -69,11 +70,23 @@ class GetSequelPrequel(
     suspend fun await(mangaId: Long, preferredTrackerId: Long?, enabled: Boolean): Result {
         if (!enabled) return Result.Disabled
         cache.get(mangaId)?.let { return Result.Success(it) }
-        val entries = try {
+        val fetched = try {
             provider.fetch(mangaId, preferredTrackerId)
         } catch (_: Exception) {
             return Result.Hidden
         }
+        // KMK --> sequels and prequels first; stable so other kinds keep provider order.
+        val entries = fetched.sortedWith(
+            compareBy(
+                {
+                    when (it.relation) {
+                        SequelPrequelRelation.PREQUEL -> 0
+                        SequelPrequelRelation.SEQUEL -> 1
+                        else -> 2
+                    }
+                },
+            ),
+        )
         // KMK --> never cache empty results: bindings change (a tracker is
         // bound after the first view, an API hiccups) and a cached empty
         // would hide later-available relations until the 24h TTL expires.

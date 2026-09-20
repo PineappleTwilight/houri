@@ -7,6 +7,8 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.booleanOrNull
+import kotlinx.serialization.json.jsonPrimitive
 import mihon.core.common.extensions.EMPTY
 import tachiyomi.core.common.preference.TriState
 import java.io.ObjectStreamException
@@ -320,6 +322,7 @@ enum class SequelPrequelRelation(val dexString: String?) {
     PREQUEL("prequel"),
     REBOOT(null),
     REMAKE(null),
+    SAME_UNIVERSE(null),
     SEQUEL("sequel"),
     SERIES(null),
     SIDE_STORY(null),
@@ -336,8 +339,13 @@ enum class SequelPrequelRelation(val dexString: String?) {
         fun fromAniList(alString: String) = entries.find { it.name == alString }
 
         // KMK --> MangaBaka relationships_v2 relation_type values are the
-        // same kinds in lowercase snake_case ("side_story", "spin_off", ...).
-        fun fromMangaBaka(mbString: String) = entries.find { it.name == mbString.uppercase() }
+        // same kinds in lowercase snake_case ("side_story", "spin_off", ...),
+        // except the catch-all "other" which maps to the clearer SAME_UNIVERSE.
+        fun fromMangaBaka(mbString: String) = if (mbString.equals("other", ignoreCase = true)) {
+            SAME_UNIVERSE
+        } else {
+            entries.find { it.name == mbString.uppercase() }
+        }
         // KMK <--
     }
 }
@@ -356,4 +364,12 @@ object SequelPrequelSettingKeys {
     const val KEY = "pref_sequel_prequel_enabled"
     const val DEFAULT_ENABLED = false
 }
+
+// KMK --> memo key marking a tracker sequel/prequel stub: tracker metadata,
+// no readable chapters, so the details screen skips its chapter refresh.
+const val SEQUEL_PREQUEL_STUB_MEMO_KEY = "kmk.sequelPrequelStub"
+
+fun Manga.isSequelPrequelStub(): Boolean =
+    memo[SEQUEL_PREQUEL_STUB_MEMO_KEY]?.jsonPrimitive?.booleanOrNull == true
+// KMK <--
 // KMK <--

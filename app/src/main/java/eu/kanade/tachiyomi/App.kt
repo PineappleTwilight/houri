@@ -131,6 +131,9 @@ class App : Application(), DefaultLifecycleObserver, SingletonImageLoader.Factor
     @SuppressLint("LaunchActivityFromNotification")
     override fun onCreate() {
         super<Application>.onCreate()
+        // KMK --> domain has no BuildConfig; drop MTL-engine achievements from
+        // the catalog on nomtl builds before anything reads it (lazy).
+        tachiyomi.domain.achievement.model.Achievements.excludeMtlOnly = BuildConfig.IS_NOMTL
         patchInjekt()
         Injekt.addSingleton<Application>(this)
         Injekt.addSingleton<Context>(this)

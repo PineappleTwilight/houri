@@ -5,7 +5,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -20,6 +19,7 @@ import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import eu.kanade.presentation.browse.components.EmptyResultItem
@@ -149,42 +149,46 @@ fun SequelPrequelRow(
 
 @Composable
 private fun SequelPrequelCard(entry: SequelPrequelEntry, inLibrary: Boolean, onClick: () -> Unit) {
-    Row(
+    Column(
         modifier = Modifier
-            .width(216.dp)
+            .width(112.dp)
             .clickable(onClick = onClick)
             .padding(vertical = MaterialTheme.padding.extraSmall),
-        horizontalArrangement = Arrangement.spacedBy(MaterialTheme.padding.extraSmall),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(MaterialTheme.padding.extraSmall),
     ) {
+        Text(
+            // KMK --> UPPER_SNAKE kinds ("SIDE_STORY") render as "Side story"
+            text = entry.relation.name.lowercase().replace('_', ' ').replaceFirstChar { it.uppercase() },
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.primary,
+            textAlign = TextAlign.Center,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
         // KMK --> cover thumbnail when the tracker supplied one; text-only card otherwise
         if (entry.coverUrl != null) {
             MangaCover.Book(
                 data = entry.coverUrl,
-                modifier = Modifier.width(64.dp),
+                modifier = Modifier.width(96.dp),
                 contentDescription = entry.title,
             )
         }
         // KMK <--
-        Column(modifier = Modifier.weight(1f)) {
+        Text(
+            text = entry.title,
+            style = MaterialTheme.typography.bodyMedium,
+            textAlign = TextAlign.Center,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+        )
+        if (inLibrary) {
             Text(
-                // KMK --> UPPER_SNAKE kinds ("SIDE_STORY") render as "Side story"
-                text = entry.relation.name.lowercase().replace('_', ' ').replaceFirstChar { it.uppercase() },
+                text = stringResource(MR.strings.in_library),
                 style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.primary,
+                color = MaterialTheme.colorScheme.tertiary,
+                textAlign = TextAlign.Center,
             )
-            Text(
-                text = entry.title,
-                style = MaterialTheme.typography.bodyMedium,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-            )
-            if (inLibrary) {
-                Text(
-                    text = stringResource(MR.strings.in_library),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.tertiary,
-                )
-            }
         }
     }
 }
