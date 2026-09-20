@@ -5,7 +5,7 @@
 <br/>
  <h1 align="center"> Houri </h1>
 
-*Requires Android 8.0 or higher.*
+*A new approach to Komikku.*
 
 [![Discord](https://img.shields.io/discord/1540509997719355545.svg?label=&labelColor=6A7EC2&color=7389D8&logo=discord&logoColor=FFFFFF)](https://discord.gg/JcQZYvCbYH)
 [![CI](https://img.shields.io/github/actions/workflow/status/PineappleTwilight/komikku-pineapple/build_push.yml?labelColor=27303D&label=CI)](https://github.com/PineappleTwilight/komikku-pineapple/actions/workflows/build_push.yml)
