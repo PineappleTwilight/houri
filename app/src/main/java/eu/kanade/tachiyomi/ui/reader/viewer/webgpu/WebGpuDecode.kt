@@ -580,12 +580,13 @@ internal suspend fun WebGpuViewer.decodeReaderPage(page: ViewerReaderPage) {
 /**
  * The viewer library always performs its built-in double-tap zoom, so when the
  * preference is disabled the page's max scale is clamped to its home scale - the
- * zoom animation then lands where it started. Pinch zoom sets scale directly and
- * never consults this value. The library sentinel -1f restores the computed default.
+ * zoom animation then lands where it started. The paged "disable zoom in" pref
+ * clamps the same way, and the library additionally caps pinch/double-tap-drag
+ * gestures at a restricted maxScale. The library sentinel -1f restores the computed default.
  */
 internal fun WebGpuViewer.applyDoubleTapZoomPolicy(page: ImagePage.ImageSingle) {
     if (isDestroyed || isContinuous) return
-    if (config.doubleTapZoom) {
+    if (config.doubleTapZoom && !config.disableZoomIn) {
         try {
             page.maxScale = -1f
         } catch (_: Exception) {

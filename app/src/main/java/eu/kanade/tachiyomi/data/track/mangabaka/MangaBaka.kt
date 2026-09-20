@@ -183,6 +183,10 @@ class MangaBaka(id: Long) : BaseTracker(id, "MangaBaka"), DeletableTracker {
                 // KMK --> details payload already carries the cover; no extra fetch
                 coverUrl = details.cover_url.ifBlank { null },
                 // KMK <--
+                // KMK --> web novels are unreadable in the reader; flag them so
+                // the click handler routes them to the browser instead.
+                isWebNovel = details.publishing_type.equals("novel", ignoreCase = true),
+                // KMK <--
             )
         }
         return entries.ifEmpty { null }

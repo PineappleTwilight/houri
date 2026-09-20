@@ -358,6 +358,10 @@ data class SequelPrequelEntry(
     // KMK --> cover thumbnail for the sequel/prequel card; null keeps the text-only card
     val coverUrl: String? = null,
     // KMK <--
+    // KMK --> true when the related entry is a web novel (unreadable in the
+    // reader); the click handler routes these to the browser instead.
+    val isWebNovel: Boolean = false,
+    // KMK <--
 )
 
 object SequelPrequelSettingKeys {

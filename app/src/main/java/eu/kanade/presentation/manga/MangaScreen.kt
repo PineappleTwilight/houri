@@ -681,10 +681,12 @@ private fun MangaScreenSmallImpl(
                             isTabletUi = false,
                             appBarPadding = topPadding,
                             manga = state.manga,
-                            sourceName = remember { state.source.getNameForMangaInfo(state.mergedData?.sources) },
-                            isStubSource = remember { state.source is StubSource },
+                            sourceName = remember(state.source, state.mergedData?.sources) {
+                                state.source.getNameForMangaInfo(state.mergedData?.sources)
+                            },
+                            isStubSource = remember(state.source) { state.source is StubSource },
                             // KMK -->
-                            isSourceIncognito = remember { state.source.isIncognitoModeEnabled() },
+                            isSourceIncognito = remember(state.source) { state.source.isIncognitoModeEnabled() },
                             // KMK <--
                             onCoverClick = onCoverClicked,
                             doSearch = onSearch,
@@ -1239,10 +1241,12 @@ private fun MangaScreenLargeImpl(
                             isTabletUi = true,
                             appBarPadding = contentPadding.calculateTopPadding(),
                             manga = state.manga,
-                            sourceName = remember { state.source.getNameForMangaInfo(state.mergedData?.sources) },
-                            isStubSource = remember { state.source is StubSource },
+                            sourceName = remember(state.source, state.mergedData?.sources) {
+                                state.source.getNameForMangaInfo(state.mergedData?.sources)
+                            },
+                            isStubSource = remember(state.source) { state.source is StubSource },
                             // KMK -->
-                            isSourceIncognito = remember { state.source.isIncognitoModeEnabled() },
+                            isSourceIncognito = remember(state.source) { state.source.isIncognitoModeEnabled() },
                             // KMK <--
                             onCoverClick = onCoverClicked,
                             doSearch = onSearch,

@@ -102,6 +102,13 @@ class WebGpuConfig(
     var zoomOutDisabled = false
         private set
 
+    // KMK --> paged "disable zoom in" was wired only into the legacy pager;
+    // the WebGPU reader ignored it. Registered here so the max-scale clamp
+    // applies to WebGPU paged pages too.
+    var disableZoomIn = false
+        private set
+    // KMK <--
+
     // KMK -->
     var continuousGap = 10
         private set
@@ -267,6 +274,14 @@ class WebGpuConfig(
                 { zoomOutDisabled = it },
                 { imageStateChangedListener?.invoke() },
             )
+
+        // KMK -->
+        readerPreferences.pagedDisableZoomIn()
+            .register(
+                { disableZoomIn = it },
+                { doubleTapZoomChangedListener?.invoke(it) },
+            )
+        // KMK <--
 
         // KMK -->
         readerPreferences.continuousGap()

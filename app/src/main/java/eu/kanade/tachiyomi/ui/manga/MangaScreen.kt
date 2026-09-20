@@ -458,11 +458,16 @@ class MangaScreen(
             onRelatedMangaLongClick = { bulkFavoriteScreenModel.addRemoveManga(it, haptic) },
             // KMK -->
             onSequelPrequelClick = { entry ->
-                scope.launch {
-                    screenModel.resolveSequelPrequel(entry)?.let { navigator.push(MangaScreen(it, true)) }
-                        // Tracker-sourced entries (e.g. AniList siteUrl) don't resolve
-                        // in-source: open them in the browser instead of no-op.
-                        ?: entry.url.takeIf { it.startsWith("http") }?.let { context.openInBrowser(it) }
+                // KMK --> web novels are unreadable in the reader; open in browser directly.
+                if (entry.isWebNovel) {
+                    entry.url.takeIf { it.startsWith("http") }?.let { context.openInBrowser(it) }
+                } else {
+                    scope.launch {
+                        screenModel.resolveSequelPrequel(entry)?.let { navigator.push(MangaScreen(it, true)) }
+                            // Tracker-sourced entries (e.g. AniList siteUrl) don't resolve
+                            // in-source: open them in the browser instead of no-op.
+                            ?: entry.url.takeIf { it.startsWith("http") }?.let { context.openInBrowser(it) }
+                    }
                 }
             },
             // KMK <--
