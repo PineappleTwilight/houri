@@ -116,6 +116,7 @@ class ViewerTransitionPage(
     override val prevChapter: ReaderChapter?,
     override val nextChapter: ReaderChapter?,
 ) : ViewerPage() {
+    @Volatile
     override var imagePage: ImagePage = TransitionPage(viewer, prevChapter, nextChapter)
 
     private val prevLink = NeighborLink()
@@ -195,6 +196,7 @@ class ViewerReaderPage(
     var rescaleInFlight: Boolean = false
     // KMK <--
 
+    @Volatile
     override var imagePage: ImagePage = ProgressPage(viewer)
 
     override val isDecoded
@@ -275,7 +277,7 @@ class ViewerReaderPage(
 
 class ErrorPage(
     private val viewer: WebGpuViewer,
-    var message: String,
+    @Volatile var message: String,
     private val spreadPosition: SpreadPosition = SpreadPosition.SINGLE,
 ) : ImagePage.Render(0, 0) {
     override val width: Int
@@ -347,6 +349,7 @@ class ProgressPage(
     override val height: Int
         get() = viewer.pager.state.height
 
+    @Volatile
     var progress: Float = 0f
 
     init {

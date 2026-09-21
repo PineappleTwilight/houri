@@ -70,18 +70,36 @@ internal fun WebGpuViewer.queueForDecode(page: ViewerReaderPage, prioritize: Boo
  * transition page bridging the anchor chapter sits at distance 0, and anything
  * unrelated sorts farthest. Pages inside the directional preload window are
  * never victims while anything outside it exists; in-flight decodes (non-IDLE)
- * are only taken when no IDLE victim exists. Ties break oldest-first via
- * insertion order. The anchor and the live current page are never candidates.
+ * are only taken when no IDLE victim exists. Distance ties prefer undecoded
+ * placeholder shells over decoded content (dropping them is invisible), then
+ * break oldest-first via insertion order. The anchor and the live current page
+ * are never candidates.
  */
 internal fun WebGpuViewer.evictFarthestPage(reference: ViewerPage? = null) {
     val anchor = reference ?: currentPage ?: pageCache.values.lastOrNull() ?: return
     val liveCurrent = currentPage
-    val anchorReader = anchor as? ViewerReaderPage
+
+    // A shell that never decoded still shows its placeholder, so dropping it is
+    // invisible and rebuilding it is cheap; dropping decoded content reverts a
+    // possibly half-visible page to a placeholder (flicker + re-decode). At equal
+    // distance the placeholder sorts as the farther victim.
+    fun isCheapPlaceholder(page: ViewerPage): Boolean =
+        page is ViewerReaderPage && !page.isDecoded
+
+    // Higher rank sorts as the farther victim; ties prefer the cheap placeholder,
+    // then earliest insertion (strict > keeps the first encounter).
+    fun beats(rank: Int, cheap: Boolean, bestRank: Int, bestCheap: Boolean, hasBest: Boolean): Boolean {
+        if (!hasBest) return true
+        if (rank != bestRank) return rank > bestRank
+        return cheap && !bestCheap
+    }
 
     var bestIdle: ViewerPage? = null
-    var bestIdleDistance = Int.MIN_VALUE
+    var bestIdleRank = Int.MIN_VALUE
+    var bestIdleCheap = false
     var bestAny: ViewerPage? = null
-    var bestAnyDistance = Int.MIN_VALUE
+    var bestAnyRank = Int.MIN_VALUE
+    var bestAnyCheap = false
     var oldestIdle: ViewerPage? = null
     var oldestAny: ViewerPage? = null
 
@@ -92,7 +110,7 @@ internal fun WebGpuViewer.evictFarthestPage(reference: ViewerPage? = null) {
         val isIdle = page.state == PageState.IDLE
         if (isIdle && oldestIdle == null) oldestIdle = page
 
-        val distance = if (anchorReader != null) pageDistance(anchorReader, page) else null
+        val distance = pageDistance(anchor, page)
         // Inside the directional preload window (plus one slack for a spread
         // partner or transition page): keep while anything outside it exists.
         val inWindow = distance != null &&
@@ -100,37 +118,55 @@ internal fun WebGpuViewer.evictFarthestPage(reference: ViewerPage? = null) {
         if (!inWindow) {
             // Unrelated chapters sort past every related page, so stale shells go first.
             val rank = distance ?: Int.MAX_VALUE
-            if (isIdle && rank > bestIdleDistance) {
-                bestIdleDistance = rank
+            val cheap = isCheapPlaceholder(page)
+            if (isIdle && beats(rank, cheap, bestIdleRank, bestIdleCheap, bestIdle != null)) {
+                bestIdleRank = rank
+                bestIdleCheap = cheap
                 bestIdle = page
             }
-            if (rank > bestAnyDistance) {
-                bestAnyDistance = rank
+            if (beats(rank, cheap, bestAnyRank, bestAnyCheap, bestAny != null)) {
+                bestAnyRank = rank
+                bestAnyCheap = cheap
                 bestAny = page
             }
         }
     }
 
     // Fully in-window cache (steady state plus one new shell): drop the farthest
-    // IDLE page at the window edge rather than the oldest, which may be adjacent.
-    if (bestIdle == null && bestAny == null && anchorReader != null) {
+    // page at the window edge rather than the oldest, which may be adjacent.
+    // Placeholders go before decoded content at equal reach, for the same
+    // no-visible-flicker reason as above.
+    var victim = bestIdle ?: bestAny
+    if (victim == null) {
+        var edgeIdle: ViewerPage? = null
+        var edgeIdleRank = Int.MIN_VALUE
+        var edgeIdleCheap = false
+        var edgeAny: ViewerPage? = null
+        var edgeAnyRank = Int.MIN_VALUE
+        var edgeAnyCheap = false
         for (page in pageCache.values) {
             if (page === anchor) continue
             if (liveCurrent != null && page === liveCurrent) continue
-            val distance = pageDistance(anchorReader, page) ?: continue
+            val distance = pageDistance(anchor, page) ?: continue
             val rank = kotlin.math.abs(distance)
-            if (page.state == PageState.IDLE && rank > bestIdleDistance) {
-                bestIdleDistance = rank
-                bestIdle = page
+            val cheap = isCheapPlaceholder(page)
+            if (page.state == PageState.IDLE &&
+                beats(rank, cheap, edgeIdleRank, edgeIdleCheap, edgeIdle != null)
+            ) {
+                edgeIdleRank = rank
+                edgeIdleCheap = cheap
+                edgeIdle = page
             }
-            if (rank > bestAnyDistance) {
-                bestAnyDistance = rank
-                bestAny = page
+            if (beats(rank, cheap, edgeAnyRank, edgeAnyCheap, edgeAny != null)) {
+                edgeAnyRank = rank
+                edgeAnyCheap = cheap
+                edgeAny = page
             }
         }
+        victim = edgeIdle ?: edgeAny
     }
 
-    val toRemove = bestIdle ?: bestAny ?: oldestIdle ?: oldestAny ?: return
+    val toRemove = victim ?: oldestIdle ?: oldestAny ?: return
 
     pageCache.remove(pageKey(toRemove))
     decodeQueue.remove(toRemove)
@@ -197,6 +233,55 @@ internal fun WebGpuViewer.pageDistance(anchor: ViewerReaderPage, page: ViewerPag
             if (page.prevChapter === anchorChapter || page.nextChapter === anchorChapter) 0 else null
         else -> null
     }
+}
+
+/**
+ * Signed page distance from a [ViewerTransitionPage] anchor to [page].
+ *
+ * Transition anchors sit exactly on chapter boundaries, where the continuous viewer
+ * spends whole reading sessions, so they need the same gap-proof math as reader
+ * anchors: without it every page measured null (outside-window), eviction fell back
+ * to oldest-first, and half-visible decoded pages next to the transition were eaten
+ * and re-shown as placeholders in a loop (constant flicker at chapter edges).
+ * Pages in the next chapter count up from +1, pages in the previous chapter count
+ * down from -1, and a transition sharing either bridge chapter sits at 0.
+ */
+internal fun WebGpuViewer.pageDistance(anchor: ViewerTransitionPage, page: ViewerPage): Int? {
+    val prev = anchor.prevChapter
+    val next = anchor.nextChapter
+    return when (page) {
+        is ViewerReaderPage -> {
+            val chapter = page.page.chapter
+            when {
+                chapter === next -> page.page.index + 1
+                chapter === prev -> {
+                    val size = chapter.pages?.size
+                    if (size == null) -1 else -(size - page.page.index)
+                }
+                else -> null
+            }
+        }
+        is ViewerTransitionPage ->
+            if (page.prevChapter === prev || page.prevChapter === next ||
+                page.nextChapter === prev || page.nextChapter === next
+            ) {
+                0
+            } else {
+                null
+            }
+        else -> null
+    }
+}
+
+/**
+ * Signed page distance from any [anchor] to [page]. Dispatches to the reader or
+ * transition overload above; null when [page] belongs to no chapter adjacent to
+ * the anchor - unrelated shells that should be evicted first.
+ */
+internal fun WebGpuViewer.pageDistance(anchor: ViewerPage, page: ViewerPage): Int? = when (anchor) {
+    is ViewerReaderPage -> pageDistance(anchor, page)
+    is ViewerTransitionPage -> pageDistance(anchor, page)
+    else -> null
 }
 // KMK <--
 

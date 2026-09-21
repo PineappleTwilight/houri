@@ -28,10 +28,13 @@ class WebGpuViewerContinuous(activity: ReaderActivity, val useGap: Boolean = fal
 
     // The state reaches MAX_VISIBLE_PAGES either side of the current page whatever the zoom - to
     // measure the document's end as well as to draw - and every page in that reach is created on
-    // demand here. Sized exactly at that reach plus the transition page, each frame evicts
-    // exactly what the next one asks for; the +1 slack is one decoded page of headroom so a
-    // chapter-edge shell or transition never knocks a visible page back to a placeholder.
-    override val cacheSize get() = 3 + 2 * ImageViewerContinuousState.MAX_VISIBLE_PAGES
+    // demand here. A chapter boundary holds both edge windows plus the transition page plus
+    // swap residue at once (up to ~13 live shells), so the cache keeps that whole working
+    // set: evicting a half-visible decoded page reverts it to a placeholder and its
+    // re-decode shifts every slot below it, which read as constant flicker at chapter
+    // edges. Low-RAM devices keep the old tighter budget instead of risking OOM.
+    override val cacheSize get() =
+        (if (isLowRamDevice) 3 else 7) + 2 * ImageViewerContinuousState.MAX_VISIBLE_PAGES
 
     private val state get() = (pager as ImageViewContinuous).state
 

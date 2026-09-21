@@ -908,6 +908,18 @@ open class WebGpuViewer(
         setChaptersInternal(chapters)
     }
 
+    private fun pageBelongsToChapters(page: ViewerPage, chapters: ViewerChapters): Boolean = when (page) {
+        is ViewerReaderPage ->
+            page.page.chapter == chapters.prevChapter ||
+                page.page.chapter == chapters.currChapter ||
+                page.page.chapter == chapters.nextChapter
+        is ViewerTransitionPage ->
+            page.prevChapter == chapters.prevChapter || page.prevChapter == chapters.currChapter ||
+                page.prevChapter == chapters.nextChapter || page.nextChapter == chapters.prevChapter ||
+                page.nextChapter == chapters.currChapter || page.nextChapter == chapters.nextChapter
+        else -> false
+    }
+
     private fun setChaptersInternal(chapters: ViewerChapters) {
         // KMK --> Empty too: lastIndex would be -1, and the requested page is read from it.
         val pages = chapters.currChapter.pages
@@ -924,9 +936,12 @@ open class WebGpuViewer(
 
         // Get the page and align to spread anchor if needed
         // Captured before reassignment: a non-null previous page already inside the
-        // new chapter means seamless scroll entry (see restore guard below).
+        // new chapters means seamless scroll entry (see restore guard below). A stale
+        // page from an unrelated chapter (explicit jump before moveToPage lands)
+        // resolves null neighbors in every direction, so only a linked page is reused.
         val previousPage = currentPage
-        val page = previousPage ?: getPage(requestedPage)
+        val page = previousPage?.takeIf { pageBelongsToChapters(it, chapters) }
+            ?: getPage(requestedPage)
         currentPage = getSpreadAnchor(page)
         // KMK --> Seamless scroll entry: the user is already reading inside the new
         // chapter (previousPage resolved there via onPageChange before the chapter
