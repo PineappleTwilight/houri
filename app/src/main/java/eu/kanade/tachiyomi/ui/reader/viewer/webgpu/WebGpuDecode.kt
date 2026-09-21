@@ -59,94 +59,78 @@ internal fun WebGpuViewer.queueForDecode(page: ViewerReaderPage, prioritize: Boo
 
 /**
  * Evicts the page farthest from reference. Must be called while holding lock.
- * Hardened: coerces cacheSize, handles null current via newest entry, and avoids
- * infinite loops when reference is not in cache.
+ *
+ * Hardened: victim selection is distance-based, computed from chapter/index math
+ * instead of a cache chain-walk. The old walk needed every intermediate page
+ * cached to measure distance, so any gap (chapter edge, transition page, earlier
+ * eviction) broke the walk and eviction fell back to oldest-first - eating pages
+ * right next to the one being read and re-showing them as placeholders (flicker,
+ * and unloads when scrolling back). Distance here is gap-proof: same-chapter
+ * pages use index math, adjacent-chapter pages count from the chapter edge, a
+ * transition page bridging the anchor chapter sits at distance 0, and anything
+ * unrelated sorts farthest. Pages inside the directional preload window are
+ * never victims while anything outside it exists; in-flight decodes (non-IDLE)
+ * are only taken when no IDLE victim exists. Ties break oldest-first via
+ * insertion order. The anchor and the live current page are never candidates.
  */
 internal fun WebGpuViewer.evictFarthestPage(reference: ViewerPage? = null) {
-    val effectiveCacheSize = cacheSize.coerceAtLeast(1)
-    val current = reference ?: currentPage ?: pageCache.values.lastOrNull() ?: return
-    // Single pass: collect non-current pages in cache order and note whether any
-    // eviction-safe (IDLE) page exists. Order matters: victim fallbacks take the
-    // oldest remaining entry, so insertion order must be preserved end to end.
-    val all = ArrayList<ViewerPage>(pageCache.size)
-    var hasIdle = false
+    val anchor = reference ?: currentPage ?: pageCache.values.lastOrNull() ?: return
+    val liveCurrent = currentPage
+    val anchorReader = anchor as? ViewerReaderPage
+
+    var bestIdle: ViewerPage? = null
+    var bestIdleDistance = Int.MIN_VALUE
+    var bestAny: ViewerPage? = null
+    var bestAnyDistance = Int.MIN_VALUE
+    var oldestIdle: ViewerPage? = null
+    var oldestAny: ViewerPage? = null
+
     for (page in pageCache.values) {
-        if (page === current) continue
-        all.add(page)
-        if (!hasIdle && page.state == PageState.IDLE) hasIdle = true
-    }
-    if (all.isEmpty()) return
-    // Prefer evicting IDLE pages; fall back to any page when none is IDLE.
-    val pool = if (hasIdle) all.filterTo(ArrayList(all.size)) { it.state == PageState.IDLE } else all
+        if (page === anchor) continue
+        if (liveCurrent != null && page === liveCurrent) continue
+        if (oldestAny == null) oldestAny = page
+        val isIdle = page.state == PageState.IDLE
+        if (isIdle && oldestIdle == null) oldestIdle = page
 
-    fun findNext(page: ViewerPage): ViewerPage? = when (page) {
-        is ViewerReaderPage -> {
-            val chapterId = page.page.chapter.chapter.id
-            val nextIndex = page.page.index + 1
-            all.find {
-                it is ViewerReaderPage && it.page.chapter.chapter.id == chapterId && it.page.index == nextIndex
-            } ?: all.find { it is ViewerTransitionPage && it.prevChapter?.chapter?.id == chapterId }
-                ?: page.nextChapter?.chapter?.id?.let { nextChapterId ->
-                    all.find {
-                        it is ViewerReaderPage && it.page.chapter.chapter.id == nextChapterId && it.page.index == 0
-                    }
-                }
-        }
-
-        is ViewerTransitionPage -> {
-            val nextChapterId = page.nextChapter?.chapter?.id
-            all.find {
-                it is ViewerReaderPage && it.page.chapter.chapter.id == nextChapterId && it.page.index == 0
+        val distance = if (anchorReader != null) pageDistance(anchorReader, page) else null
+        // Inside the directional preload window (plus one slack for a spread
+        // partner or transition page): keep while anything outside it exists.
+        val inWindow = distance != null &&
+            (distance == 0 || distance in 1..preloadAhead + 1 || distance in -(preloadBehind + 1)..-1)
+        if (!inWindow) {
+            // Unrelated chapters sort past every related page, so stale shells go first.
+            val rank = distance ?: Int.MAX_VALUE
+            if (isIdle && rank > bestIdleDistance) {
+                bestIdleDistance = rank
+                bestIdle = page
+            }
+            if (rank > bestAnyDistance) {
+                bestAnyDistance = rank
+                bestAny = page
             }
         }
-
-        else -> null
     }
 
-    fun findPrev(page: ViewerPage): ViewerPage? = when (page) {
-        is ViewerReaderPage -> {
-            val chapterId = page.page.chapter.chapter.id
-            val prevIndex = page.page.index - 1
-            all.find {
-                it is ViewerReaderPage && it.page.chapter.chapter.id == chapterId && it.page.index == prevIndex
-            } ?: all.find { it is ViewerTransitionPage && it.nextChapter?.chapter?.id == chapterId }
-                ?: page.prevChapter?.let { prevChapter ->
-                    prevChapter.pages?.lastIndex?.let { lastIndex ->
-                        all.find {
-                            it is ViewerReaderPage && it.page.chapter.chapter.id == prevChapter.chapter.id &&
-                                it.page.index == lastIndex
-                        }
-                    }
-                }
-        }
-
-        is ViewerTransitionPage -> {
-            val prevChapterId = page.prevChapter?.chapter?.id
-            page.prevChapter?.pages?.lastIndex?.let { lastIndex ->
-                all.find {
-                    it is ViewerReaderPage && it.page.chapter.chapter.id == prevChapterId &&
-                        it.page.index == lastIndex
-                }
+    // Fully in-window cache (steady state plus one new shell): drop the farthest
+    // IDLE page at the window edge rather than the oldest, which may be adjacent.
+    if (bestIdle == null && bestAny == null && anchorReader != null) {
+        for (page in pageCache.values) {
+            if (page === anchor) continue
+            if (liveCurrent != null && page === liveCurrent) continue
+            val distance = pageDistance(anchorReader, page) ?: continue
+            val rank = kotlin.math.abs(distance)
+            if (page.state == PageState.IDLE && rank > bestIdleDistance) {
+                bestIdleDistance = rank
+                bestIdle = page
+            }
+            if (rank > bestAnyDistance) {
+                bestAnyDistance = rank
+                bestAny = page
             }
         }
-
-        else -> null
     }
 
-    var farthest: ViewerPage? = null
-    var forward: ViewerPage? = current
-    var backward: ViewerPage? = current
-
-    for (i in 0 until effectiveCacheSize) {
-        if (pool.isEmpty()) break
-        forward = forward?.let { findNext(it) }
-        backward = backward?.let { findPrev(it) }
-        if (forward == null && backward == null) break
-        if (forward != null && pool.remove(forward)) farthest = forward
-        if (backward != null && pool.remove(backward)) farthest = backward
-    }
-
-    val toRemove = pool.firstOrNull() ?: farthest ?: all.firstOrNull() ?: return
+    val toRemove = bestIdle ?: bestAny ?: oldestIdle ?: oldestAny ?: return
 
     pageCache.remove(pageKey(toRemove))
     decodeQueue.remove(toRemove)
@@ -159,6 +143,62 @@ internal fun WebGpuViewer.evictFarthestPage(reference: ViewerPage? = null) {
     // KMK <--
     toRemove.imagePage.cleanup()
 }
+
+// KMK -->
+// Memory-pressure shed: shrink the cache toward current + one neighbor each
+// side via the hardened farthest-first evictor. Evicted pages re-decode on
+// demand; the decode worker skips them while out of cache, so no wasted work.
+internal fun WebGpuViewer.shrinkCacheOnTrim() {
+    if (isDestroyed) return
+    try {
+        synchronized(lock) {
+            val anchor = currentPage
+            var guard = 0
+            while (pageCache.size > 3 && guard++ < 16) {
+                val before = pageCache.size
+                evictFarthestPage(anchor)
+                if (pageCache.size == before) break
+            }
+        }
+        pager.state.invalidate()
+    } catch (_: Exception) {}
+}
+// KMK <--
+
+// KMK -->
+/**
+ * Signed page distance from [anchor] to [page]: positive ahead, negative behind.
+ * Same-chapter pages use index math; pages in the adjacent chapters count inward
+ * from the shared chapter edge; a transition page bridging the anchor chapter is
+ * 0 (drawn next, never a victim while anything else exists). Null when [page]
+ * belongs to no chapter adjacent to the anchor - unrelated shells that should be
+ * evicted first. Gap-proof by construction: no cache walk, only chapter/index
+ * math, so holes from earlier evictions cannot mismeasure it.
+ */
+internal fun WebGpuViewer.pageDistance(anchor: ViewerReaderPage, page: ViewerPage): Int? {
+    val anchorChapter = anchor.page.chapter
+    return when (page) {
+        is ViewerReaderPage -> {
+            val chapter = page.page.chapter
+            when {
+                chapter === anchorChapter -> page.page.index - anchor.page.index
+                chapter === anchor.nextChapter -> {
+                    val edge = anchorChapter.pages?.size?.let { it - 1 - anchor.page.index } ?: 0
+                    edge + 1 + page.page.index
+                }
+                chapter === anchor.prevChapter -> {
+                    val edge = chapter.pages?.size?.let { it - 1 - page.page.index } ?: 0
+                    -(anchor.page.index + 1 + edge)
+                }
+                else -> null
+            }
+        }
+        is ViewerTransitionPage ->
+            if (page.prevChapter === anchorChapter || page.nextChapter === anchorChapter) 0 else null
+        else -> null
+    }
+}
+// KMK <--
 
 /**
  * Gets or creates a page. Thread-safe.
@@ -557,6 +597,7 @@ internal suspend fun WebGpuViewer.decodeReaderPage(page: ViewerReaderPage) {
                 val decodedSingle = page.imagePage as? ImagePage.ImageSingle
                 if (decodedSingle != null) {
                     // KMK -->
+                    if (!decodedSingle.isAnimated) decodedSingle.highQuality = !config.fastRender
                     if (!isDualPageMode()) {
                         if (!applyWideZoomIfNeeded(decodedSingle)) {
                             applyFitModeAnchor(decodedSingle)
@@ -753,8 +794,12 @@ internal fun WebGpuViewer.preloadPages(page: ViewerPage) {
     val key = pageKey(page)
     val cachedPage = synchronized(lock) { findInCache(key) } ?: return
 
-    // Priority order: current (highest), next1, next2, prev1, prev2 (lowest)
-    // Add in reverse for LIFO, current page gets prioritized
+    // Priority order: current (highest), next1, next2, prev1, prev2 (lowest).
+    // The worker takes from the back of the queue while queueForDecode appends
+    // non-priority pages at the front, so iterate nearest-first: each addFirst
+    // lands in front of the previous one and the worker reaches near pages
+    // before far ones. (Reversed iteration decoded far pages first, so turning
+    // back arrived at placeholders still waiting behind pages further out.)
 
     // Add prev pages (lowest priority)
     val prevPages = mutableListOf<ViewerPage>()
@@ -763,7 +808,7 @@ internal fun WebGpuViewer.preloadPages(page: ViewerPage) {
         p = p?.prev ?: break
         prevPages.add(p)
     }
-    prevPages.asReversed().forEach { preloadPage(it) }
+    prevPages.forEach { preloadPage(it) }
 
     // Add next pages (medium priority)
     val nextPages = mutableListOf<ViewerPage>()
@@ -772,7 +817,7 @@ internal fun WebGpuViewer.preloadPages(page: ViewerPage) {
         p = p?.next ?: break
         nextPages.add(p)
     }
-    nextPages.asReversed().forEach { preloadPage(it) }
+    nextPages.forEach { preloadPage(it) }
 
     // Add current spread last with priority flag (highest priority in LIFO)
     // Also preload the paired page

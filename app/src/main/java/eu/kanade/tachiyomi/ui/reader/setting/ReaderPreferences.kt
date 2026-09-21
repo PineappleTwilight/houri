@@ -219,6 +219,14 @@ class ReaderPreferences(
     fun webgpuDarkModeTolerance() = preferenceStore.getInt("webgpu_dark_mode_tolerance", 6)
 
     fun webgpuDarkModeChunkRange() = preferenceStore.getInt("webgpu_dark_mode_chunk_range", 10)
+
+    fun webgpuArtCnnUpscaler() = preferenceStore.getBoolean("webgpu_artcnn_upscaler", false)
+
+    fun webgpuFastRender() = preferenceStore.getBoolean("webgpu_fast_render", false)
+
+    fun webgpuPreloadAhead() = preferenceStore.getInt("webgpu_preload_ahead", 3)
+
+    fun webgpuPreloadBehind() = preferenceStore.getInt("webgpu_preload_behind", 2)
     // KMK <--
 
     // endregion
@@ -358,6 +366,11 @@ class ReaderPreferences(
         const val WEBGPU_DARK_MODE_TOLERANCE_MAX = 20
         const val WEBGPU_DARK_MODE_CHUNK_RANGE_MIN = 2
         const val WEBGPU_DARK_MODE_CHUNK_RANGE_MAX = 30
+
+        const val WEBGPU_PRELOAD_AHEAD_MIN = 0
+        const val WEBGPU_PRELOAD_AHEAD_MAX = 8
+        const val WEBGPU_PRELOAD_BEHIND_MIN = 0
+        const val WEBGPU_PRELOAD_BEHIND_MAX = 8
         // KMK <--
 
         const val MILLI_CONVERSION = 100

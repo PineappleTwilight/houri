@@ -139,6 +139,20 @@ class WebGpuConfig(
     // KMK <--
 
     // KMK -->
+    var artCnnUpscaler = readerPreferences.webgpuArtCnnUpscaler().get()
+        private set
+
+    var fastRender = readerPreferences.webgpuFastRender().get()
+        private set
+
+    var preloadAhead = readerPreferences.webgpuPreloadAhead().get()
+        private set
+
+    var preloadBehind = readerPreferences.webgpuPreloadBehind().get()
+        private set
+    // KMK <--
+
+    // KMK -->
     private val pagedDoubleTapZoomPref = readerPreferences.pagedDoubleTapZoomEnabled()
     private val webtoonDoubleTapZoomPref = readerPreferences.webtoonDoubleTapZoomEnabled()
 
@@ -327,6 +341,32 @@ class WebGpuConfig(
         readerPreferences.webgpuDarkModeChunkRange()
             .register(
                 { darkModeChunkRange = it / 100f },
+                { imageStateChangedListener?.invoke() },
+            )
+        // KMK <--
+
+        // KMK -->
+        readerPreferences.webgpuArtCnnUpscaler()
+            .register(
+                { artCnnUpscaler = it },
+                { imageStateChangedListener?.invoke() },
+            )
+
+        readerPreferences.webgpuFastRender()
+            .register(
+                { fastRender = it },
+                { imageStateChangedListener?.invoke() },
+            )
+
+        readerPreferences.webgpuPreloadAhead()
+            .register(
+                { preloadAhead = it },
+                { imageStateChangedListener?.invoke() },
+            )
+
+        readerPreferences.webgpuPreloadBehind()
+            .register(
+                { preloadBehind = it },
                 { imageStateChangedListener?.invoke() },
             )
         // KMK <--

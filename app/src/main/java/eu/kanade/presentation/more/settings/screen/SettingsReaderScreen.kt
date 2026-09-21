@@ -545,6 +545,10 @@ object SettingsReaderScreen : SearchableSettings {
         val continuousMinWidth by continuousMinWidthPref.collectAsState()
         val continuousGapPref = readerPreferences.continuousGap()
         val continuousGap by continuousGapPref.collectAsState()
+        val preloadAheadPref = readerPreferences.webgpuPreloadAhead()
+        val preloadAhead by preloadAheadPref.collectAsState()
+        val preloadBehindPref = readerPreferences.webgpuPreloadBehind()
+        val preloadBehind by preloadBehindPref.collectAsState()
 
         return Preference.PreferenceGroup(
             title = stringResource(MR.strings.webgpu_viewer),
@@ -580,6 +584,30 @@ object SettingsReaderScreen : SearchableSettings {
                     valueString = "%.2f".format(darkModeChunkRange / 100f),
                     onValueChanged = { darkModeChunkRangePref.set(it) },
                     enabled = webgpuDarkMode,
+                ),
+                Preference.PreferenceItem.SwitchPreference(
+                    preference = readerPreferences.webgpuArtCnnUpscaler(),
+                    title = stringResource(KMR.strings.pref_webgpu_artcnn_upscaler),
+                    subtitle = stringResource(KMR.strings.pref_webgpu_artcnn_upscaler_summary),
+                ),
+                Preference.PreferenceItem.SwitchPreference(
+                    preference = readerPreferences.webgpuFastRender(),
+                    title = stringResource(KMR.strings.pref_webgpu_fast_render),
+                    subtitle = stringResource(KMR.strings.pref_webgpu_fast_render_summary),
+                ),
+                Preference.PreferenceItem.SliderPreference(
+                    value = preloadAhead,
+                    valueRange = ReaderPreferences.WEBGPU_PRELOAD_AHEAD_MIN..ReaderPreferences.WEBGPU_PRELOAD_AHEAD_MAX,
+                    title = stringResource(KMR.strings.pref_webgpu_preload_ahead),
+                    valueString = "$preloadAhead",
+                    onValueChanged = { preloadAheadPref.set(it) },
+                ),
+                Preference.PreferenceItem.SliderPreference(
+                    value = preloadBehind,
+                    valueRange = ReaderPreferences.WEBGPU_PRELOAD_BEHIND_MIN..ReaderPreferences.WEBGPU_PRELOAD_BEHIND_MAX,
+                    title = stringResource(KMR.strings.pref_webgpu_preload_behind),
+                    valueString = "$preloadBehind",
+                    onValueChanged = { preloadBehindPref.set(it) },
                 ),
                 Preference.PreferenceItem.ListPreference(
                     preference = readerPreferences.transitionAnimation(),

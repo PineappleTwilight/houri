@@ -20,13 +20,18 @@ class WebGpuViewerContinuous(activity: ReaderActivity, val useGap: Boolean = fal
 
     // How many pages the viewport shows depends on the zoom, and a page on screen has to be
     // decoded rather than merely reserved - so the window follows what the last frame reached.
-    override val preloadAhead get() = max(3, state.pagesBelow)
-    override val preloadBehind get() = max(1, state.pagesAbove)
+    // KMK --> Pref acts as a raisable floor; live reach always wins so shrinking the
+    // pref can never starve the visible viewport.
+    override val preloadAhead get() = max(max(3, config.preloadAhead), state.pagesBelow)
+    override val preloadBehind get() = max(max(1, config.preloadBehind), state.pagesAbove)
+    // KMK <--
 
     // The state reaches MAX_VISIBLE_PAGES either side of the current page whatever the zoom - to
     // measure the document's end as well as to draw - and every page in that reach is created on
-    // demand here. Sized under it, each frame evicts exactly what the next one asks for.
-    override val cacheSize get() = 2 + 2 * ImageViewerContinuousState.MAX_VISIBLE_PAGES
+    // demand here. Sized exactly at that reach plus the transition page, each frame evicts
+    // exactly what the next one asks for; the +1 slack is one decoded page of headroom so a
+    // chapter-edge shell or transition never knocks a visible page back to a placeholder.
+    override val cacheSize get() = 3 + 2 * ImageViewerContinuousState.MAX_VISIBLE_PAGES
 
     private val state get() = (pager as ImageViewContinuous).state
 

@@ -474,6 +474,12 @@
     <string name="pref_webgpu_dark_mode_tolerance_summary">How much color a pixel may carry and still count as gray. Higher catches tinted paper, lower protects colors.</string>
     <string name="pref_webgpu_dark_mode_chunk_range">Color dimming</string>
     <string name="pref_webgpu_dark_mode_chunk_range_summary">How much to darken colors that are kept as-is. Higher is dimmer for night reading.</string>
+    <string name="pref_webgpu_artcnn_upscaler">ArtCNN upscaling</string>
+    <string name="pref_webgpu_artcnn_upscaler_summary">Sharper zoomed pages via a small on-GPU network. Falls back automatically when unsupported; uses more battery.</string>
+    <string name="pref_webgpu_fast_render">Fast rendering</string>
+    <string name="pref_webgpu_fast_render_summary">Skip the tile cache and draw pages directly. Less sharp when zoomed, smoother on weak tablets.</string>
+    <string name="pref_webgpu_preload_ahead">Pages preloaded ahead</string>
+    <string name="pref_webgpu_preload_behind">Pages preloaded behind</string>
     <string name="category_manager_search">Search categories and subcategories…</string>
     <string name="category_manager_sort">Sort subcategories</string>
     <string name="category_manager_sort_manual">Manual</string>

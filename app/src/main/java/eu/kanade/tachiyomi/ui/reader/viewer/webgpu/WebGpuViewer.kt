@@ -1,6 +1,8 @@
 // Mihon -->
 package eu.kanade.tachiyomi.ui.reader.viewer.webgpu
 
+import android.content.ComponentCallbacks2
+import android.content.res.Configuration
 import android.graphics.Color
 import android.graphics.PointF
 import android.view.InputDevice
@@ -8,6 +10,8 @@ import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.View
 import ca.mpreg.webgpuviewer.ImageView
+import ca.mpreg.webgpuviewer.renderer.UpscalerArtCnn
+import ca.mpreg.webgpuviewer.renderer.UpscalerCatmullRom
 import ca.mpreg.webgpuviewer.transition.TransitionBasic
 import ca.mpreg.webgpuviewer.transition.TransitionCube
 import ca.mpreg.webgpuviewer.transition.TransitionCubeOuter
@@ -89,6 +93,20 @@ open class WebGpuViewer(
 
     // KMK -->
     private val darkModeFilter = WebGpuDarkModeFilter()
+    // KMK <--
+
+    // KMK -->
+    private var artCnnUpscaler: UpscalerArtCnn? = null
+    // KMK <--
+
+    // KMK -->
+    private val trimCallbacks = object : ComponentCallbacks2 {
+        override fun onConfigurationChanged(newConfig: Configuration) = Unit
+        override fun onLowMemory() = shrinkCacheOnTrim()
+        override fun onTrimMemory(level: Int) {
+            if (level >= ComponentCallbacks2.TRIM_MEMORY_MODERATE) shrinkCacheOnTrim()
+        }
+    }
     // KMK <--
 
     // KMK -->
@@ -212,6 +230,11 @@ open class WebGpuViewer(
     internal fun pageInCache(page: ViewerPage): Boolean = pageCache[pageKey(page)] === page
 
     init {
+        // KMK --> Shed off-screen decoded pages on system memory pressure.
+        try {
+            activity.registerComponentCallbacks(trimCallbacks)
+        } catch (_: Exception) {}
+        // KMK <--
         // Decode worker thread - processes pages from the queue. Hardened: respects scope
         // cancellation, handles spurious wakeups, avoids tight-loop on evicted pages, and
         // surfaces OOM as a retryable error page instead of killing the worker.
@@ -356,8 +379,10 @@ open class WebGpuViewer(
     @Volatile
     var currentPage: ViewerPage? = null
 
-    open val preloadAhead = 3
-    open val preloadBehind = 2
+    // KMK --> User-tunable preload window; continuous takes max() with live reach.
+    open val preloadAhead get() = config.preloadAhead
+    open val preloadBehind get() = config.preloadBehind
+    // KMK <--
 
     /**
      * Everything [preloadPages] reaches, plus slack. Sized exactly, a chapter transition page - or
@@ -404,10 +429,17 @@ open class WebGpuViewer(
             } catch (_: Exception) {}
         }
         if (!chapterPreloadGuard.tryBegin(key)) {
-            // If already in-flight but decodeQueue no longer contains its edge page, allow requeue (stale guard)
+            // If already in-flight but decodeQueue no longer contains its edge page, allow requeue (stale guard).
+            // The queue probe is chapter-qualified: bare index matching collides across chapters
+            // (every chapter has an index 0..3), which read the guard as stale on every boundary
+            // approach and refired the whole preload cycle in a loop.
             val isStale = edgePages.firstOrNull()?.let { pg ->
                 val k = PageKey.Reader(chapter.chapter.id, pg.index)
-                synchronized(lock) { findInCache(k) == null || decodeQueue.none { it.page.index == pg.index } }
+                val chapterId = chapter.chapter.id
+                synchronized(lock) {
+                    findInCache(k) == null ||
+                        decodeQueue.none { it.page.chapter.chapter.id == chapterId && it.page.index == pg.index }
+                }
             } ?: false
             if (!isStale) return
             chapterPreloadGuard.end(key)
@@ -642,6 +674,41 @@ open class WebGpuViewer(
         } catch (_: Exception) {
         }
         // KMK <--
+        // KMK -->
+        // Swap the tile upscaler only on a real change: assigning drops every
+        // generated tile, so an unconditional set here would re-gen tiles on
+        // each state-only change. The cached instance is reused because the
+        // setter is identity-guarded. Unsupported devices fall back to
+        // Catmull-Rom inside the tile path by themselves.
+        try {
+            val wantArtCnn = config.artCnnUpscaler
+            val hasArtCnn = pager.state.upscaler is UpscalerArtCnn
+            if (wantArtCnn != hasArtCnn) {
+                pager.state.upscaler = if (wantArtCnn) {
+                    (artCnnUpscaler ?: UpscalerArtCnn().also { artCnnUpscaler = it })
+                } else {
+                    UpscalerCatmullRom()
+                }
+            }
+        } catch (_: Exception) {
+        }
+        // KMK <--
+        // KMK -->
+        // Fast render skips the tile cache on decoded pages (direct mipmap draw);
+        // flipping back reuses the same path once, tiles regenerate on demand.
+        try {
+            val fast = config.fastRender
+            synchronized(lock) {
+                pageCache.values.forEach {
+                    (it.imagePage as? ImagePage.ImageSingle)?.let { single ->
+                        if (!single.isAnimated) single.highQuality = !fast
+                    }
+                }
+            }
+            pager.state.invalidate()
+        } catch (_: Exception) {
+        }
+        // KMK <--
         pager.state.apply {
             val isDual = isDualPageMode()
             transition = when (if (isDual) config.transitionAnimationDual else config.transitionAnimation) {
@@ -712,6 +779,11 @@ open class WebGpuViewer(
         config.imageStateChangedListener = null
         config.navigationModeChangedListener = null
         config.doubleTapZoomChangedListener = null
+        // KMK -->
+        try {
+            activity.unregisterComponentCallbacks(trimCallbacks)
+        } catch (_: Exception) {}
+        // KMK <--
         try {
             scope.cancel()
         } catch (_: Exception) {
