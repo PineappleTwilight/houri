@@ -33,12 +33,14 @@ import eu.kanade.presentation.category.hierarchicalVisualName
 import eu.kanade.presentation.category.sortedByHierarchy
 import eu.kanade.presentation.more.settings.Preference
 import eu.kanade.presentation.more.settings.PreferenceDependency
+import eu.kanade.presentation.more.settings.framework.toItems
 import eu.kanade.presentation.more.settings.widget.TextPreferenceWidget
 import eu.kanade.tachiyomi.data.connections.ConnectionsManager
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.persistentMapOf
 import kotlinx.collections.immutable.toImmutableMap
 import mihon.app.di.globalAppGraph
+import tachiyomi.core.common.preference.PreferenceStore
 import tachiyomi.domain.category.interactor.GetCategories
 import tachiyomi.i18n.MR
 import tachiyomi.i18n.kmk.KMR
@@ -69,15 +71,11 @@ object SettingsDiscordScreen : SearchableSettings {
         val navigator = LocalNavigator.currentOrThrow
         val connectionsPreferences = remember { globalAppGraph.connectionsPreferences }
         val connectionsManager = remember { globalAppGraph.connectionsManager }
+        val store = remember { globalAppGraph.preferenceStore }
         val enableDRPCPref = connectionsPreferences.enableDiscordRPC()
-        val useChapterTitlesPref = connectionsPreferences.useChapterTitles()
-        val discordRPCStatus = connectionsPreferences.discordRPCStatus()
-        val customMessagePref = connectionsPreferences.discordCustomMessage()
         val showProgressPref = connectionsPreferences.discordShowProgress()
-        val showTimestampPref = connectionsPreferences.discordShowTimestamp()
         val showButtonsPref = connectionsPreferences.discordShowButtons()
-        val showDownloadButtonPref = connectionsPreferences.discordShowDownloadButton()
-        val showDiscordButtonPref = connectionsPreferences.discordShowDiscordButton()
+        val customMessagePref = connectionsPreferences.discordCustomMessage()
 
         var dialog by remember { mutableStateOf<Any?>(null) }
         dialog?.run {
@@ -161,12 +159,9 @@ object SettingsDiscordScreen : SearchableSettings {
             Preference.PreferenceGroup(
                 title = stringResource(KMR.strings.connections_discord),
                 preferenceItems = persistentListOf(
-                    Preference.PreferenceItem.SwitchPreference(
-                        preference = enableDRPCPref,
-                        title = stringResource(KMR.strings.pref_enable_discord_rpc),
-                    ),
+                    *listOf(DiscordSettingsHost.enableSwitch).toItems(store).toTypedArray(),
                     Preference.PreferenceItem.ListPreference(
-                        preference = discordRPCStatus,
+                        preference = connectionsPreferences.discordRPCStatus(),
                         title = stringResource(KMR.strings.pref_discord_status),
                         entries = persistentMapOf(
                             -1 to stringResource(KMR.strings.pref_discord_dnd),
@@ -179,6 +174,7 @@ object SettingsDiscordScreen : SearchableSettings {
             ),
             getRPCIncognitoGroup(
                 connectionsPreferences = connectionsPreferences,
+                store = store,
             ),
             Preference.PreferenceGroup(
                 title = stringResource(KMR.strings.pref_category_discord_customization),
@@ -189,47 +185,17 @@ object SettingsDiscordScreen : SearchableSettings {
                         subtitle = stringResource(KMR.strings.pref_discord_custom_message_summary),
                         onClick = { showCustomMessageDialog = true },
                     ),
-                    Preference.PreferenceItem.SwitchPreference(
-                        preference = showProgressPref,
-                        title = stringResource(KMR.strings.pref_discord_show_progress),
-                        subtitle = stringResource(KMR.strings.pref_discord_show_progress_summary),
-                    ),
-                    // KMK -->
-                    Preference.PreferenceItem.SwitchPreference(
-                        preference = connectionsPreferences.discordShowPageProgress(),
-                        title = stringResource(KMR.strings.pref_discord_show_page_progress),
-                        subtitle = stringResource(KMR.strings.pref_discord_show_page_progress_summary),
-                        dependsOn = PreferenceDependency(showProgressPref),
-                    ),
-                    // KMK <--
-                    Preference.PreferenceItem.SwitchPreference(
-                        preference = useChapterTitlesPref,
-                        title = stringResource(KMR.strings.show_chapters_titles_title),
-                        subtitle = stringResource(KMR.strings.show_chapters_titles_subtitle),
-                        dependsOn = PreferenceDependency(showProgressPref),
-                    ),
-                    Preference.PreferenceItem.SwitchPreference(
-                        preference = showTimestampPref,
-                        title = stringResource(KMR.strings.pref_discord_show_timestamp),
-                        subtitle = stringResource(KMR.strings.pref_discord_show_timestamp_summary),
-                    ),
-                    Preference.PreferenceItem.SwitchPreference(
-                        preference = showButtonsPref,
-                        title = stringResource(KMR.strings.pref_discord_show_buttons),
-                        subtitle = stringResource(KMR.strings.pref_discord_show_buttons_summary),
-                    ),
-                    Preference.PreferenceItem.SwitchPreference(
-                        preference = showDownloadButtonPref,
-                        title = stringResource(KMR.strings.pref_discord_show_download_button),
-                        subtitle = stringResource(KMR.strings.pref_discord_show_download_button_summary),
-                        dependsOn = PreferenceDependency(showButtonsPref),
-                    ),
-                    Preference.PreferenceItem.SwitchPreference(
-                        preference = showDiscordButtonPref,
-                        title = stringResource(KMR.strings.pref_discord_show_discord_button),
-                        subtitle = stringResource(KMR.strings.pref_discord_show_discord_button_summary),
-                        dependsOn = PreferenceDependency(showButtonsPref),
-                    ),
+                    *listOf(
+                        DiscordSettingsHost.progressSwitch,
+                        // KMK -->
+                        DiscordSettingsHost.pageProgressSwitch(showProgressPref),
+                        // KMK <--
+                        DiscordSettingsHost.chapterTitlesSwitch(showProgressPref),
+                        DiscordSettingsHost.timestampSwitch,
+                        DiscordSettingsHost.buttonsSwitch,
+                        DiscordSettingsHost.downloadButtonSwitch(showButtonsPref),
+                        DiscordSettingsHost.discordButtonSwitch(showButtonsPref),
+                    ).toItems(store).toTypedArray(),
                 ),
             ),
             Preference.PreferenceItem.CustomPreference(
@@ -253,21 +219,17 @@ object SettingsDiscordScreen : SearchableSettings {
     @Composable
     private fun getRPCIncognitoGroup(
         connectionsPreferences: ConnectionsPreferences,
+        store: PreferenceStore,
     ): Preference.PreferenceGroup {
         val getCategories = remember { globalAppGraph.getCategories }
         val allCategories by getCategories.subscribe().collectAsState(initial = emptyList())
 
-        val discordRPCIncognitoPref = connectionsPreferences.discordRPCIncognito()
         val discordRPCIncognitoCategoriesPref = connectionsPreferences.discordRPCIncognitoCategories()
 
         return Preference.PreferenceGroup(
             title = stringResource(MR.strings.categories),
             preferenceItems = persistentListOf(
-                Preference.PreferenceItem.SwitchPreference(
-                    preference = discordRPCIncognitoPref,
-                    title = stringResource(KMR.strings.pref_discord_incognito),
-                    subtitle = stringResource(KMR.strings.pref_discord_incognito_summary),
-                ),
+                *listOf(DiscordSettingsHost.incognitoSwitch).toItems(store).toTypedArray(),
                 Preference.PreferenceItem.MultiSelectListPreference(
                     preference = discordRPCIncognitoCategoriesPref,
                     // KMK -->

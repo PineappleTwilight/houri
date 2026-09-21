@@ -24,6 +24,7 @@ import eu.kanade.tachiyomi.util.system.notificationBuilder
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancelChildren
 import kotlinx.serialization.json.Json
 import mihon.app.di.appGraph
 import mihon.app.di.globalAppGraph
@@ -96,6 +97,10 @@ class DiscordRPCService : Service() {
 
     override fun onDestroy() {
         NotificationReceiver.dismissNotification(this, Notifications.ID_DISCORD_RPC)
+        // Drop delayed stop posts and in-flight presence updates: the static handler and
+        // scope outlive the service instance and would otherwise act on a dead client.
+        handler.removeCallbacksAndMessages(null)
+        job.cancelChildren()
         rpc?.run {
             closeRPC()
             rpc = null
@@ -271,6 +276,7 @@ class DiscordRPCService : Service() {
 
         private const val MP_PREFIX = "mp:"
         private const val EXTERNAL_PREFIX = "external/"
+        private const val ID_MARKER = "\"id\": \""
         private val json = Json {
             encodeDefaults = true
             allowStructuredMapKeys = true
@@ -286,6 +292,8 @@ class DiscordRPCService : Service() {
             sinceTime: Long = since,
         ) {
             rpc ?: return
+            // The toggle can be flipped while the service winds down; never broadcast then.
+            if (!connectionsPreferences.enableDiscordRPC().get()) return
             handler.removeCallbacksAndMessages(null)
 
             lastUsedScreen = discordScreen
@@ -428,6 +436,13 @@ class DiscordRPCService : Service() {
 
             try {
                 val categories = getCategories(context, readerData.mangaId)
+                // Blacklisted categories go fully silent: clear any previous presence
+                // instead of broadcasting even a blanked "reading" state.
+                if (isCategoryBlacklisted(categories)) {
+                    Timber.tag(TAG).i("Manga is in a blacklisted category, clearing presence")
+                    clearPresence()
+                    return
+                }
                 val discordIncognito = isIncognito(categories, readerData.incognitoMode)
 
                 val mangaTitle = readerData.mangaTitle.takeUnless { discordIncognito }
@@ -490,9 +505,23 @@ class DiscordRPCService : Service() {
 
         private fun isIncognito(categories: List<String>, incognitoMode: Boolean): Boolean {
             val discordIncognitoMode = connectionsPreferences.discordRPCIncognito().get()
+            return discordIncognitoMode || incognitoMode || isCategoryBlacklisted(categories)
+        }
+
+        private fun isCategoryBlacklisted(categories: List<String>): Boolean {
             val incognitoCategories = connectionsPreferences.discordRPCIncognitoCategories().get()
-            val incognitoCategory = categories.fastAny { it in incognitoCategories }
-            return discordIncognitoMode || incognitoMode || incognitoCategory
+            return categories.fastAny { it in incognitoCategories }
+        }
+
+        private fun clearPresence() {
+            val client = rpc ?: return
+            discordScope.launchIO {
+                try {
+                    client.clearRPC()
+                } catch (e: Exception) {
+                    Timber.tag(TAG).e(e, "Error clearing presence: ${e.message}")
+                }
+            }
         }
 
         private fun getFormattedChapterNumber(context: Context, readerData: ReaderData, discordIncognito: Boolean): String? {
@@ -557,11 +586,15 @@ class DiscordRPCService : Service() {
             return try {
                 rpcExternalAsset.getDiscordUri(thumbnailUrl)
                     ?.takeIf { !it.contains("external/Not Found") }
-                    ?.let {
-                        it.substringAfter("\"id\": \"")
+                    ?.let { response ->
+                        // Bail on unexpected payloads: substringAfter returns the whole
+                        // string when the marker is absent, which would forge a garbage id.
+                        if (!response.contains(ID_MARKER)) return@let null
+                        response.substringAfter(ID_MARKER)
                             .substringBefore("\"}")
                             .split(EXTERNAL_PREFIX)
                             .getOrNull(1)
+                            ?.takeIf { it.isNotBlank() && !it.any { c -> c == '"' || c == '}' || c.isWhitespace() } }
                             ?.let { id -> "$EXTERNAL_PREFIX$id" }
                     }
             } catch (e: Exception) {

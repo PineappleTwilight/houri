@@ -461,6 +461,11 @@ class MangaScreen(
                 // KMK --> web novels are unreadable in the reader; open in browser directly.
                 if (entry.isWebNovel) {
                     entry.url.takeIf { it.startsWith("http") }?.let { context.openInBrowser(it) }
+                    // KMK --> stubs that aren't in the library go straight to a global
+                    // search for the title instead of opening an add-to-library stub screen.
+                } else if (entry.title.lowercase() !in successState.sequelPrequelLibraryTitles) {
+                    navigator.push(GlobalSearchScreen(entry.title))
+                    // KMK <--
                 } else {
                     scope.launch {
                         screenModel.resolveSequelPrequel(entry)?.let { navigator.push(MangaScreen(it, true)) }

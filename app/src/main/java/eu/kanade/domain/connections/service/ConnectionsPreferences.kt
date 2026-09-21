@@ -33,36 +33,54 @@ class ConnectionsPreferences(
         "",
     )
 
-    fun enableDiscordRPC() = preferenceStore.getBoolean("pref_enable_discord_rpc", false)
+    fun enableDiscordRPC() =
+        preferenceStore.getBoolean(DiscordSettingKeys.ENABLE.key, DiscordSettingKeys.ENABLE.default)
 
-    fun discordRPCStatus() = preferenceStore.getInt("pref_discord_rpc_status", 1)
+    fun discordRPCStatus() =
+        preferenceStore.getInt(DiscordSettingKeys.STATUS.key, DiscordSettingKeys.STATUS.default)
 
-    fun discordRPCIncognito() = preferenceStore.getBoolean("pref_discord_rpc_incognito", false)
+    fun discordRPCIncognito() =
+        preferenceStore.getBoolean(DiscordSettingKeys.INCOGNITO.key, DiscordSettingKeys.INCOGNITO.default)
 
     fun discordRPCIncognitoCategories() = preferenceStore.getStringSet(
-        "discord_rpc_incognito_categories",
-        emptySet(),
+        DiscordSettingKeys.INCOGNITO_CATEGORIES.key,
+        DiscordSettingKeys.INCOGNITO_CATEGORIES.default,
     )
 
-    fun useChapterTitles() = preferenceStore.getBoolean("pref_discord_rpc_use_chapter_titles", false)
+    fun useChapterTitles() =
+        preferenceStore.getBoolean(DiscordSettingKeys.USE_CHAPTER_TITLES.key, DiscordSettingKeys.USE_CHAPTER_TITLES.default)
 
-    fun discordCustomMessage() = preferenceStore.getString("pref_discord_custom_message", "")
+    fun discordCustomMessage() =
+        preferenceStore.getString(DiscordSettingKeys.CUSTOM_MESSAGE.key, DiscordSettingKeys.CUSTOM_MESSAGE.default)
 
-    fun discordShowProgress() = preferenceStore.getBoolean("pref_discord_show_progress", true)
+    fun discordShowProgress() =
+        preferenceStore.getBoolean(DiscordSettingKeys.SHOW_PROGRESS.key, DiscordSettingKeys.SHOW_PROGRESS.default)
 
     // KMK -->
-    fun discordShowPageProgress() = preferenceStore.getBoolean("pref_discord_show_page_progress", true)
+    fun discordShowPageProgress() = preferenceStore.getBoolean(
+        DiscordSettingKeys.SHOW_PAGE_PROGRESS.key,
+        DiscordSettingKeys.SHOW_PAGE_PROGRESS.default,
+    )
     // KMK <--
 
-    fun discordShowTimestamp() = preferenceStore.getBoolean("pref_discord_show_timestamp", true)
+    fun discordShowTimestamp() =
+        preferenceStore.getBoolean(DiscordSettingKeys.SHOW_TIMESTAMP.key, DiscordSettingKeys.SHOW_TIMESTAMP.default)
 
-    fun discordShowButtons() = preferenceStore.getBoolean("pref_discord_show_buttons", true)
+    fun discordShowButtons() =
+        preferenceStore.getBoolean(DiscordSettingKeys.SHOW_BUTTONS.key, DiscordSettingKeys.SHOW_BUTTONS.default)
 
-    fun discordShowDownloadButton() = preferenceStore.getBoolean("pref_discord_show_download_button", true)
+    fun discordShowDownloadButton() = preferenceStore.getBoolean(
+        DiscordSettingKeys.SHOW_DOWNLOAD_BUTTON.key,
+        DiscordSettingKeys.SHOW_DOWNLOAD_BUTTON.default,
+    )
 
-    fun discordShowDiscordButton() = preferenceStore.getBoolean("pref_discord_show_discord_button", true)
+    fun discordShowDiscordButton() = preferenceStore.getBoolean(
+        DiscordSettingKeys.SHOW_DISCORD_BUTTON.key,
+        DiscordSettingKeys.SHOW_DISCORD_BUTTON.default,
+    )
 
-    fun discordAccounts() = preferenceStore.getString("discord_accounts", "")
+    fun discordAccounts() =
+        preferenceStore.getString(DiscordSettingKeys.ACCOUNTS.key, DiscordSettingKeys.ACCOUNTS.default)
 
     companion object {
 

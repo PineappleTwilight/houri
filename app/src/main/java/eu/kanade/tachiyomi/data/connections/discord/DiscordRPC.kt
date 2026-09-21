@@ -37,5 +37,14 @@ class DiscordRPC(val token: String, val status: String) {
 
         rpc?.let { discordWebSocket.sendActivity(it) }
     }
+
+    /**
+     * Clears the Rich Presence by sending an empty activity list, so nothing is
+     * broadcast (used for blacklisted categories).
+     */
+    suspend fun clearRPC() {
+        rpc = Presence(activities = emptyList())
+        rpc?.let { discordWebSocket.sendActivity(it) }
+    }
 }
 // <-- AM (DISCORD)
