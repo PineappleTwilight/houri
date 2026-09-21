@@ -51,6 +51,9 @@ import kotlin.math.abs
 import kotlin.math.min
 import kotlin.time.Duration.Companion.milliseconds
 
+/** Edge pages of an adjacent chapter to reserve shells for up front (see preloadChapterThenRetry). */
+private const val CHAPTER_EDGE_PRELOAD = 4
+
 open class WebGpuViewer(
     val activity: ReaderActivity,
     val isReversed: Boolean,
@@ -385,17 +388,24 @@ open class WebGpuViewer(
         // preload evicts the current chapter's pages - including the page on screen - which
         // reverts the reader to a loading screen (black flash) until the next chapter is decoded.
         val evictionReference = currentPage
-        if (pages != null) {
-            for (pg in pages) {
-                try {
-                    val shell = getPage(pg, evictionReference)
-                    preloadPage(shell, prioritize = false)
-                } catch (_: Exception) {}
-            }
+        // Only reserve the edge window: creating a shell for every page of the
+        // adjacent chapter blows the small page cache and evicts the pages being
+        // read, which then redraw as placeholders (flicker). Four covers the
+        // continuous reach, the pager preload window, and the transition page.
+        val edgePages = when {
+            pages == null -> emptyList()
+            chapter === viewerChapters?.prevChapter -> pages.takeLast(CHAPTER_EDGE_PRELOAD)
+            else -> pages.take(CHAPTER_EDGE_PRELOAD)
+        }
+        for (pg in edgePages) {
+            try {
+                val shell = getPage(pg, evictionReference)
+                preloadPage(shell, prioritize = false)
+            } catch (_: Exception) {}
         }
         if (!chapterPreloadGuard.tryBegin(key)) {
-            // If already in-flight but decodeQueue no longer contains its first page, allow requeue (stale guard)
-            val isStale = pages?.firstOrNull()?.let { pg ->
+            // If already in-flight but decodeQueue no longer contains its edge page, allow requeue (stale guard)
+            val isStale = edgePages.firstOrNull()?.let { pg ->
                 val k = PageKey.Reader(chapter.chapter.id, pg.index)
                 synchronized(lock) { findInCache(k) == null || decodeQueue.none { it.page.index == pg.index } }
             } ?: false
@@ -412,13 +422,16 @@ open class WebGpuViewer(
                     if (isDestroyed) return@launch
                     if (chapter.state is ReaderChapter.State.Loaded) {
                         val loadedPages = chapter.pages
-                        if (loadedPages != null) {
-                            for (pg in loadedPages) {
-                                try {
-                                    val shell = getPage(pg, evictionReference)
-                                    preloadPage(shell, prioritize = false)
-                                } catch (_: Exception) {}
-                            }
+                        val loadedEdgePages = when {
+                            loadedPages == null -> emptyList()
+                            chapter === viewerChapters?.prevChapter -> loadedPages.takeLast(CHAPTER_EDGE_PRELOAD)
+                            else -> loadedPages.take(CHAPTER_EDGE_PRELOAD)
+                        }
+                        for (pg in loadedEdgePages) {
+                            try {
+                                val shell = getPage(pg, evictionReference)
+                                preloadPage(shell, prioritize = false)
+                            } catch (_: Exception) {}
                         }
                         chapterPreloadGuard.end(key)
                         currentPage?.let { if (!isDestroyed) preloadPages(it) }

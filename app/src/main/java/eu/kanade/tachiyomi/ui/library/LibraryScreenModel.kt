@@ -2072,7 +2072,25 @@ class LibraryScreenModel(
         }
 
         fun getItemsForCategory(category: Category): List<LibraryItem> {
-            return groupedFavorites[category].orEmpty().fastMapNotNull { libraryData.favoritesById[it] }
+            // KMK --> Synchronous subcategory filter: selectSubcategory updates
+            // activeSubCategoryId immediately, but groupedFavorites recomputes
+            // async in the combine above. Without this the grid renders the full
+            // category tree for a frame before the recomputed direct list arrives.
+            // Filtering the current (sorted) tree list by subcategory membership
+            // preserves sort order, since every list is sorted with the same
+            // comparator after grouping. Once the recompute lands the stored list
+            // is already the direct list and this filter is an identity.
+            val subId = activeSubCategoryId
+            if (subId == null || category.id != activeCategoryId || groupType != LibraryGroup.BY_DEFAULT) {
+                return groupedFavorites[category].orEmpty().fastMapNotNull { libraryData.favoritesById[it] }
+            }
+            val allowed = subcategoryMangaMap[subId]
+                ?: return groupedFavorites[category].orEmpty().fastMapNotNull { libraryData.favoritesById[it] }
+            val allowedSet = allowed.toHashSet()
+            return groupedFavorites[category].orEmpty().fastMapNotNull { id ->
+                libraryData.favoritesById[id]?.takeIf { id in allowedSet }
+            }
+            // KMK <--
         }
 
         // KMK -->
@@ -2103,7 +2121,17 @@ class LibraryScreenModel(
         // KMK <--
 
         fun getItemCountForCategory(category: Category): Int? {
-            return if (showMangaCount || !searchQuery.isNullOrEmpty()) groupedFavorites[category]?.size else null
+            if (!(showMangaCount || !searchQuery.isNullOrEmpty())) return null
+            // KMK --> Match getItemsForCategory: count the filtered subset while
+            // groupedFavorites is still the stale full tree.
+            val subId = activeSubCategoryId
+            if (subId == null || category.id != activeCategoryId || groupType != LibraryGroup.BY_DEFAULT) {
+                return groupedFavorites[category]?.size
+            }
+            val allowed = subcategoryMangaMap[subId] ?: return groupedFavorites[category]?.size
+            val allowedSet = allowed.toHashSet()
+            return groupedFavorites[category]?.count { it in allowedSet }
+            // KMK <--
         }
 
         fun getToolbarTitle(
