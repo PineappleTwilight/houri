@@ -21,6 +21,100 @@ import kotlinx.coroutines.flow.takeWhile
 import kotlinx.coroutines.launch
 import logcat.LogPriority
 import tachiyomi.core.common.util.system.logcat
+import java.nio.ByteBuffer
+import java.util.Collections
+import java.util.WeakHashMap
+
+// KMK -->
+/**
+ * EXIF orientation retained per decoded page (1 when absent/unparseable). Weak keys so an
+ * evicted page cannot leak its viewer; translation re-applies the same rotation to the baked
+ * result so it matches the displayed base without re-encoding any bytes.
+ */
+private val pageExifOrientations: MutableMap<ViewerReaderPage, Int> =
+    Collections.synchronizedMap(WeakHashMap())
+
+internal fun noteExifOrientation(page: ViewerReaderPage, orientation: Int) {
+    synchronized(pageExifOrientations) {
+        if (orientation in 2..8) {
+            pageExifOrientations[page] = orientation
+        } else {
+            pageExifOrientations.remove(page)
+        }
+    }
+}
+
+internal fun exifOrientationOf(page: ViewerReaderPage): Int =
+    synchronized(pageExifOrientations) { pageExifOrientations[page] } ?: 1
+
+/** A rotated RGBA buffer with its new dimensions. Pure math, no Android dependency. */
+internal data class RotatedRgba(val buffer: ByteBuffer, val width: Int, val height: Int)
+
+/**
+ * Reorients an RGBA [src] (4 bytes/pixel) per EXIF orientation 1-8, moving 4-byte units
+ * opaquely. Returns the input untouched for orientation 1/out-of-range, degenerate dims, or a
+ * short buffer - never throws. 5-8 swap axes. Single pass, no intermediate allocation.
+ */
+internal fun rotateRgbaForExif(src: ByteBuffer, width: Int, height: Int, orientation: Int): RotatedRgba {
+    if (orientation !in 2..8 || width <= 0 || height <= 0) return RotatedRgba(src, width, height)
+    val swapAxes = orientation >= 5
+    val dstWidth = if (swapAxes) height else width
+    val dstHeight = if (swapAxes) width else height
+    if (dstWidth !in 1..SPREAD_MAX_DIM || dstHeight !in 1..SPREAD_MAX_DIM) {
+        return RotatedRgba(src, width, height)
+    }
+    return try {
+        val srcInts = src.duplicate().asIntBuffer()
+        if (srcInts.remaining() < width * height) return RotatedRgba(src, width, height)
+        val out = ByteBuffer.allocateDirect(dstWidth * dstHeight * 4)
+        val outInts = out.asIntBuffer()
+        for (dy in 0 until dstHeight) {
+            for (dx in 0 until dstWidth) {
+                val sx: Int
+                val sy: Int
+                when (orientation) {
+                    2 -> {
+                        sx = width - 1 - dx
+                        sy = dy
+                    }
+                    3 -> {
+                        sx = width - 1 - dx
+                        sy = height - 1 - dy
+                    }
+                    4 -> {
+                        sx = dx
+                        sy = height - 1 - dy
+                    }
+                    5 -> {
+                        sx = dy
+                        sy = dx
+                    }
+                    6 -> {
+                        sx = dy
+                        sy = height - 1 - dx
+                    }
+                    7 -> {
+                        sx = width - 1 - dy
+                        sy = height - 1 - dx
+                    }
+                    else -> {
+                        sx = width - 1 - dy
+                        sy = dx
+                    }
+                }
+                outInts.put(dy * dstWidth + dx, srcInts.get(sy * width + sx))
+            }
+        }
+        out.rewind()
+        RotatedRgba(out, dstWidth, dstHeight)
+    } catch (_: OutOfMemoryError) {
+        System.gc()
+        RotatedRgba(src, width, height)
+    } catch (_: Exception) {
+        RotatedRgba(src, width, height)
+    }
+}
+// KMK <--
 
 /**
  * Queue a page for decoding if not already queued/loading/decoded.
@@ -203,6 +297,10 @@ internal fun WebGpuViewer.evictFarthestPage(reference: ViewerPage? = null) {
     toRemove.state = PageState.IDLE
     // KMK -->
     (toRemove as? ViewerReaderPage)?.let {
+        // An evicted anchor is terminal for its height-match: drop any coalesced retry
+        // with it so a dead spread can never spin. Fresh bytes on re-decode re-arm.
+        cancelSpreadHeightRetry(it)
+        synchronized(pageExifOrientations) { pageExifOrientations.remove(it) }
         it.spreadPage?.cleanup()
         it.spreadBytes = null
     }
@@ -545,27 +643,43 @@ internal suspend fun WebGpuViewer.decodeReaderPage(page: ViewerReaderPage) {
         // Translation gate: only small-enough pages are sent to LLM/cache
         val translationBytes: ByteArray? = if (decodeBytes.size in 1..32 * 1024 * 1024) decodeBytes else null
 
-        page.taggedSpreadPosition = if (isDualPageMode()) {
-            val tag = try {
-                Kim.readMetadata(decodeBytes.inputStream(), decodeBytes.size.toLong())
-                    ?.findStringValue(TiffTag.TIFF_TAG_PAGE_NAME)
-            } catch (_: Exception) {
-                null
-            } catch (_: OutOfMemoryError) {
+        // KMK -->
+        // Single shared source array: decode, spread height-match bytes, and translation input all
+        // reference this one array - nothing below re-reads the page stream (no refetch).
+        val dualModeForTags = isDualPageMode()
+        // One Kim parse per decode serves both EXIF orientation (always honored) and the
+        // spread side tag (dual mode only - single-page display never pairs, so the tag
+        // lookup is skipped there). EXIF lives in the original bytes: the display hook
+        // below may strip it, so orientation is read here, before any transform.
+        var exifOrientation = 1
+        val spreadTag: SpreadPosition? = try {
+            val metadata = Kim.readMetadata(decodeBytes.inputStream(), decodeBytes.size.toLong())
+            if (metadata != null) {
+                exifOrientation = metadata.findStringValue(TiffTag.TIFF_TAG_ORIENTATION)
+                    ?.let { raw -> Regex("\\d+").find(raw)?.value?.toIntOrNull() }
+                    ?.takeIf { it in 1..8 } ?: 1
+            }
+            if (dualModeForTags) {
+                when (metadata?.findStringValue(TiffTag.TIFF_TAG_PAGE_NAME)) {
+                    "Left" -> SpreadPosition.LEFT
+                    "Right" -> SpreadPosition.RIGHT
+                    // Left untouched for a file that names no side - [spreadPosition] then derives one.
+                    null -> null
+                    else -> SpreadPosition.SINGLE
+                }
+            } else {
+                // Single-page display never pairs: leave untagged so [spreadPosition] derives
+                // geometrically on rotation into dual mode instead of reusing a stale tag.
                 null
             }
-            when (tag) {
-                "Left" -> SpreadPosition.LEFT
-                "Right" -> SpreadPosition.RIGHT
-                // Left untouched for a file that names no side - [spreadPosition] then derives one.
-                null -> null
-                else -> SpreadPosition.SINGLE
-            }
-        } else {
-            // Single-page display never pairs: leave untagged so [spreadPosition] derives
-            // geometrically on rotation into dual mode instead of reusing a stale tag.
+        } catch (_: Exception) {
+            null
+        } catch (_: OutOfMemoryError) {
+            System.gc()
             null
         }
+        page.taggedSpreadPosition = spreadTag
+        noteExifOrientation(page, exifOrientation)
 
         // Store bytes for height-matching regardless of SINGLE tag — pages decoded before
         // viewport layout (width <8) may be tagged SINGLE initially but become LEFT/RIGHT
@@ -608,6 +722,21 @@ internal suspend fun WebGpuViewer.decodeReaderPage(page: ViewerReaderPage) {
             } catch (_: Exception) {}
             throw Exception("Image too small ${firstFrame.width}x${firstFrame.height}, skipping GPU upload (avoids gralloc 0x3b on Adreno)")
         }
+        // KMK --> Honor EXIF orientation at decode: the native decoder hands back raw
+        // pixels, so a camera-scan page would otherwise display sideways and pair with
+        // the wrong aspect. Single-frame path only - an animated frame stack with an
+        // orientation tag is vanishingly rare and rotating every frame would multiply
+        // transient memory. Falls back to unrotated pixels on any failure.
+        var framePixels = firstFrame.image
+        var frameWidth = firstFrame.width
+        var frameHeight = firstFrame.height
+        if (pageCount == 1 && exifOrientation != 1) {
+            val rotated = rotateRgbaForExif(framePixels, frameWidth, frameHeight, exifOrientation)
+            framePixels = rotated.buffer
+            frameWidth = rotated.width
+            frameHeight = rotated.height
+        }
+        // KMK <--
 
         val imagePage = if (pageCount == 1) {
             val isJxl = dec.format == "jxl"
@@ -621,9 +750,9 @@ internal suspend fun WebGpuViewer.decodeReaderPage(page: ViewerReaderPage) {
             }
 
             val firstImage = Image(
-                firstFrame.image,
-                firstFrame.width,
-                firstFrame.height,
+                framePixels,
+                frameWidth,
+                frameHeight,
                 createMipMaps = true,
                 trimColors = trimColors,
                 trimThreshold = 0.15f,

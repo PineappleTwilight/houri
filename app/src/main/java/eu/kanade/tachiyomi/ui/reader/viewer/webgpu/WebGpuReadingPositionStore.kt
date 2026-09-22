@@ -33,38 +33,52 @@ class WebGpuReadingPositionStore(
     }
 
     fun save(chapterId: Long, pageIndex: Int, offsetRatio: Float = 0f, zoom: Float = 1f) {
-        // Legacy overload kept for compat — offsetRatio may be old 0..1 fraction or new documentY
-        // Detect intent: if offsetRatio > 2f treat as documentY, otherwise fraction
-        if (offsetRatio > 2f) {
-            saveDocument(chapterId, pageIndex, offsetRatio, zoom, 0f)
-        } else {
-            // old fraction path — preserve but migrate to v2 on next save via new overload
-            try {
-                if (!takeSaveSlot(chapterId, System.currentTimeMillis())) return
-                val safeIndex = pageIndex.coerceAtLeast(0).coerceAtMost(9999)
-                val safeFraction = offsetRatio.coerceIn(0f, 1f)
-                val safeZoom = zoom.coerceIn(0.5f, 8f)
-                val v = "v2|$safeIndex|$safeFraction|0.0|$safeZoom|${System.currentTimeMillis()}"
-                // store fraction in documentY slot for migration; loader will detect small value + pageIndex
-                prefs.edit().putString(key(chapterId), v).apply()
-                pruneIfNeeded()
-            } catch (_: Exception) {}
-        }
+        // KMK --> Legacy overload: offsetRatio is always the old 0..1 page fraction.
+        // The old ">2f means documentY" heuristic is gone — it misclassified large
+        // fractions/NaN and could never round-trip. Callers needing document scroll
+        // use saveDocument/savePaged/savePosition, which all write v3 explicitly.
+        saveFraction(chapterId, pageIndex, offsetRatio, zoom)
+        // KMK <--
     }
+
+    // KMK --> Explicit fraction saver behind the legacy overload above.
+    private fun saveFraction(chapterId: Long, pageIndex: Int, fraction: Float, zoom: Float) {
+        try {
+            if (!takeSaveSlot(chapterId, System.currentTimeMillis())) return
+            val safeIndex = pageIndex.coerceAtLeast(0).coerceAtMost(9999)
+            val safeFraction = sanitizeFraction(fraction)
+            val safeZoom = sanitizeZoom(zoom)
+            val v = "$CURRENT_VERSION|$safeIndex|0.0|0.0|$safeZoom|$safeFraction|${System.currentTimeMillis()}"
+            prefs.edit().putString(key(chapterId), v).apply()
+            pruneIfNeeded()
+        } catch (_: Exception) {}
+    }
+    // KMK <--
+
+    // KMK --> Paged zoom restore parity with continuous saveDocument: persists the
+    // paged viewer's zoom (+ pan offset) instead of dropping them via the legacy
+    // fraction overload. documentY is unused in paged mode (always 0).
+    fun savePaged(chapterId: Long, pageIndex: Int, zoom: Float, offsetX: Float = 0f) {
+        try {
+            if (!takeSaveSlot(chapterId, System.currentTimeMillis())) return
+            val safeIndex = pageIndex.coerceAtLeast(0).coerceAtMost(9999)
+            val safeZoom = sanitizeZoom(zoom)
+            val safeOffsetX = sanitizeOffsetX(offsetX)
+            val v = "$CURRENT_VERSION|$safeIndex|0.0|$safeOffsetX|$safeZoom|0.0|${System.currentTimeMillis()}"
+            prefs.edit().putString(key(chapterId), v).apply()
+            pruneIfNeeded()
+        } catch (_: Exception) {}
+    }
+    // KMK <--
 
     fun saveDocument(chapterId: Long, pageIndex: Int, documentY: Float, zoom: Float, offsetX: Float) {
         try {
             if (!takeSaveSlot(chapterId, System.currentTimeMillis())) return
             val safeIndex = pageIndex.coerceAtLeast(0).coerceAtMost(9999)
-            val safeDocY = when {
-                !documentY.isFinite() -> 0f
-                documentY < 0f -> 0f
-                documentY > 1e7f -> 1e7f
-                else -> documentY
-            }
-            val safeZoom = zoom.coerceIn(0.5f, 8f).let { if (!it.isFinite()) 1f else it }
-            val safeOffsetX = offsetX.coerceIn(-1f, 1f).let { if (!it.isFinite()) 0f else it }
-            val v = "v2|$safeIndex|$safeDocY|$safeOffsetX|$safeZoom|${System.currentTimeMillis()}"
+            val safeDocY = sanitizeDocumentY(documentY)
+            val safeZoom = sanitizeZoom(zoom)
+            val safeOffsetX = sanitizeOffsetX(offsetX)
+            val v = "$CURRENT_VERSION|$safeIndex|$safeDocY|$safeOffsetX|$safeZoom|${System.currentTimeMillis()}"
             prefs.edit().putString(key(chapterId), v).apply()
             pruneIfNeeded()
         } catch (_: Exception) {}
@@ -74,11 +88,11 @@ class WebGpuReadingPositionStore(
         try {
             if (!takeSaveSlot(chapterId, System.currentTimeMillis())) return
             val safeIndex = pageIndex.coerceAtLeast(0).coerceAtMost(9999)
-            val safeDocY = documentY.coerceIn(0f, 1e7f).let { if (!it.isFinite()) 0f else it }
-            val safeScale = scale.coerceIn(0.5f, 8f).let { if (!it.isFinite()) 1f else it }
-            val safeOffsetX = offsetX.coerceIn(-1f, 1f).let { if (!it.isFinite()) 0f else it }
-            val safeFraction = fraction.coerceIn(0f, 1f).let { if (!it.isFinite()) 0f else it }
-            val v = "v2|$safeIndex|$safeDocY|$safeOffsetX|$safeScale|$safeFraction|${System.currentTimeMillis()}"
+            val safeDocY = sanitizeDocumentY(documentY)
+            val safeScale = sanitizeZoom(scale)
+            val safeOffsetX = sanitizeOffsetX(offsetX)
+            val safeFraction = sanitizeFraction(fraction)
+            val v = "$CURRENT_VERSION|$safeIndex|$safeDocY|$safeOffsetX|$safeScale|$safeFraction|${System.currentTimeMillis()}"
             prefs.edit().putString(key(chapterId), v).apply()
             pruneIfNeeded()
         } catch (_: Exception) {}
@@ -87,47 +101,7 @@ class WebGpuReadingPositionStore(
     fun load(chapterId: Long): PositionData? {
         return try {
             val raw = prefs.getString(key(chapterId), null) ?: return null
-            if (raw.startsWith("v2|")) {
-                val p = raw.split("|")
-                when (p.size) {
-                    6 -> {
-                        // v2|pageIndex|documentY|offsetX|zoom|timestamp
-                        val idx = p[1].toIntOrNull()?.coerceAtLeast(0) ?: return null
-                        val docY = p[2].toFloatOrNull()?.coerceIn(0f, 1e7f) ?: return null
-                        val offX = p[3].toFloatOrNull()?.coerceIn(-1f, 1f) ?: 0f
-                        val zom = p[4].toFloatOrNull()?.coerceIn(0.5f, 8f) ?: 1f
-                        val ts = p[5].toLongOrNull() ?: 0L
-                        if (System.currentTimeMillis() - ts > 30L * 24 * 60 * 60 * 1000) return null
-                        val fraction = if (docY <= 1f) docY else 0f
-                        PositionData(idx, docY, zom, offX, fraction, isV2 = true)
-                    }
-                    7 -> {
-                        // v2|pageIndex|documentY|offsetX|zoom|fraction|timestamp
-                        val idx = p[1].toIntOrNull()?.coerceAtLeast(0) ?: return null
-                        val docY = p[2].toFloatOrNull()?.coerceIn(0f, 1e7f) ?: return null
-                        val offX = p[3].toFloatOrNull()?.coerceIn(-1f, 1f) ?: 0f
-                        val zom = p[4].toFloatOrNull()?.coerceIn(0.5f, 8f) ?: 1f
-                        val frac = p[5].toFloatOrNull()?.coerceIn(0f, 1f) ?: 0f
-                        val ts = p[6].toLongOrNull() ?: 0L
-                        if (System.currentTimeMillis() - ts > 30L * 24 * 60 * 60 * 1000) return null
-                        PositionData(idx, docY, zom, offX, frac, isV2 = true)
-                    }
-                    else -> null
-                }
-            } else {
-                // legacy: pageIndex|offsetRatio|zoom|timestamp
-                val p = raw.split("|")
-                if (p.size < 3) return null
-                val idx = p[0].toIntOrNull()?.coerceAtLeast(0) ?: return null
-                val off = p[1].toFloatOrNull()?.coerceIn(0f, 1f) ?: 0f
-                val zom = p[2].toFloatOrNull()?.coerceIn(0.5f, 8f) ?: 1f
-                if (p.size >= 4) {
-                    val ts = p[3].toLongOrNull() ?: 0L
-                    if (ts != 0L && System.currentTimeMillis() - ts > 30L * 24 * 60 * 60 * 1000) return null
-                }
-                // off is fraction, not documentY — preserve as fraction for caller to resolve
-                PositionData(idx, off, zom, 0f, off, isV2 = false)
-            }
+            parsePosition(raw, System.currentTimeMillis())
         } catch (_: Exception) {
             null
         }
@@ -148,7 +122,7 @@ class WebGpuReadingPositionStore(
             } else {
                 entryCount++
             }
-            if (entryCount > 500) {
+            if (entryCount > MAX_ENTRIES) {
                 val entries = prefs.all.entries.mapNotNull { e ->
                     val v = e.value as? String ?: return@mapNotNull null
                     val ts = v.split("|").lastOrNull()?.toLongOrNull() ?: 0L
@@ -167,6 +141,94 @@ class WebGpuReadingPositionStore(
 
     companion object {
         private const val SAVE_THROTTLE_MS = 500L
+
+        // KMK --> Explicit version tag. v3 has the same field layout as the v2
+        // 7-field record (pageIndex|documentY|offsetX|zoom|fraction|timestamp);
+        // the tag only removes the ambiguity the v2 6-field record had, where a
+        // small documentY (<=1) was indistinguishable from a legacy 0..1 fraction
+        // and the saver guessed with a ">2f" heuristic. v2 and legacy strings
+        // already on disk keep loading via parsePosition below.
+        internal const val CURRENT_VERSION = "v3"
+        internal const val MAX_ENTRIES = 500
+        internal const val TTL_MS = 30L * 24 * 60 * 60 * 1000
+        // KMK <--
+
+        // KMK --> NaN/Inf-safe clamps. coerceIn alone propagates NaN (NaN
+        // comparisons are false, so NaN.coerceIn returns NaN), which would then
+        // serialize as "NaN" and poison the stored record — hence finite first.
+        internal fun sanitizeDocumentY(v: Float): Float {
+            if (!v.isFinite()) return 0f
+            return v.coerceIn(0f, 1e7f)
+        }
+
+        internal fun sanitizeZoom(v: Float): Float {
+            if (!v.isFinite()) return 1f
+            return v.coerceIn(0.5f, 8f)
+        }
+
+        internal fun sanitizeOffsetX(v: Float): Float {
+            if (!v.isFinite()) return 0f
+            return v.coerceIn(-1f, 1f)
+        }
+
+        internal fun sanitizeFraction(v: Float): Float {
+            if (!v.isFinite()) return 0f
+            return v.coerceIn(0f, 1f)
+        }
+        // KMK <--
+
+        // KMK --> Pure tolerant parser (no prefs/clock reads besides the passed
+        // nowMs), so the v3/v2/legacy/corrupt vectors can be checked without
+        // Android infra. Versioned records never guess field meaning from value
+        // magnitude; only the tagless legacy layout implies fraction semantics.
+        internal fun parsePosition(raw: String, nowMs: Long): PositionData? {
+            return try {
+                if (raw.startsWith("v3|") || raw.startsWith("v2|")) {
+                    val p = raw.split("|")
+                    when (p.size) {
+                        6 -> {
+                            // v2|pageIndex|documentY|offsetX|zoom|timestamp (legacy v2 shape)
+                            val idx = p[1].toIntOrNull()?.coerceAtLeast(0) ?: return null
+                            val docY = sanitizeDocumentY(p[2].toFloatOrNull() ?: return null)
+                            val offX = sanitizeOffsetX(p[3].toFloatOrNull() ?: 0f)
+                            val zom = sanitizeZoom(p[4].toFloatOrNull() ?: 1f)
+                            val ts = p[5].toLongOrNull() ?: 0L
+                            if (nowMs - ts > TTL_MS) return null
+                            val fraction = if (docY <= 1f) docY else 0f
+                            PositionData(idx, docY, zom, offX, fraction, isV2 = true)
+                        }
+                        7 -> {
+                            // v3|pageIndex|documentY|offsetX|zoom|fraction|timestamp
+                            // (v2 7-field shares this layout)
+                            val idx = p[1].toIntOrNull()?.coerceAtLeast(0) ?: return null
+                            val docY = sanitizeDocumentY(p[2].toFloatOrNull() ?: return null)
+                            val offX = sanitizeOffsetX(p[3].toFloatOrNull() ?: 0f)
+                            val zom = sanitizeZoom(p[4].toFloatOrNull() ?: 1f)
+                            val frac = sanitizeFraction(p[5].toFloatOrNull() ?: 0f)
+                            val ts = p[6].toLongOrNull() ?: 0L
+                            if (nowMs - ts > TTL_MS) return null
+                            PositionData(idx, docY, zom, offX, frac, isV2 = true)
+                        }
+                        else -> null
+                    }
+                } else {
+                    // legacy: pageIndex|offsetRatio|zoom|timestamp
+                    val p = raw.split("|")
+                    if (p.size < 3) return null
+                    val idx = p[0].toIntOrNull()?.coerceAtLeast(0) ?: return null
+                    val off = sanitizeFraction(p[1].toFloatOrNull() ?: return null)
+                    val zom = sanitizeZoom(p[2].toFloatOrNull() ?: 1f)
+                    if (p.size >= 4) {
+                        val ts = p[3].toLongOrNull() ?: 0L
+                        if (ts != 0L && nowMs - ts > TTL_MS) return null
+                    }
+                    PositionData(idx, off, zom, 0f, off, isV2 = false)
+                }
+            } catch (_: Exception) {
+                null
+            }
+        }
+        // KMK <--
     }
 
     data class PositionData(

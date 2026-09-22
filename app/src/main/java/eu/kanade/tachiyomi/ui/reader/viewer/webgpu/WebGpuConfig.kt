@@ -139,6 +139,38 @@ class WebGpuConfig(
     // KMK <--
 
     // KMK -->
+    var brightness = readerPreferences.webgpuBrightness().get() / 100f
+        private set
+
+    var contrast = readerPreferences.webgpuContrast().get() / 100f
+        private set
+
+    var hlgEnabled = readerPreferences.webgpuHlg().get()
+        private set
+
+    var hlgExposure = readerPreferences.webgpuHlgExposure().get() / 100f
+        private set
+
+    var lutPreset = readerPreferences.webgpuLutPreset().get()
+        private set
+
+    var lutCustomPath = readerPreferences.webgpuLutCustomPath().get()
+        private set
+
+    var lutIntensity = readerPreferences.webgpuLutIntensity().get() / 100f
+        private set
+
+    var compareTranslation = readerPreferences.webgpuCompareTranslation().get()
+        private set
+
+    var perfHud = readerPreferences.webgpuPerfHud().get()
+        private set
+
+    var einkPreset = readerPreferences.webgpuEinkPreset().get()
+        private set
+    // KMK <--
+
+    // KMK -->
     var artCnnUpscaler = readerPreferences.webgpuArtCnnUpscaler().get()
         private set
 
@@ -167,6 +199,17 @@ class WebGpuConfig(
         } else {
             pagedDoubleTapZoomPref.get()
         }
+
+    // KMK -->
+    /**
+     * Single consumption point for the double-tap-zoom preference. Paged honors it
+     * via applyDoubleTapZoomPolicy (WebGpuDecode.kt), continuous via
+     * DoubleTapZoomGateLayout.shouldSwallowDoubleTap (WebGpuViewerContinuous.kt).
+     * Both stay behind this proxy until the viewer library exposes its own flag
+     * (Unit 1) — then that flag replaces the proxy body here, call sites unchanged.
+     */
+    fun resolveDoubleTapZoom(): Boolean = doubleTapZoom
+    // KMK <--
 
     var doubleTapZoomChangedListener: ((Boolean) -> Unit)? = null
 
@@ -367,6 +410,66 @@ class WebGpuConfig(
         readerPreferences.webgpuPreloadBehind()
             .register(
                 { preloadBehind = it },
+                { imageStateChangedListener?.invoke() },
+            )
+
+        readerPreferences.webgpuBrightness()
+            .register(
+                { brightness = it / 100f },
+                { imageStateChangedListener?.invoke() },
+            )
+
+        readerPreferences.webgpuContrast()
+            .register(
+                { contrast = it / 100f },
+                { imageStateChangedListener?.invoke() },
+            )
+
+        readerPreferences.webgpuHlg()
+            .register(
+                { hlgEnabled = it },
+                { imageStateChangedListener?.invoke() },
+            )
+
+        readerPreferences.webgpuHlgExposure()
+            .register(
+                { hlgExposure = it / 100f },
+                { imageStateChangedListener?.invoke() },
+            )
+
+        readerPreferences.webgpuLutPreset()
+            .register(
+                { lutPreset = it },
+                { imageStateChangedListener?.invoke() },
+            )
+
+        readerPreferences.webgpuLutCustomPath()
+            .register(
+                { lutCustomPath = it },
+                { imageStateChangedListener?.invoke() },
+            )
+
+        readerPreferences.webgpuLutIntensity()
+            .register(
+                { lutIntensity = it / 100f },
+                { imageStateChangedListener?.invoke() },
+            )
+
+        readerPreferences.webgpuCompareTranslation()
+            .register(
+                { compareTranslation = it },
+                { imageStateChangedListener?.invoke() },
+            )
+
+        readerPreferences.webgpuPerfHud()
+            .register(
+                { perfHud = it },
+                { imageStateChangedListener?.invoke() },
+            )
+
+        readerPreferences.webgpuEinkPreset()
+            .register(
+                { einkPreset = it },
                 { imageStateChangedListener?.invoke() },
             )
         // KMK <--

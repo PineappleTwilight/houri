@@ -528,6 +528,15 @@ object SettingsReaderScreen : SearchableSettings {
     }
     // SY <--
 
+    private fun lutPresetTitle(id: String) = when (id) {
+        "grayscale" -> KMR.strings.pref_webgpu_lut_preset_grayscale
+        "sepia" -> KMR.strings.pref_webgpu_lut_preset_sepia
+        "warm" -> KMR.strings.pref_webgpu_lut_preset_warm
+        "cool" -> KMR.strings.pref_webgpu_lut_preset_cool
+        "custom" -> KMR.strings.pref_webgpu_lut_preset_custom
+        else -> KMR.strings.pref_webgpu_lut_preset_none
+    }
+
     // Mihon -->
     @Composable
     private fun getWebGpuGroup(readerPreferences: ReaderPreferences): Preference.PreferenceGroup {
@@ -549,6 +558,29 @@ object SettingsReaderScreen : SearchableSettings {
         val preloadAhead by preloadAheadPref.collectAsState()
         val preloadBehindPref = readerPreferences.webgpuPreloadBehind()
         val preloadBehind by preloadBehindPref.collectAsState()
+        val brightnessPref = readerPreferences.webgpuBrightness()
+        val brightness by brightnessPref.collectAsState()
+        val contrastPref = readerPreferences.webgpuContrast()
+        val contrast by contrastPref.collectAsState()
+        val hlgPref = readerPreferences.webgpuHlg()
+        val hlg by hlgPref.collectAsState()
+        val hlgExposurePref = readerPreferences.webgpuHlgExposure()
+        val hlgExposure by hlgExposurePref.collectAsState()
+        val lutPresetPref = readerPreferences.webgpuLutPreset()
+        val lutPreset by lutPresetPref.collectAsState()
+        val lutIntensityPref = readerPreferences.webgpuLutIntensity()
+        val lutIntensity by lutIntensityPref.collectAsState()
+        val debugItems = if (eu.kanade.tachiyomi.util.system.isDebugBuildType) {
+            persistentListOf(
+                Preference.PreferenceItem.SwitchPreference(
+                    preference = readerPreferences.webgpuPerfHud(),
+                    title = stringResource(KMR.strings.pref_webgpu_perf_hud),
+                    subtitle = stringResource(KMR.strings.pref_webgpu_perf_hud_summary),
+                ),
+            )
+        } else {
+            persistentListOf()
+        }
 
         return Preference.PreferenceGroup(
             title = stringResource(MR.strings.webgpu_viewer),
@@ -594,6 +626,65 @@ object SettingsReaderScreen : SearchableSettings {
                     preference = readerPreferences.webgpuFastRender(),
                     title = stringResource(KMR.strings.pref_webgpu_fast_render),
                     subtitle = stringResource(KMR.strings.pref_webgpu_fast_render_summary),
+                ),
+                Preference.PreferenceItem.SliderPreference(
+                    value = brightness,
+                    valueRange = ReaderPreferences.WEBGPU_BRIGHTNESS_MIN..ReaderPreferences.WEBGPU_BRIGHTNESS_MAX,
+                    title = stringResource(KMR.strings.pref_webgpu_brightness),
+                    valueString = "$brightness%",
+                    onValueChanged = { brightnessPref.set(it) },
+                ),
+                Preference.PreferenceItem.SliderPreference(
+                    value = contrast,
+                    valueRange = ReaderPreferences.WEBGPU_CONTRAST_MIN..ReaderPreferences.WEBGPU_CONTRAST_MAX,
+                    title = stringResource(KMR.strings.pref_webgpu_contrast),
+                    valueString = numberFormat.format(contrast / 100f),
+                    onValueChanged = { contrastPref.set(it) },
+                ),
+                Preference.PreferenceItem.SwitchPreference(
+                    preference = hlgPref,
+                    title = stringResource(KMR.strings.pref_webgpu_hlg),
+                    subtitle = stringResource(KMR.strings.pref_webgpu_hlg_summary),
+                ),
+                Preference.PreferenceItem.SliderPreference(
+                    value = hlgExposure,
+                    valueRange = ReaderPreferences.WEBGPU_HLG_EXPOSURE_MIN..ReaderPreferences.WEBGPU_HLG_EXPOSURE_MAX,
+                    title = stringResource(KMR.strings.pref_webgpu_hlg_exposure),
+                    valueString = "%.2f EV".format(hlgExposure / 100f),
+                    onValueChanged = { hlgExposurePref.set(it) },
+                    enabled = hlg,
+                ),
+                Preference.PreferenceItem.ListPreference(
+                    preference = lutPresetPref,
+                    entries = ReaderPreferences.webgpuLutPresets
+                        .associateWith { stringResource(lutPresetTitle(it)) }
+                        .toImmutableMap(),
+                    title = stringResource(KMR.strings.pref_webgpu_lut_preset),
+                ),
+                Preference.PreferenceItem.SliderPreference(
+                    value = lutIntensity,
+                    valueRange = ReaderPreferences.WEBGPU_LUT_INTENSITY_MIN..ReaderPreferences.WEBGPU_LUT_INTENSITY_MAX,
+                    title = stringResource(KMR.strings.pref_webgpu_lut_intensity),
+                    valueString = "$lutIntensity%",
+                    onValueChanged = { lutIntensityPref.set(it) },
+                    enabled = lutPreset != "none",
+                ),
+                Preference.PreferenceItem.EditTextPreference(
+                    preference = readerPreferences.webgpuLutCustomPath(),
+                    title = stringResource(KMR.strings.pref_webgpu_lut_custom_path),
+                    subtitle = stringResource(KMR.strings.pref_webgpu_lut_custom_path_summary),
+                    enabled = lutPreset == "custom",
+                    validator = { true },
+                ),
+                Preference.PreferenceItem.SwitchPreference(
+                    preference = readerPreferences.webgpuCompareTranslation(),
+                    title = stringResource(KMR.strings.pref_webgpu_compare_translation),
+                    subtitle = stringResource(KMR.strings.pref_webgpu_compare_translation_summary),
+                ),
+                Preference.PreferenceItem.SwitchPreference(
+                    preference = readerPreferences.webgpuEinkPreset(),
+                    title = stringResource(KMR.strings.pref_webgpu_eink_preset),
+                    subtitle = stringResource(KMR.strings.pref_webgpu_eink_preset_summary),
                 ),
                 Preference.PreferenceItem.SliderPreference(
                     value = preloadAhead,
@@ -654,7 +745,7 @@ object SettingsReaderScreen : SearchableSettings {
                     valueString = numberFormat.format(continuousGap / 100f),
                     onValueChanged = { continuousGapPref.set(it) },
                 ),
-            ),
+            ).addAll(debugItems),
         )
     }
     // Mihon <--

@@ -214,6 +214,12 @@ private fun existing(left: ImagePage?, right: ImagePage?, spreadPage: ImagePage.
 private val spreadHeightRetries: MutableMap<ViewerReaderPage, Job> =
     Collections.synchronizedMap(WeakHashMap())
 
+/** Bounded attempts per anchor so an undecodable spread can never retry forever. */
+private val spreadHeightAttempts: MutableMap<ViewerReaderPage, Int> =
+    Collections.synchronizedMap(WeakHashMap())
+
+internal const val MAX_SPREAD_HEIGHT_ATTEMPTS = 20
+
 internal fun WebGpuViewer.retrySpreadHeightMatchSoon(
     anchorPage: ViewerReaderPage,
     spread: ImagePage.ImageSpread,
@@ -221,6 +227,14 @@ internal fun WebGpuViewer.retrySpreadHeightMatchSoon(
     delayMs: Long = 150,
 ) {
     if (isDestroyed || !config.matchDoublePageHeights) return
+    val attempts = synchronized(spreadHeightAttempts) {
+        (spreadHeightAttempts[anchorPage] ?: 0) + 1
+    }
+    if (attempts > MAX_SPREAD_HEIGHT_ATTEMPTS) {
+        cancelSpreadHeightRetry(anchorPage)
+        return
+    }
+    synchronized(spreadHeightAttempts) { spreadHeightAttempts[anchorPage] = attempts }
     val viewer = this
     val job = scope.launch {
         try {
@@ -248,6 +262,7 @@ internal fun WebGpuViewer.retrySpreadHeightMatchSoon(
 
 internal fun WebGpuViewer.cancelSpreadHeightRetry(page: ViewerReaderPage) {
     synchronized(spreadHeightRetries) { spreadHeightRetries.remove(page)?.cancel() }
+    synchronized(spreadHeightAttempts) { spreadHeightAttempts.remove(page) }
 }
 
 /**
@@ -267,8 +282,14 @@ internal fun WebGpuViewer.maybeScheduleSpreadHeightMatch(
     if (isDestroyed) return
     if (!config.matchDoublePageHeights) return
 
-    val leftImage = (spread.left as? ImagePage.ImageSingle)?.image
-    val rightImage = (spread.right as? ImagePage.ImageSingle)?.image
+    val leftSide = spread.left
+    val rightSide = spread.right
+    if (leftSide is ImagePage.Render || rightSide is ImagePage.Render) {
+        cancelSpreadHeightRetry(anchorPage)
+        return
+    }
+    val leftImage = (leftSide as? ImagePage.ImageSingle)?.image
+    val rightImage = (rightSide as? ImagePage.ImageSingle)?.image
     if (leftImage == null || rightImage == null) {
         retrySpreadHeightMatchSoon(anchorPage, spread, nextReaderPage)
         return

@@ -196,6 +196,38 @@ class ViewerReaderPage(
     var rescaleInFlight: Boolean = false
     // KMK <--
 
+    // KMK -->
+    /**
+     * Pre-translation page retained for the compare toggle. Set once on the
+     * first translation swap; the translated image replaces [imagePage] (or is
+     * parked in [compareTranslated]) so peeking at the original never re-decodes.
+     */
+    @Volatile
+    var compareOriginal: ImagePage? = null
+
+    /** Translated page parked while the compare toggle shows the original. */
+    @Volatile
+    var compareTranslated: ImagePage.ImageSingle? = null
+
+    /** True once a translation has been swapped in (compare state valid). */
+    @Volatile
+    var hasTranslation: Boolean = false
+
+    fun cleanupCompare() {
+        try {
+            compareTranslated?.let { if (it !== imagePage) it.cleanup() }
+        } catch (_: Exception) {
+        }
+        compareTranslated = null
+        try {
+            compareOriginal?.let { if (it !== imagePage) it.cleanup() }
+        } catch (_: Exception) {
+        }
+        compareOriginal = null
+        hasTranslation = false
+    }
+    // KMK <--
+
     @Volatile
     override var imagePage: ImagePage = ProgressPage(viewer)
 
@@ -425,16 +457,43 @@ class ProgressPage(
         } catch (_: Exception) {
             return pineappleTexture
         }
-        if (pineappleDevice !== device) {
-            try {
-                pineappleTexture?.destroy()
-            } catch (_: Exception) {
+        synchronized(ProgressPage) {
+            if (pineappleDevice !== device) {
+                try {
+                    pineappleTexture?.destroy()
+                } catch (_: Exception) {
+                }
+                pineappleTexture = null
+                pineappleDevice = device
             }
-            pineappleTexture = null
-            pineappleDevice = device
+            pineappleTexture?.let { return it }
+            if (uploadInFlight) return null
+            uploadInFlight = true
         }
         // KMK <--
-        pineappleTexture?.let { return it }
+        try {
+            val texture = uploadPineappleTexture()
+            synchronized(ProgressPage) {
+                // A device change or destroy() may have landed mid-upload: only
+                // publish if this texture still belongs to the current device.
+                if (pineappleDevice === device && pineappleTexture == null) {
+                    pineappleTexture = texture
+                } else {
+                    try {
+                        texture?.destroy()
+                    } catch (_: Exception) {
+                    }
+                }
+                return pineappleTexture
+            }
+        } finally {
+            synchronized(ProgressPage) {
+                uploadInFlight = false
+            }
+        }
+    }
+
+    private fun uploadPineappleTexture(): GPUTexture? {
         val context = try {
             viewer.activity.baseContext
         } catch (_: Exception) {
@@ -463,7 +522,11 @@ class ProgressPage(
             buffer.put((px ushr 24 and 0xFF).toByte())
         }
         buffer.flip()
-        return Draw.uploadTexture(PINEAPPLE_PX, PINEAPPLE_PX, buffer).also { pineappleTexture = it }
+        return try {
+            Draw.uploadTexture(PINEAPPLE_PX, PINEAPPLE_PX, buffer)
+        } catch (_: Exception) {
+            null
+        }
     }
 
     companion object {
@@ -475,6 +538,29 @@ class ProgressPage(
         // KMK --> Device the cached texture was uploaded to; see loadPineappleTexture.
         @Volatile
         private var pineappleDevice: GPUDevice? = null
+
+        // KMK --> Guards concurrent first-frame uploads: without it every
+        // ProgressPage rendering its first frame uploads its own copy and all
+        // but one leak. The per-frame spin itself is driven by the viewer's
+        // existing invalidate loop (WebGpuViewer progress poller), never by
+        // re-uploading here — render() only reads the shared texture.
+        @Volatile
+        private var uploadInFlight = false
+
+        /**
+         * Destroys the shared spinner texture and clears the cache (viewer
+         * teardown). Idempotent; safe to call with no texture cached.
+         */
+        fun destroyPineappleTexture() {
+            synchronized(ProgressPage) {
+                try {
+                    pineappleTexture?.destroy()
+                } catch (_: Exception) {
+                }
+                pineappleTexture = null
+                pineappleDevice = null
+            }
+        }
         // KMK <--
     }
 }

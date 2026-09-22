@@ -9,7 +9,14 @@ import android.view.InputDevice
 import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.View
+import android.view.ViewGroup
+import android.widget.FrameLayout
+import android.widget.TextView
 import ca.mpreg.webgpuviewer.ImageView
+import ca.mpreg.webgpuviewer.filter.FilterBrightnessContrast
+import ca.mpreg.webgpuviewer.filter.FilterGrayscale
+import ca.mpreg.webgpuviewer.filter.FilterHlg
+import ca.mpreg.webgpuviewer.filter.FilterLut3d
 import ca.mpreg.webgpuviewer.renderer.UpscalerArtCnn
 import ca.mpreg.webgpuviewer.renderer.UpscalerCatmullRom
 import ca.mpreg.webgpuviewer.transition.TransitionBasic
@@ -69,6 +76,7 @@ open class WebGpuViewer(
 
     // KMK -->
     private var pendingContinuousRestoreChapterId: Long? = null
+    private var pendingPagedRestoreChapterId: Long? = null
     // KMK <--
 
     open val isContinuous: Boolean = false
@@ -93,6 +101,26 @@ open class WebGpuViewer(
 
     // KMK -->
     private val darkModeFilter = WebGpuDarkModeFilter()
+
+    private val brightnessContrastFilter = FilterBrightnessContrast()
+
+    private val hlgFilter = FilterHlg()
+
+    private val lutFilter = FilterLut3d()
+
+    private val einkGrayscaleFilter = FilterGrayscale(saturation = 1f)
+
+    @Volatile
+    private var appliedLutKey: String? = null
+
+    @Volatile
+    private var lutResolveGeneration = 0
+
+    @Volatile
+    private var perfHudView: TextView? = null
+
+    @Volatile
+    private var perfHudLastUpdate = 0L
     // KMK <--
 
     // KMK -->
@@ -108,6 +136,25 @@ open class WebGpuViewer(
         }
     }
     // KMK <--
+
+    private val deviceLostListener =
+        ca.mpreg.webgpuviewer.renderer.WebGpuRenderer.Companion.DeviceLostListener { _, _ ->
+            if (isDestroyed) return@DeviceLostListener
+            scope.launch {
+                try {
+                    val recovered =
+                        ca.mpreg.webgpuviewer.renderer.WebGpuRenderer.reinit()
+                    if (!recovered) {
+                        logcat(LogPriority.ERROR) { "WebGPU device lost and reinit failed" }
+                    }
+                    try {
+                        pager.state.invalidate()
+                    } catch (_: Exception) {
+                    }
+                } catch (_: Exception) {
+                }
+            }
+        }
 
     // KMK -->
     /** Resolved once: decodeReaderPage runs per page on the decode thread. */
@@ -235,6 +282,9 @@ open class WebGpuViewer(
             activity.registerComponentCallbacks(trimCallbacks)
         } catch (_: Exception) {}
         // KMK <--
+        try {
+            ca.mpreg.webgpuviewer.renderer.WebGpuRenderer.addDeviceLostListener(deviceLostListener)
+        } catch (_: Exception) {}
         // Decode worker thread - processes pages from the queue. Hardened: respects scope
         // cancellation, handles spurious wakeups, avoids tight-loop on evicted pages, and
         // surfaces OOM as a retryable error page instead of killing the worker.
@@ -329,6 +379,7 @@ open class WebGpuViewer(
                     // Animate at ~30fps only while a progress page is current; poll
                     // slowly otherwise so the viewer does not wake every 33ms idle.
                     delay(if (progress != null) 33.milliseconds else 250.milliseconds)
+                    if (config.perfHud) syncPerfHud()
                 } catch (_: Exception) {
                 }
             }
@@ -567,6 +618,7 @@ open class WebGpuViewer(
                         }
                         readerPage.spreadBytes = null
                         readerPage.rescaleInFlight = false
+                        readerPage.cleanupCompare()
                     }
                     // KMK <--
                     try {
@@ -644,6 +696,142 @@ open class WebGpuViewer(
     }
 
     // KMK -->
+    private fun resolveLutFilter() {
+        val preset = config.lutPreset
+        val path = config.lutCustomPath
+        val key = "$preset|$path"
+        if (appliedLutKey == key) return
+        if (preset == WEBGPU_LUT_PRESET_NONE) {
+            appliedLutKey = key
+            lutFilter.lut = null
+            return
+        }
+        val builtIn = webgpuBuiltInLut(preset)
+        if (builtIn != null) {
+            appliedLutKey = key
+            lutFilter.lut = builtIn
+            return
+        }
+        if (preset == WEBGPU_LUT_PRESET_CUSTOM && path.isNotBlank()) {
+            val generation = ++lutResolveGeneration
+            scope.launch(decodeDispatcher) {
+                try {
+                    val parsed = webgpuParseCustomLut(path)
+                    if (generation != lutResolveGeneration || isDestroyed) return@launch
+                    appliedLutKey = key
+                    lutFilter.lut = parsed
+                    try {
+                        pager.state.invalidate()
+                    } catch (_: Exception) {
+                    }
+                } catch (_: Exception) {
+                }
+            }
+            return
+        }
+        appliedLutKey = key
+        lutFilter.lut = null
+    }
+
+    private fun applyTranslationCompare() {
+        val showOriginal = config.compareTranslation
+        synchronized(lock) {
+            if (isDestroyed) return
+            pageCache.values.toList().forEach { page ->
+                val readerPage = page as? ViewerReaderPage ?: return@forEach
+                if (!readerPage.hasTranslation) return@forEach
+                val original = readerPage.compareOriginal ?: return@forEach
+                if (original.destroyed) return@forEach
+                if (showOriginal) {
+                    val displayed = readerPage.imagePage
+                    if (displayed !== original && displayed is ImagePage.ImageSingle) {
+                        readerPage.compareTranslated?.let {
+                            if (it !== displayed) {
+                                try {
+                                    it.cleanup()
+                                } catch (_: Exception) {
+                                }
+                            }
+                        }
+                        readerPage.compareTranslated = displayed
+                        readerPage.imagePage = original
+                    }
+                } else {
+                    val parked = readerPage.compareTranslated ?: return@forEach
+                    if (parked.destroyed) {
+                        readerPage.compareTranslated = null
+                        return@forEach
+                    }
+                    if (readerPage.imagePage !== parked) {
+                        readerPage.imagePage = parked
+                        readerPage.compareTranslated = null
+                    }
+                }
+            }
+        }
+        try {
+            pager.state.invalidate()
+        } catch (_: Exception) {
+        }
+    }
+
+    private fun syncPerfHud() {
+        val want = config.perfHud && eu.kanade.tachiyomi.util.system.isDebugBuildType && !isDestroyed
+        try {
+            ca.mpreg.webgpuviewer.renderer.WebGpuRenderer.profilingEnabled = want
+        } catch (_: Exception) {
+        }
+        if (!want) {
+            try {
+                perfHudView?.visibility = View.GONE
+            } catch (_: Exception) {
+            }
+            return
+        }
+        val hud = try {
+            perfHudView ?: TextView(pager.context).apply {
+                setBackgroundColor(0x99000000.toInt())
+                setTextColor(0xFF00FF00.toInt())
+                textSize = 11f
+                typeface = android.graphics.Typeface.MONOSPACE
+                setPadding(12, 8, 12, 8)
+                visibility = View.GONE
+                perfHudView = this
+                (pager.parent as? ViewGroup)?.addView(
+                    this,
+                    FrameLayout.LayoutParams(
+                        ViewGroup.LayoutParams.WRAP_CONTENT,
+                        ViewGroup.LayoutParams.WRAP_CONTENT,
+                        android.view.Gravity.TOP or android.view.Gravity.START,
+                    ),
+                )
+            }
+        } catch (_: Exception) {
+            null
+        } ?: return
+        try {
+            hud.visibility = View.VISIBLE
+            hud.bringToFront()
+            val now = android.os.SystemClock.uptimeMillis()
+            if (now - perfHudLastUpdate < 500) return
+            perfHudLastUpdate = now
+            val renderer = ca.mpreg.webgpuviewer.renderer.WebGpuRenderer
+            val poolKb = try {
+                pager.state.filters.poolBytes() / 1024
+            } catch (_: Exception) {
+                -1L
+            }
+            hud.text = "avg %.1fms · fps %.0f · tile %dKB".format(
+                renderer.recentAvgFrameTimeMs,
+                renderer.estimatedFps,
+                poolKb,
+            )
+        } catch (_: Exception) {
+        }
+    }
+    // KMK <--
+
+    // KMK -->
     /**
      * Applies state-only reader settings (transition, cutout, zoom floors, gap,
      * theme colors) without touching decoded pages. Prefs that change what a decode
@@ -657,20 +845,52 @@ open class WebGpuViewer(
         cachedOnBackgroundColor = null
         // KMK <--
         // KMK -->
+        // Post-process color filters apply live with no page re-decode: uniforms
+        // update in place and the chain reconciles attach/detach every state change.
         try {
             darkModeFilter.amoled = config.webgpuDarkModeAmoled
             darkModeFilter.tolerance = config.darkModeTolerance
             darkModeFilter.chunkRange = config.darkModeChunkRange
             darkModeFilter.enabled = config.webgpuDarkMode
+            val effectiveContrast = if (config.einkPreset) {
+                maxOf(config.contrast, 1.15f)
+            } else {
+                config.contrast
+            }
+            brightnessContrastFilter.brightness = config.brightness
+            brightnessContrastFilter.contrast = effectiveContrast
+            brightnessContrastFilter.enabled =
+                config.brightness != 0f || effectiveContrast != 1f
+            hlgFilter.exposure = config.hlgExposure
+            hlgFilter.enabled = config.hlgEnabled
+            einkGrayscaleFilter.saturation = if (config.einkPreset) 0f else 1f
+            einkGrayscaleFilter.enabled = config.einkPreset
+            lutFilter.intensity = config.lutIntensity
+            lutFilter.enabled = true
+            resolveLutFilter()
+            val lutActive = lutFilter.lut != null && config.lutIntensity > 0f &&
+                config.lutPreset != WEBGPU_LUT_PRESET_NONE
+            val desired = buildList {
+                if (brightnessContrastFilter.enabled) add(brightnessContrastFilter)
+                if (hlgFilter.enabled) add(hlgFilter)
+                if (lutActive) add(lutFilter)
+                if (einkGrayscaleFilter.enabled) add(einkGrayscaleFilter)
+                if (darkModeFilter.enabled) add(darkModeFilter)
+            }
             val current = pager.state.filters.filters
-            val hasFilter = current.any { it === darkModeFilter }
-            if (config.webgpuDarkMode && !hasFilter) {
-                pager.state.filters.filters = current + darkModeFilter
-            } else if (!config.webgpuDarkMode && hasFilter) {
-                pager.state.filters.filters = current.filterNot { it === darkModeFilter }
-            } else if (config.webgpuDarkMode) {
+            if (current != desired) {
+                pager.state.filters.filters = desired
+            } else {
                 pager.state.invalidate()
             }
+        } catch (_: Exception) {
+        }
+        try {
+            applyTranslationCompare()
+        } catch (_: Exception) {
+        }
+        try {
+            syncPerfHud()
         } catch (_: Exception) {
         }
         // KMK <--
@@ -711,23 +931,27 @@ open class WebGpuViewer(
         // KMK <--
         pager.state.apply {
             val isDual = isDualPageMode()
-            transition = when (if (isDual) config.transitionAnimationDual else config.transitionAnimation) {
-                // KMK -->
-                TransitionAnimation.NONE -> if (isVertical) TransitionNone.Vertical else TransitionNone
-                // KMK <--
-                TransitionAnimation.BASIC -> if (isVertical) TransitionBasic.Vertical else TransitionBasic
-                TransitionAnimation.FLIP -> TransitionFlip
-                TransitionAnimation.FLIP_LEFT -> TransitionFlipLeft
-                TransitionAnimation.FLIP_RIGHT -> TransitionFlipRight
-                TransitionAnimation.STACK_LEFT -> TransitionStackLeft
-                TransitionAnimation.STACK_RIGHT -> TransitionStackRight
-                TransitionAnimation.STACK_UP -> TransitionStackUp
-                TransitionAnimation.STACK_DOWN -> TransitionStackDown
-                TransitionAnimation.SPHERE -> TransitionSphere
-                TransitionAnimation.CUBE_INSIDE -> TransitionCube
-                TransitionAnimation.CUBE_OUTSIDE -> TransitionCubeOuter
-                TransitionAnimation.FADE -> TransitionFade
-                TransitionAnimation.FADE_WHITE -> TransitionFadeWhite
+            transition = if (config.einkPreset) {
+                if (isVertical) TransitionNone.Vertical else TransitionNone
+            } else {
+                when (if (isDual) config.transitionAnimationDual else config.transitionAnimation) {
+                    // KMK -->
+                    TransitionAnimation.NONE -> if (isVertical) TransitionNone.Vertical else TransitionNone
+                    // KMK <--
+                    TransitionAnimation.BASIC -> if (isVertical) TransitionBasic.Vertical else TransitionBasic
+                    TransitionAnimation.FLIP -> TransitionFlip
+                    TransitionAnimation.FLIP_LEFT -> TransitionFlipLeft
+                    TransitionAnimation.FLIP_RIGHT -> TransitionFlipRight
+                    TransitionAnimation.STACK_LEFT -> TransitionStackLeft
+                    TransitionAnimation.STACK_RIGHT -> TransitionStackRight
+                    TransitionAnimation.STACK_UP -> TransitionStackUp
+                    TransitionAnimation.STACK_DOWN -> TransitionStackDown
+                    TransitionAnimation.SPHERE -> TransitionSphere
+                    TransitionAnimation.CUBE_INSIDE -> TransitionCube
+                    TransitionAnimation.CUBE_OUTSIDE -> TransitionCubeOuter
+                    TransitionAnimation.FADE -> TransitionFade
+                    TransitionAnimation.FADE_WHITE -> TransitionFadeWhite
+                }
             }
 
             when (if (isDual) config.cutoutModeDual else config.cutoutMode) {
@@ -779,9 +1003,19 @@ open class WebGpuViewer(
         config.imageStateChangedListener = null
         config.navigationModeChangedListener = null
         config.doubleTapZoomChangedListener = null
+        try {
+            ca.mpreg.webgpuviewer.renderer.WebGpuRenderer.profilingEnabled = false
+        } catch (_: Exception) {}
+        try {
+            perfHudView?.let { (it.parent as? ViewGroup)?.removeView(it) }
+        } catch (_: Exception) {}
+        perfHudView = null
         // KMK -->
         try {
             activity.unregisterComponentCallbacks(trimCallbacks)
+        } catch (_: Exception) {}
+        try {
+            ca.mpreg.webgpuviewer.renderer.WebGpuRenderer.removeDeviceLostListener(deviceLostListener)
         } catch (_: Exception) {}
         // KMK <--
         try {
@@ -798,6 +1032,14 @@ open class WebGpuViewer(
         } catch (_: Exception) {
         }
 
+        // KMK --> The shared pineapple spinner texture outlives pages (cached per
+        // GPU device in ProgressPage); destroy it here so it never leaks the
+        // old device across viewer teardown.
+        try {
+            ProgressPage.destroyPineappleTexture()
+        } catch (_: Exception) {
+        }
+        // KMK <--
         synchronized(lock) {
             decodeQueue.clear()
             val snapshot = pageCache.values.toList()
@@ -805,11 +1047,16 @@ open class WebGpuViewer(
                 it.state = PageState.IDLE
                 (it as? ViewerReaderPage)?.let { readerPage ->
                     try {
+                        cancelSpreadHeightRetry(readerPage)
+                    } catch (_: Exception) {
+                    }
+                    try {
                         readerPage.spreadPage?.cleanup()
                     } catch (_: Exception) {
                     }
                     readerPage.spreadBytes = null
                     readerPage.rescaleInFlight = false
+                    readerPage.cleanupCompare()
                 }
                 try {
                     it.imagePage.cleanup()
@@ -864,6 +1111,7 @@ open class WebGpuViewer(
                 // KMK --> A deferred resume restore is pending for this chapter: the
                 // viewport is not there yet, so saving now would clobber it with 0.
                 if (isContinuous && pendingContinuousRestoreChapterId == cid) return
+                if (!isContinuous && pendingPagedRestoreChapterId == cid) return
                 // KMK <--
                 if (isContinuous) {
                     try {
@@ -880,13 +1128,15 @@ open class WebGpuViewer(
                         positionStore.save(cid, page.page.index, 0f, 1f)
                     }
                 } else {
-                    val zoom = try {
+                    // KMK --> Paged zoom restore parity: persist zoom + pan like
+                    // continuous saveDocument, clamped in the store (v3 record).
+                    val (zoom, offX) = try {
                         val p = pager.state.getPage(0)
-                        p?.scale ?: 1f
+                        (p?.scale ?: 1f) to (p?.x ?: 0f)
                     } catch (_: Exception) {
-                        1f
+                        1f to 0f
                     }
-                    positionStore.save(cid, page.page.index, 0f, zoom)
+                    positionStore.savePaged(cid, page.page.index, zoom, offX)
                 }
             }
         } catch (_: Exception) {}
@@ -953,6 +1203,13 @@ open class WebGpuViewer(
         // KMK --> Arm before reporting: the report below must not save docY=0 over
         // the stored resume the restore is about to apply.
         pendingContinuousRestoreChapterId = if (needsDeferredRestore) chapterId else null
+        // KMK <--
+        // KMK --> Paged parity: a stored zoom/offset must survive a process kill
+        // the same way continuous documentY does. Armed here so the report below
+        // cannot clobber it with the fresh 1f default before restore lands.
+        val needsPagedRestore = stored != null && !isContinuous && !alreadyInsideNewChapter &&
+            (stored.zoom != 1f || stored.offsetX != 0f)
+        pendingPagedRestoreChapterId = if (needsPagedRestore) chapterId else null
         // KMK <--
         // KMK --> Report the spread's lastmost page, not the anchor.
         progressPage(currentPage!!)?.let { reportPageSelected(it) }
@@ -1055,6 +1312,67 @@ open class WebGpuViewer(
                 pendingContinuousRestoreChapterId = null
             }
         }
+        // KMK --> Paged zoom+offset restore: mirrors the continuous deferred
+        // restore above (abort on user nav/chapter change, clamp to the live
+        // page bounds). Restoring before decode would measure against the
+        // ProgressPage placeholder, so wait for the real page like continuous.
+        if (needsPagedRestore && stored != null) {
+            try {
+                val restoreChapterId = chapterId
+                val anchorPage = currentPage
+                val wantZoom = stored.zoom
+                val wantX = stored.offsetX
+                scope.launch {
+                    try {
+                        var ready = false
+                        var waited = 0
+                        while (waited < 100) {
+                            if (isDestroyed) return@launch
+                            if (viewerChapters?.currChapter?.chapter?.id != restoreChapterId) return@launch
+                            val target = synchronized(lock) {
+                                findInCache(PageKey.Reader(restoreChapterId, targetIndex)) as? ViewerReaderPage
+                            }
+                            val surfaceReady = try {
+                                pager.state.width > 0 && pager.state.height > 0
+                            } catch (_: Exception) {
+                                false
+                            }
+                            if (surfaceReady && (target?.isDecoded == true || target?.imagePage is ErrorPage)) {
+                                ready = true
+                                break
+                            }
+                            kotlinx.coroutines.delay(100)
+                            waited++
+                        }
+                        if (!ready || isDestroyed) return@launch
+                        if (viewerChapters?.currChapter?.chapter?.id != restoreChapterId) return@launch
+                        if (currentPage !== anchorPage) return@launch
+                        try {
+                            val page = pager.state.getPage(0)
+                            if (page != null && wantZoom.isFinite()) {
+                                page.scale = wantZoom.coerceIn(page.minScale, page.maxScale)
+                                if (wantX.isFinite() && wantX != 0f) {
+                                    val minX = page.minX(page.scale)
+                                    val maxX = page.maxX(page.scale)
+                                    page.animateTo(targetX = wantX.coerceIn(minX, maxX), targetY = page.y)
+                                }
+                            }
+                        } catch (_: Exception) {
+                        }
+                        try {
+                            pager.state.invalidate()
+                        } catch (_: Exception) {}
+                    } finally {
+                        if (pendingPagedRestoreChapterId == restoreChapterId) {
+                            pendingPagedRestoreChapterId = null
+                        }
+                    }
+                }
+            } catch (_: Exception) {
+                pendingPagedRestoreChapterId = null
+            }
+        }
+        // KMK <--
 
         pager.state.apply {
             onPageChange = onPageChange@{ delta ->

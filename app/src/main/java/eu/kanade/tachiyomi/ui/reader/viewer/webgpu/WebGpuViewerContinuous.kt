@@ -94,7 +94,7 @@ class WebGpuViewerContinuous(activity: ReaderActivity, val useGap: Boolean = fal
                 FrameLayout.LayoutParams.MATCH_PARENT,
             ),
         )
-        shouldSwallowDoubleTap = { !config.doubleTapZoom }
+        shouldSwallowDoubleTap = { !config.resolveDoubleTapZoom() }
     }
 
     override fun getView(): View = touchProxy
@@ -106,7 +106,9 @@ class WebGpuViewerContinuous(activity: ReaderActivity, val useGap: Boolean = fal
  * The continuous viewer library implements double-tap zoom internally with no
  * opt-out. When the preference is disabled this proxy consumes the whole second
  * gesture of a detected double-tap; the library then resolves the first tap as a
- * single tap and no zoom happens.
+ * single tap and no zoom happens. Gated on WebGpuConfig.resolveDoubleTapZoom(),
+ * the single consumption point shared with the paged policy — a future library
+ * flag replaces the proxy body there, this gate stays until then.
  */
 private class DoubleTapZoomGateLayout(context: Context) : FrameLayout(context) {
 

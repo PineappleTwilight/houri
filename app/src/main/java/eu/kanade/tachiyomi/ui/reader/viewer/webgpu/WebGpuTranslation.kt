@@ -8,7 +8,11 @@ import ca.mpreg.webgpuviewer.viewer.ImagePage
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import java.nio.ByteBuffer
+
+private val translationSemaphore = Semaphore(2)
 
 // KMK -->
 /**
@@ -36,12 +40,14 @@ internal fun WebGpuViewer.scheduleTranslation(page: ViewerReaderPage, sourceByte
     scope.launch(Dispatchers.Default) {
         try {
             if (!mgr.shouldTranslateForManga(mangaId)) return@launch
-            val translatedWebP = mgr.translatePage(
-                mangaId = mangaId,
-                chapterId = chapterId,
-                imageBytes = sourceBytes,
-                pageIndex = pageIndex,
-            )
+            val translatedWebP = translationSemaphore.withPermit {
+                mgr.translatePage(
+                    mangaId = mangaId,
+                    chapterId = chapterId,
+                    imageBytes = sourceBytes,
+                    pageIndex = pageIndex,
+                )
+            }
             if (translatedWebP == null) return@launch
             val translatedBitmap = BitmapFactory.decodeByteArray(translatedWebP, 0, translatedWebP.size)
             if (translatedBitmap != null) {
@@ -59,10 +65,46 @@ internal fun WebGpuViewer.scheduleTranslation(page: ViewerReaderPage, sourceByte
                     val translatedPage = ImagePage.ImageSingle(translatedImage)
                     synchronized(lock) {
                         if (pageInCache(page) && page.imagePage === originalImagePage && !originalImagePage.destroyed) {
-                            val old = page.imagePage
-                            page.imagePage = translatedPage
-                            old.cleanup()
-                            translatedPage.let { tp ->
+                            if (!page.hasTranslation) {
+                                page.compareOriginal?.let {
+                                    if (it !== originalImagePage) {
+                                        try {
+                                            it.cleanup()
+                                        } catch (_: Exception) {
+                                        }
+                                    }
+                                }
+                                page.compareOriginal = originalImagePage
+                                page.hasTranslation = true
+                            }
+                            if (config.compareTranslation) {
+                                page.compareTranslated?.let {
+                                    if (it !== translatedPage) {
+                                        try {
+                                            it.cleanup()
+                                        } catch (_: Exception) {
+                                        }
+                                    }
+                                }
+                                page.compareTranslated = translatedPage
+                            } else {
+                                page.compareTranslated?.let {
+                                    try {
+                                        it.cleanup()
+                                    } catch (_: Exception) {
+                                    }
+                                }
+                                page.compareTranslated = null
+                                val old = page.imagePage
+                                page.imagePage = translatedPage
+                                if (page.hasTranslation && old !== page.compareOriginal) {
+                                    try {
+                                        old.cleanup()
+                                    } catch (_: Exception) {
+                                    }
+                                }
+                            }
+                            (page.imagePage as? ImagePage.ImageSingle)?.let { tp ->
                                 if (page.spreadPosition == SpreadPosition.SINGLE) {
                                     if (!applyWideZoomIfNeeded(tp)) applyFitModeAnchor(tp)
                                 }

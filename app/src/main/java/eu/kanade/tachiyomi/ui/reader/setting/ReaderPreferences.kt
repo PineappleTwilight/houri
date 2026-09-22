@@ -227,6 +227,26 @@ class ReaderPreferences(
     fun webgpuPreloadAhead() = preferenceStore.getInt("webgpu_preload_ahead", 3)
 
     fun webgpuPreloadBehind() = preferenceStore.getInt("webgpu_preload_behind", 2)
+
+    fun webgpuBrightness() = preferenceStore.getInt("webgpu_brightness", 0)
+
+    fun webgpuContrast() = preferenceStore.getInt("webgpu_contrast", 100)
+
+    fun webgpuHlg() = preferenceStore.getBoolean("webgpu_hlg", false)
+
+    fun webgpuHlgExposure() = preferenceStore.getInt("webgpu_hlg_exposure", 0)
+
+    fun webgpuLutPreset() = preferenceStore.getString("webgpu_lut_preset", "none")
+
+    fun webgpuLutCustomPath() = preferenceStore.getString("webgpu_lut_custom_path", "")
+
+    fun webgpuLutIntensity() = preferenceStore.getInt("webgpu_lut_intensity", 100)
+
+    fun webgpuCompareTranslation() = preferenceStore.getBoolean("webgpu_compare_translation", false)
+
+    fun webgpuPerfHud() = preferenceStore.getBoolean("webgpu_perf_hud", false)
+
+    fun webgpuEinkPreset() = preferenceStore.getBoolean("webgpu_eink_preset", false)
     // KMK <--
 
     // endregion
@@ -371,6 +391,21 @@ class ReaderPreferences(
         const val WEBGPU_PRELOAD_AHEAD_MAX = 8
         const val WEBGPU_PRELOAD_BEHIND_MIN = 0
         const val WEBGPU_PRELOAD_BEHIND_MAX = 8
+
+        const val WEBGPU_BRIGHTNESS_MIN = -100
+        const val WEBGPU_BRIGHTNESS_MAX = 100
+
+        const val WEBGPU_CONTRAST_MIN = 0
+        const val WEBGPU_CONTRAST_MAX = 200
+
+        const val WEBGPU_HLG_EXPOSURE_MIN = -200
+        const val WEBGPU_HLG_EXPOSURE_MAX = 200
+
+        const val WEBGPU_LUT_INTENSITY_MIN = 0
+        const val WEBGPU_LUT_INTENSITY_MAX = 100
+
+        /** LUT preset ids: "none", "custom", or a built-in generated look. */
+        val webgpuLutPresets = listOf("none", "grayscale", "sepia", "warm", "cool", "custom")
         // KMK <--
 
         const val MILLI_CONVERSION = 100
