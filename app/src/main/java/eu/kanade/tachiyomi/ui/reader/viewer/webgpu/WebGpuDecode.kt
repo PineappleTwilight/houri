@@ -467,12 +467,7 @@ internal fun WebGpuViewer.startPageLoad(page: ViewerReaderPage) {
     if (page.page.status == Page.State.Ready) {
         synchronized(lock) {
             if (!pageInCache(page)) return
-            if (!page.isDecoded) {
-                page.state = PageState.IDLE
-            } else {
-                page.state = PageState.IDLE
-                return
-            }
+            page.state = PageState.IDLE
         }
         if (!page.isDecoded) {
             queueForDecode(page, prioritize = currentPage?.let { pageKey(it) == pageKey(page) } ?: false)

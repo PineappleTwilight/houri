@@ -227,14 +227,17 @@ internal fun WebGpuViewer.retrySpreadHeightMatchSoon(
     delayMs: Long = 150,
 ) {
     if (isDestroyed || !config.matchDoublePageHeights) return
+    // Read-increment-write in one atomic block: two separate synchronized sections let
+    // a concurrent caller observe a stale count and under/over-count attempts.
     val attempts = synchronized(spreadHeightAttempts) {
-        (spreadHeightAttempts[anchorPage] ?: 0) + 1
+        val next = (spreadHeightAttempts[anchorPage] ?: 0) + 1
+        spreadHeightAttempts[anchorPage] = next
+        next
     }
     if (attempts > MAX_SPREAD_HEIGHT_ATTEMPTS) {
         cancelSpreadHeightRetry(anchorPage)
         return
     }
-    synchronized(spreadHeightAttempts) { spreadHeightAttempts[anchorPage] = attempts }
     val viewer = this
     val job = scope.launch {
         try {

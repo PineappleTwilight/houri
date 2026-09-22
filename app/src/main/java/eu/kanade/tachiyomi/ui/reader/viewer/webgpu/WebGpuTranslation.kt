@@ -17,8 +17,12 @@ private val translationSemaphore = Semaphore(2)
 // KMK -->
 /**
  * Queue MTL translation for a page and swap in the baked result when ready.
- * Reusable for decode-time scheduling and explicit retry. The swap is guarded by
- * image identity so a stale result never clobbers a newer page.
+ * Reusable for decode-time scheduling and explicit retry. The swap requires a live
+ * decoded [ImagePage.ImageSingle] still in cache: placeholders (progress/error) and
+ * evicted pages drop the result, but a concurrent spread height-match rescale - which
+ * legitimately replaces [ViewerPage.imagePage] between schedule and completion - no
+ * longer discards the translation (it used to match on captured identity, making MTL
+ * permanently fail for any page rescaled mid-flight).
  */
 internal fun WebGpuViewer.scheduleTranslation(page: ViewerReaderPage, sourceBytes: ByteArray) {
     val mgr = translationManager ?: return
@@ -29,8 +33,6 @@ internal fun WebGpuViewer.scheduleTranslation(page: ViewerReaderPage, sourceByte
         ?: 0L
     if (!mgr.isPerMangaEnabled(mangaId)) return
 
-    // Capture the imagePage we expect to still be current when translation completes.
-    val originalImagePage = page.imagePage
     val chapterId = page.page.chapter.chapter.id ?: 0L
     val pageIndex = page.page.index
 
@@ -64,17 +66,18 @@ internal fun WebGpuViewer.scheduleTranslation(page: ViewerReaderPage, sourceByte
                     )
                     val translatedPage = ImagePage.ImageSingle(translatedImage)
                     synchronized(lock) {
-                        if (pageInCache(page) && page.imagePage === originalImagePage && !originalImagePage.destroyed) {
+                        val current = page.imagePage
+                        if (pageInCache(page) && current is ImagePage.ImageSingle && !current.destroyed) {
                             if (!page.hasTranslation) {
                                 page.compareOriginal?.let {
-                                    if (it !== originalImagePage) {
+                                    if (it !== current) {
                                         try {
                                             it.cleanup()
                                         } catch (_: Exception) {
                                         }
                                     }
                                 }
-                                page.compareOriginal = originalImagePage
+                                page.compareOriginal = current
                                 page.hasTranslation = true
                             }
                             if (config.compareTranslation) {
