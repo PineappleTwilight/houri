@@ -73,7 +73,17 @@ internal fun WebGpuViewer.queueForDecode(page: ViewerReaderPage, prioritize: Boo
  * are only taken when no IDLE victim exists. Distance ties prefer undecoded
  * placeholder shells over decoded content (dropping them is invisible), then
  * break oldest-first via insertion order. The anchor and the live current page
- * are never candidates.
+ * are never candidates. Pages the renderer drew on the last frame
+ * (ImagePage.isOnScreen) are never victims while any undrawn candidate exists,
+ * regardless of distance: the distance math is anchored on currentPage, which the
+ * continuous viewer tracks through the submodule's relative +/-1 page-change
+ * deltas, so any lockstep disagreement mis-centers the window and distance alone
+ * would destroy visible pages (blank gaps on the next frame, since the capture
+ * skips destroyed pages, plus a re-decode loop when scrolling back). The
+ * last-drawn set is ground truth for visibility, so it overrules distance. The
+ * drawn read may lag the render thread by a frame; keeping a stale-drawn page is
+ * invisible, destroying a live one is not. Fallback order is oldest undrawn,
+ * then oldest, so the cache stays bounded exactly as before.
  */
 internal fun WebGpuViewer.evictFarthestPage(reference: ViewerPage? = null) {
     val anchor = reference ?: currentPage ?: pageCache.values.lastOrNull() ?: return
@@ -102,6 +112,10 @@ internal fun WebGpuViewer.evictFarthestPage(reference: ViewerPage? = null) {
     var bestAnyCheap = false
     var oldestIdle: ViewerPage? = null
     var oldestAny: ViewerPage? = null
+    // Oldest non-anchor candidates the renderer did NOT draw last frame; preferred
+    // over oldestIdle/oldestAny so the absolute fallback stays a last resort.
+    var oldestIdleSafe: ViewerPage? = null
+    var oldestAnySafe: ViewerPage? = null
 
     for (page in pageCache.values) {
         if (page === anchor) continue
@@ -109,6 +123,15 @@ internal fun WebGpuViewer.evictFarthestPage(reference: ViewerPage? = null) {
         if (oldestAny == null) oldestAny = page
         val isIdle = page.state == PageState.IDLE
         if (isIdle && oldestIdle == null) oldestIdle = page
+        // Drawn-page immunity (see KDoc): drawn pages only feed the absolute
+        // oldest fallback and never the distance-ranked victims.
+        val drawn = page.imagePage.isOnScreen
+        if (!drawn) {
+            if (oldestAnySafe == null) oldestAnySafe = page
+            if (isIdle && oldestIdleSafe == null) oldestIdleSafe = page
+        } else {
+            continue
+        }
 
         val distance = pageDistance(anchor, page)
         // Inside the directional preload window (plus one slack for a spread
@@ -117,7 +140,12 @@ internal fun WebGpuViewer.evictFarthestPage(reference: ViewerPage? = null) {
             (distance == 0 || distance in 1..preloadAhead + 1 || distance in -(preloadBehind + 1)..-1)
         if (!inWindow) {
             // Unrelated chapters sort past every related page, so stale shells go first.
-            val rank = distance ?: Int.MAX_VALUE
+            // Absolute reach: a stale page far behind must shed before a fresh shell
+            // just past the leading edge. Signed comparison did the opposite - every
+            // prewarm shell past the window self-evicted on insert, so decode-ahead
+            // never completed (its queue entry is removed with it and the worker
+            // skips out-of-cache pages) and fast scrolling arrived at placeholders.
+            val rank = distance?.let { kotlin.math.abs(it) } ?: Int.MAX_VALUE
             val cheap = isCheapPlaceholder(page)
             if (isIdle && beats(rank, cheap, bestIdleRank, bestIdleCheap, bestIdle != null)) {
                 bestIdleRank = rank
@@ -147,6 +175,8 @@ internal fun WebGpuViewer.evictFarthestPage(reference: ViewerPage? = null) {
         for (page in pageCache.values) {
             if (page === anchor) continue
             if (liveCurrent != null && page === liveCurrent) continue
+            // Drawn-page immunity (see KDoc).
+            if (page.imagePage.isOnScreen) continue
             val distance = pageDistance(anchor, page) ?: continue
             val rank = kotlin.math.abs(distance)
             val cheap = isCheapPlaceholder(page)
@@ -166,7 +196,7 @@ internal fun WebGpuViewer.evictFarthestPage(reference: ViewerPage? = null) {
         victim = edgeIdle ?: edgeAny
     }
 
-    val toRemove = victim ?: oldestIdle ?: oldestAny ?: return
+    val toRemove = victim ?: oldestIdleSafe ?: oldestAnySafe ?: oldestIdle ?: oldestAny ?: return
 
     pageCache.remove(pageKey(toRemove))
     decodeQueue.remove(toRemove)
