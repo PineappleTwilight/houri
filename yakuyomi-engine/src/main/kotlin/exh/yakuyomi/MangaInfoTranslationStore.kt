@@ -27,6 +27,19 @@ class MangaInfoTranslationStore(
         return runCatching { json.decodeFromString<MangaInfoTranslation>(f.readText()) }.getOrNull()
     }
 
+    // KMK --> Validated read: only a cache entry whose full identity matches the current
+    // request is returned. Legacy entries (blank validation fields) are always stale.
+    fun getValidated(
+        mangaId: Long,
+        sourceFingerprint: String,
+        targetLanguage: String,
+        provider: String,
+        model: String,
+    ): MangaInfoTranslation? {
+        return get(mangaId)?.takeIf { it.isValidFor(sourceFingerprint, targetLanguage, provider, model) }
+    }
+    // KMK <--
+
     fun put(mangaId: Long, translation: MangaInfoTranslation) {
         if (mangaId <= 0) return
         val safeTitle = translation.title.trim().take(300).ifBlank { return }
