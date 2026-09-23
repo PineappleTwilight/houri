@@ -45,11 +45,14 @@ abstract class BaseTracker(
 
     override val supportsPrivateTracking: Boolean = false
 
-    // KMK --> clamp to 0..10 so a bad remote value cannot skew cross-tracker
-    // averages (get10PointScore is documented as a 0..10 normalization).
-    override fun get10PointScore(track: DomainTrack): Double {
-        return track.score.coerceIn(0.0, 10.0)
+    // KMK --> Convert a service score to 0..10 and reject non-finite remote values
+    // before they can poison cross-tracker averages.
+    protected fun normalizeScore(score: Double, sourceMaximum: Double = 10.0): Double {
+        if (!score.isFinite() || !sourceMaximum.isFinite() || sourceMaximum <= 0.0) return 0.0
+        return (score * 10.0 / sourceMaximum).coerceIn(0.0, 10.0)
     }
+
+    override fun get10PointScore(track: DomainTrack): Double = normalizeScore(track.score)
     // KMK <--
 
     override fun indexToScore(index: Int): Double {

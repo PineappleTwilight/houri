@@ -58,7 +58,7 @@ class MangaBaka(id: Long) : BaseTracker(id, "MangaBaka"), DeletableTracker {
 
     override fun getScoreList(): ImmutableList<String> = getScoreRange().map(Int::toString).toImmutableList()
 
-    override fun get10PointScore(track: DomainTrack): Double = track.score / 10.0
+    override fun get10PointScore(track: DomainTrack): Double = normalizeScore(track.score, 100.0)
 
     override fun indexToScore(index: Int): Double {
         val range = getScoreRange().toList()
