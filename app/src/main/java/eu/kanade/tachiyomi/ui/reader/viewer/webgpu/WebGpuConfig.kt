@@ -330,7 +330,11 @@ class WebGpuConfig(
 
         readerPreferences.dualPageSplitPaged()
             .register(
-                { dualPageSplit = it },
+                {
+                    dualPageSplit = it
+                    doublePages =
+                        readerPreferences.pageLayout().get() == PagerConfig.PageLayout.DOUBLE_PAGES && !it
+                },
                 { emitSettingsChange() },
             )
 
@@ -363,15 +367,11 @@ class WebGpuConfig(
             .register(
                 {
                     autoDoublePages = it == PagerConfig.PageLayout.AUTOMATIC
-                    if (!autoDoublePages) {
-                        doublePages = it == PagerConfig.PageLayout.DOUBLE_PAGES && dualPageSplit == false
-                    }
+                    doublePages = it == PagerConfig.PageLayout.DOUBLE_PAGES && !dualPageSplit
                 },
                 {
                     autoDoublePages = it == PagerConfig.PageLayout.AUTOMATIC
-                    if (!autoDoublePages) {
-                        doublePages = it == PagerConfig.PageLayout.DOUBLE_PAGES && dualPageSplit == false
-                    }
+                    doublePages = it == PagerConfig.PageLayout.DOUBLE_PAGES && !dualPageSplit
                     emitSettingsChange()
                 },
             )
