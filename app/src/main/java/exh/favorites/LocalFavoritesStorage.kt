@@ -64,40 +64,23 @@ class LocalFavoritesStorage(
     }
 
     private suspend fun Flow<FavoriteEntry>.getChangedEntries(): ChangeSet {
-        val terminated = toList()
+        val terminated = canonicalEntries(toList())
+        val databaseEntries = canonicalEntries(getFavoriteEntries.await())
 
-        val databaseEntries = getFavoriteEntries.await()
-
-        val added = terminated.groupBy { it.gid to it.token }
-            .filter { (_, values) ->
-                values.all { queryListForEntry(databaseEntries, it) == null }
-            }
-            .map { it.value.first() }
-
-        val removed = databaseEntries
-            .groupBy { it.gid to it.token }
-            .filter { (_, values) ->
-                values.all { queryListForEntry(terminated, it) == null }
-            }
-            .map { it.value.first() }
+        val added = terminated.filter { current ->
+            databaseEntries.none { sameFavoriteGallery(current, it) } ||
+                databaseEntries.none { sameFavoriteGallery(current, it) && it.category == current.category }
+        }
+        val removed = databaseEntries.filter { stored ->
+            terminated.none { sameFavoriteGallery(stored, it) }
+        }
 
         return ChangeSet(added, removed)
     }
 
-    private fun FavoriteEntry.urlEquals(other: FavoriteEntry) = (gid == other.gid && token == other.token) ||
-        (otherGid != null && otherToken != null && (otherGid == other.gid && otherToken == other.token)) ||
-        (other.otherGid != null && other.otherToken != null && (gid == other.otherGid && token == other.otherToken)) ||
-        (
-            otherGid != null &&
-                otherToken != null &&
-                other.otherGid != null &&
-                other.otherToken != null &&
-                otherGid == other.otherGid &&
-                otherToken == other.otherToken
-            )
-
-    private fun queryListForEntry(list: List<FavoriteEntry>, entry: FavoriteEntry) =
-        list.find { it.urlEquals(entry) && it.category == entry.category }
+    private fun canonicalEntries(entries: List<FavoriteEntry>): List<FavoriteEntry> =
+        entries.groupBy(::favoriteIdentityKey)
+            .map { (_, values) -> values.minByOrNull { it.category.takeIf { category -> category >= 0 } ?: Int.MAX_VALUE }!! }
 
     private suspend fun Flow<Manga>.loadDbCategories(): Flow<Pair<Int, Manga>> {
         val dbCategories = getCategories.await()
@@ -136,6 +119,17 @@ class LocalFavoritesStorage(
         const val MAX_CATEGORIES = 9
     }
 }
+
+internal fun favoriteIdentityKey(entry: FavoriteEntry): String {
+    val primary = "${entry.gid}\u0000${entry.token}"
+    val alternate = entry.otherGid?.let { gid ->
+        entry.otherToken?.let { token -> "$gid\u0000$token" }
+    }
+    return listOfNotNull(primary, alternate).min()
+}
+
+internal fun sameFavoriteGallery(first: FavoriteEntry, second: FavoriteEntry): Boolean =
+    favoriteIdentityKey(first) == favoriteIdentityKey(second)
 
 data class ChangeSet(
     val added: List<FavoriteEntry>,

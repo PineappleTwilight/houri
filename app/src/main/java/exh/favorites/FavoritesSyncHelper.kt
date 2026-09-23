@@ -153,6 +153,8 @@ class FavoritesSyncHelper(val context: Context) {
                 status.value = FavoritesSyncStatus.Processing.CalculatingLocalChanges
                 storage.getChangedDbEntries()
             }
+            val resolvedRemoteChanges = localChanges?.let { resolveFavoritesConflicts(it, remoteChanges) }
+                ?: remoteChanges
 
             // KMK --> Push local changes first: a hard outbound failure then aborts
             // before any local DB write happens (snapshot gate below still applies).
@@ -167,7 +169,7 @@ class FavoritesSyncHelper(val context: Context) {
             applyRemoteCategories(favorites.second)
 
             // Apply inbound change set to the local DB
-            applyChangeSetToLocal(errorList, remoteChanges)
+            applyChangeSetToLocal(errorList, resolvedRemoteChanges)
 
             status.value = FavoritesSyncStatus.Processing.CleaningUp
             // Only advance the last-synced snapshot when nothing failed: change sets are
@@ -284,6 +286,15 @@ class FavoritesSyncHelper(val context: Context) {
         }
 
         return success
+    }
+
+    private fun resolveFavoritesConflicts(local: ChangeSet, remote: ChangeSet): ChangeSet {
+        val localIds = (local.added + local.removed).mapTo(mutableSetOf<String>(), ::favoriteIdentityKey)
+        if (localIds.isEmpty()) return remote
+        return remote.copy(
+            added = remote.added.filter { favoriteIdentityKey(it) !in localIds },
+            removed = remote.removed.filter { favoriteIdentityKey(it) !in localIds },
+        )
     }
 
     private suspend fun applyChangeSetToRemote(
@@ -421,9 +432,8 @@ class FavoritesSyncHelper(val context: Context) {
 
                     if (exhPreferences.exhLenientSync().get()) {
                         errorList += error
-                    } else {
+                    } else if (hardError == null) {
                         hardError = error
-                        break
                     }
                 } else if (result is GalleryAddEvent.Success) {
                     chunkSuccesses += categories[entry.category].id to result.manga
