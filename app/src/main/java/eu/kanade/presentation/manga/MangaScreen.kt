@@ -10,10 +10,12 @@ import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.asPaddingValues
@@ -24,6 +26,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
@@ -33,14 +36,19 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.outlined.Refresh
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.FabPosition
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableFloatState
 import androidx.compose.runtime.State
@@ -95,7 +103,6 @@ import eu.kanade.presentation.manga.components.RelatedMangasRow
 import eu.kanade.presentation.manga.components.SearchMetadataChips
 import eu.kanade.presentation.manga.components.SequelPrequelRow
 import eu.kanade.presentation.util.formatChapterNumber
-import eu.kanade.tachiyomi.BuildConfig
 import eu.kanade.tachiyomi.data.download.model.Download
 import eu.kanade.tachiyomi.source.Source
 import eu.kanade.tachiyomi.source.getNameForMangaInfo
@@ -108,6 +115,8 @@ import eu.kanade.tachiyomi.source.online.all.NHentai
 import eu.kanade.tachiyomi.source.online.all.Pururin
 import eu.kanade.tachiyomi.source.online.english.EightMuses
 import eu.kanade.tachiyomi.ui.manga.ChapterList
+import eu.kanade.tachiyomi.ui.manga.MangaInfoErrorKind
+import eu.kanade.tachiyomi.ui.manga.MangaInfoUiState
 import eu.kanade.tachiyomi.ui.manga.MangaScreenModel
 import eu.kanade.tachiyomi.ui.manga.MergedMangaData
 import eu.kanade.tachiyomi.ui.manga.PagePreviewState
@@ -231,6 +240,12 @@ fun MangaScreen(
     onStartRereadingClick: (() -> Unit)?,
     onStopRereadingClick: (() -> Unit)?,
     hazeState: HazeState,
+    // KMK --> Manga-details metadata translation actions (spec 2026-09-23).
+    onMangaInfoEnabledChange: (Boolean) -> Unit,
+    onMangaInfoShowTranslatedChange: (Boolean) -> Unit,
+    onMangaInfoRefresh: () -> Unit,
+    onMangaInfoRetry: () -> Unit,
+    onMangaInfoReset: () -> Unit,
     // KMK <--
 ) {
     val context = LocalContext.current
@@ -307,6 +322,11 @@ fun MangaScreen(
             onStopRereadingClick = onStopRereadingClick,
             hazeState = hazeState,
             onBlacklistClicked = onBlacklistClicked,
+            onMangaInfoEnabledChange = onMangaInfoEnabledChange,
+            onMangaInfoShowTranslatedChange = onMangaInfoShowTranslatedChange,
+            onMangaInfoRefresh = onMangaInfoRefresh,
+            onMangaInfoRetry = onMangaInfoRetry,
+            onMangaInfoReset = onMangaInfoReset,
             // KMK <--
         )
     } else {
@@ -376,6 +396,11 @@ fun MangaScreen(
             onStopRereadingClick = onStopRereadingClick,
             hazeState = hazeState,
             onBlacklistClicked = onBlacklistClicked,
+            onMangaInfoEnabledChange = onMangaInfoEnabledChange,
+            onMangaInfoShowTranslatedChange = onMangaInfoShowTranslatedChange,
+            onMangaInfoRefresh = onMangaInfoRefresh,
+            onMangaInfoRetry = onMangaInfoRetry,
+            onMangaInfoReset = onMangaInfoReset,
             // KMK <--
         )
     }
@@ -464,6 +489,11 @@ private fun MangaScreenSmallImpl(
     onStartRereadingClick: (() -> Unit)?,
     onStopRereadingClick: (() -> Unit)?,
     hazeState: HazeState,
+    onMangaInfoEnabledChange: (Boolean) -> Unit,
+    onMangaInfoShowTranslatedChange: (Boolean) -> Unit,
+    onMangaInfoRefresh: () -> Unit,
+    onMangaInfoRetry: () -> Unit,
+    onMangaInfoReset: () -> Unit,
     // KMK <--
 ) {
     val chapterListState = rememberLazyListState()
@@ -681,6 +711,9 @@ private fun MangaScreenSmallImpl(
                             isTabletUi = false,
                             appBarPadding = topPadding,
                             manga = state.manga,
+                            // KMK --> Integrated metadata translation replaces the displayed title.
+                            displayTitle = mangaInfoDisplayTitle(state.mangaInfoUiState),
+                            // KMK <--
                             sourceName = remember(state.source, state.mergedData?.sources) {
                                 state.source.getNameForMangaInfo(state.mergedData?.sources)
                             },
@@ -739,7 +772,16 @@ private fun MangaScreenSmallImpl(
                         key = "translate-manga-info-toggle-${state.manga.id}",
                         contentType = MangaScreenItem.TRANSLATE_MANGA_INFO_TOGGLE,
                     ) {
-                        TranslateMangaInfoToggle(manga = state.manga)
+                        // KMK --> Integrated control bound to the model-owned controller state.
+                        MangaInfoTranslationControl(
+                            uiState = state.mangaInfoUiState,
+                            onEnabledChange = onMangaInfoEnabledChange,
+                            onShowTranslatedChange = onMangaInfoShowTranslatedChange,
+                            onRefresh = onMangaInfoRefresh,
+                            onRetry = onMangaInfoRetry,
+                            onReset = onMangaInfoReset,
+                        )
+                        // KMK <--
                     }
 
                     item(
@@ -772,7 +814,9 @@ private fun MangaScreenSmallImpl(
                     ) {
                         ExpandableMangaDescription(
                             defaultExpandState = state.isFromSource && !state.manga.favorite,
-                            description = state.manga.description,
+                            // KMK --> Integrated metadata translation replaces the displayed description.
+                            description = mangaInfoDisplayDescription(state.manga, state.mangaInfoUiState),
+                            // KMK <--
                             tagsProvider = { state.manga.genre },
                             notes = state.manga.notes,
                             onTagSearch = onTagSearch,
@@ -1033,6 +1077,11 @@ private fun MangaScreenLargeImpl(
     onStartRereadingClick: (() -> Unit)?,
     onStopRereadingClick: (() -> Unit)?,
     hazeState: HazeState,
+    onMangaInfoEnabledChange: (Boolean) -> Unit,
+    onMangaInfoShowTranslatedChange: (Boolean) -> Unit,
+    onMangaInfoRefresh: () -> Unit,
+    onMangaInfoRetry: () -> Unit,
+    onMangaInfoReset: () -> Unit,
     // KMK <--
 ) {
     val layoutDirection = LocalLayoutDirection.current
@@ -1242,6 +1291,9 @@ private fun MangaScreenLargeImpl(
                             isTabletUi = true,
                             appBarPadding = contentPadding.calculateTopPadding(),
                             manga = state.manga,
+                            // KMK --> Integrated metadata translation replaces the displayed title.
+                            displayTitle = mangaInfoDisplayTitle(state.mangaInfoUiState),
+                            // KMK <--
                             sourceName = remember(state.source, state.mergedData?.sources) {
                                 state.source.getNameForMangaInfo(state.mergedData?.sources)
                             },
@@ -1282,7 +1334,14 @@ private fun MangaScreenLargeImpl(
                         )
                         // KMK --> Tablet layout: off-device toggle available on nomtl as well.
                         TranslateMangaToggle(manga = state.manga)
-                        TranslateMangaInfoToggle(manga = state.manga)
+                        MangaInfoTranslationControl(
+                            uiState = state.mangaInfoUiState,
+                            onEnabledChange = onMangaInfoEnabledChange,
+                            onShowTranslatedChange = onMangaInfoShowTranslatedChange,
+                            onRefresh = onMangaInfoRefresh,
+                            onRetry = onMangaInfoRetry,
+                            onReset = onMangaInfoReset,
+                        )
                         UpscaleMangaToggle(manga = state.manga)
                         // KMK <--
                         // SY -->
@@ -1295,7 +1354,9 @@ private fun MangaScreenLargeImpl(
                         // SY <--
                         ExpandableMangaDescription(
                             defaultExpandState = true,
-                            description = state.manga.description,
+                            // KMK --> Integrated metadata translation replaces the displayed description.
+                            description = mangaInfoDisplayDescription(state.manga, state.mangaInfoUiState),
+                            // KMK <--
                             tagsProvider = { state.manga.genre },
                             notes = state.manga.notes,
                             onTagSearch = onTagSearch,
@@ -1691,134 +1752,184 @@ fun TranslateMangaToggle(manga: tachiyomi.domain.manga.model.Manga) {
     }
 }
 
-// KMK -->
-/**
- * Per-manga "translate title & description" toggle. When enabled, the manga's metadata is
- * translated with the active provider (local LLM or cloud), cached on disk, and shown in a
- * collapsible card below the switch. Re-uses the same gating as page translation.
- */
+// KMK --> Integrated manga-details metadata translation (spec 2026-09-23).
+// Display-value selectors: the translated title/description replace the normal displayed
+// values only while Translated + showTranslated; every other state keeps the originals.
+
+private fun mangaInfoDisplayTitle(uiState: MangaInfoUiState): String? {
+    val translated = uiState as? MangaInfoUiState.Translated ?: return null
+    if (!translated.showTranslated) return null
+    return translated.title.takeIf { it.isNotBlank() }
+}
+
+private fun mangaInfoDisplayDescription(manga: Manga, uiState: MangaInfoUiState): String? {
+    val translated = uiState as? MangaInfoUiState.Translated ?: return manga.description
+    if (!translated.showTranslated) return manga.description
+    return translated.description?.takeIf { it.isNotBlank() } ?: manga.description
+}
+
 @Composable
-fun TranslateMangaInfoToggle(manga: tachiyomi.domain.manga.model.Manga) {
-    val context = LocalContext.current
-    val prefs = androidx.compose.runtime.remember { mihon.app.di.globalAppGraph.translationPreferences }
-    val translationManager = androidx.compose.runtime.remember { mihon.app.di.globalAppGraph.translationManager }
-    val infoStore = androidx.compose.runtime.remember { mihon.app.di.globalAppGraph.mangaInfoTranslationStore }
-    val preferenceStore = androidx.compose.runtime.remember { mihon.app.di.globalAppGraph.preferenceStore }
-    val globalEnabled by prefs.enabled().collectAsState()
-    // Per-manga info-translation preference.
-    val infoPref = androidx.compose.runtime.remember(manga.id) {
-        preferenceStore.getBoolean("pref_translate_info_${manga.id}", false)
-    }
-    val infoEnabled by infoPref.collectAsState()
-    var cached by androidx.compose.runtime.remember(manga.id) { mutableStateOf(infoStore.get(manga.id)) }
-    var translating by androidx.compose.runtime.remember(manga.id) { mutableStateOf(false) }
-    var failed by androidx.compose.runtime.remember(manga.id) { mutableStateOf(false) }
-    val scope = androidx.compose.runtime.rememberCoroutineScope()
-
-    // When the user enables the toggle and no translation is cached yet, translate on demand.
-    androidx.compose.runtime.LaunchedEffect(infoEnabled) {
-        if (infoEnabled && cached == null && !translating) {
-            translating = true
-            failed = false
-            val result = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                translationManager.translateMangaInfo(manga.id, manga.title, manga.description)
-            }
-            translating = false
-            if (result != null) {
-                cached = result
-            } else {
-                failed = true
+fun MangaInfoTranslationControl(
+    uiState: MangaInfoUiState,
+    onEnabledChange: (Boolean) -> Unit,
+    onShowTranslatedChange: (Boolean) -> Unit,
+    onRefresh: () -> Unit,
+    onRetry: () -> Unit,
+    onReset: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    when (uiState) {
+        MangaInfoUiState.Hidden -> Unit
+        MangaInfoUiState.Disabled -> {
+            Row(
+                modifier = modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = stringResource(KMR.strings.pref_translate_manga_info),
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                    Text(
+                        text = stringResource(KMR.strings.pref_translate_manga_info_summary),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Switch(
+                    checked = false,
+                    onCheckedChange = { if (it) onEnabledChange(true) },
+                )
             }
         }
-    }
-
-    if (!globalEnabled) return
-    // KMK --> stub TranslationManager.translateMangaInfo always returns null in no-MTL
-    // builds (LLM info translation needs the engine), so the toggle could never succeed.
-    if (eu.kanade.tachiyomi.BuildConfig.IS_NOMTL) return
-    // KMK <--
-    androidx.compose.foundation.layout.Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-    ) {
-        androidx.compose.foundation.layout.Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
-            horizontalArrangement = androidx.compose.foundation.layout.Arrangement.SpaceBetween,
-        ) {
-            androidx.compose.foundation.layout.Column(modifier = Modifier.weight(1f)) {
-                androidx.compose.material3.Text(
-                    text = stringResource(tachiyomi.i18n.kmk.KMR.strings.pref_translate_manga_info),
-                    style = androidx.compose.material3.MaterialTheme.typography.titleMedium,
-                )
-                androidx.compose.material3.Text(
-                    text = stringResource(tachiyomi.i18n.kmk.KMR.strings.pref_translate_manga_info_summary),
-                    style = androidx.compose.material3.MaterialTheme.typography.bodySmall,
-                    color = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            androidx.compose.material3.Switch(
-                checked = infoEnabled,
-                onCheckedChange = {
-                    infoPref.set(it)
-                    if (!it) {
-                        failed = false
-                        cached = null
+        MangaInfoUiState.Translating -> {
+            Row(
+                modifier = modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = stringResource(KMR.strings.pref_translate_manga_info),
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                        Text(
+                            text = stringResource(KMR.strings.mtl_info_translating),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
                     }
-                },
-            )
+                }
+                Switch(
+                    checked = true,
+                    onCheckedChange = { if (!it) onEnabledChange(false) },
+                )
+            }
         }
-        if (infoEnabled) {
-            androidx.compose.foundation.layout.Spacer(modifier = Modifier.padding(vertical = 4.dp))
-            androidx.compose.material3.Card(modifier = Modifier.fillMaxWidth()) {
-                androidx.compose.foundation.layout.Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp),
+        is MangaInfoUiState.Translated -> {
+            Column(
+                modifier = modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
-                    when {
-                        translating -> {
-                            androidx.compose.material3.Text(
-                                text = stringResource(tachiyomi.i18n.kmk.KMR.strings.mtl_info_translating),
-                                style = androidx.compose.material3.MaterialTheme.typography.bodyMedium,
-                            )
-                        }
-                        failed -> {
-                            androidx.compose.material3.Text(
-                                text = stringResource(tachiyomi.i18n.kmk.KMR.strings.mtl_info_failed),
-                                style = androidx.compose.material3.MaterialTheme.typography.bodyMedium,
-                                color = androidx.compose.material3.MaterialTheme.colorScheme.error,
-                            )
-                        }
-                        cached != null -> {
-                            androidx.compose.material3.Text(
-                                text = stringResource(tachiyomi.i18n.kmk.KMR.strings.mtl_info_translated_title) + ": ${cached!!.title}",
-                                style = androidx.compose.material3.MaterialTheme.typography.bodyMedium,
-                            )
-                            cached!!.description?.takeIf { it.isNotBlank() }?.let { desc ->
-                                androidx.compose.material3.Text(
-                                    text = stringResource(tachiyomi.i18n.kmk.KMR.strings.mtl_info_translated_description) + ": $desc",
-                                    style = androidx.compose.material3.MaterialTheme.typography.bodySmall,
-                                    color = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                            }
-                            androidx.compose.material3.TextButton(
-                                onClick = {
-                                    infoStore.clear(manga.id)
-                                    cached = null
-                                    infoPref.set(false)
-                                },
-                            ) {
-                                androidx.compose.material3.Text(stringResource(tachiyomi.i18n.kmk.KMR.strings.mtl_info_reset))
-                            }
-                        }
-                        else -> Unit
+                    Text(
+                        text = stringResource(KMR.strings.pref_translate_manga_info),
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.weight(1f),
+                    )
+                    Switch(
+                        checked = true,
+                        onCheckedChange = { if (!it) onEnabledChange(false) },
+                    )
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    TextButton(
+                        enabled = uiState.showTranslated,
+                        onClick = { onShowTranslatedChange(false) },
+                    ) {
+                        Text(stringResource(KMR.strings.mtl_info_show_original))
+                    }
+                    TextButton(
+                        enabled = !uiState.showTranslated,
+                        onClick = { onShowTranslatedChange(true) },
+                    ) {
+                        Text(stringResource(KMR.strings.mtl_info_show_translated))
+                    }
+                    Spacer(modifier = Modifier.weight(1f))
+                    IconButton(onClick = onRefresh) {
+                        Icon(
+                            imageVector = Icons.Outlined.Refresh,
+                            contentDescription = stringResource(KMR.strings.mtl_info_refresh),
+                        )
+                    }
+                }
+            }
+        }
+        is MangaInfoUiState.Error -> {
+            val message = when (uiState.kind) {
+                MangaInfoErrorKind.ProviderNotReady -> stringResource(KMR.strings.mtl_info_error_provider_not_ready)
+                MangaInfoErrorKind.MangaTranslatorUnsupported -> stringResource(KMR.strings.mtl_info_error_unsupported)
+                MangaInfoErrorKind.Failed -> stringResource(KMR.strings.mtl_info_failed)
+            }
+            Column(
+                modifier = modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    Text(
+                        text = stringResource(KMR.strings.pref_translate_manga_info),
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.weight(1f),
+                    )
+                    Switch(
+                        checked = true,
+                        onCheckedChange = { if (!it) onEnabledChange(false) },
+                    )
+                }
+                Text(
+                    text = message,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    TextButton(onClick = onRetry) {
+                        Text(stringResource(KMR.strings.mtl_retry))
+                    }
+                    TextButton(onClick = onReset) {
+                        Text(stringResource(KMR.strings.mtl_info_reset))
                     }
                 }
             }
         }
     }
 }
+// KMK <--
 
 @Composable
 fun UpscaleMangaToggle(manga: tachiyomi.domain.manga.model.Manga) {

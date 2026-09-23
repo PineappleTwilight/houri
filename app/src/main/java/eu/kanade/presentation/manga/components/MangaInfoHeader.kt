@@ -139,6 +139,8 @@ fun MangaInfoBox(
     onCoverLoaded: (DomainMangaCover) -> Unit,
     coverRatio: MutableFloatState,
     // KMK <--
+    // KMK --> Explicit translated display title (spec 2026-09-23); null keeps original.
+    displayTitle: String? = null,
 ) {
     // KMK -->
     val usePanoramaCover by globalAppGraph.uiPreferences.usePanoramaCoverMangaInfo().collectAsState()
@@ -146,6 +148,7 @@ fun MangaInfoBox(
     val censorEnabled by globalAppGraph.uiPreferences.censorLewdManga().collectAsState()
     val shouldCensor = censorEnabled && manga.isLewd()
     val displayManga = if (shouldCensor) manga.copy(ogTitle = stringResource(KMR.strings.censored_title)) else manga
+    val titleOverride = if (shouldCensor) null else displayTitle
     // KMK <--
     Box(modifier = modifier) {
         // Backdrop
@@ -207,6 +210,7 @@ fun MangaInfoBox(
                     usePanoramaCover = usePanoramaCover,
                     topAlignCover = topAlignCover,
                     // KMK <--
+                    displayTitle = titleOverride,
                 )
             } else {
                 MangaAndSourceTitlesLarge(
@@ -226,6 +230,7 @@ fun MangaInfoBox(
                     coverRatio = coverRatio,
                     usePanoramaCover = usePanoramaCover,
                     // KMK <--
+                    displayTitle = titleOverride,
                 )
             }
         }
@@ -535,6 +540,7 @@ private fun MangaAndSourceTitlesLarge(
     coverRatio: MutableFloatState,
     usePanoramaCover: Boolean = false,
     // KMK <--
+    displayTitle: String? = null,
 ) {
     // KMK -->
     val censorEnabledLarge by globalAppGraph.uiPreferences.censorLewdManga().collectAsState()
@@ -601,6 +607,7 @@ private fun MangaAndSourceTitlesLarge(
             // KMK -->
             librarySearch = librarySearch,
             onSourceClick = onSourceClick,
+            displayTitle = displayTitle,
             // KMK <--
         )
     }
@@ -625,6 +632,7 @@ private fun MangaAndSourceTitlesSmall(
     usePanoramaCover: Boolean = false,
     topAlignCover: Boolean = false,
     // KMK <--
+    displayTitle: String? = null,
 ) {
     // KMK -->
     val censorEnabledSmall by globalAppGraph.uiPreferences.censorLewdManga().collectAsState()
@@ -699,6 +707,7 @@ private fun MangaAndSourceTitlesSmall(
                 // KMK -->
                 librarySearch = librarySearch,
                 onSourceClick = onSourceClick,
+                displayTitle = displayTitle,
                 // KMK <--
             )
         }
@@ -723,6 +732,7 @@ private fun ColumnScope.MangaContentInfo(
     librarySearch: (query: String) -> Unit,
     onSourceClick: () -> Unit,
     // KMK <--
+    displayTitle: String? = null,
 ) {
     val context = LocalContext.current
     // KMK -->
@@ -758,8 +768,12 @@ private fun ColumnScope.MangaContentInfo(
         )
     }
     // KMK <--
+    // KMK --> Translated display title overrides the domain title without mutating it.
+    // Search actions stay on the original title: translated text is a display value only.
+    val effectiveTitle = displayTitle?.takeIf { it.isNotBlank() } ?: title
+    // KMK <--
     Text(
-        text = title.ifBlank { stringResource(MR.strings.unknown_title) },
+        text = effectiveTitle.ifBlank { stringResource(MR.strings.unknown_title) },
         style = MaterialTheme.typography.titleLarge,
         modifier = Modifier.clickableNoIndication(
             onLongClick = {
