@@ -49,6 +49,7 @@ import eu.kanade.domain.ui.UiPreferences
 import eu.kanade.presentation.manga.DownloadAction
 import eu.kanade.presentation.manga.components.ChapterDownloadAction
 import eu.kanade.presentation.util.formattedMessage
+import eu.kanade.tachiyomi.BuildConfig
 import eu.kanade.tachiyomi.data.cache.CoverCache
 import eu.kanade.tachiyomi.data.coil.getBestColor
 import eu.kanade.tachiyomi.data.download.DownloadCache
@@ -87,6 +88,8 @@ import exh.source.isMergedSourceId
 import exh.source.mangaDexSourceIds
 import exh.util.nullIfEmpty
 import exh.util.trimOrNull
+import exh.yakuyomi.MangaInfoTranslationStore
+import exh.yakuyomi.TranslationManager
 import exh.yakuyomi.TranslationStatus
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.ImmutableSet
@@ -116,6 +119,7 @@ import mihon.domain.manga.model.toDomainManga
 import mihon.domain.source.interactor.UpdateMangaFromRemote
 import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.core.common.preference.CheckboxState
+import tachiyomi.core.common.preference.PreferenceStore
 import tachiyomi.core.common.preference.TriState
 import tachiyomi.core.common.preference.mapAsCheckboxState
 import tachiyomi.core.common.util.lang.launchIO
@@ -245,6 +249,9 @@ class MangaScreenModel(
     val snackbarHostState: SnackbarHostState = SnackbarHostState(),
     // KMK -->
     private val translationStatus: TranslationStatus = globalAppGraph.translationStatus,
+    private val preferenceStore: PreferenceStore = globalAppGraph.preferenceStore,
+    private val translationManager: TranslationManager = globalAppGraph.translationManager,
+    private val mangaInfoTranslationStore: MangaInfoTranslationStore = globalAppGraph.mangaInfoTranslationStore,
     private val deleteLibraryUpdateErrors: DeleteLibraryUpdateErrors = globalAppGraph.deleteLibraryUpdateErrors,
     private val insertLibraryUpdateErrors: InsertLibraryUpdateErrors = globalAppGraph.insertLibraryUpdateErrors,
     private val insertLibraryUpdateErrorMessages: InsertLibraryUpdateErrorMessages = globalAppGraph.insertLibraryUpdateErrorMessages,
@@ -349,6 +356,47 @@ class MangaScreenModel(
         onDeleteChapters = { deleteChapters(it) },
     )
 
+    // KMK --> Manga-details metadata translation (spec 2026-09-23). The model owns
+    // the controller lifecycle; Compose only reads State.Success.mangaInfoUiState.
+    private val mangaInfoTranslationController = MangaInfoTranslationController(
+        mangaId = mangaId,
+        scope = screenModelScope,
+        preferenceStore = preferenceStore,
+        translationManager = translationManager,
+        infoStore = mangaInfoTranslationStore,
+        isNoMtl = BuildConfig.IS_NOMTL,
+    )
+
+    fun setMangaInfoEnabled(enabled: Boolean) {
+        mangaInfoTranslationController.setEnabled(enabled)
+    }
+
+    fun setMangaInfoShowTranslated(show: Boolean) {
+        mangaInfoTranslationController.setShowTranslated(show)
+    }
+
+    fun refreshMangaInfo() {
+        mangaInfoTranslationController.refresh()
+    }
+
+    fun retryMangaInfo() {
+        mangaInfoTranslationController.retry()
+    }
+
+    fun resetMangaInfo() {
+        mangaInfoTranslationController.reset()
+    }
+
+    private fun bindMangaInfo(manga: Manga, source: Source?) {
+        mangaInfoTranslationController.bind(
+            source?.id,
+            manga.title,
+            manga.description,
+            source?.lang,
+        )
+    }
+    // KMK <--
+
     /**
      * Helper function to update the UI state only if it's currently in success state
      */
@@ -362,10 +410,18 @@ class MangaScreenModel(
     }
 
     init {
+        screenModelScope.launch {
+            mangaInfoTranslationController.state.collectLatest { infoUiState ->
+                updateSuccessState { it.copy(mangaInfoUiState = infoUiState) }
+            }
+        }
         screenModelScope.launchIO {
             detailsPipeline.details()
                 .flowWithLifecycle(lifecycle)
                 .collectLatest { (manga, chapters, flatMetadata, mergedData) ->
+                    // KMK -->
+                    bindMangaInfo(manga, successState?.source ?: sourceManager.getOrStub(manga.source))
+                    // KMK <--
                     // KMK -->
                     val chapterItems = chapters
                         .let { list ->
@@ -522,6 +578,9 @@ class MangaScreenModel(
             }
 
             // Start observe tracking since it only needs mangaId
+            // KMK --> Bind metadata translation once the first details are shown.
+            bindMangaInfo(manga, sourceManager.getOrStub(manga.source))
+            // KMK <--
             observeTrackers()
 
             // Fetch info-chapters when needed
@@ -2024,6 +2083,8 @@ class MangaScreenModel(
             // KMK --> lowercase library titles for the sequel/prequel "In library" badge
             val sequelPrequelLibraryTitles: Set<String> = emptySet(),
             val seedColor: Color? = manga.asMangaCover().vibrantCoverColor?.let { Color(it) },
+            // KMK --> Manga-details metadata translation state (spec 2026-09-23).
+            val mangaInfoUiState: MangaInfoUiState = MangaInfoUiState.Disabled,
             // KMK <--
         ) : State {
             // KMK -->
