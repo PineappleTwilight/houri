@@ -38,6 +38,7 @@ import kotlinx.collections.immutable.persistentMapOf
 import kotlinx.collections.immutable.toPersistentList
 import mihon.app.di.globalAppGraph
 import tachiyomi.core.common.util.lang.withIOContext
+import tachiyomi.i18n.MR
 import tachiyomi.i18n.kmk.KMR
 import tachiyomi.presentation.core.components.material.padding
 import tachiyomi.presentation.core.i18n.stringResource
@@ -51,70 +52,24 @@ object SettingsYakuyomiScreen : SearchableSettings {
     @Composable
     override fun getPreferences(): List<Preference> {
         val prefs = remember { globalAppGraph.translationPreferences }
-        val cache = remember { globalAppGraph.translationCache }
-        val modelManager = remember { globalAppGraph.modelManager }
         val isNomtl = eu.kanade.tachiyomi.BuildConfig.IS_NOMTL
         val provider by prefs.provider().collectAsState()
         val isMangatranslator = provider == "mangatranslator"
 
+        // KMK --> Hub-and-spoke: this screen stays a compact hub (status, common
+        // enable/target/typeset controls, provider selector, navigation rows,
+        // advanced tools, sessions). Full provider, model and behavior controls
+        // live in SettingsYakuyomiProviderScreen, SettingsYakuyomiModelsScreen
+        // and SettingsYakuyomiBehaviorScreen, which reuse the groups below.
         return listOfNotNull(
-            getHeader(),
             getStatusOverview(),
             getGeneralGroup(prefs, hideLocal = isMangatranslator),
-            getProviderGroup(prefs),
-            getLocalLlmGroup().takeIf { !isNomtl && !isMangatranslator },
-            getModelGroup(modelManager).takeIf { !isNomtl && !isMangatranslator },
-            getRemoteModelGroup(prefs, modelManager).takeIf { !isMangatranslator },
-            getMangaTranslatorGroup(prefs),
-            getBehaviorGroup(prefs, cache, hideLocal = isMangatranslator),
+            getProviderSelectorGroup(prefs),
+            getHubNavGroup(prefs),
             getAdvancedGroup(prefs).takeIf { !isNomtl && !isMangatranslator },
             getSessionsGroup(),
         )
-    }
-
-    @Composable
-    private fun getHeader(): Preference.PreferenceGroup {
-        return Preference.PreferenceGroup(
-            title = "",
-            preferenceItems = persistentListOf(
-                Preference.PreferenceItem.CustomPreference(
-                    title = "",
-                    content = {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 16.dp, vertical = 12.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(56.dp)
-                                    .clip(CircleShape)
-                                    .background(MaterialTheme.colorScheme.primaryContainer),
-                                contentAlignment = Alignment.Center,
-                            ) {
-                                Text(
-                                    text = "文",
-                                    style = MaterialTheme.typography.headlineMedium,
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer,
-                                )
-                            }
-                            Spacer(modifier = Modifier.padding(vertical = 4.dp))
-                            Text(
-                                text = "AI Manga Translation",
-                                style = MaterialTheme.typography.titleMedium,
-                                color = MaterialTheme.colorScheme.onSurface,
-                            )
-                            Text(
-                                text = "On-device + Cloud · Per-manga · Cached",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                    },
-                ),
-            ),
-        )
+        // KMK <--
     }
 
     @Composable
@@ -300,7 +255,7 @@ object SettingsYakuyomiScreen : SearchableSettings {
     }
 
     @Composable
-    private fun getProviderGroup(prefs: exh.yakuyomi.TranslationPreferences): Preference.PreferenceGroup {
+    internal fun getProviderGroup(prefs: exh.yakuyomi.TranslationPreferences): Preference.PreferenceGroup {
         val enabled by prefs.enabled().collectAsState()
         val provider by prefs.provider().collectAsState()
         val apiKey by prefs.apiKeyForProvider(provider).collectAsState()
@@ -566,7 +521,7 @@ object SettingsYakuyomiScreen : SearchableSettings {
     }
 
     @Composable
-    private fun getLocalLlmGroup(): Preference.PreferenceGroup? {
+    internal fun getLocalLlmGroup(): Preference.PreferenceGroup? {
         val prefs = remember { globalAppGraph.translationPreferences }
         val manager = remember { globalAppGraph.localLlmManager }
         val downloadManager = remember { globalAppGraph.localLlmDownloadManager }
@@ -774,7 +729,7 @@ object SettingsYakuyomiScreen : SearchableSettings {
     }
 
     @Composable
-    private fun getModelGroup(modelManager: exh.yakuyomi.ModelManager): Preference.PreferenceGroup {
+    internal fun getModelGroup(modelManager: exh.yakuyomi.ModelManager): Preference.PreferenceGroup {
         val status by modelManager.status.collectAsState()
         val context = LocalContext.current
         val lowRam = !exh.yakuyomi.DeviceMemory.isMtlSupported(context)
@@ -866,7 +821,7 @@ object SettingsYakuyomiScreen : SearchableSettings {
     }
 
     @Composable
-    private fun getRemoteModelGroup(
+    internal fun getRemoteModelGroup(
         prefs: exh.yakuyomi.TranslationPreferences,
         modelManager: exh.yakuyomi.ModelManager,
     ): Preference.PreferenceGroup {
@@ -920,7 +875,7 @@ object SettingsYakuyomiScreen : SearchableSettings {
     }
 
     @Composable
-    private fun getMangaTranslatorGroup(prefs: exh.yakuyomi.TranslationPreferences): Preference.PreferenceGroup {
+    internal fun getMangaTranslatorGroup(prefs: exh.yakuyomi.TranslationPreferences): Preference.PreferenceGroup {
         val enabled by prefs.enabled().collectAsState()
         val navigator = LocalNavigator.currentOrThrow
         val email by prefs.mangaTranslatorEmail().collectAsState()
@@ -968,7 +923,7 @@ object SettingsYakuyomiScreen : SearchableSettings {
     }
 
     @Composable
-    private fun getBehaviorGroup(
+    internal fun getBehaviorGroup(
         prefs: exh.yakuyomi.TranslationPreferences,
         cache: exh.yakuyomi.TranslationCache,
         hideLocal: Boolean = false,
@@ -1045,25 +1000,6 @@ object SettingsYakuyomiScreen : SearchableSettings {
                         enabled = enabled,
                     ),
                 )
-            }.toPersistentList(),
-        )
-    }
-
-    @Composable
-    private fun getAdvancedGroup(prefs: exh.yakuyomi.TranslationPreferences): Preference.PreferenceGroup {
-        val enabled by prefs.enabled().collectAsState()
-        val navigator = LocalNavigator.currentOrThrow
-        return Preference.PreferenceGroup(
-            title = "Advanced",
-            preferenceItems = buildList {
-                add(
-                    Preference.PreferenceItem.TextPreference(
-                        title = stringResource(KMR.strings.pref_yakuyomi_engine_advanced),
-                        subtitle = "Detector / OCR / Inpaint / Typeset — not recommended, unsupported",
-                        onClick = { navigator.push(SettingsYakuyomiEngineAdvancedScreen()) },
-                        enabled = enabled,
-                    ),
-                )
                 add(
                     Preference.PreferenceItem.EditTextPreference(
                         preference = prefs.translationTextColorHex(),
@@ -1102,6 +1038,155 @@ object SettingsYakuyomiScreen : SearchableSettings {
                 )
             }.toPersistentList(),
         )
+    }
+
+    @Composable
+    internal fun getAdvancedGroup(prefs: exh.yakuyomi.TranslationPreferences): Preference.PreferenceGroup {
+        val enabled by prefs.enabled().collectAsState()
+        val navigator = LocalNavigator.currentOrThrow
+        return Preference.PreferenceGroup(
+            title = "Advanced",
+            preferenceItems = persistentListOf(
+                Preference.PreferenceItem.TextPreference(
+                    title = stringResource(KMR.strings.pref_yakuyomi_engine_advanced),
+                    subtitle = "Detector / OCR / Inpaint / Typeset — not recommended, unsupported",
+                    onClick = { navigator.push(SettingsYakuyomiEngineAdvancedScreen()) },
+                    enabled = enabled,
+                ),
+            ),
+        )
+    }
+
+    @Composable
+    private fun getProviderSelectorGroup(
+        prefs: exh.yakuyomi.TranslationPreferences,
+    ): Preference.PreferenceGroup {
+        val enabled by prefs.enabled().collectAsState()
+        val provider by prefs.provider().collectAsState()
+        val isNomtl = eu.kanade.tachiyomi.BuildConfig.IS_NOMTL
+        var lastProvider by remember { mutableStateOf(provider) }
+        LaunchedEffect(provider) {
+            if (provider == "mangatranslator" && lastProvider != "mangatranslator" && !prefs.enabled().get()) {
+                prefs.enabled().set(true)
+            }
+            lastProvider = provider
+        }
+        return Preference.PreferenceGroup(
+            title = stringResource(KMR.strings.pref_yakuyomi_provider),
+            preferenceItems = persistentListOf(
+                Preference.PreferenceItem.ListPreference(
+                    preference = prefs.provider(),
+                    entries = if (isNomtl) {
+                        persistentMapOf(
+                            "mangatranslator" to "MangaTranslator (remote)",
+                        )
+                    } else {
+                        persistentMapOf(
+                            "openrouter" to "OpenRouter",
+                            "gemini" to "Gemini",
+                            "opencode_zen" to "OpenCode Zen",
+                            "nvidia_nim" to "NVIDIA NIM",
+                            "custom_openai" to "Custom OpenAI",
+                            "local" to "Local (On-device LLM)",
+                            "mangatranslator" to "MangaTranslator (remote)",
+                        )
+                    },
+                    title = stringResource(KMR.strings.pref_yakuyomi_provider),
+                    enabled = enabled,
+                ),
+            ),
+        )
+    }
+
+    @Composable
+    private fun getHubNavGroup(
+        prefs: exh.yakuyomi.TranslationPreferences,
+    ): Preference.PreferenceGroup {
+        val navigator = LocalNavigator.currentOrThrow
+        val provider by prefs.provider().collectAsState()
+        val apiKey by prefs.apiKeyForProvider(provider).collectAsState()
+        val nanoEnabled by prefs.geminiNanoEnabled().collectAsState()
+        val mtEmail by prefs.mangaTranslatorEmail().collectAsState()
+        val mtToken by prefs.mangaTranslatorAccessToken().collectAsState()
+        val cacheEnabled by prefs.cacheEnabled().collectAsState()
+        val offlineFallback by prefs.offlineFallback().collectAsState()
+        val autoSave by prefs.autoSaveWhileReading().collectAsState()
+        val localStatus by remember { globalAppGraph.localLlmDownloadManager.status }.collectAsState()
+        val mtlStatus by remember { globalAppGraph.modelManager.status }.collectAsState()
+
+        val providerLabel = providerDisplayName(provider)
+        val providerSubtitle = when (provider) {
+            "local" -> when (localStatus.state) {
+                exh.yakuyomi.LocalLlmDownloadManager.State.READY ->
+                    stringResource(KMR.strings.pref_yakuyomi_hub_provider_local_ready, providerLabel)
+                exh.yakuyomi.LocalLlmDownloadManager.State.DOWNLOADING ->
+                    stringResource(KMR.strings.pref_yakuyomi_hub_provider_local_downloading, providerLabel)
+                else -> stringResource(KMR.strings.pref_yakuyomi_hub_provider_local_missing, providerLabel)
+            }
+            "mangatranslator" -> if (mtToken.isNotBlank()) {
+                stringResource(
+                    KMR.strings.pref_yakuyomi_hub_provider_mt_active,
+                    providerLabel,
+                    mtEmail.ifBlank { stringResource(KMR.strings.pref_yakuyomi_hub_logged_in) },
+                )
+            } else {
+                stringResource(KMR.strings.pref_yakuyomi_hub_provider_mt_anonymous, providerLabel)
+            }
+            else -> if (apiKey.isBlank()) {
+                stringResource(KMR.strings.pref_yakuyomi_hub_provider_key_missing, providerLabel)
+            } else if (nanoEnabled) {
+                stringResource(KMR.strings.pref_yakuyomi_hub_provider_key_set_nano, providerLabel)
+            } else {
+                stringResource(KMR.strings.pref_yakuyomi_hub_provider_key_set, providerLabel)
+            }
+        }
+        val modelsSubtitle = when (mtlStatus.state) {
+            exh.yakuyomi.ModelManager.State.READY ->
+                stringResource(KMR.strings.pref_yakuyomi_hub_models_ready, localStatus.state.name.lowercase())
+            exh.yakuyomi.ModelManager.State.DOWNLOADING ->
+                stringResource(KMR.strings.pref_yakuyomi_hub_models_downloading)
+            else -> stringResource(KMR.strings.pref_yakuyomi_hub_models_missing, localStatus.state.name.lowercase())
+        }
+        val onText = stringResource(MR.strings.on)
+        val offText = stringResource(MR.strings.off)
+        val behaviorSubtitle = stringResource(
+            KMR.strings.pref_yakuyomi_hub_behavior_summary,
+            if (cacheEnabled) onText else offText,
+            if (offlineFallback) onText else offText,
+            if (autoSave) onText else offText,
+        )
+
+        return Preference.PreferenceGroup(
+            title = "",
+            preferenceItems = persistentListOf(
+                Preference.PreferenceItem.TextPreference(
+                    title = stringResource(KMR.strings.pref_yakuyomi_provider_setup),
+                    subtitle = providerSubtitle,
+                    onClick = { navigator.push(SettingsYakuyomiProviderScreen) },
+                ),
+                Preference.PreferenceItem.TextPreference(
+                    title = stringResource(KMR.strings.pref_yakuyomi_models_engine),
+                    subtitle = modelsSubtitle,
+                    onClick = { navigator.push(SettingsYakuyomiModelsScreen) },
+                ),
+                Preference.PreferenceItem.TextPreference(
+                    title = stringResource(KMR.strings.pref_yakuyomi_behavior_title),
+                    subtitle = behaviorSubtitle,
+                    onClick = { navigator.push(SettingsYakuyomiBehaviorScreen) },
+                ),
+            ),
+        )
+    }
+
+    private fun providerDisplayName(provider: String): String = when (provider) {
+        "openrouter" -> "OpenRouter"
+        "gemini" -> "Gemini"
+        "opencode_zen" -> "OpenCode Zen"
+        "nvidia_nim" -> "NVIDIA NIM"
+        "custom_openai" -> "Custom OpenAI"
+        "local" -> "Local"
+        "mangatranslator" -> "MangaTranslator"
+        else -> provider.ifBlank { "openrouter" }
     }
 
     @Composable

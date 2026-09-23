@@ -34,6 +34,9 @@ object SettingsCatalog {
         // SY <--
         // KMK --> Off-device MTL is available even on no-MTL builds.
         SettingsYakuyomiScreen,
+        SettingsYakuyomiProviderScreen,
+        SettingsYakuyomiModelsScreen,
+        SettingsYakuyomiBehaviorScreen,
         SettingsUpscalerScreen,
         // KMK <--
         SettingsAdvancedScreen,
