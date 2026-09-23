@@ -1,6 +1,7 @@
 package eu.kanade.presentation.browse
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -173,32 +174,36 @@ fun FeedItem(
     onRetryFeed: (FeedItemUI) -> Unit,
     // KMK <--
 ) {
-    when {
-        // KMK -->
-        item.failed && item.results.isNullOrEmpty() -> FeedErrorResultItem(
-            onRetry = { onRetryFeed(item) },
-        )
-        // KMK <--
-        item.results == null -> {
-            GlobalSearchLoadingResultItem()
-        }
-        // KMK -->
-        item.results.isEmpty() && !item.failed -> {
-            GlobalSearchErrorResultItem(message = stringResource(MR.strings.no_results_found))
-        }
-        // KMK <--
-        else -> {
-            GlobalSearchCardRow(
-                titles = item.results,
-                getManga = getMangaState,
-                onClick = onClickManga,
-                // KMK -->
-                onLongClick = onLongClickManga,
-                selection = selection,
-                // KMK <--
+    // KMK --> crossfade loading/empty/content instead of a hard swap
+    Crossfade(targetState = item.failed to item.results, label = "feedItem") { (failed, results) ->
+        when {
+            // KMK -->
+            failed && results.isNullOrEmpty() -> FeedErrorResultItem(
+                onRetry = { onRetryFeed(item) },
             )
+            // KMK <--
+            results == null -> {
+                GlobalSearchLoadingResultItem()
+            }
+            // KMK -->
+            results.isEmpty() && !failed -> {
+                GlobalSearchErrorResultItem(message = stringResource(MR.strings.no_results_found))
+            }
+            // KMK <--
+            else -> {
+                GlobalSearchCardRow(
+                    titles = results.orEmpty(),
+                    getManga = getMangaState,
+                    onClick = onClickManga,
+                    // KMK -->
+                    onLongClick = onLongClickManga,
+                    selection = selection,
+                    // KMK <--
+                )
+            }
         }
     }
+    // KMK <--
 }
 
 // KMK -->

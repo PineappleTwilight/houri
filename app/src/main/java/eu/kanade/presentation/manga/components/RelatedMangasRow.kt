@@ -1,5 +1,11 @@
 package eu.kanade.presentation.manga.components
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -42,24 +48,28 @@ fun RelatedMangasRow(
     onMangaClick: (Manga) -> Unit,
     onMangaLongClick: (Manga) -> Unit,
 ) {
-    when {
-        relatedMangas == null -> {
-            GlobalSearchLoadingResultItem()
-        }
-
-        relatedMangas.isNotEmpty() -> {
-            RelatedMangaCardRow(
-                relatedMangas = relatedMangas,
+    // KMK --> crossfade loading/content/empty instead of hard-swapping; keyed on a
+    // derived tri-state so chunked Success pushes don't retrigger the transition
+    Crossfade(
+        targetState = when {
+            relatedMangas == null -> 0
+            relatedMangas.isEmpty() -> 1
+            else -> 2
+        },
+        label = "relatedMangasRow",
+    ) { state ->
+        when (state) {
+            0 -> GlobalSearchLoadingResultItem()
+            1 -> EmptyResultItem()
+            else -> RelatedMangaCardRow(
+                relatedMangas = relatedMangas.orEmpty(),
                 getManga = { getMangaState(it) },
                 onMangaClick = onMangaClick,
                 onMangaLongClick = onMangaLongClick,
             )
         }
-
-        else -> {
-            EmptyResultItem()
-        }
     }
+    // KMK <--
 }
 
 @Composable
@@ -126,22 +136,31 @@ fun SequelPrequelRow(
     inLibraryTitles: Set<String> = emptySet(),
     // KMK <--
 ) {
-    if (!shouldShowSequelPrequel(enabled, entries)) return
-    Column(modifier = Modifier.padding(horizontal = MaterialTheme.padding.medium)) {
-        Text(
-            text = stringResource(KMR.strings.pref_sequel_prequel_title),
-            style = MaterialTheme.typography.titleMedium,
-        )
-        LazyRow(
-            contentPadding = PaddingValues(vertical = MaterialTheme.padding.small),
-            horizontalArrangement = Arrangement.spacedBy(MaterialTheme.padding.extraSmall),
-        ) {
-            items(entries!!, key = { "sequel-prequel-${it.relation}-${it.url}" }) { entry ->
-                SequelPrequelCard(
-                    entry = entry,
-                    inLibrary = entry.title.lowercase() in inLibraryTitles,
-                    onClick = { onEntryClick(entry) },
-                )
+    // KMK --> animate in when the async fetch lands instead of hard-popping;
+    // exits shrink so disabled/empty collapses the row in place
+    AnimatedVisibility(
+        visible = shouldShowSequelPrequel(enabled, entries),
+        enter = fadeIn() + expandVertically(),
+        exit = fadeOut() + shrinkVertically(),
+    ) {
+        // KMK <--
+        val shownEntries = entries.orEmpty()
+        Column(modifier = Modifier.padding(horizontal = MaterialTheme.padding.medium)) {
+            Text(
+                text = stringResource(KMR.strings.pref_sequel_prequel_title),
+                style = MaterialTheme.typography.titleMedium,
+            )
+            LazyRow(
+                contentPadding = PaddingValues(vertical = MaterialTheme.padding.small),
+                horizontalArrangement = Arrangement.spacedBy(MaterialTheme.padding.extraSmall),
+            ) {
+                items(shownEntries, key = { "sequel-prequel-${it.relation}-${it.url}" }) { entry ->
+                    SequelPrequelCard(
+                        entry = entry,
+                        inLibrary = entry.title.lowercase() in inLibraryTitles,
+                        onClick = { onEntryClick(entry) },
+                    )
+                }
             }
         }
     }

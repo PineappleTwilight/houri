@@ -284,25 +284,29 @@ fun SourceFeedItem(
     // KMK <--
 ) {
     val results = item.results
-    when {
-        results == null -> {
-            GlobalSearchLoadingResultItem()
-        }
-        results.isEmpty() -> {
-            GlobalSearchErrorResultItem(message = stringResource(MR.strings.no_results_found))
-        }
-        else -> {
-            GlobalSearchCardRow(
-                titles = item.results.orEmpty(),
-                getManga = getMangaState,
-                onClick = onClickManga,
-                // KMK -->
-                onLongClick = onLongClickManga,
-                selection = selection,
-                // KMK <--
-            )
+    // KMK --> crossfade loading/empty/content instead of a hard swap
+    Crossfade(targetState = results, label = "sourceFeedItem") { resultsState ->
+        when {
+            resultsState == null -> {
+                GlobalSearchLoadingResultItem()
+            }
+            resultsState.isEmpty() -> {
+                GlobalSearchErrorResultItem(message = stringResource(MR.strings.no_results_found))
+            }
+            else -> {
+                GlobalSearchCardRow(
+                    titles = resultsState.orEmpty(),
+                    getManga = getMangaState,
+                    onClick = onClickManga,
+                    // KMK -->
+                    onLongClick = onLongClickManga,
+                    selection = selection,
+                    // KMK <--
+                )
+            }
         }
     }
+    // KMK <--
 }
 
 @Composable

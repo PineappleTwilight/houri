@@ -1,9 +1,11 @@
 package exh.recs.components
 
+import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.State
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import eu.kanade.presentation.browse.components.GlobalSearchCardRow
 import eu.kanade.presentation.browse.components.GlobalSearchErrorResultItem
@@ -68,30 +70,37 @@ internal fun RecommendsContent(
                     title = source.name,
                     subtitle = stringResource(source.category),
                     onClick = { onClickSource(source) },
+                    // KMK --> animate insertion alongside the other result lists
+                    modifier = Modifier.animateItem(),
+                    // KMK <--
                 ) {
-                    when (recResult) {
-                        RecommendationItemResult.Loading -> {
-                            GlobalSearchLoadingResultItem()
-                        }
-                        is RecommendationItemResult.Success -> {
-                            GlobalSearchCardRow(
-                                titles = recResult.result,
-                                getManga = getManga,
-                                onClick = onClickItem,
-                                onLongClick = onLongClickItem,
-                                // KMK -->
-                                selection = emptyList(),
-                                // KMK <--
-                            )
-                        }
-                        is RecommendationItemResult.Error -> {
-                            GlobalSearchErrorResultItem(
-                                message = with(LocalContext.current) {
-                                    recResult.throwable.formattedMessage
-                                },
-                            )
+                    // KMK --> crossfade per-source Loading -> Success/Error instead of a hard swap
+                    Crossfade(targetState = recResult, label = "recommendsResult") { result ->
+                        when (result) {
+                            RecommendationItemResult.Loading -> {
+                                GlobalSearchLoadingResultItem()
+                            }
+                            is RecommendationItemResult.Success -> {
+                                GlobalSearchCardRow(
+                                    titles = result.result,
+                                    getManga = getManga,
+                                    onClick = onClickItem,
+                                    onLongClick = onLongClickItem,
+                                    // KMK -->
+                                    selection = emptyList(),
+                                    // KMK <--
+                                )
+                            }
+                            is RecommendationItemResult.Error -> {
+                                GlobalSearchErrorResultItem(
+                                    message = with(LocalContext.current) {
+                                        result.throwable.formattedMessage
+                                    },
+                                )
+                            }
                         }
                     }
+                    // KMK <--
                 }
             }
         }
