@@ -17,6 +17,10 @@ import ca.mpreg.webgpuviewer.filter.FilterBrightnessContrast
 import ca.mpreg.webgpuviewer.filter.FilterGrayscale
 import ca.mpreg.webgpuviewer.filter.FilterHlg
 import ca.mpreg.webgpuviewer.filter.FilterLut3d
+import ca.mpreg.webgpuviewer.reader.OnReaderStateChanged
+import ca.mpreg.webgpuviewer.reader.PageAnchor
+import ca.mpreg.webgpuviewer.reader.ReaderState
+import ca.mpreg.webgpuviewer.reader.SettingsImpact
 import ca.mpreg.webgpuviewer.renderer.UpscalerArtCnn
 import ca.mpreg.webgpuviewer.renderer.UpscalerCatmullRom
 import ca.mpreg.webgpuviewer.transition.TransitionBasic
@@ -77,6 +81,11 @@ open class WebGpuViewer(
     // KMK -->
     private var pendingContinuousRestoreChapterId: Long? = null
     private var pendingPagedRestoreChapterId: Long? = null
+
+    /** Last Ready anchor from the viewer state; drive progress/save display from this. */
+    @Volatile
+    var currentAnchor: PageAnchor = PageAnchor(pageIndex = 0)
+        private set
     // KMK <--
 
     open val isContinuous: Boolean = false
@@ -534,6 +543,11 @@ open class WebGpuViewer(
 
     init {
         pager.state.apply {
+            // KMK --> Feed currentAnchor from coalesced Ready emissions (Idle/Released ignored).
+            onReaderStateChanged = OnReaderStateChanged { state ->
+                if (state is ReaderState.Ready) currentAnchor = state.anchor
+            }
+            // KMK <--
             fetchPage = fetch@{ index ->
                 val current = currentPage ?: return@fetch null
 
@@ -599,47 +613,78 @@ open class WebGpuViewer(
             }
         }
 
-        config.imagePropertyChangedListener = listener@{
+        // KMK --> Single settings channel: SettingsDiff.highest picks rebuild vs live.
+        config.onSettingsChanged = listener@{ diff ->
             if (isDestroyed) return@listener
-            applyImageState()
+            pager.state.doubleTapZoomEnabled = config.resolveDoubleTapZoom()
 
-            synchronized(lock) {
-                if (isDestroyed) return@listener
-                decodeQueue.clear()
-                // Snapshot to avoid ConcurrentModification if cleanup triggers callbacks
-                val snapshot = pageCache.values.toList()
-                snapshot.forEach {
-                    it.state = PageState.IDLE
-                    // KMK -->
-                    (it as? ViewerReaderPage)?.let { readerPage ->
-                        try {
-                            readerPage.spreadPage?.cleanup()
-                        } catch (_: Exception) {
+            if (diff.previous.doubleTapZoom != diff.current.doubleTapZoom ||
+                diff.previous.disableZoomIn != diff.current.disableZoomIn
+            ) {
+                synchronized(lock) {
+                    if (isDestroyed) return@listener
+                    pageCache.values.toList().forEach { page ->
+                        (page as? ViewerReaderPage)?.let { readerPage ->
+                            (readerPage.imagePage as? ImagePage.ImageSingle)?.let { applyDoubleTapZoomPolicy(it) }
+                            readerPage.spreadPage?.let { spread ->
+                                (spread.left as? ImagePage.ImageSingle)?.let { applyDoubleTapZoomPolicy(it) }
+                                (spread.right as? ImagePage.ImageSingle)?.let { applyDoubleTapZoomPolicy(it) }
+                            }
                         }
-                        readerPage.spreadBytes = null
-                        readerPage.rescaleInFlight = false
-                        readerPage.cleanupCompare()
-                    }
-                    // KMK <--
-                    try {
-                        it.imagePage.cleanup()
-                    } catch (_: Exception) {
                     }
                 }
-                pageCache.clear()
-                loneIndices.clear()
-
-                currentPage = (currentPage as? ViewerReaderPage)?.page?.let { getPage(it) }
-                    ?: (currentPage as? ViewerTransitionPage)?.let {
-                        getPage(it.prevChapter, it.nextChapter)
-                    }
-
-                currentPage?.let { preloadPages(it) }
             }
 
-            try {
-                pager.state.invalidate()
-            } catch (_: Exception) {
+            if (diff.highest >= SettingsImpact.REDECODE) {
+                applyImageState()
+                synchronized(lock) {
+                    if (isDestroyed) return@listener
+                    decodeQueue.clear()
+                    // Snapshot to avoid ConcurrentModification if cleanup triggers callbacks
+                    val snapshot = pageCache.values.toList()
+                    snapshot.forEach {
+                        it.state = PageState.IDLE
+                        // KMK -->
+                        (it as? ViewerReaderPage)?.let { readerPage ->
+                            try {
+                                readerPage.spreadPage?.cleanup()
+                            } catch (_: Exception) {
+                            }
+                            readerPage.spreadBytes = null
+                            readerPage.rescaleInFlight = false
+                            readerPage.cleanupCompare()
+                        }
+                        // KMK <--
+                        try {
+                            it.imagePage.cleanup()
+                        } catch (_: Exception) {
+                        }
+                    }
+                    pageCache.clear()
+                    loneIndices.clear()
+
+                    currentPage = (currentPage as? ViewerReaderPage)?.page?.let { getPage(it) }
+                        ?: (currentPage as? ViewerTransitionPage)?.let {
+                            getPage(it.prevChapter, it.nextChapter)
+                        }
+
+                    currentPage?.let { preloadPages(it) }
+                }
+
+                try {
+                    pager.state.invalidate()
+                } catch (_: Exception) {
+                }
+            } else {
+                applyImageState()
+                try {
+                    applyPageOffset()
+                } catch (_: Exception) {
+                }
+                try {
+                    pager.state.invalidate()
+                } catch (_: Exception) {
+                }
             }
         }
 
@@ -648,42 +693,7 @@ open class WebGpuViewer(
             activity.binding.navigationOverlay.setNavigation(config.navigator, showOnStart)
         }
 
-        // KMK --> State-only changes (transition, cutout, zoom floors, gap, offset)
-        // apply live: no cache nuke, no black flash.
-        config.imageStateChangedListener = listener@{
-            if (isDestroyed) return@listener
-            applyImageState()
-            try {
-                applyPageOffset()
-            } catch (_: Exception) {
-            }
-            try {
-                pager.state.invalidate()
-            } catch (_: Exception) {
-            }
-        }
-        // KMK <--
-
-        // KMK -->
-        config.doubleTapZoomChangedListener = listener@{
-            if (isDestroyed) return@listener
-            synchronized(lock) {
-                if (isDestroyed) return@listener
-                pageCache.values.toList().forEach { page ->
-                    (page as? ViewerReaderPage)?.let { readerPage ->
-                        (readerPage.imagePage as? ImagePage.ImageSingle)?.let { applyDoubleTapZoomPolicy(it) }
-                        readerPage.spreadPage?.let { spread ->
-                            (spread.left as? ImagePage.ImageSingle)?.let { applyDoubleTapZoomPolicy(it) }
-                            (spread.right as? ImagePage.ImageSingle)?.let { applyDoubleTapZoomPolicy(it) }
-                        }
-                    }
-                }
-            }
-            try {
-                pager.state.invalidate()
-            } catch (_: Exception) {
-            }
-        }
+        pager.state.doubleTapZoomEnabled = config.resolveDoubleTapZoom()
         pager.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> applyPageOffset() }
         scope.launch {
             try {
@@ -836,7 +846,8 @@ open class WebGpuViewer(
      * Applies state-only reader settings (transition, cutout, zoom floors, gap,
      * theme colors) without touching decoded pages. Prefs that change what a decode
      * produces (crop, dual-page geometry, match-heights, theme background baking)
-     * still go through [config.imagePropertyChangedListener], which rebuilds.
+     * still rebuild via [config.onSettingsChanged] when SettingsDiff.highest is
+     * REDECODE or above.
      */
     private fun applyImageState() {
         if (isDestroyed) return
@@ -999,10 +1010,13 @@ open class WebGpuViewer(
             if (isDestroyed) return
             isDestroyed = true
         }
-        config.imagePropertyChangedListener = null
-        config.imageStateChangedListener = null
+        config.onSettingsChanged = null
         config.navigationModeChangedListener = null
-        config.doubleTapZoomChangedListener = null
+        // KMK -->
+        try {
+            pager.state.onReaderStateChanged = null
+        } catch (_: Exception) {}
+        // KMK <--
         try {
             ca.mpreg.webgpuviewer.renderer.WebGpuRenderer.profilingEnabled = false
         } catch (_: Exception) {}
@@ -1113,31 +1127,14 @@ open class WebGpuViewer(
                 if (isContinuous && pendingContinuousRestoreChapterId == cid) return
                 if (!isContinuous && pendingPagedRestoreChapterId == cid) return
                 // KMK <--
-                if (isContinuous) {
-                    try {
-                        val cont = pager as? ca.mpreg.webgpuviewer.ImageViewContinuous
-                        val st = cont?.state
-                        if (st != null) {
-                            val pos = st.savePosition()
-                            val fraction = st.getFractionWithinPage()
-                            positionStore.savePosition(cid, page.page.index, pos.documentY, pos.scale, pos.offsetX, fraction)
-                        } else {
-                            positionStore.save(cid, page.page.index, 0f, 1f)
-                        }
-                    } catch (_: Exception) {
-                        positionStore.save(cid, page.page.index, 0f, 1f)
-                    }
-                } else {
-                    // KMK --> Paged zoom restore parity: persist zoom + pan like
-                    // continuous saveDocument, clamped in the store (v3 record).
-                    val (zoom, offX) = try {
-                        val p = pager.state.getPage(0)
-                        (p?.scale ?: 1f) to (p?.x ?: 0f)
-                    } catch (_: Exception) {
-                        1f to 0f
-                    }
-                    positionStore.savePaged(cid, page.page.index, zoom, offX)
+                pager.state.seedPageIndex(page.page.index)
+                val anchor = try {
+                    pager.state.captureAnchor().copy(pageIndex = page.page.index)
+                } catch (_: Exception) {
+                    PageAnchor(pageIndex = page.page.index)
                 }
+                currentAnchor = anchor
+                positionStore.saveAnchor(cid, anchor)
             }
         } catch (_: Exception) {}
     }

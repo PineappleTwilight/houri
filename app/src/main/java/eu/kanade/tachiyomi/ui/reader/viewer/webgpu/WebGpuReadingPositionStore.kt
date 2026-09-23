@@ -1,6 +1,7 @@
 package eu.kanade.tachiyomi.ui.reader.viewer.webgpu
 
 import android.content.Context
+import ca.mpreg.webgpuviewer.reader.PageAnchor
 
 class WebGpuReadingPositionStore(
     private val context: Context,
@@ -32,71 +33,86 @@ class WebGpuReadingPositionStore(
         return false
     }
 
+    // KMK --> Single writer: every overload maps scalars onto PageAnchor and serializes
+    // the same v3 7-field record so save and loadAnchor stay interchangeable.
     fun save(chapterId: Long, pageIndex: Int, offsetRatio: Float = 0f, zoom: Float = 1f) {
-        // KMK --> Legacy overload: offsetRatio is always the old 0..1 page fraction.
-        // The old ">2f means documentY" heuristic is gone — it misclassified large
-        // fractions/NaN and could never round-trip. Callers needing document scroll
-        // use saveDocument/savePaged/savePosition, which all write v3 explicitly.
-        saveFraction(chapterId, pageIndex, offsetRatio, zoom)
-        // KMK <--
+        writeAnchor(
+            chapterId,
+            PageAnchor(
+                pageIndex = pageIndex.coerceIn(0, PageAnchor.MAX_PAGE_INDEX),
+                fraction = offsetRatio,
+                scale = zoom,
+            ),
+        )
     }
 
-    // KMK --> Explicit fraction saver behind the legacy overload above.
-    private fun saveFraction(chapterId: Long, pageIndex: Int, fraction: Float, zoom: Float) {
-        try {
-            if (!takeSaveSlot(chapterId, System.currentTimeMillis())) return
-            val safeIndex = pageIndex.coerceAtLeast(0).coerceAtMost(9999)
-            val safeFraction = sanitizeFraction(fraction)
-            val safeZoom = sanitizeZoom(zoom)
-            val v = "$CURRENT_VERSION|$safeIndex|0.0|0.0|$safeZoom|$safeFraction|${System.currentTimeMillis()}"
-            prefs.edit().putString(key(chapterId), v).apply()
-            pruneIfNeeded()
-        } catch (_: Exception) {}
-    }
-    // KMK <--
-
-    // KMK --> Paged zoom restore parity with continuous saveDocument: persists the
-    // paged viewer's zoom (+ pan offset) instead of dropping them via the legacy
-    // fraction overload. documentY is unused in paged mode (always 0).
     fun savePaged(chapterId: Long, pageIndex: Int, zoom: Float, offsetX: Float = 0f) {
-        try {
-            if (!takeSaveSlot(chapterId, System.currentTimeMillis())) return
-            val safeIndex = pageIndex.coerceAtLeast(0).coerceAtMost(9999)
-            val safeZoom = sanitizeZoom(zoom)
-            val safeOffsetX = sanitizeOffsetX(offsetX)
-            val v = "$CURRENT_VERSION|$safeIndex|0.0|$safeOffsetX|$safeZoom|0.0|${System.currentTimeMillis()}"
-            prefs.edit().putString(key(chapterId), v).apply()
-            pruneIfNeeded()
-        } catch (_: Exception) {}
+        writeAnchor(
+            chapterId,
+            PageAnchor(
+                pageIndex = pageIndex.coerceIn(0, PageAnchor.MAX_PAGE_INDEX),
+                offsetX = offsetX,
+                scale = zoom,
+            ),
+        )
     }
-    // KMK <--
 
     fun saveDocument(chapterId: Long, pageIndex: Int, documentY: Float, zoom: Float, offsetX: Float) {
-        try {
-            if (!takeSaveSlot(chapterId, System.currentTimeMillis())) return
-            val safeIndex = pageIndex.coerceAtLeast(0).coerceAtMost(9999)
-            val safeDocY = sanitizeDocumentY(documentY)
-            val safeZoom = sanitizeZoom(zoom)
-            val safeOffsetX = sanitizeOffsetX(offsetX)
-            val v = "$CURRENT_VERSION|$safeIndex|$safeDocY|$safeOffsetX|$safeZoom|${System.currentTimeMillis()}"
-            prefs.edit().putString(key(chapterId), v).apply()
-            pruneIfNeeded()
-        } catch (_: Exception) {}
+        writeAnchor(
+            chapterId,
+            PageAnchor(
+                pageIndex = pageIndex.coerceIn(0, PageAnchor.MAX_PAGE_INDEX),
+                documentY = documentY,
+                offsetX = offsetX,
+                scale = zoom,
+            ),
+        )
     }
 
-    fun savePosition(chapterId: Long, pageIndex: Int, documentY: Float, scale: Float, offsetX: Float, fraction: Float) {
+    fun savePosition(
+        chapterId: Long,
+        pageIndex: Int,
+        documentY: Float,
+        scale: Float,
+        offsetX: Float,
+        fraction: Float,
+    ) {
+        writeAnchor(
+            chapterId,
+            PageAnchor(
+                pageIndex = pageIndex.coerceIn(0, PageAnchor.MAX_PAGE_INDEX),
+                documentY = documentY,
+                offsetX = offsetX,
+                scale = scale,
+                fraction = fraction,
+            ),
+        )
+    }
+
+    fun saveAnchor(chapterId: Long, anchor: PageAnchor) {
+        writeAnchor(chapterId, anchor)
+    }
+
+    fun loadAnchor(chapterId: Long): PageAnchor? = load(chapterId)?.toAnchor()
+
+    private fun writeAnchor(chapterId: Long, anchor: PageAnchor) {
         try {
             if (!takeSaveSlot(chapterId, System.currentTimeMillis())) return
-            val safeIndex = pageIndex.coerceAtLeast(0).coerceAtMost(9999)
-            val safeDocY = sanitizeDocumentY(documentY)
-            val safeScale = sanitizeZoom(scale)
-            val safeOffsetX = sanitizeOffsetX(offsetX)
-            val safeFraction = sanitizeFraction(fraction)
-            val v = "$CURRENT_VERSION|$safeIndex|$safeDocY|$safeOffsetX|$safeScale|$safeFraction|${System.currentTimeMillis()}"
-            prefs.edit().putString(key(chapterId), v).apply()
+            val a = anchor.sanitized()
+            val fields = listOf(
+                CURRENT_VERSION,
+                a.pageIndex.toString(),
+                a.documentY.toString(),
+                a.offsetX.toString(),
+                a.scale.toString(),
+                a.fraction.toString(),
+                System.currentTimeMillis().toString(),
+            )
+            prefs.edit().putString(key(chapterId), fields.joinToString("|")).apply()
             pruneIfNeeded()
         } catch (_: Exception) {}
     }
+    // KMK <--
 
     fun load(chapterId: Long): PositionData? {
         return try {
@@ -240,5 +256,15 @@ class WebGpuReadingPositionStore(
         val isV2: Boolean = false,
     ) {
         val documentY: Float get() = offsetRatio
+
+        // KMK --> Bridge into the library anchor type used by saveAnchor/loadAnchor.
+        fun toAnchor(): PageAnchor = PageAnchor(
+            pageIndex = pageIndex,
+            documentY = documentY,
+            offsetX = offsetX,
+            scale = zoom,
+            fraction = fraction,
+        )
+        // KMK <--
     }
 }

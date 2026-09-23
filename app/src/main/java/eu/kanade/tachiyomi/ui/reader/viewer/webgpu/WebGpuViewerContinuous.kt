@@ -1,13 +1,7 @@
 // Mihon -->
 package eu.kanade.tachiyomi.ui.reader.viewer.webgpu
 
-import android.content.Context
-import android.view.GestureDetector
-import android.view.MotionEvent
-import android.view.View
-import android.widget.FrameLayout
 import ca.mpreg.webgpuviewer.ImageViewContinuous
-import ca.mpreg.webgpuviewer.viewer.ImagePage
 import ca.mpreg.webgpuviewer.viewer.ImageViewerContinuousState
 import eu.kanade.tachiyomi.ui.reader.ReaderActivity
 import eu.kanade.tachiyomi.ui.reader.model.ReaderPage
@@ -39,6 +33,13 @@ class WebGpuViewerContinuous(activity: ReaderActivity, val useGap: Boolean = fal
     private val state get() = (pager as ImageViewContinuous).state
 
     init {
+        // KMK --> Library flag replaces the old DoubleTapZoomGateLayout proxy.
+        // Resolved here (not in the base init) because isContinuous is only
+        // assigned after super construction, and reseeding the diff baseline so
+        // the first emission compares against the continuous-mode profile.
+        state.doubleTapZoomEnabled = config.resolveDoubleTapZoom()
+        config.reseedDiffBaseline()
+        // KMK <--
         // Scrolling clear of a transition page is the only point this mode can call the chapter
         // before it finished - reaching a page's top comes a screen too early. Reported on every
         // change, so scrolling back up over it and down again selects that last page again.
@@ -84,61 +85,5 @@ class WebGpuViewerContinuous(activity: ReaderActivity, val useGap: Boolean = fal
         // land somewhere random. jumpToTop fires no callbacks.
         state.jumpToTop()
     }
-
-    // KMK -->
-    private val touchProxy = DoubleTapZoomGateLayout(activity).apply {
-        addView(
-            pager,
-            FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.MATCH_PARENT,
-                FrameLayout.LayoutParams.MATCH_PARENT,
-            ),
-        )
-        shouldSwallowDoubleTap = { !config.resolveDoubleTapZoom() }
-    }
-
-    override fun getView(): View = touchProxy
-    // KMK <--
 }
-
-// KMK -->
-/**
- * The continuous viewer library implements double-tap zoom internally with no
- * opt-out. When the preference is disabled this proxy consumes the whole second
- * gesture of a detected double-tap; the library then resolves the first tap as a
- * single tap and no zoom happens. Gated on WebGpuConfig.resolveDoubleTapZoom(),
- * the single consumption point shared with the paged policy — a future library
- * flag replaces the proxy body there, this gate stays until then.
- */
-private class DoubleTapZoomGateLayout(context: Context) : FrameLayout(context) {
-
-    var shouldSwallowDoubleTap: () -> Boolean = { false }
-
-    private var swallowing = false
-
-    private val detector = GestureDetector(
-        context,
-        object : GestureDetector.SimpleOnGestureListener() {
-            override fun onDoubleTap(e: MotionEvent): Boolean {
-                if (shouldSwallowDoubleTap()) {
-                    swallowing = true
-                    return true
-                }
-                return false
-            }
-        },
-    )
-
-    override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
-        detector.onTouchEvent(ev)
-        if (swallowing) {
-            if (ev.actionMasked == MotionEvent.ACTION_UP || ev.actionMasked == MotionEvent.ACTION_CANCEL) {
-                swallowing = false
-            }
-            return true
-        }
-        return super.dispatchTouchEvent(ev)
-    }
-}
-// KMK <--
 // Mihon <--

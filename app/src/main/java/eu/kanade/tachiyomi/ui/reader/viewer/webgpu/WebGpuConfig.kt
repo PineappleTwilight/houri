@@ -1,5 +1,8 @@
 package eu.kanade.tachiyomi.ui.reader.viewer.webgpu
 
+import ca.mpreg.webgpuviewer.reader.OnSettingsChanged
+import ca.mpreg.webgpuviewer.reader.SettingsDiff
+import ca.mpreg.webgpuviewer.reader.SettingsProfile
 import eu.kanade.tachiyomi.ui.reader.setting.ReaderPreferences
 import eu.kanade.tachiyomi.ui.reader.viewer.ReaderPageImageView
 import eu.kanade.tachiyomi.ui.reader.viewer.ViewerConfig
@@ -30,12 +33,6 @@ class WebGpuConfig(
 
     var automaticBackground = false
         private set
-
-    var dualPageSplitChangedListener: ((Boolean) -> Unit)? = null
-
-    // KMK --> State-only changes apply live without rebuilding decoded pages.
-    var imageStateChangedListener: (() -> Unit)? = null
-    // KMK <--
 
     var imageScaleType = 1
         private set
@@ -203,22 +200,88 @@ class WebGpuConfig(
     // KMK -->
     /**
      * Single consumption point for the double-tap-zoom preference. Paged honors it
-     * via applyDoubleTapZoomPolicy (WebGpuDecode.kt), continuous via
-     * DoubleTapZoomGateLayout.shouldSwallowDoubleTap (WebGpuViewerContinuous.kt).
-     * Both stay behind this proxy until the viewer library exposes its own flag
-     * (Unit 1) — then that flag replaces the proxy body here, call sites unchanged.
+     * via applyDoubleTapZoomPolicy (WebGpuDecode.kt); both modes read the library
+     * ImageViewerState.doubleTapZoomEnabled flag, which WebGpuViewer /
+     * WebGpuViewerContinuous assign from this resolver.
      */
     fun resolveDoubleTapZoom(): Boolean = doubleTapZoom
-    // KMK <--
 
-    var doubleTapZoomChangedListener: ((Boolean) -> Unit)? = null
+    /**
+     * Single settings channel: every preference registration snapshots a
+     * [SettingsProfile], diffs it against the previous one, and delivers the
+     * [SettingsDiff] here so the viewer applies exactly one impact tier.
+     */
+    var onSettingsChanged: OnSettingsChanged? = null
+
+    private var lastProfile: SettingsProfile? = null
+
+    fun snapshot(): SettingsProfile = SettingsProfile(
+        doubleTapZoom = doubleTapZoom,
+        disableZoomIn = disableZoomIn,
+        zoomOutDisabled = zoomOutDisabled,
+        landscapeZoom = landscapeZoom,
+        imageScaleType = imageScaleType,
+        imageZoomType = imageZoomType.ordinal,
+        imageCropBorders = imageCropBorders,
+        dualPageSplit = dualPageSplit,
+        doublePages = doublePages,
+        autoDoublePages = autoDoublePages,
+        invertDoublePages = invertDoublePages,
+        matchDoublePageHeights = matchDoublePageHeights,
+        shiftDoublePage = shiftDoublePage,
+        theme = theme,
+        transitionAnimation = transitionAnimation.ordinal,
+        transitionAnimationDual = transitionAnimationDual.ordinal,
+        cutoutMode = cutoutMode.ordinal,
+        cutoutModeDual = cutoutModeDual.ordinal,
+        continuousMinWidth = continuousMinWidth,
+        continuousGap = continuousGap,
+        pageOffset = pageOffset,
+        preloadAhead = preloadAhead,
+        preloadBehind = preloadBehind,
+        artCnnUpscaler = artCnnUpscaler,
+        fastRender = fastRender,
+        brightness = brightness,
+        contrast = contrast,
+        hlgEnabled = hlgEnabled,
+        hlgExposure = hlgExposure,
+        lutPreset = lutPreset,
+        lutCustomPath = lutCustomPath,
+        lutIntensity = lutIntensity,
+        webgpuDarkMode = webgpuDarkMode,
+        webgpuDarkModeAmoled = webgpuDarkModeAmoled,
+        darkModeTolerance = darkModeTolerance,
+        darkModeChunkRange = darkModeChunkRange,
+        compareTranslation = compareTranslation,
+        perfHud = perfHud,
+        einkPreset = einkPreset,
+    )
+
+    private fun emitSettingsChange() {
+        val current = snapshot()
+        val previous = lastProfile
+        lastProfile = current
+        if (previous == null) return
+        val diff = current.diff(previous)
+        if (!diff.isEmpty) onSettingsChanged?.invoke(diff)
+    }
+
+    /**
+     * Continuous mode resolves isContinuous only after super construction, so the
+     * baseline captured during base init may reflect the paged double-tap pref;
+     * WebGpuViewerContinuous reseeds once its flag is assigned.
+     */
+    fun reseedDiffBaseline() {
+        lastProfile = snapshot()
+    }
 
     init {
+        emitSettingsChange()
         merge(
             pagedDoubleTapZoomPref.changes(),
             webtoonDoubleTapZoomPref.changes(),
         )
-            .onEach { doubleTapZoomChangedListener?.invoke(it) }
+            .onEach { emitSettingsChange() }
             .launchIn(scope)
     }
     // KMK <--
@@ -234,26 +297,26 @@ class WebGpuConfig(
                     },
                     {
                         try {
-                            imagePropertyChangedListener?.invoke()
+                            emitSettingsChange()
                         } catch (_: Exception) {}
                     },
                 )
         } catch (_: Exception) {}
 
         readerPreferences.imageScaleType()
-            .register({ imageScaleType = it }, { imagePropertyChangedListener?.invoke() })
+            .register({ imageScaleType = it }, { emitSettingsChange() })
 
         readerPreferences.zoomStart()
-            .register({ zoomTypeFromPreference(it) }, { imagePropertyChangedListener?.invoke() })
+            .register({ zoomTypeFromPreference(it) }, { emitSettingsChange() })
 
         readerPreferences.cropBorders()
-            .register({ imageCropBorders = it }, { imagePropertyChangedListener?.invoke() })
+            .register({ imageCropBorders = it }, { emitSettingsChange() })
 
         readerPreferences.navigateToPan()
             .register({ navigateToPan = it })
 
         readerPreferences.landscapeZoom()
-            .register({ landscapeZoom = it }, { imagePropertyChangedListener?.invoke() })
+            .register({ landscapeZoom = it }, { emitSettingsChange() })
 
         readerPreferences.navigationModePager()
             .register({ navigationMode = it }, { updateNavigation(navigationMode) })
@@ -268,34 +331,31 @@ class WebGpuConfig(
         readerPreferences.dualPageSplitPaged()
             .register(
                 { dualPageSplit = it },
-                {
-                    imagePropertyChangedListener?.invoke()
-                    dualPageSplitChangedListener?.invoke(it)
-                },
+                { emitSettingsChange() },
             )
 
         readerPreferences.transitionAnimation()
             .register(
                 { transitionAnimation = it },
-                { imageStateChangedListener?.invoke() },
+                { emitSettingsChange() },
             )
 
         readerPreferences.transitionAnimationDual()
             .register(
                 { transitionAnimationDual = it },
-                { imageStateChangedListener?.invoke() },
+                { emitSettingsChange() },
             )
 
         readerPreferences.cutoutMode()
             .register(
                 { cutoutMode = it },
-                { imageStateChangedListener?.invoke() },
+                { emitSettingsChange() },
             )
 
         readerPreferences.cutoutModeDual()
             .register(
                 { cutoutModeDual = it },
-                { imageStateChangedListener?.invoke() },
+                { emitSettingsChange() },
             )
 
         // KMK -->
@@ -312,31 +372,31 @@ class WebGpuConfig(
                     if (!autoDoublePages) {
                         doublePages = it == PagerConfig.PageLayout.DOUBLE_PAGES && dualPageSplit == false
                     }
-                    imagePropertyChangedListener?.invoke()
+                    emitSettingsChange()
                 },
             )
 
         readerPreferences.invertDoublePages()
-            .register({ invertDoublePages = it }, { imagePropertyChangedListener?.invoke() })
+            .register({ invertDoublePages = it }, { emitSettingsChange() })
         // KMK <--
 
         readerPreferences.continuousMinWidth()
             .register(
                 { continuousMinWidth = it },
-                { imageStateChangedListener?.invoke() },
+                { emitSettingsChange() },
             )
 
         readerPreferences.webtoonDisableZoomOut()
             .register(
                 { zoomOutDisabled = it },
-                { imageStateChangedListener?.invoke() },
+                { emitSettingsChange() },
             )
 
         // KMK -->
         readerPreferences.pagedDisableZoomIn()
             .register(
                 { disableZoomIn = it },
-                { doubleTapZoomChangedListener?.invoke(it) },
+                { emitSettingsChange() },
             )
         // KMK <--
 
@@ -344,21 +404,21 @@ class WebGpuConfig(
         readerPreferences.continuousGap()
             .register(
                 { continuousGap = it },
-                { imageStateChangedListener?.invoke() },
+                { emitSettingsChange() },
             )
         // KMK <--
 
         readerPreferences.webgpuPageOffset()
             .register(
                 { pageOffset = it },
-                { imageStateChangedListener?.invoke() },
+                { emitSettingsChange() },
             )
 
         // KMK -->
         readerPreferences.dualPageMatchHeights()
             .register(
                 { matchDoublePageHeights = it },
-                { imagePropertyChangedListener?.invoke() },
+                { emitSettingsChange() },
             )
         // KMK <--
 
@@ -366,25 +426,25 @@ class WebGpuConfig(
         readerPreferences.webgpuDarkMode()
             .register(
                 { webgpuDarkMode = it },
-                { imageStateChangedListener?.invoke() },
+                { emitSettingsChange() },
             )
 
         readerPreferences.webgpuDarkModeAmoled()
             .register(
                 { webgpuDarkModeAmoled = it },
-                { imageStateChangedListener?.invoke() },
+                { emitSettingsChange() },
             )
 
         readerPreferences.webgpuDarkModeTolerance()
             .register(
                 { darkModeTolerance = it / 100f },
-                { imageStateChangedListener?.invoke() },
+                { emitSettingsChange() },
             )
 
         readerPreferences.webgpuDarkModeChunkRange()
             .register(
                 { darkModeChunkRange = it / 100f },
-                { imageStateChangedListener?.invoke() },
+                { emitSettingsChange() },
             )
         // KMK <--
 
@@ -392,85 +452,85 @@ class WebGpuConfig(
         readerPreferences.webgpuArtCnnUpscaler()
             .register(
                 { artCnnUpscaler = it },
-                { imageStateChangedListener?.invoke() },
+                { emitSettingsChange() },
             )
 
         readerPreferences.webgpuFastRender()
             .register(
                 { fastRender = it },
-                { imageStateChangedListener?.invoke() },
+                { emitSettingsChange() },
             )
 
         readerPreferences.webgpuPreloadAhead()
             .register(
                 { preloadAhead = it },
-                { imageStateChangedListener?.invoke() },
+                { emitSettingsChange() },
             )
 
         readerPreferences.webgpuPreloadBehind()
             .register(
                 { preloadBehind = it },
-                { imageStateChangedListener?.invoke() },
+                { emitSettingsChange() },
             )
 
         readerPreferences.webgpuBrightness()
             .register(
                 { brightness = it / 100f },
-                { imageStateChangedListener?.invoke() },
+                { emitSettingsChange() },
             )
 
         readerPreferences.webgpuContrast()
             .register(
                 { contrast = it / 100f },
-                { imageStateChangedListener?.invoke() },
+                { emitSettingsChange() },
             )
 
         readerPreferences.webgpuHlg()
             .register(
                 { hlgEnabled = it },
-                { imageStateChangedListener?.invoke() },
+                { emitSettingsChange() },
             )
 
         readerPreferences.webgpuHlgExposure()
             .register(
                 { hlgExposure = it / 100f },
-                { imageStateChangedListener?.invoke() },
+                { emitSettingsChange() },
             )
 
         readerPreferences.webgpuLutPreset()
             .register(
                 { lutPreset = it },
-                { imageStateChangedListener?.invoke() },
+                { emitSettingsChange() },
             )
 
         readerPreferences.webgpuLutCustomPath()
             .register(
                 { lutCustomPath = it },
-                { imageStateChangedListener?.invoke() },
+                { emitSettingsChange() },
             )
 
         readerPreferences.webgpuLutIntensity()
             .register(
                 { lutIntensity = it / 100f },
-                { imageStateChangedListener?.invoke() },
+                { emitSettingsChange() },
             )
 
         readerPreferences.webgpuCompareTranslation()
             .register(
                 { compareTranslation = it },
-                { imageStateChangedListener?.invoke() },
+                { emitSettingsChange() },
             )
 
         readerPreferences.webgpuPerfHud()
             .register(
                 { perfHud = it },
-                { imageStateChangedListener?.invoke() },
+                { emitSettingsChange() },
             )
 
         readerPreferences.webgpuEinkPreset()
             .register(
                 { einkPreset = it },
-                { imageStateChangedListener?.invoke() },
+                { emitSettingsChange() },
             )
         // KMK <--
     }
