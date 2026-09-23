@@ -151,11 +151,11 @@ open class WebGpuViewer(
             if (isDestroyed) return@DeviceLostListener
             scope.launch {
                 try {
-                    val recovered =
-                        ca.mpreg.webgpuviewer.renderer.WebGpuRenderer.reinit()
+                    val recovered = pager.state.recoverFromDeviceLoss()
                     if (!recovered) {
-                        logcat(LogPriority.ERROR) { "WebGPU device lost and reinit failed" }
+                        logcat(LogPriority.ERROR) { "WebGPU device lost and recovery failed" }
                     }
+                    resetDecodedPagesAfterDeviceLoss()
                     try {
                         pager.state.invalidate()
                     } catch (_: Exception) {
@@ -164,6 +164,46 @@ open class WebGpuViewer(
                 }
             }
         }
+
+    private fun resetDecodedPagesAfterDeviceLoss() {
+        try {
+            ProgressPage.destroyPineappleTexture()
+        } catch (_: Exception) {
+        }
+        synchronized(lock) {
+            if (isDestroyed) return
+            decodeQueue.clear()
+            val snapshot = pageCache.values.toList()
+            snapshot.forEach {
+                it.state = PageState.IDLE
+                (it as? ViewerReaderPage)?.let { readerPage ->
+                    try {
+                        resetSpreadHeightRetry(readerPage)
+                    } catch (_: Exception) {
+                    }
+                    try {
+                        readerPage.spreadPage?.cleanup()
+                    } catch (_: Exception) {
+                    }
+                    readerPage.spreadBytes = null
+                    readerPage.rescaleInFlight = false
+                    readerPage.cleanupCompare()
+                }
+                try {
+                    it.imagePage.cleanup()
+                } catch (_: Exception) {
+                }
+            }
+            pageCache.clear()
+            loneIndices.clear()
+            val previous = currentPage
+            currentPage = (previous as? ViewerReaderPage)?.page?.let { getPage(it, previous) }
+                ?: (previous as? ViewerTransitionPage)?.let {
+                    getPage(it.prevChapter, it.nextChapter, previous)
+                }
+            currentPage?.let { preloadPages(it) }
+        }
+    }
 
     // KMK -->
     /** Resolved once: decodeReaderPage runs per page on the decode thread. */
@@ -694,7 +734,10 @@ open class WebGpuViewer(
         }
 
         pager.state.doubleTapZoomEnabled = config.resolveDoubleTapZoom()
-        pager.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> applyPageOffset() }
+        pager.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
+            applyPageOffset()
+            syncPerfHud()
+        }
         scope.launch {
             try {
                 readerPreferences.webgpuPageOffset().changes().collect { applyPageOffset() }
@@ -798,6 +841,7 @@ open class WebGpuViewer(
             }
             return
         }
+        val parent = pager.parent as? ViewGroup ?: return
         val hud = try {
             perfHudView ?: TextView(pager.context).apply {
                 setBackgroundColor(0x99000000.toInt())
@@ -807,18 +851,25 @@ open class WebGpuViewer(
                 setPadding(12, 8, 12, 8)
                 visibility = View.GONE
                 perfHudView = this
-                (pager.parent as? ViewGroup)?.addView(
-                    this,
+            }
+        } catch (_: Exception) {
+            null
+        } ?: return
+        if (hud.parent !== parent) {
+            try {
+                (hud.parent as? ViewGroup)?.removeView(hud)
+                parent.addView(
+                    hud,
                     FrameLayout.LayoutParams(
                         ViewGroup.LayoutParams.WRAP_CONTENT,
                         ViewGroup.LayoutParams.WRAP_CONTENT,
                         android.view.Gravity.TOP or android.view.Gravity.START,
                     ),
                 )
+            } catch (_: Exception) {
+                return
             }
-        } catch (_: Exception) {
-            null
-        } ?: return
+        }
         try {
             hud.visibility = View.VISIBLE
             hud.bringToFront()
@@ -1004,7 +1055,7 @@ open class WebGpuViewer(
 
     override fun destroy() {
         try {
-            (currentPage as? ViewerReaderPage)?.let { reportPageSelected(it) }
+            (currentPage as? ViewerReaderPage)?.let { reportPageSelected(it, force = true) }
         } catch (_: Exception) {}
         synchronized(lock) {
             if (isDestroyed) return
@@ -1061,7 +1112,7 @@ open class WebGpuViewer(
                 it.state = PageState.IDLE
                 (it as? ViewerReaderPage)?.let { readerPage ->
                     try {
-                        cancelSpreadHeightRetry(readerPage)
+                        resetSpreadHeightRetry(readerPage)
                     } catch (_: Exception) {
                     }
                     try {
@@ -1116,7 +1167,7 @@ open class WebGpuViewer(
      * Reports the active [page] to the activity. When the page forms a spread in dual-page mode,
      * marks it as having an extra page so the counter shows "N-N+1" instead of just "N".
      */
-    private fun reportPageSelected(page: ViewerReaderPage) {
+    private fun reportPageSelected(page: ViewerReaderPage, force: Boolean = false) {
         val hasExtraPage = isDualPageMode() && canFormSpread(page)
         activity.onPageSelected(page.page, hasExtraPage)
         try {
@@ -1134,7 +1185,7 @@ open class WebGpuViewer(
                     PageAnchor(pageIndex = page.page.index)
                 }
                 currentAnchor = anchor
-                positionStore.saveAnchor(cid, anchor)
+                positionStore.saveAnchor(cid, anchor, force = force)
             }
         } catch (_: Exception) {}
     }
