@@ -177,6 +177,10 @@ class LlamaCppLlmBackend private constructor(
     /** Strips chat-template/special-token residue the model may echo back around its answer. */
     private fun cleanInstructArtifacts(raw: String): String {
         var s = raw
+        // Qwen3 may emit a completed reasoning block before the translation. Remove only
+        // closed blocks so an interrupted generation is still surfaced as an error/partial result.
+        s = s.replace(Regex("(?is)<think>.*?</think>"), "")
+        s = s.replace("<|im_end|>", "")
         // Trailing/leading template markers from gemma/llama chat formats.
         s = s.replace(Regex("(?i)(\\[end_of_turn\\]|<end_of_turn>|</s>|<\\|eot_id\\|>|<start_of_turn>model\\s*|assistant\\s*:?\\s*|<\\|start_header_id\\|>assistant<\\|end_header_id\\|>\\s*)"), "")
         // Image-token residue from vision models.

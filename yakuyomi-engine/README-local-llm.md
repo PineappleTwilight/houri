@@ -24,6 +24,8 @@ Entries are GGUF files on HuggingFace (imatrix K-quants like Q5_K_M preferred). 
 | Gemma 4 E4B IT | `unsloth/gemma-4-E4B-it-GGUF` → `gemma-4-E4B-it-Q5_K_M.gguf` | ~3.1 GB | best |
 | Gemma 4 E4B IT (QAT) | `google/gemma-4-E4B-it-qat-q4_0-gguf` → `gemma-4-E4B_q4_0-it.gguf` | ~2.8 GB | high |
 | TranslateGemma 4B (TL finetune) | `Qwe1325/translategemma-4b-it-GGUF` → `translategemma-4b-it-q5_k_m.gguf` | ~3.0 GB | best |
+| Qwen3 4B (text-only) | `unsloth/Qwen3-4B-GGUF` → `Qwen3-4B-Q5_K_M.gguf` | ~2.9 GB | high |
+| Qwen3 1.7B (text-only) | `unsloth/Qwen3-1.7B-GGUF` → `Qwen3-1.7B-Q5_K_M.gguf` | ~1.3 GB | good |
 | Gemma 4 E2B IT | `unsloth/gemma-4-E2B-it-GGUF` → `gemma-4-E2B-it-Q5_K_M.gguf` | ~1.8 GB | good |
 | Gemma 4 E2B IT (QAT) | `google/gemma-4-E2B-it-qat-q4_0-gguf` → `gemma-4-E2B_q4_0-it.gguf` | ~1.6 GB | good |
 | Llama 3.2 1B Instruct | `unsloth/Llama-3.2-1B-Instruct-GGUF` → `Llama-3.2-1B-Instruct-Q5_K_M.gguf` | ~0.9 GB | basic |
@@ -31,7 +33,8 @@ Entries are GGUF files on HuggingFace (imatrix K-quants like Q5_K_M preferred). 
 Only the RAM gate is enforced (a model is hidden when it exceeds the device's total RAM); the
 best-fit model is presented as a default but never forced. Users can load their own GGUF via
 Settings → Translation → Local → *Load custom GGUF…* — the file is copied into app storage and
-used verbatim (no API key, no upload).
+used verbatim (no API key, no upload). The Qwen3 presets are text-only and do not download a
+vision projector; closed reasoning blocks are removed from their generated output.
 
 ## Adding a new model
 
