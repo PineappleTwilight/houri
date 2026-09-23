@@ -15,12 +15,11 @@ class WebGpuReadingPositionStore(
     private var lastSavedChapterId = -1L
 
     // Tracks entry count without deserializing the whole file per save. -1 means
-    // unknown (read once, then maintained locally). Overwrites may overcount by one,
-    // which only prunes slightly early — never late, never skipped.
+    // unknown (read once, then maintained locally).
     private var entryCount = -1
 
-    private fun takeSaveSlot(chapterId: Long, now: Long): Boolean {
-        if (chapterId != lastSavedChapterId) {
+    private fun takeSaveSlot(chapterId: Long, now: Long, force: Boolean): Boolean {
+        if (force || chapterId != lastSavedChapterId) {
             lastSavedChapterId = chapterId
             lastSaveAtMs = now
             return true
@@ -89,15 +88,18 @@ class WebGpuReadingPositionStore(
         )
     }
 
-    fun saveAnchor(chapterId: Long, anchor: PageAnchor) {
-        writeAnchor(chapterId, anchor)
+    fun saveAnchor(chapterId: Long, anchor: PageAnchor, force: Boolean = false) {
+        writeAnchor(chapterId, anchor, force)
     }
 
     fun loadAnchor(chapterId: Long): PageAnchor? = load(chapterId)?.toAnchor()
 
-    private fun writeAnchor(chapterId: Long, anchor: PageAnchor) {
+    private fun writeAnchor(chapterId: Long, anchor: PageAnchor, force: Boolean = false) {
         try {
-            if (!takeSaveSlot(chapterId, System.currentTimeMillis())) return
+            val now = System.currentTimeMillis()
+            if (!takeSaveSlot(chapterId, now, force)) return
+            val storageKey = key(chapterId)
+            val isNewEntry = !prefs.contains(storageKey)
             val a = anchor.sanitized()
             val fields = listOf(
                 CURRENT_VERSION,
@@ -106,10 +108,10 @@ class WebGpuReadingPositionStore(
                 a.offsetX.toString(),
                 a.scale.toString(),
                 a.fraction.toString(),
-                System.currentTimeMillis().toString(),
+                now.toString(),
             )
-            prefs.edit().putString(key(chapterId), fields.joinToString("|")).apply()
-            pruneIfNeeded()
+            prefs.edit().putString(storageKey, fields.joinToString("|")).apply()
+            pruneIfNeeded(isNewEntry)
         } catch (_: Exception) {}
     }
     // KMK <--
@@ -126,16 +128,17 @@ class WebGpuReadingPositionStore(
     fun clear(chapterId: Long) {
         try {
             if (chapterId == lastSavedChapterId) lastSavedChapterId = -1L
-            if (entryCount > 0) entryCount--
-            prefs.edit().remove(key(chapterId)).apply()
+            val storageKey = key(chapterId)
+            if (prefs.contains(storageKey) && entryCount > 0) entryCount--
+            prefs.edit().remove(storageKey).apply()
         } catch (_: Exception) {}
     }
 
-    private fun pruneIfNeeded() {
+    private fun pruneIfNeeded(isNewEntry: Boolean) {
         try {
             if (entryCount < 0) {
                 entryCount = prefs.all.size
-            } else {
+            } else if (isNewEntry) {
                 entryCount++
             }
             if (entryCount > MAX_ENTRIES) {
