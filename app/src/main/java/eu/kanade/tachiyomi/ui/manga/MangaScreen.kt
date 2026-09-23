@@ -505,6 +505,12 @@ class MangaScreen(
             onStartRereadingClick = screenModel::showStartRereadDialog.takeIf { successState.manga.favorite },
             onStopRereadingClick = screenModel::showStopRereadDialog.takeIf { successState.manga.favorite },
             hazeState = hazeState,
+            // KMK --> Integrated metadata translation actions come from the model-owned controller.
+            onMangaInfoEnabledChange = screenModel::setMangaInfoEnabled,
+            onMangaInfoShowTranslatedChange = screenModel::setMangaInfoShowTranslated,
+            onMangaInfoRefresh = screenModel::refreshMangaInfo,
+            onMangaInfoRetry = screenModel::retryMangaInfo,
+            onMangaInfoReset = screenModel::resetMangaInfo,
             // KMK <--
         )
 
