@@ -161,7 +161,28 @@ class TranslationManager(
         title: String,
         description: String?,
         sourceLangHint: String = "JA",
+        sourceId: Long? = null,
     ): MangaInfoTranslation? = null
+
+    // KMK --> Metadata-translation parity surface: always hidden/unavailable in no-MTL
+    // builds, but the signatures mirror the engine so app code compiles for both flavors.
+    suspend fun shouldTranslateMangaInfo(): Boolean = false
+
+    fun mangaInfoProviderState(): MangaInfoProviderState = MangaInfoProviderState.NOT_CONFIGURED
+
+    fun mangaInfoIdentity(): MangaInfoIdentity = MangaInfoIdentity(
+        provider = prefs.provider().get().lowercase(),
+        model = prefs.effectiveModel(),
+    )
+
+    fun getValidCachedMangaInfo(
+        mangaId: Long,
+        sourceId: Long?,
+        title: String,
+        description: String?,
+        sourceLangHint: String = "JA",
+    ): MangaInfoTranslation? = null
+    // KMK <--
 
     fun bitmapToWebP(bitmap: Bitmap): ByteArray {
         val out = ByteArrayOutputStream()

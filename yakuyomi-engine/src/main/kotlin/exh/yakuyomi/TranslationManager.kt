@@ -168,33 +168,40 @@ class TranslationManager(
     fun clearAll() = clearAllChapters()
 
     /**
-     * Translates a manga's metadata (title + optional description) with the active provider
-     * (on-device local LLM, or the configured cloud model). Results are cached on disk via
-     * [MangaInfoTranslationStore]. Returns null when the feature is gated, the manga is not
-     * opted in, or the provider returned nothing usable.
+     * Translates a manga's metadata (title + optional description) with the active text
+     * provider (on-device local LLM, or the configured cloud model). Independent of the
+     * per-manga page-translation toggle: only the global MTL switch and the
+     * incognito/censor gates apply. Results are cached on disk via
+     * [MangaInfoTranslationStore] keyed by the full request identity. Returns null when
+     * the feature is gated, no text provider is ready, or the provider returned nothing
+     * usable.
      */
     suspend fun translateMangaInfo(
         mangaId: Long,
         title: String,
         description: String?,
         sourceLangHint: String = "JA",
+        sourceId: Long? = null,
     ): MangaInfoTranslation? {
-        if (!shouldTranslateForManga(mangaId)) return null
+        if (!shouldTranslateMangaInfo()) return null
+        if (mangaInfoProviderState() != MangaInfoProviderState.READY) return null
+        val sourceLang = resolveMangaInfoSourceLang(sourceLangHint)
         val targetLang = prefs.targetLang().get().ifBlank { "en" }
+        val identity = mangaInfoIdentity()
         val lines = listOfNotNull(title.ifBlank { null }, description?.ifBlank { null })
         if (lines.isEmpty()) return null
         val glossary = prefs.glossaryMap()
         val translated = try {
             if (localLlm.isLocalProvider()) {
-                val isEnFix = sourceLangHint.equals("EN", true) && targetLang.equals("EN", true)
-                val prompt = buildTranslationPrompt(lines, sourceLangHint, targetLang, "", isEnFix, "", glossary)
+                val isEnFix = sourceLang.equals("EN", true) && targetLang.equals("EN", true)
+                val prompt = buildTranslationPrompt(lines, sourceLang, targetLang, "", isEnFix, "", glossary)
                 val result = localLlm.generate(prompt) ?: return null
                 parseTranslationLines(result) ?: return null
             } else {
                 if (prefs.effectiveApiKey().isBlank()) return null
                 YakuyomiTranslator(
                     apiKey = prefs.effectiveApiKey(),
-                    sourceLang = sourceLangHint,
+                    sourceLang = sourceLang,
                     targetLang = targetLang,
                     breadcrumb = "",
                     provider = prefs.provider().get().lowercase(),
@@ -211,13 +218,77 @@ class TranslationManager(
             xLogE("translateMangaInfo failed", e)
             null
         } ?: return null
-        val aligned = alignTranslationLines(translated, lines)
-        val newTitle = aligned.getOrNull(0)?.trim()?.takeIf { it.isNotBlank() } ?: title
-        val newDescription = aligned.getOrNull(1)?.trim()?.takeIf { it.isNotBlank() }
-        val result = MangaInfoTranslation(title = newTitle, description = newDescription)
+        // KMK --> Strict per-field mapping: missing/blank output for any requested field is
+        // an error (never padded with source text, never falling back to the original).
+        val (newTitle, newDescription) = mapMangaInfoTranslation(title, description, translated) ?: return null
+        // KMK --> Stamp the full request identity so stale entries never display as current.
+        val result = MangaInfoTranslation(
+            title = newTitle,
+            description = newDescription,
+            sourceFingerprint = buildMangaInfoFingerprint(sourceId, title, description, sourceLang),
+            targetLanguage = targetLang,
+            provider = identity.provider,
+            model = identity.model,
+        )
+        // KMK <--
         infoStore.put(mangaId, result)
         return result
     }
+
+    // KMK --> Independent metadata-translation eligibility (spec 2026-09-23): the global
+    // MTL switch plus incognito/censor gates apply, but the per-manga page-translation
+    // toggle is deliberately not consulted. Page-translation gates are untouched.
+    suspend fun shouldTranslateMangaInfo(): Boolean = shouldTranslate()
+
+    /**
+     * Whether a text provider is ready for metadata translation. MangaTranslator is an
+     * image service and is reported as unsupported; local LLM and cloud text providers
+     * follow the same readiness rules as the page pipeline.
+     */
+    fun mangaInfoProviderState(): MangaInfoProviderState {
+        if (prefs.mangaTranslatorEnabled().get() || prefs.provider().get().equals("mangatranslator", ignoreCase = true)) {
+            return MangaInfoProviderState.MANGA_TRANSLATOR_UNSUPPORTED
+        }
+        if (localLlm.isLocalProvider()) return MangaInfoProviderState.READY
+        return if (prefs.effectiveApiKey().isNotBlank()) {
+            MangaInfoProviderState.READY
+        } else {
+            MangaInfoProviderState.NOT_CONFIGURED
+        }
+    }
+
+    /** Provider/model identity stamped on metadata cache entries. Mirrors the page pipeline. */
+    fun mangaInfoIdentity(): MangaInfoIdentity {
+        return if (localLlm.isLocalProvider()) {
+            MangaInfoIdentity(provider = "local", model = "local:${localLlm.resolveModel()?.id ?: "auto"}")
+        } else {
+            MangaInfoIdentity(provider = prefs.provider().get().lowercase(), model = prefs.effectiveModel())
+        }
+    }
+
+    /**
+     * Validated metadata cache read: returns the entry only when its fingerprint,
+     * target language, provider, and model all match the current request.
+     */
+    fun getValidCachedMangaInfo(
+        mangaId: Long,
+        sourceId: Long?,
+        title: String,
+        description: String?,
+        sourceLangHint: String = "JA",
+    ): MangaInfoTranslation? {
+        val sourceLang = resolveMangaInfoSourceLang(sourceLangHint)
+        val targetLang = prefs.targetLang().get().ifBlank { "en" }
+        val identity = mangaInfoIdentity()
+        return infoStore.getValidated(
+            mangaId,
+            buildMangaInfoFingerprint(sourceId, title, description, sourceLang),
+            targetLang,
+            identity.provider,
+            identity.model,
+        )
+    }
+    // KMK <--
 
     /** Declares the page count up front so chapter-list progress is accurate while translating. */
     fun setChapterTotalPages(mangaId: Long, chapterId: Long, totalPages: Int) =

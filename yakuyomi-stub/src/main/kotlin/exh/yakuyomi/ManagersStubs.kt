@@ -137,11 +137,62 @@ class LocalLlmManager {
 }
 
 /** Stub of [MangaInfoTranslation] — same shape as the real one. */
+// KMK --> Mirrors the engine identity fields so the app compiles for both flavors.
 @Serializable
 data class MangaInfoTranslation(
     val title: String,
     val description: String? = null,
+    val sourceFingerprint: String = "",
+    val targetLanguage: String = "",
+    val provider: String = "",
+    val model: String = "",
+) {
+    fun isValidFor(
+        sourceFingerprint: String,
+        targetLanguage: String,
+        provider: String,
+        model: String,
+    ): Boolean {
+        if (this.sourceFingerprint.isBlank() || this.targetLanguage.isBlank()) return false
+        if (this.provider.isBlank() || this.model.isBlank()) return false
+        return this.sourceFingerprint == sourceFingerprint &&
+            this.targetLanguage == targetLanguage &&
+            this.provider == provider &&
+            this.model == model
+    }
+}
+
+const val MANGA_INFO_DEFAULT_SOURCE_LANG = "JA"
+
+enum class MangaInfoProviderState {
+    READY,
+    MANGA_TRANSLATOR_UNSUPPORTED,
+    NOT_CONFIGURED,
+}
+
+@Serializable
+data class MangaInfoIdentity(
+    val provider: String = "",
+    val model: String = "",
 )
+
+fun resolveMangaInfoSourceLang(declaredLang: String?): String {
+    val clean = declaredLang?.trim()?.take(20)?.takeIf { it.isNotBlank() } ?: return MANGA_INFO_DEFAULT_SOURCE_LANG
+    return clean.uppercase()
+}
+
+fun buildMangaInfoFingerprint(
+    sourceId: Long?,
+    title: String,
+    description: String?,
+    sourceLang: String,
+): String {
+    fun norm(s: String): String = s.replace(Regex("\\s+"), " ").trim()
+    val raw = "${sourceId ?: -1}|${norm(title)}|${norm(description ?: "")}|${norm(sourceLang).uppercase()}"
+    val md = java.security.MessageDigest.getInstance("SHA-256")
+    return md.digest(raw.toByteArray(Charsets.UTF_8)).joinToString("") { "%02x".format(it) }
+}
+// KMK <--
 
 /** No-op stub of [MangaInfoTranslationStore] for the no-MTL APK variant. */
 @SingleIn(AppScope::class)
@@ -150,6 +201,17 @@ class MangaInfoTranslationStore(
     @Suppress("unused") private val context: Context,
 ) {
     fun get(mangaId: Long): MangaInfoTranslation? = null
+
+    // KMK --> Signature parity with the engine store; always stale in no-MTL builds.
+    fun getValidated(
+        mangaId: Long,
+        sourceFingerprint: String,
+        targetLanguage: String,
+        provider: String,
+        model: String,
+    ): MangaInfoTranslation? = null
+    // KMK <--
+
     fun put(mangaId: Long, translation: MangaInfoTranslation) = Unit
     fun clear(mangaId: Long) = Unit
 }
