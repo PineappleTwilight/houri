@@ -49,6 +49,7 @@ import eu.kanade.domain.ui.UiPreferences
 import eu.kanade.presentation.manga.DownloadAction
 import eu.kanade.presentation.manga.components.ChapterDownloadAction
 import eu.kanade.presentation.util.formattedMessage
+import eu.kanade.tachiyomi.data.cache.CoverCache
 import eu.kanade.tachiyomi.data.coil.getBestColor
 import eu.kanade.tachiyomi.data.download.DownloadCache
 import eu.kanade.tachiyomi.data.download.DownloadManager
@@ -248,6 +249,7 @@ class MangaScreenModel(
     private val insertLibraryUpdateErrors: InsertLibraryUpdateErrors = globalAppGraph.insertLibraryUpdateErrors,
     private val insertLibraryUpdateErrorMessages: InsertLibraryUpdateErrorMessages = globalAppGraph.insertLibraryUpdateErrorMessages,
     private val deleteChaptersFromDb: DeleteChapters = globalAppGraph.deleteChapters,
+    private val coverCache: CoverCache = globalAppGraph.coverCache,
     // KMK <--
 ) : StateScreenModel<MangaScreenModel.State>(State.Loading) {
 
@@ -549,7 +551,7 @@ class MangaScreenModel(
     /**
      * Get the color of the manga cover by loading cover with ImageRequest directly from network.
      */
-    fun setPaletteColor(model: Any) {
+    fun setPaletteColor(model: Any, isRetry: Boolean = false) {
         if (model is ImageRequest && model.defined.sizeResolver != null) return
 
         val imageRequestBuilder = if (model is ImageRequest) {
@@ -605,12 +607,30 @@ class MangaScreenModel(
                 .target(
                     onSuccess = generatePalette,
                     onError = {
-                        // TODO: handle error
-                        // val file = coverCache.getCoverFile(manga!!)
-                        // if (file.exists()) {
-                        //     file.delete()
-                        //     setPaletteColor()
-                        // }
+                        // KMK --> A failed cover load is usually a stale/corrupt
+                        // CoverCache entry: delete it and retry once from the network
+                        // so the palette can still be derived (single-retry guard).
+                        val thumbnailUrl = when (model) {
+                            is Manga -> model.thumbnailUrl
+                            is MangaCover -> model.url
+                            is String -> model
+                            is ImageRequest -> when (val data = model.data) {
+                                is Manga -> data.thumbnailUrl
+                                is MangaCover -> data.url
+                                is String -> data
+                                else -> null
+                            }
+                            else -> null
+                        }
+                        val cachedFile = thumbnailUrl?.let(coverCache::getCoverFile)
+                        when {
+                            !isRetry && cachedFile != null && cachedFile.exists() && cachedFile.delete() -> {
+                                setPaletteColor(model, isRetry = true)
+                            }
+                            isRetry -> logcat(LogPriority.ERROR) { "Cover palette retry failed: $thumbnailUrl" }
+                            else -> logcat(LogPriority.ERROR) { "Cover palette load failed: $thumbnailUrl" }
+                        }
+                        // KMK <--
                     },
                 )
                 .build(),

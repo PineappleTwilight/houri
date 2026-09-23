@@ -134,6 +134,9 @@ abstract class SearchScreenModel(
 
     fun setSourceFilter(filter: SourceFilter) {
         preferences.globalSearchPinnedState().set(filter)
+        // Sync state before search(): the pref flow in init updates sourceFilter
+        // asynchronously, so search() would read the stale filter and early-return.
+        mutableState.update { it.copy(sourceFilter = filter) }
         search()
     }
 

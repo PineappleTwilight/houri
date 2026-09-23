@@ -46,7 +46,15 @@ import tachiyomi.domain.source.service.SourceManager
 import tachiyomi.i18n.sy.SYMR
 import kotlin.time.Duration.Companion.seconds
 
-// TODO only apply database changes after sync
+// KMK --> Ordering guarantees (replaces "TODO only apply database changes after sync"):
+// 1. Outbound push (applyChangeSetToRemote) runs BEFORE any local DB write, so a hard
+//    network failure aborts with both sides still untouched.
+// 2. Local removals are resolved read-only first, then written (no read/write interleaving).
+// 3. Category writes for inserted manga flush per chunk, so a mid-sync failure cannot
+//    strand galleries that were already inserted.
+// The last-synced snapshot only advances when errorList is empty (see beginSync), so any
+// failure above is retried idempotently on the next sync.
+// KMK <--
 class FavoritesSyncHelper(val context: Context) {
     private val getLibraryManga: GetLibraryManga by lazy { globalAppGraph.getLibraryManga }
     private val getCategories: GetCategories by lazy { globalAppGraph.getCategories }
@@ -146,15 +154,20 @@ class FavoritesSyncHelper(val context: Context) {
                 storage.getChangedDbEntries()
             }
 
-            // Apply remote categories
-            status.value = FavoritesSyncStatus.Processing.SyncingCategoryNames
-            applyRemoteCategories(favorites.second)
-
-            // Apply change sets
-            applyChangeSetToLocal(errorList, remoteChanges)
+            // KMK --> Push local changes first: a hard outbound failure then aborts
+            // before any local DB write happens (snapshot gate below still applies).
             if (localChanges != null) {
                 applyChangeSetToRemote(errorList, localChanges)
             }
+            // KMK <--
+
+            // Apply remote categories (must run before applyChangeSetToLocal: it maps
+            // remote category indexes onto the freshly created/renamed local ids)
+            status.value = FavoritesSyncStatus.Processing.SyncingCategoryNames
+            applyRemoteCategories(favorites.second)
+
+            // Apply inbound change set to the local DB
+            applyChangeSetToLocal(errorList, remoteChanges)
 
             status.value = FavoritesSyncStatus.Processing.CleaningUp
             // Only advance the last-synced snapshot when nothing failed: change sets are
@@ -325,6 +338,8 @@ class FavoritesSyncHelper(val context: Context) {
         errorList: MutableList<FavoritesSyncStatus.SyncError.GallerySyncError>,
         changeSet: ChangeSet,
     ) {
+        // KMK --> Resolve every removed entry read-only first, then apply the writes:
+        // a failure mid-way can no longer leave favorites removed with categories intact.
         val removedManga = mutableListOf<Manga>()
 
         changeSet.removed.forEachIndexed { index, it ->
@@ -337,21 +352,25 @@ class FavoritesSyncHelper(val context: Context) {
             listOf(
                 EXH_SOURCE_ID,
                 EH_SOURCE_ID,
-            ).forEach {
-                val manga = getManga.await(url, it)
+            ).forEach { sourceId ->
+                val manga = getManga.await(url, sourceId)
 
                 if (manga?.favorite == true) {
-                    updateManga.awaitUpdateFavorite(manga.id, false)
                     removedManga += manga
                 }
             }
         }
 
         removedManga.forEach { manga ->
-            setMangaCategories.await(manga.id, emptyList())
+            updateManga.awaitUpdateFavorite(manga.id, false)
         }
 
-        val insertedMangaCategories = mutableListOf<Pair<Long, Manga>>()
+        removedManga.forEach { manga ->
+            setMangaCategories.await(manga.id, emptyList())
+        }
+        // KMK <--
+
+        var insertedCount = 0
         val categories = getCategories.await()
             .filterNot(Category::isSystemCategory)
 
@@ -360,7 +379,7 @@ class FavoritesSyncHelper(val context: Context) {
         val addedEntries = changeSet.added.toList()
         addedEntries.chunked(throttleManager.concurrency).forEach { chunk ->
             status.value = FavoritesSyncStatus.Processing.AddingGalleryToLocal(
-                index = insertedMangaCategories.size + 1,
+                index = insertedCount + 1,
                 total = changeSet.added.size,
                 isThrottling = needWarnThrottle(),
                 title = chunk.first().title,
@@ -381,6 +400,12 @@ class FavoritesSyncHelper(val context: Context) {
                 },
             )
 
+            // KMK --> Collect this chunk's outcomes, flush category assignments for its
+            // successes, and only then surface a hard error — a non-lenient failure can no
+            // longer strand galleries that were already inserted without their category.
+            val chunkSuccesses = mutableListOf<Pair<Long, Manga>>()
+            var hardError: FavoritesSyncStatus.SyncError.GallerySyncError? = null
+
             for ((result, entry) in results) {
                 if (result is GalleryAddEvent.Fail) {
                     if (result is GalleryAddEvent.Fail.NotFound) {
@@ -397,17 +422,24 @@ class FavoritesSyncHelper(val context: Context) {
                     if (exhPreferences.exhLenientSync().get()) {
                         errorList += error
                     } else {
-                        status.value = error
-                        throw IgnoredException(error)
+                        hardError = error
+                        break
                     }
                 } else if (result is GalleryAddEvent.Success) {
-                    insertedMangaCategories += categories[entry.category].id to result.manga
+                    chunkSuccesses += categories[entry.category].id to result.manga
                 }
             }
-        }
 
-        insertedMangaCategories.forEach { (category, manga) ->
-            setMangaCategories.await(manga.id, listOf(category))
+            chunkSuccesses.forEach { (category, manga) ->
+                setMangaCategories.await(manga.id, listOf(category))
+                insertedCount++
+            }
+
+            if (hardError != null) {
+                status.value = hardError
+                throw IgnoredException(hardError)
+            }
+            // KMK <--
         }
     }
 

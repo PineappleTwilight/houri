@@ -40,7 +40,11 @@ interface Tracker {
 
     fun getScoreList(): ImmutableList<String>
 
-    // TODO: Store all scores as 10 point in the future maybe?
+    /**
+     * Score normalized to a 0..10 scale, used for display and cross-tracker averages.
+     * Services that store scores on another scale (e.g. 0..100) must override this to
+     * convert; the default assumes a native 0..10 score.
+     */
     fun get10PointScore(track: DomainTrack): Double
 
     fun indexToScore(index: Int): Double

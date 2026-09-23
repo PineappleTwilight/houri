@@ -264,7 +264,6 @@ fun MangaActionRow(
     // KMK <--
     val defaultActionButtonColor = MaterialTheme.colorScheme.onSurface.copy(alpha = DISABLED_ALPHA)
 
-    // TODO: show something better when using custom interval
     val nextUpdateDays = remember(nextUpdate, selectedInterval, notSkipCompleted) {
         return@remember if (nextUpdate != null &&
             // KMK -->
@@ -300,12 +299,20 @@ fun MangaActionRow(
                 0 -> stringResource(MR.strings.manga_interval_expected_update_soon)
                 // KMK -->
                 FetchInterval.MANUAL_DISABLE -> stringResource(MR.strings.disabled)
+                // Custom cadence: surface the user-set frequency instead of its countdown
+                else -> if (isUserIntervalMode && selectedInterval in 1..FetchInterval.MAX_INTERVAL) {
+                    stringResource(
+                        KMR.strings.manga_interval_every,
+                        pluralStringResource(MR.plurals.day, count = selectedInterval, selectedInterval),
+                    )
+                } else {
+                    pluralStringResource(
+                        MR.plurals.day,
+                        count = nextUpdateDays,
+                        nextUpdateDays,
+                    )
+                }
                 // KMK <--
-                else -> pluralStringResource(
-                    MR.plurals.day,
-                    count = nextUpdateDays,
-                    nextUpdateDays,
-                )
             },
             icon = Icons.Default.HourglassEmpty
                 // KMK -->

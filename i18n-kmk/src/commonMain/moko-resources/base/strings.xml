@@ -348,6 +348,7 @@
     <string name="stopped_rereading">Stopped rereading</string>
     <string name="rereading_label">Rereading</string>
     <string name="manga_reread_count_button">Reread ×%1$d</string>
+    <string name="manga_interval_every">Every %1$s</string>
     <string name="track_normalized_score_summary">≈ %1$.1f/10 across %2$d trackers</string>
     <string name="track_remove_all_trackers">Remove all tracking</string>
     <string name="track_unsynced_hint">● marks a tracker behind the furthest-read chapter count</string>

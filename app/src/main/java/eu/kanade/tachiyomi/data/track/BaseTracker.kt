@@ -45,10 +45,12 @@ abstract class BaseTracker(
 
     override val supportsPrivateTracking: Boolean = false
 
-    // TODO: Store all scores as 10 point in the future maybe?
+    // KMK --> clamp to 0..10 so a bad remote value cannot skew cross-tracker
+    // averages (get10PointScore is documented as a 0..10 normalization).
     override fun get10PointScore(track: DomainTrack): Double {
-        return track.score
+        return track.score.coerceIn(0.0, 10.0)
     }
+    // KMK <--
 
     override fun indexToScore(index: Int): Double {
         return index.toDouble()

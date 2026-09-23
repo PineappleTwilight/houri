@@ -3,7 +3,10 @@ package eu.kanade.presentation.browse.components
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Checklist
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -21,6 +24,7 @@ import eu.kanade.tachiyomi.ui.category.CategoryScreen
 import eu.kanade.tachiyomi.ui.manga.MangaScreen
 import mihon.feature.migration.dialog.MigrateMangaDialog
 import tachiyomi.domain.manga.model.Manga
+import tachiyomi.i18n.MR
 import tachiyomi.i18n.kmk.KMR
 import tachiyomi.presentation.core.i18n.stringResource
 
@@ -90,6 +94,13 @@ fun Screen.BulkFavoriteDialogs(
                 stopRunning = bulkFavoriteScreenModel::stopRunning,
                 toggleSelection = bulkFavoriteScreenModel::toggleSelection,
                 addFavorite = bulkFavoriteScreenModel::addFavorite,
+            )
+
+        is Dialog.DeleteDownloads ->
+            DeleteDownloadsDialog(
+                dialog = dialog,
+                onDismiss = bulkFavoriteScreenModel::dismissDialog,
+                deleteDownloads = bulkFavoriteScreenModel::deleteDownloads,
             )
 
         else -> {}
@@ -164,6 +175,38 @@ private fun RemoveMangaDialog(
         onDismissRequest = onDismiss,
         onConfirm = { changeMangaFavorite(dialog.manga) },
         mangaToRemove = dialog.manga,
+    )
+}
+
+@Composable
+private fun DeleteDownloadsDialog(
+    dialog: Dialog.DeleteDownloads,
+    onDismiss: () -> Unit,
+    deleteDownloads: (Manga) -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(text = stringResource(MR.strings.action_cancel))
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    onDismiss()
+                    deleteDownloads(dialog.manga)
+                },
+            ) {
+                Text(text = stringResource(MR.strings.action_delete))
+            }
+        },
+        title = {
+            Text(text = stringResource(MR.strings.are_you_sure))
+        },
+        text = {
+            Text(text = stringResource(MR.strings.delete_downloads_for_manga))
+        },
     )
 }
 

@@ -15,6 +15,7 @@ import eu.kanade.presentation.category.components.withAncestorChain
 import eu.kanade.presentation.components.BulkSelectionToolbar
 import eu.kanade.presentation.manga.DuplicateMangaDialog
 import eu.kanade.tachiyomi.data.cache.CoverCache
+import eu.kanade.tachiyomi.data.download.DownloadManager
 import eu.kanade.tachiyomi.source.Source
 import eu.kanade.tachiyomi.util.removeCovers
 import kotlinx.collections.immutable.ImmutableList
@@ -56,6 +57,7 @@ class BulkFavoriteScreenModel(
     private val setMangaCategories: SetMangaCategories = globalAppGraph.setMangaCategories,
     private val updateManga: UpdateManga = globalAppGraph.updateManga,
     private val coverCache: CoverCache = globalAppGraph.coverCache,
+    private val downloadManager: DownloadManager = globalAppGraph.downloadManager,
     private val setMangaDefaultChapterFlags: SetMangaDefaultChapterFlags = globalAppGraph.setMangaDefaultChapterFlags,
     private val addTracks: AddTracks = globalAppGraph.addTracks,
     private val updateMangaFromRemote: UpdateMangaFromRemote = globalAppGraph.updateMangaFromRemote,
@@ -311,9 +313,10 @@ class BulkFavoriteScreenModel(
     }
 
     /**
-     * Get user categories.
+     * Flips the favorite state of [manga].
      *
-     * @return List of categories, not including the default category
+     * On unfavorite, removes the cover and offers to delete downloaded chapters; on favorite,
+     * applies default chapter flags and binds trackers.
      */
     internal fun changeMangaFavorite(manga: Manga) {
         val source = sourceManager.getOrStub(manga.source)
@@ -326,7 +329,6 @@ class BulkFavoriteScreenModel(
                     false -> Instant.now().toEpochMilli()
                 },
             )
-            // TODO: also allow deleting chapters when remove favorite (just like in [MangaScreenModel])
             if (!new.favorite) {
                 new = new.removeCovers(coverCache)
             } else {
@@ -335,6 +337,13 @@ class BulkFavoriteScreenModel(
             }
 
             updateManga.await(new.toMangaUpdate())
+            // KMK -->
+            // Mirror [MangaScreenModel.toggleFavorite]: once the library removal is persisted, offer
+            // to delete this manga's downloaded chapters when any exist.
+            if (!new.favorite && downloadManager.getDownloadCount(new) > 0) {
+                setDialog(Dialog.DeleteDownloads(new))
+            }
+            // KMK <--
             val fetchMetadataOnAdd = libraryPreferences.fetchMetadataOnAdd().get()
             val fetchChaptersOnAdd = libraryPreferences.fetchChaptersOnAdd().get()
             if (new.favorite && (fetchMetadataOnAdd || fetchChaptersOnAdd)) {
@@ -352,6 +361,13 @@ class BulkFavoriteScreenModel(
             }
         }
     }
+
+    // KMK -->
+    internal fun deleteDownloads(manga: Manga) {
+        val source = sourceManager.getOrStub(manga.source)
+        downloadManager.deleteManga(manga, source)
+    }
+    // KMK <--
 
     internal fun addFavorite(manga: Manga) {
         screenModelScope.launch {
@@ -439,6 +455,9 @@ class BulkFavoriteScreenModel(
         data class AddDuplicateManga(val manga: Manga, val duplicates: List<MangaWithChapterCount>) : Dialog
         data class BulkAllowDuplicate(val manga: Manga, val duplicates: List<MangaWithChapterCount>, val currentIdx: Int) : Dialog
         data class RemoveManga(val manga: Manga) : Dialog
+        // KMK -->
+        data class DeleteDownloads(val manga: Manga) : Dialog
+        // KMK <--
         data class ChangeMangasCategory(
             val mangas: List<Manga>,
             val initialSelection: ImmutableList<CheckboxState<Category>>,

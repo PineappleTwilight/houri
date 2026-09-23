@@ -550,7 +550,8 @@ object SettingsAdvancedScreen : SearchableSettings {
                     preference = extensionInstallerPref,
                     entries = extensionInstallerPref.entries
                         .filter {
-                            // TODO: allow private option in stable versions once URL handling is more fleshed out
+                            // The PRIVATE installer stays hidden on release builds: extension
+                            // APK URL handling is not validated enough for stable users yet.
                             if (isReleaseBuildType) {
                                 it != BasePreferences.ExtensionInstaller.PRIVATE
                             } else {
