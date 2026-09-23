@@ -35,6 +35,7 @@ internal fun WebGpuViewer.scheduleTranslation(page: ViewerReaderPage, sourceByte
 
     val chapterId = page.page.chapter.chapter.id ?: 0L
     val pageIndex = page.page.index
+    val requestId = synchronized(lock) { ++page.translationGeneration }
 
     // Declare the chapter's page count so chapter-list/overlay progress is accurate.
     mgr.setChapterTotalPages(mangaId, chapterId, page.page.chapter.pages?.size ?: 0)
@@ -66,6 +67,10 @@ internal fun WebGpuViewer.scheduleTranslation(page: ViewerReaderPage, sourceByte
                     )
                     val translatedPage = ImagePage.ImageSingle(translatedImage)
                     synchronized(lock) {
+                        if (page.translationGeneration != requestId) {
+                            translatedPage.cleanup()
+                            return@launch
+                        }
                         val current = page.imagePage
                         if (pageInCache(page) && current is ImagePage.ImageSingle && !current.destroyed) {
                             if (!page.hasTranslation) {

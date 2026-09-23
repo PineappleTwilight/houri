@@ -299,7 +299,7 @@ internal fun WebGpuViewer.evictFarthestPage(reference: ViewerPage? = null) {
     (toRemove as? ViewerReaderPage)?.let {
         // An evicted anchor is terminal for its height-match: drop any coalesced retry
         // with it so a dead spread can never spin. Fresh bytes on re-decode re-arm.
-        cancelSpreadHeightRetry(it)
+        resetSpreadHeightRetry(it)
         synchronized(pageExifOrientations) { pageExifOrientations.remove(it) }
         it.spreadPage?.cleanup()
         it.spreadBytes = null

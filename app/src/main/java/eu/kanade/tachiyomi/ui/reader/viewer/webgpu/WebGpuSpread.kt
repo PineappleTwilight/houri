@@ -265,6 +265,10 @@ internal fun WebGpuViewer.retrySpreadHeightMatchSoon(
 
 internal fun WebGpuViewer.cancelSpreadHeightRetry(page: ViewerReaderPage) {
     synchronized(spreadHeightRetries) { spreadHeightRetries.remove(page)?.cancel() }
+}
+
+internal fun WebGpuViewer.resetSpreadHeightRetry(page: ViewerReaderPage) {
+    cancelSpreadHeightRetry(page)
     synchronized(spreadHeightAttempts) { spreadHeightAttempts.remove(page) }
 }
 
@@ -283,12 +287,15 @@ internal fun WebGpuViewer.maybeScheduleSpreadHeightMatch(
     nextReaderPage: ViewerReaderPage?,
 ) {
     if (isDestroyed) return
-    if (!config.matchDoublePageHeights) return
+    if (!config.matchDoublePageHeights) {
+        resetSpreadHeightRetry(anchorPage)
+        return
+    }
 
     val leftSide = spread.left
     val rightSide = spread.right
     if (leftSide is ImagePage.Render || rightSide is ImagePage.Render) {
-        cancelSpreadHeightRetry(anchorPage)
+        resetSpreadHeightRetry(anchorPage)
         return
     }
     val leftImage = (leftSide as? ImagePage.ImageSingle)?.image
@@ -299,10 +306,11 @@ internal fun WebGpuViewer.maybeScheduleSpreadHeightMatch(
     }
     // Zero-guard: destroyed/placeholder dims are a hard noop, never a retry or divide-by-zero.
     if (leftImage.width <= 0 || leftImage.height <= 0 || rightImage.width <= 0 || rightImage.height <= 0) {
+        resetSpreadHeightRetry(anchorPage)
         return
     }
     if (leftImage.height == rightImage.height) {
-        cancelSpreadHeightRetry(anchorPage)
+        resetSpreadHeightRetry(anchorPage)
         return
     }
     if (!isSpreadSideViable(leftImage.width, leftImage.height) ||
@@ -317,7 +325,10 @@ internal fun WebGpuViewer.maybeScheduleSpreadHeightMatch(
         leftImage.height,
         rightImage.width,
         rightImage.height,
-    ) ?: return
+    ) ?: run {
+        resetSpreadHeightRetry(anchorPage)
+        return
+    }
 
     val shorterPage: ViewerReaderPage? = when {
         plan.shorterIsLeft && anchorPage.spreadPosition == SpreadPosition.LEFT -> anchorPage
@@ -356,9 +367,11 @@ internal fun WebGpuViewer.scheduleSpreadHeightMatch(sourcePage: ViewerReaderPage
 
     scope.launch(decodeDispatcher) {
         var scaledImage: Image? = null
+        var translationSource: ByteArray? = null
         try {
             val bytes = synchronized(lock) { sourcePage.spreadBytes }
             if (bytes != null) {
+                translationSource = bytes
                 scaledImage = rescaleImageToHeight(bytes, safeTarget)
             }
         } catch (e: CancellationException) {
@@ -384,6 +397,7 @@ internal fun WebGpuViewer.scheduleSpreadHeightMatch(sourcePage: ViewerReaderPage
                 }
                 applyDoubleTapZoomPolicy(scaledSingle)
                 val oldImagePage = sourcePage.imagePage
+                sourcePage.cleanupCompare()
                 sourcePage.imagePage = scaledSingle
                 sourcePage.spreadBytes = null
                 oldImagePage.cleanup()
@@ -395,9 +409,12 @@ internal fun WebGpuViewer.scheduleSpreadHeightMatch(sourcePage: ViewerReaderPage
         }
         // Terminal state reached either way: drop any coalesced retry for this side. The
         // anchor-keyed retry, if any, self-terminates on equal heights at the next pass.
-        cancelSpreadHeightRetry(sourcePage)
+        resetSpreadHeightRetry(sourcePage)
 
-        if (swapped) pager.state.invalidate()
+        if (swapped) {
+            pager.state.invalidate()
+            translationSource?.let { scheduleTranslation(sourcePage, it) }
+        }
     }
 }
 

@@ -213,7 +213,11 @@ class ViewerReaderPage(
     @Volatile
     var hasTranslation: Boolean = false
 
+    @Volatile
+    var translationGeneration: Long = 0L
+
     fun cleanupCompare() {
+        translationGeneration++
         try {
             compareTranslated?.let { if (it !== imagePage) it.cleanup() }
         } catch (_: Exception) {
