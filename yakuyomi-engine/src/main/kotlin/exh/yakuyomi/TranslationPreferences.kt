@@ -188,7 +188,39 @@ class TranslationPreferences(
 
     fun preserveSfx() = preferenceStore.getBoolean("pref_yakuyomi_preserve_sfx", true)
 
+    fun sfxPolicy() = preferenceStore.getString(
+        "pref_yakuyomi_sfx_policy",
+        if (preserveSfx().get()) "preserve" else "translate",
+    )
+
     fun translationFormality() = preferenceStore.getString("pref_yakuyomi_formality", "auto")
+
+    fun customTranslationInstructions() = preferenceStore.getString("pref_yakuyomi_custom_instructions", "")
+
+    fun promptFewShotSource() = preferenceStore.getString("pref_yakuyomi_prompt_fewshot_source", "")
+
+    fun promptFewShotTarget() = preferenceStore.getString("pref_yakuyomi_prompt_fewshot_target", "")
+
+    fun promptPolicy() = TranslationPromptPolicy(
+        customInstructions = customTranslationInstructions().get(),
+        formality = translationFormality().get(),
+        sfxPolicy = sfxPolicy().get(),
+        glossary = glossaryMap(),
+        fewShotSource = promptFewShotSource().get(),
+        fewShotTarget = promptFewShotTarget().get(),
+    )
+
+    fun promptFingerprint(): String = promptPolicy().fingerprint()
+
+    fun resetPromptPolicy() {
+        customTranslationInstructions().set("")
+        promptFewShotSource().set("")
+        promptFewShotTarget().set("")
+        glossaryJson().set("")
+        sfxPolicy().set("preserve")
+        preserveSfx().set(true)
+        translationFormality().set("auto")
+    }
 
     // --- Engine tuning (advanced): defaults mirror external/yakuyomi-engine Config.kt so wrapper uses library defaults unless user overrides ---
     fun detectorInputSize() = preferenceStore.getInt("pref_yakuyomi_detector_input_size", 1024)

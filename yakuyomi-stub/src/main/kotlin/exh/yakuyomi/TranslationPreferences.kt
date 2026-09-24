@@ -99,7 +99,23 @@ class TranslationPreferences(
 
     fun glossaryJson() = preferenceStore.getString("pref_yakuyomi_glossary_json", "")
     fun preserveSfx() = preferenceStore.getBoolean("pref_yakuyomi_preserve_sfx", true)
+    fun sfxPolicy() = preferenceStore.getString("pref_yakuyomi_sfx_policy", "preserve")
     fun translationFormality() = preferenceStore.getString("pref_yakuyomi_formality", "auto")
+    fun customTranslationInstructions() = preferenceStore.getString("pref_yakuyomi_custom_instructions", "")
+    fun promptFewShotSource() = preferenceStore.getString("pref_yakuyomi_prompt_fewshot_source", "")
+    fun promptFewShotTarget() = preferenceStore.getString("pref_yakuyomi_prompt_fewshot_target", "")
+
+    fun promptFingerprint(): String = "nomlt"
+
+    fun resetPromptPolicy() {
+        customTranslationInstructions().set("")
+        promptFewShotSource().set("")
+        promptFewShotTarget().set("")
+        glossaryJson().set("")
+        sfxPolicy().set("preserve")
+        preserveSfx().set(true)
+        translationFormality().set("auto")
+    }
     fun detectorInputSize() = preferenceStore.getInt("pref_yakuyomi_detector_input_size", 1024)
     fun detectorBoxThreshold() = preferenceStore.getFloat("pref_yakuyomi_detector_box_thresh", 0.7f)
     fun detectorSegThreshold() = preferenceStore.getFloat("pref_yakuyomi_detector_seg_thresh", 0.12f)
