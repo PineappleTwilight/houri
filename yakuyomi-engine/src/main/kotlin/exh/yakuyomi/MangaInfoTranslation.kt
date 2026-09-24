@@ -11,9 +11,10 @@ const val MANGA_INFO_DEFAULT_SOURCE_LANG = "JA"
 /**
  * Cached on-device translation of a manga's metadata (title + description).
  *
- * The four validation fields ([sourceFingerprint], [targetLanguage], [provider], [model])
- * default to blank so legacy JSON (title + description only) still decodes — but such
- * entries never validate and are replaced on the next request. No migration is required.
+ * The validation fields ([sourceFingerprint], [targetLanguage], [provider], [model],
+ * [promptFingerprint]) default to blank so legacy JSON (title + description only)
+ * still decodes — but such entries never validate and are replaced on the next request.
+ * No migration is required.
  */
 @Serializable
 data class MangaInfoTranslation(
@@ -23,9 +24,10 @@ data class MangaInfoTranslation(
     val targetLanguage: String = "",
     val provider: String = "",
     val model: String = "",
+    val promptFingerprint: String = "",
 ) {
     /**
-     * True only when all four identity fields are non-blank and match the current request.
+     * True only when all five identity fields are non-blank and match the current request.
      * A stale entry must never be displayed as current.
      */
     fun isValidFor(
@@ -33,9 +35,12 @@ data class MangaInfoTranslation(
         targetLanguage: String,
         provider: String,
         model: String,
+        promptFingerprint: String = "",
     ): Boolean {
         if (this.sourceFingerprint.isBlank() || this.targetLanguage.isBlank()) return false
         if (this.provider.isBlank() || this.model.isBlank()) return false
+        if (promptFingerprint.isNotBlank() && this.promptFingerprint != promptFingerprint) return false
+        if (promptFingerprint.isBlank() && this.promptFingerprint.isNotBlank()) return false
         return this.sourceFingerprint == sourceFingerprint &&
             this.targetLanguage == targetLanguage &&
             this.provider == provider &&
@@ -115,6 +120,6 @@ fun buildMangaInfoFingerprint(
     fun norm(s: String): String = s.replace(Regex("\\s+"), " ").trim()
     val raw = "${sourceId ?: -1}|${norm(title)}|${norm(description ?: "")}|${norm(sourceLang).uppercase()}"
     val md = MessageDigest.getInstance("SHA-256")
-    return md.digest(raw.toByteArray(Charsets.UTF_8)).joinToString("") { "%02x".format(it) }
+    return md.digest(raw.toByteArray(Charsets.UTF_8)).joinToString("") { "%02x".format(it.toInt() and 0xff) }
 }
 // KMK <--

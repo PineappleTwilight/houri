@@ -53,6 +53,14 @@ class MangaInfoTranslationCacheTest {
     }
 
     @Test
+    fun `prompt fingerprint is part of metadata identity`() {
+        val entry = fullEntry().copy(promptFingerprint = "prompt-v1")
+
+        entry.isValidFor(entry.sourceFingerprint, "en", "openrouter", entry.model, "prompt-v1") shouldBe true
+        entry.isValidFor(entry.sourceFingerprint, "en", "openrouter", entry.model, "prompt-v2") shouldBe false
+    }
+
+    @Test
     fun `blank identity fields never validate`() {
         val entry = MangaInfoTranslation(title = "T")
 

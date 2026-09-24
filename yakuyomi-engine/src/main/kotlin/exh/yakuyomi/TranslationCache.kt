@@ -17,37 +17,52 @@ class TranslationCache(
         private const val MAX_CACHE_BYTES = 64L * 1024 * 1024
         private const val MAX_FILE_AGE_DAYS = 14L
         private const val MAX_FILE_SIZE = 5L * 1024 * 1024
+        private val PAGE_HASH_REGEX = Regex("[0-9a-f]{64}")
     }
 
     private fun cacheDir(): File = File(context.cacheDir, "yakuyomi").apply { mkdirs() }
 
-    fun key(pageHash: String, targetLang: String, model: String): String {
-        val raw = "$pageHash|$targetLang|$model"
+    fun key(pageHash: String, targetLang: String, model: String, promptFingerprint: String = ""): String {
+        val raw = listOf(pageHash, targetLang, model, promptFingerprint).joinToString("|")
         val md = MessageDigest.getInstance("SHA-256")
-        return md.digest(raw.toByteArray()).joinToString("") { "%02x".format(it) } + ".webp"
+        return md.digest(raw.toByteArray(Charsets.UTF_8)).joinToString("") { "%02x".format(it) } + ".webp"
     }
 
     fun pageHash(bytes: ByteArray): String {
         val md = MessageDigest.getInstance("SHA-256")
-        // Use full 64-char hex; truncated 16-char had collision risk for 32MB cache
         return md.digest(bytes).joinToString("") { "%02x".format(it) }
     }
 
-    fun getFile(pageHash: String, targetLang: String, model: String): File =
-        File(cacheDir(), key(pageHash, targetLang, model))
+    fun getFile(
+        pageHash: String,
+        targetLang: String,
+        model: String,
+        promptFingerprint: String = "",
+    ): File = File(cacheDir(), key(pageHash, targetLang, model, promptFingerprint))
 
-    fun getIfExists(pageHash: String, targetLang: String, model: String): File? {
-        if (pageHash.length != 64 || !pageHash.matches(Regex("[0-9a-f]{64}"))) return null
-        val f = getFile(pageHash, targetLang, model)
+    fun getIfExists(
+        pageHash: String,
+        targetLang: String,
+        model: String,
+        promptFingerprint: String = "",
+    ): File? {
+        if (!PAGE_HASH_REGEX.matches(pageHash)) return null
+        val f = getFile(pageHash, targetLang, model, promptFingerprint)
         return f.takeIf { it.exists() && it.length() in 1..MAX_FILE_SIZE }
     }
 
     @Synchronized
-    fun put(pageHash: String, targetLang: String, model: String, webpBytes: ByteArray): File {
-        require(pageHash.matches(Regex("[0-9a-f]{64}"))) { "invalid pageHash" }
+    fun put(
+        pageHash: String,
+        targetLang: String,
+        model: String,
+        webpBytes: ByteArray,
+        promptFingerprint: String = "",
+    ): File {
+        require(PAGE_HASH_REGEX.matches(pageHash)) { "invalid pageHash" }
         require(webpBytes.size in 1..MAX_FILE_SIZE.toInt()) { "invalid webpBytes size ${webpBytes.size}" }
         require(targetLang.isNotBlank() && targetLang.length <= 10) { "invalid targetLang" }
-        val f = getFile(pageHash, targetLang, model)
+        val f = getFile(pageHash, targetLang, model, promptFingerprint)
         f.parentFile?.mkdirs()
         val tmp = File(f.parentFile, f.name + ".tmp")
         try {
@@ -71,8 +86,6 @@ class TranslationCache(
     fun hashBytes(bytes: ByteArray): String = pageHash(bytes)
 
     fun clearForManga(mangaId: Long) {
-        // Per-manga cache is pageHash-based, not mangaId-based; this is best-effort
-        // for future use if naming ever includes mangaId. Currently no-op.
         xLogD("TranslationCache clearForManga $mangaId: pageHash cache is global, skipping")
     }
 

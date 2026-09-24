@@ -35,8 +35,11 @@ class MangaInfoTranslationStore(
         targetLanguage: String,
         provider: String,
         model: String,
+        promptFingerprint: String = "",
     ): MangaInfoTranslation? {
-        return get(mangaId)?.takeIf { it.isValidFor(sourceFingerprint, targetLanguage, provider, model) }
+        return get(mangaId)?.takeIf {
+            it.isValidFor(sourceFingerprint, targetLanguage, provider, model, promptFingerprint)
+        }
     }
     // KMK <--
 
