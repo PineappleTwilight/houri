@@ -94,6 +94,9 @@ object SettingsUpscalerScreen : SearchableSettings {
         }
         val modelManager = remember { globalAppGraph.upscaleModelManager }
         val modelStatus by modelManager.status.flowCollectAsState()
+        val modelTotalMb = remember(modelManager) {
+            (modelManager.totalBytes() / (1024L * 1024L)).coerceAtLeast(1L)
+        }
 
         val items = buildList {
             add(
@@ -242,7 +245,7 @@ object SettingsUpscalerScreen : SearchableSettings {
                                 }
                                 else -> {
                                     Text(text = "Models not installed — download to enable Native upscaling (Simple works without models)", style = MaterialTheme.typography.bodyMedium)
-                                    Text(text = "~21 MB total (Real-CUGAN + ESRGAN + Waifu2x)", style = MaterialTheme.typography.bodySmall)
+                                    Text(text = "Manifest total: ~$modelTotalMb MB", style = MaterialTheme.typography.bodySmall)
                                 }
                             }
                         }
@@ -302,9 +305,9 @@ object SettingsUpscalerScreen : SearchableSettings {
                 add(
                     Preference.PreferenceItem.InfoPreference(
                         title = if (nativeAvailable) {
-                            "Native mode currently uses high-quality bilinear as placeholder; true NCNN/ONNX inference (Real-CUGAN/ESRGAN) runs when native libs (libncnn/libonnxruntime) are bundled. Cache keys include factor, model, preset and backend."
+                            "Native inference is ready: NCNN CPU/Vulkan and ONNX Runtime NNAPI are probed at runtime. Model and backend identity are included in the upscaler cache key."
                         } else {
-                            "Native libs (libncnn/libonnxruntime) are not bundled on this build, so Native mode falls back to high-quality bilinear until they are. Cache keys include factor, model, preset and backend."
+                            "Native inference is unavailable on this device/build. Simple scaling remains available; use an ARM build with NCNN or a CPU/NPU-capable ONNX Runtime build."
                         },
                     ),
                 )

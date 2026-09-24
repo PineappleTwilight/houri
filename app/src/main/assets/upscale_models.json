@@ -1,0 +1,155 @@
+{
+  "version": 1,
+  "models": [
+    {
+      "id": "realcugan-2x",
+      "family": "REAL_CUGAN",
+      "label": "Real-CUGAN SE 2x",
+      "nativeScale": 2,
+      "tileSize": 128,
+      "padding": 16,
+      "artifacts": [
+        {
+          "format": "NCNN",
+          "role": "param",
+          "name": "realcugan-2x.ncnn.param",
+          "url": "https://raw.githubusercontent.com/HaoweiLi97/mihon_img_upscale/65e3f190058d27c52a148447acfd6b15a2f0f814/app/src/main/assets/realcugan-models/up2x-denoise2x.param",
+          "size": 4761,
+          "sha256": "4b3b5c5710ad1d00503c8243417aa75f13fe497723e8b4952e8b1abfc08f9b84"
+        },
+        {
+          "format": "NCNN",
+          "role": "bin",
+          "name": "realcugan-2x.ncnn.bin",
+          "url": "https://raw.githubusercontent.com/HaoweiLi97/mihon_img_upscale/65e3f190058d27c52a148447acfd6b15a2f0f814/app/src/main/assets/realcugan-models/up2x-denoise2x.bin",
+          "size": 2573648,
+          "sha256": "47427a52badebfbd7bb6db97196a2844c553f7f2bb93c9527b26347bea0430e7"
+        },
+        {
+          "format": "ONNX",
+          "role": "model",
+          "name": "realcugan-2x.onnx",
+          "url": "https://huggingface.co/hugglyberry/upscale-and-refine-models/resolve/4e0cb0e19b6af63f7cc8da1067238e7c3584c198/realcugan-2x-denoise2x.onnx?download=true",
+          "size": 184639,
+          "sha256": "f818db3208fa2577572f57bbfde28d80efcf5feed6f648b9474c09d517ab354a",
+          "inputOrder": 0,
+          "outputOrder": 0
+        },
+        {
+          "format": "ONNX",
+          "role": "data",
+          "name": "realcugan-2x.onnx.data",
+          "url": "https://huggingface.co/hugglyberry/upscale-and-refine-models/resolve/4e0cb0e19b6af63f7cc8da1067238e7c3584c198/realcugan-2x-denoise2x.onnx.data?download=true",
+          "size": 5177344,
+          "sha256": "559670364e0e20e2029b769947d9b65cc35cfef3049ed8947cb9dcad352a0c0f"
+        }
+      ]
+    },
+    {
+      "id": "realesrgan-2x",
+      "family": "REAL_ESRGAN",
+      "label": "Real-ESRGAN Anime 2x",
+      "nativeScale": 2,
+      "tileSize": 128,
+      "padding": 16,
+      "artifacts": [
+        {
+          "format": "NCNN",
+          "role": "param",
+          "name": "realesrgan-2x.ncnn.param",
+          "url": "https://raw.githubusercontent.com/HaoweiLi97/mihon_img_upscale/65e3f190058d27c52a148447acfd6b15a2f0f814/app/src/main/assets/realesrgan-models/v3-anime/x2.param",
+          "size": 3173,
+          "sha256": "b88ff4f00ebf019a7fdac17fdd45a7fd3665d37509efc5baf2e4da2e24420a04"
+        },
+        {
+          "format": "NCNN",
+          "role": "bin",
+          "name": "realesrgan-2x.ncnn.bin",
+          "url": "https://raw.githubusercontent.com/HaoweiLi97/mihon_img_upscale/65e3f190058d27c52a148447acfd6b15a2f0f814/app/src/main/assets/realesrgan-models/v3-anime/x2.bin",
+          "size": 1247368,
+          "sha256": "548a36f9c3f4ab8da56cd3b13badf23968bee207b396dad14d04b830e5f2ab2d"
+        }
+      ]
+    },
+    {
+      "id": "realesrgan-4x",
+      "family": "REAL_ESRGAN",
+      "label": "Real-ESRGAN Anime 4x",
+      "nativeScale": 4,
+      "tileSize": 128,
+      "padding": 16,
+      "artifacts": [
+        {
+          "format": "NCNN",
+          "role": "param",
+          "name": "realesrgan-4x.ncnn.param",
+          "url": "https://raw.githubusercontent.com/HaoweiLi97/mihon_img_upscale/65e3f190058d27c52a148447acfd6b15a2f0f814/app/src/main/assets/realesrgan-models/v3-anime/x4.param",
+          "size": 3077,
+          "sha256": "850a248e7c14c27e5bd8cf7265113a9441036a7db63963bb8aa5169d788a435e"
+        },
+        {
+          "format": "NCNN",
+          "role": "bin",
+          "name": "realesrgan-4x.ncnn.bin",
+          "url": "https://raw.githubusercontent.com/HaoweiLi97/mihon_img_upscale/65e3f190058d27c52a148447acfd6b15a2f0f814/app/src/main/assets/realesrgan-models/v3-anime/x4.bin",
+          "size": 1247368,
+          "sha256": "548a36f9c3f4ab8da56cd3b13badf23968bee207b396dad14d04b830e5f2ab2d"
+        },
+        {
+          "format": "ONNX",
+          "role": "model",
+          "name": "realesrgan-4x.onnx",
+          "url": "https://huggingface.co/hugglyberry/upscale-and-refine-models/resolve/4e0cb0e19b6af63f7cc8da1067238e7c3584c198/realesrgan-anime-fast.onnx?download=true",
+          "size": 70663,
+          "sha256": "8b0416c80924b97505608ef21decbbfda72b148f4bca50f444b8245c282d64b9",
+          "inputOrder": 0,
+          "outputOrder": 0
+        },
+        {
+          "format": "ONNX",
+          "role": "data",
+          "name": "realesrgan-4x.onnx.data",
+          "url": "https://huggingface.co/hugglyberry/upscale-and-refine-models/resolve/4e0cb0e19b6af63f7cc8da1067238e7c3584c198/realesrgan-anime-fast.onnx.data?download=true",
+          "size": 2476800,
+          "sha256": "2602d431d3ccb7c2ad042c94d51efa419760a28244e74aa911f4ea5a28a02ffa"
+        }
+      ]
+    },
+    {
+      "id": "waifu2x-2x",
+      "family": "WAIFU2X",
+      "label": "Waifu2x CUNet 2x",
+      "nativeScale": 2,
+      "tileSize": 128,
+      "padding": 16,
+      "artifacts": [
+        {
+          "format": "NCNN",
+          "role": "param",
+          "name": "waifu2x-2x.ncnn.param",
+          "url": "https://raw.githubusercontent.com/HaoweiLi97/mihon_img_upscale/65e3f190058d27c52a148447acfd6b15a2f0f814/app/src/main/assets/waifu2x-models/noise2_scale2.0x_model.param",
+          "size": 7249,
+          "sha256": "ccc3b2f1c9fad829ecdda40cac8dc853fcddf14917170efba888b256fbf9074a"
+        },
+        {
+          "format": "NCNN",
+          "role": "bin",
+          "name": "waifu2x-2x.ncnn.bin",
+          "url": "https://raw.githubusercontent.com/HaoweiLi97/mihon_img_upscale/65e3f190058d27c52a148447acfd6b15a2f0f814/app/src/main/assets/waifu2x-models/noise2_scale2.0x_model.bin",
+          "size": 2776400,
+          "sha256": "5c836e6ae022636cdd5590fbb66dbca2a5fc20bbf8e628884c3612ef72d51858"
+        },
+        {
+          "format": "ONNX",
+          "role": "model",
+          "name": "waifu2x-2x.onnx",
+          "url": "https://huggingface.co/oovm/waifu-2x/resolve/6ff2912db182d9c970c45b0f5c8aecdd9cd7e4af/models/upresnet10/noise2_scale2.0x_model.onnx?download=true",
+          "size": 1698732,
+          "sha256": "abc844ad58683d2ac2b0b575c43016f1771c1d6b3a95924550f328205f167e3b",
+          "inputOrder": 0,
+          "outputOrder": 0
+        }
+      ]
+    }
+  ]
+}
