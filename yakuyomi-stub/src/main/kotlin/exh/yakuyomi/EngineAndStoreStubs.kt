@@ -65,8 +65,8 @@ class TranslationCache(
 
     private fun cacheDir(): java.io.File = java.io.File(context.cacheDir, "yakuyomi").apply { mkdirs() }
 
-    fun key(pageHash: String, targetLang: String, model: String): String {
-        val raw = "$pageHash|$targetLang|$model"
+    fun key(pageHash: String, targetLang: String, model: String, promptFingerprint: String = ""): String {
+        val raw = listOf(pageHash, targetLang, model, promptFingerprint).joinToString("|")
         val md = java.security.MessageDigest.getInstance("SHA-256")
         return md.digest(raw.toByteArray()).joinToString("") { "%02x".format(it) } + ".webp"
     }
@@ -76,21 +76,36 @@ class TranslationCache(
         return md.digest(bytes).joinToString("") { "%02x".format(it) }
     }
 
-    fun getFile(pageHash: String, targetLang: String, model: String): java.io.File =
-        java.io.File(cacheDir(), key(pageHash, targetLang, model))
+    fun getFile(
+        pageHash: String,
+        targetLang: String,
+        model: String,
+        promptFingerprint: String = "",
+    ): java.io.File = java.io.File(cacheDir(), key(pageHash, targetLang, model, promptFingerprint))
 
-    fun getIfExists(pageHash: String, targetLang: String, model: String): java.io.File? {
+    fun getIfExists(
+        pageHash: String,
+        targetLang: String,
+        model: String,
+        promptFingerprint: String = "",
+    ): java.io.File? {
         if (pageHash.length != 64 || !pageHash.matches(Regex("[0-9a-f]{64}"))) return null
-        val f = getFile(pageHash, targetLang, model)
+        val f = getFile(pageHash, targetLang, model, promptFingerprint)
         return f.takeIf { it.exists() && it.length() in 1..MAX_FILE_SIZE }
     }
 
     @Synchronized
-    fun put(pageHash: String, targetLang: String, model: String, webpBytes: ByteArray): java.io.File {
+    fun put(
+        pageHash: String,
+        targetLang: String,
+        model: String,
+        webpBytes: ByteArray,
+        promptFingerprint: String = "",
+    ): java.io.File {
         require(pageHash.matches(Regex("[0-9a-f]{64}"))) { "invalid pageHash" }
         require(webpBytes.size in 1..MAX_FILE_SIZE.toInt()) { "invalid webpBytes size ${webpBytes.size}" }
         require(targetLang.isNotBlank() && targetLang.length <= 10) { "invalid targetLang" }
-        val f = getFile(pageHash, targetLang, model)
+        val f = getFile(pageHash, targetLang, model, promptFingerprint)
         f.parentFile?.mkdirs()
         val tmp = java.io.File(f.parentFile, f.name + ".tmp")
         try {
@@ -157,6 +172,7 @@ class TranslatedPageStore(
         private const val MAX_SAVED_CHAPTERS = 40
         // KMK --> Mirrors the engine store so shared readers stay flavor-agnostic.
         const val TITLE_FILE = "title.txt"
+        const val POLICY_FILE_PREFIX = "prompt_policy_"
         // KMK <--
     }
 
@@ -165,8 +181,16 @@ class TranslatedPageStore(
         java.io.File(baseDir(), "$mangaId/$chapterId").apply { mkdirs() }
     fun pageFile(mangaId: Long, chapterId: Long, pageIndex: Int): java.io.File =
         java.io.File(chapterDir(mangaId, chapterId), "page_$pageIndex.webp")
-    fun loadIfExists(mangaId: Long, chapterId: Long, pageIndex: Int): ByteArray? {
+    fun loadIfExists(
+        mangaId: Long,
+        chapterId: Long,
+        pageIndex: Int,
+        expectedPolicyFingerprint: String? = null,
+    ): ByteArray? {
         val f = pageFile(mangaId, chapterId, pageIndex)
+        if (expectedPolicyFingerprint != null && loadPolicyFingerprint(mangaId, chapterId, pageIndex) != expectedPolicyFingerprint) {
+            return null
+        }
         return if (f.exists() && f.length() > 0) {
             try {
                 f.readBytes()
@@ -177,7 +201,14 @@ class TranslatedPageStore(
             null
         }
     }
-    fun save(mangaId: Long, chapterId: Long, pageIndex: Int, webpBytes: ByteArray, mangaTitle: String? = null) {
+    fun save(
+        mangaId: Long,
+        chapterId: Long,
+        pageIndex: Int,
+        webpBytes: ByteArray,
+        mangaTitle: String? = null,
+        policyFingerprint: String? = null,
+    ) {
         if (webpBytes.isEmpty() || webpBytes.size > 5 * 1024 * 1024) return
         if (pageIndex < 0 || pageIndex > 5000) return
         val f = pageFile(mangaId, chapterId, pageIndex)
@@ -191,11 +222,23 @@ class TranslatedPageStore(
                 tmp.delete()
             }
         } catch (_: Exception) {}
+        if (!policyFingerprint.isNullOrBlank()) savePolicyFingerprint(mangaId, chapterId, pageIndex, policyFingerprint)
         saveTitle(mangaId, mangaTitle)
         pruneIfNeeded()
     }
     // KMK --> Title sidecar mirrors the engine store so the cache screen names
     // entries the same way on every flavor.
+    private fun policyFile(mangaId: Long, chapterId: Long, pageIndex: Int): java.io.File =
+        java.io.File(chapterDir(mangaId, chapterId), "$POLICY_FILE_PREFIX$pageIndex.txt")
+
+    private fun loadPolicyFingerprint(mangaId: Long, chapterId: Long, pageIndex: Int): String? = runCatching {
+        policyFile(mangaId, chapterId, pageIndex).takeIf { it.isFile }?.readText()?.trim()
+    }.getOrNull()
+
+    private fun savePolicyFingerprint(mangaId: Long, chapterId: Long, pageIndex: Int, fingerprint: String) {
+        runCatching { policyFile(mangaId, chapterId, pageIndex).writeText(fingerprint.take(160)) }
+    }
+
     fun saveTitle(mangaId: Long, title: String?) {
         val clean = title?.takeIf { it.isNotBlank() }?.take(200) ?: return
         try {

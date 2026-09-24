@@ -146,15 +146,19 @@ data class MangaInfoTranslation(
     val targetLanguage: String = "",
     val provider: String = "",
     val model: String = "",
+    val promptFingerprint: String = "",
 ) {
     fun isValidFor(
         sourceFingerprint: String,
         targetLanguage: String,
         provider: String,
         model: String,
+        promptFingerprint: String = "",
     ): Boolean {
         if (this.sourceFingerprint.isBlank() || this.targetLanguage.isBlank()) return false
         if (this.provider.isBlank() || this.model.isBlank()) return false
+        if (promptFingerprint.isNotBlank() && this.promptFingerprint != promptFingerprint) return false
+        if (promptFingerprint.isBlank() && this.promptFingerprint.isNotBlank()) return false
         return this.sourceFingerprint == sourceFingerprint &&
             this.targetLanguage == targetLanguage &&
             this.provider == provider &&
@@ -209,6 +213,7 @@ class MangaInfoTranslationStore(
         targetLanguage: String,
         provider: String,
         model: String,
+        promptFingerprint: String = "",
     ): MangaInfoTranslation? = null
     // KMK <--
 
