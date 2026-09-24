@@ -119,7 +119,7 @@ class MangaCoverFetcher(
         // KMK <--
         val uniFile = UniFile.fromUri(options.context, uri.toUri())
             ?: error("Invalid content URI: $uri")
-        val source = (uniFile.openInputStream() ?: error("Cannot open $uri")).source().buffer()
+        val source = uniFile.openInputStream().source().buffer()
         return SourceFetchResult(
             source = ImageSource(source = source, fileSystem = FileSystem.SYSTEM),
             mimeType = "image/*",
