@@ -37,6 +37,7 @@ object SettingsCatalog {
         SettingsYakuyomiProviderScreen,
         SettingsYakuyomiModelsScreen,
         SettingsYakuyomiBehaviorScreen,
+        SettingsYakuyomiPromptScreen,
         SettingsUpscalerScreen,
         // KMK <--
         SettingsAdvancedScreen,

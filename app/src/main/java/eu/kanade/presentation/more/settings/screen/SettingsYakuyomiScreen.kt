@@ -1174,6 +1174,11 @@ object SettingsYakuyomiScreen : SearchableSettings {
                     subtitle = behaviorSubtitle,
                     onClick = { navigator.push(SettingsYakuyomiBehaviorScreen) },
                 ),
+                Preference.PreferenceItem.TextPreference(
+                    title = stringResource(KMR.strings.pref_yakuyomi_prompt_title),
+                    subtitle = stringResource(KMR.strings.pref_yakuyomi_prompt_info),
+                    onClick = { navigator.push(SettingsYakuyomiPromptScreen) },
+                ),
             ),
         )
     }

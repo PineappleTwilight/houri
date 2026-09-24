@@ -548,4 +548,26 @@
     <string name="category_manager_delete_many_title">Delete selected</string>
     <!-- Backup -->
     <string name="backup_included_categories">Included categories</string>
+    <string name="pref_yakuyomi_prompt_title">Translation prompts</string>
+    <string name="pref_yakuyomi_prompt_custom_instructions">Custom translation instructions</string>
+    <string name="pref_yakuyomi_prompt_custom_instructions_summary">Additional style, tone, or terminology guidance applied to every provider</string>
+    <string name="pref_yakuyomi_prompt_formality">Formality</string>
+    <string name="pref_yakuyomi_prompt_formality_auto">Match source</string>
+    <string name="pref_yakuyomi_prompt_formality_casual">Casual</string>
+    <string name="pref_yakuyomi_prompt_formality_polite">Polite</string>
+    <string name="pref_yakuyomi_prompt_formality_formal">Formal</string>
+    <string name="pref_yakuyomi_prompt_formality_literary">Literary</string>
+    <string name="pref_yakuyomi_prompt_sfx">Sound effects</string>
+    <string name="pref_yakuyomi_prompt_sfx_preserve">Preserve SFX</string>
+    <string name="pref_yakuyomi_prompt_sfx_mixed">Mixed policy</string>
+    <string name="pref_yakuyomi_prompt_sfx_translate">Translate descriptive SFX</string>
+    <string name="pref_yakuyomi_prompt_fewshot_source">Few-shot source example</string>
+    <string name="pref_yakuyomi_prompt_fewshot_source_summary">Optional source-language example; pair it with a target example</string>
+    <string name="pref_yakuyomi_prompt_fewshot_target">Few-shot target example</string>
+    <string name="pref_yakuyomi_prompt_fewshot_target_summary">Optional target-language example used as a style reference</string>
+    <string name="pref_yakuyomi_prompt_glossary">Glossary</string>
+    <string name="pref_yakuyomi_prompt_glossary_summary">JSON object or one term mapping per line, for example:  admitting -&gt; admitting</string>
+    <string name="pref_yakuyomi_prompt_reset">Reset prompt policy</string>
+    <string name="pref_yakuyomi_prompt_reset_summary">Restore the default formality, SFX, glossary, and custom instructions</string>
+    <string name="pref_yakuyomi_prompt_info">Prompt changes apply to the next translation and invalidate cached results that depend on the previous prompt.</string>
 </resources>
