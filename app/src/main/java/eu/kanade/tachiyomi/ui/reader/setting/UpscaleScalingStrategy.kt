@@ -5,10 +5,9 @@ import android.graphics.Bitmap
 /**
  * Pure scaling strategy extracted from [UpscaleEngine.runUpscale].
  *
- * The current engine only does bilinear `createScaledBitmap` (placeholder for real
- * NCNN/ONNX inference). Isolating the strategy makes it trivial to swap in the
- * native inference path later without touching cache/backend logic, and keeps
- * the 16MP guard testable.
+ * The simple-mode path uses these bitmap scaling strategies. Native mode uses
+ * the same dimension and memory guards around the NCNN/ONNX inference path, so
+ * changing the scaling strategy does not affect backend/session selection.
  *
  * Quality notes:
  * - `BILINEAR` is a single `createScaledBitmap(..., filter = true)` pass.
