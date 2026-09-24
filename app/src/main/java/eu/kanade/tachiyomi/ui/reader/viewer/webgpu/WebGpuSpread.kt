@@ -508,8 +508,9 @@ private suspend fun WebGpuViewer.rescaleImageToHeight(bytes: ByteArray, targetHe
             throw e
         }
         try {
-            frameImage!!.rewind()
-            bmp.copyPixelsFromBuffer(frameImage!!)
+            val image = frameImage ?: error("Missing decoded frame image")
+            image.rewind()
+            bmp.copyPixelsFromBuffer(image)
         } catch (e: Exception) {
             bmp.recycle()
             frameToClose?.let {

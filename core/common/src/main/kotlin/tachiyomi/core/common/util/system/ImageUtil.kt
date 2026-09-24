@@ -97,6 +97,12 @@ object ImageUtil {
         }
     }
 
+    fun isAnimatedAndSupported(bytes: ByteArray): Boolean {
+        if (bytes.isEmpty()) return false
+        val headerSize = min(bytes.size, 64 * 1024)
+        return isAnimatedAndSupported(Buffer().write(bytes, 0, headerSize))
+    }
+
     private fun getImageType(stream: InputStream): tachiyomi.decoder.ImageType? {
         val bytes = ByteArray(32)
 
