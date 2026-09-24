@@ -194,6 +194,8 @@ sealed class Preference {
             override val enabled: Boolean = true,
             override val onValueChanged: suspend (value: String) -> Boolean = { true },
             val validator: (String) -> Boolean = { it.isNotBlank() },
+            val multiline: Boolean = false,
+            val allowEmpty: Boolean = false,
             // KMK -->
             override val dependsOn: PreferenceDependency? = null,
             override val mtlOnly: Boolean = false,

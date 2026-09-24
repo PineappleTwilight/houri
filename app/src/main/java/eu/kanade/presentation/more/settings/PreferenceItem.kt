@@ -192,6 +192,8 @@ internal fun PreferenceItem(
                     icon = item.icon,
                     value = values,
                     validator = item.validator,
+                    multiline = item.multiline,
+                    allowEmpty = item.allowEmpty,
                     onConfirm = {
                         val accepted = item.onValueChanged(it)
                         if (accepted) item.preference.set(it)
