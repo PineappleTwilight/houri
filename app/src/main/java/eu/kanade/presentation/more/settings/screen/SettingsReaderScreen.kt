@@ -745,7 +745,7 @@ object SettingsReaderScreen : SearchableSettings {
                     valueString = numberFormat.format(continuousGap / 100f),
                     onValueChanged = { continuousGapPref.set(it) },
                 ),
-            ).addAll(debugItems),
+            ).addingAll(debugItems),
         )
     }
     // Mihon <--
