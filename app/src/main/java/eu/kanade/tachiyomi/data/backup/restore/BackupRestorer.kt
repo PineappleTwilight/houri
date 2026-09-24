@@ -152,7 +152,7 @@ class BackupRestorer(
                 }
             }
         } finally {
-            if (prevSuppress != null) achievementPrefs?.suppressOrganicForImport = prevSuppress
+            if (prevSuppress != null) achievementPrefs.suppressOrganicForImport = prevSuppress
             // KMK --> credit imported library entries towards library/backlog achievements
             // (restore runs with organic increments suppressed, so library_X unlocks
             // would otherwise never fire for DB imports).
