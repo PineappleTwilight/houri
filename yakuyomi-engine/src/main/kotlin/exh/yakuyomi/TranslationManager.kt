@@ -188,13 +188,24 @@ class TranslationManager(
         val sourceLang = resolveMangaInfoSourceLang(sourceLangHint)
         val targetLang = prefs.targetLang().get().ifBlank { "en" }
         val identity = mangaInfoIdentity()
+        val promptPolicy = prefs.promptPolicy()
+        val promptFingerprint = promptPolicy.fingerprint()
         val lines = listOfNotNull(title.ifBlank { null }, description?.ifBlank { null })
         if (lines.isEmpty()) return null
         val glossary = prefs.glossaryMap()
         val translated = try {
             if (localLlm.isLocalProvider()) {
                 val isEnFix = sourceLang.equals("EN", true) && targetLang.equals("EN", true)
-                val prompt = buildTranslationPrompt(lines, sourceLang, targetLang, "", isEnFix, "", glossary)
+                val prompt = buildTranslationPrompt(
+                    texts = lines,
+                    sourceLang = sourceLang,
+                    targetLang = targetLang,
+                    breadcrumb = "",
+                    isEnFix = isEnFix,
+                    mangaContext = "",
+                    glossary = glossary,
+                    policy = promptPolicy,
+                )
                 val result = localLlm.generate(prompt) ?: return null
                 parseTranslationLines(result) ?: return null
             } else {
@@ -210,6 +221,7 @@ class TranslationManager(
                     client = client,
                     customBaseUrl = prefs.customBaseUrl().get(),
                     customHeaders = prefs.customHeaders().get(),
+                    policy = promptPolicy,
                 ).translate(lines)
             }
         } catch (e: CancellationException) {
@@ -229,6 +241,7 @@ class TranslationManager(
             targetLanguage = targetLang,
             provider = identity.provider,
             model = identity.model,
+            promptFingerprint = promptFingerprint,
         )
         // KMK <--
         infoStore.put(mangaId, result)
@@ -286,6 +299,7 @@ class TranslationManager(
             targetLang,
             identity.provider,
             identity.model,
+            prefs.promptFingerprint(),
         )
     }
     // KMK <--
@@ -328,14 +342,15 @@ class TranslationManager(
         if (!prefs.enabled().get() || isGated() || !perMangaStore.isEnabled(mangaId)) return@withContext null
         val targetLang = prefs.targetLang().get().ifBlank { "en" }
         val model = effectiveModel()
+        val promptFingerprint = prefs.promptFingerprint()
         if (prefs.saveTranslatedPages().get() || prefs.mangaTranslatorCachePermanent().get()) {
-            pageStore.loadIfExists(mangaId, chapterId, pageIndex)?.let { bytes ->
+            pageStore.loadIfExists(mangaId, chapterId, pageIndex, promptFingerprint)?.let { bytes ->
                 if (bytes.isNotEmpty()) return@withContext bytes
             }
         }
         if (prefs.cacheEnabled().get()) {
             val pageHash = cache.pageHash(imageBytes)
-            cache.getIfExists(pageHash, targetLang, model)?.let { f ->
+            cache.getIfExists(pageHash, targetLang, model, promptFingerprint)?.let { f ->
                 try {
                     val bytes = f.readBytes()
                     if (bytes.isNotEmpty()) return@withContext bytes
@@ -362,10 +377,11 @@ class TranslationManager(
         if (!prefs.enabled().get() || isGated() || !perMangaStore.isEnabled(mangaId)) return@withContext null
         val targetLang = prefs.targetLang().get().ifBlank { "en" }
         val model = effectiveModel()
+        val promptFingerprint = prefs.promptFingerprint()
         val cacheEnabled = prefs.cacheEnabled().get()
 
         if (prefs.saveTranslatedPages().get() || prefs.mangaTranslatorCachePermanent().get()) {
-            pageStore.loadIfExists(mangaId, chapterId, pageIndex)?.let { bytes ->
+            pageStore.loadIfExists(mangaId, chapterId, pageIndex, promptFingerprint)?.let { bytes ->
                 if (bytes.isNotEmpty()) {
                     status.pageCached(mangaId, chapterId, pageIndex)
                     return@withContext bytes
@@ -375,12 +391,19 @@ class TranslationManager(
 
         val pageHash = cache.pageHash(imageBytes)
         if (cacheEnabled) {
-            cache.getIfExists(pageHash, targetLang, model)?.let { f ->
+            cache.getIfExists(pageHash, targetLang, model, promptFingerprint)?.let { f ->
                 try {
                     val bytes = f.readBytes()
                     if (bytes.isNotEmpty()) {
                         if ((prefs.saveTranslatedPages().get() && prefs.autoSaveWhileReading().get()) || prefs.mangaTranslatorCachePermanent().get()) {
-                            pageStore.save(mangaId, chapterId, pageIndex, bytes, mangaTitleFor(mangaId))
+                            pageStore.save(
+                                mangaId,
+                                chapterId,
+                                pageIndex,
+                                bytes,
+                                mangaTitleFor(mangaId),
+                                promptFingerprint,
+                            )
                         }
                         status.pageCached(mangaId, chapterId, pageIndex)
                         return@withContext bytes
@@ -433,8 +456,9 @@ class TranslationManager(
         val model = effectiveModel()
         val cacheEnabled = prefs.cacheEnabled().get()
         val pageHash = cache.pageHash(imageBytes)
-        val glossary = prefs.glossaryMap()
-        val preserveSfx = prefs.preserveSfx().get()
+        val promptPolicy = prefs.promptPolicy()
+        val promptFingerprint = promptPolicy.fingerprint()
+        val glossary = promptPolicy.glossary
         val localModel = if (localLlm.isLocalProvider()) localLlm.resolveModel() else null
         val breadcrumbBudget = localModel?.let { (it.contextLength * 0.25).toInt().coerceIn(500, 3000) } ?: 1000
         val rawBreadcrumb = notes.buildContextPrompt(mangaId, breadcrumbBudget)
@@ -459,12 +483,12 @@ class TranslationManager(
                 if (webp != null && webp.isNotEmpty()) {
                     if (cacheEnabled) {
                         try {
-                            cache.put(pageHash, targetLang, model, webp)
+                            cache.put(pageHash, targetLang, model, webp, promptFingerprint)
                         } catch (_: Exception) {}
                     }
                     try {
                         if (prefs.mangaTranslatorCachePermanent().get() || prefs.saveTranslatedPages().get()) {
-                            pageStore.save(mangaId, chapterId, pageIndex, webp, mangaTitle)
+                            pageStore.save(mangaId, chapterId, pageIndex, webp, mangaTitle, promptFingerprint)
                         }
                     } catch (_: Exception) {}
                     try {
@@ -554,6 +578,7 @@ class TranslationManager(
                         pageBitmap = bitmap,
                         offlineFallback = prefs.offlineFallback().get(),
                         glossary = glossary,
+                        policy = promptPolicy,
                     )
                 }
                 else -> {
@@ -587,6 +612,7 @@ class TranslationManager(
                         customHeaders = prefs.customHeaders().get(),
                         pageImageBytes = jpegBytes,
                         glossary = glossary,
+                        policy = promptPolicy,
                     )
                 }
             }
@@ -608,10 +634,10 @@ class TranslationManager(
                     val webp = engine.bitmapToWebP(result.page, quality = 85)
                     runCatching { result.page.recycle() }
                     if (cacheEnabled) {
-                        cache.put(pageHash, targetLang, model, webp)
+                        cache.put(pageHash, targetLang, model, webp, promptFingerprint)
                     }
                     if (prefs.saveTranslatedPages().get() && prefs.autoSaveWhileReading().get()) {
-                        pageStore.save(mangaId, chapterId, pageIndex, webp, mangaTitle)
+                        pageStore.save(mangaId, chapterId, pageIndex, webp, mangaTitle, promptFingerprint)
                     }
                     val translatedTexts = result.analysis?.regions?.map { it.translatedText } ?: emptyList()
                     try {

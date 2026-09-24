@@ -67,12 +67,13 @@ class TranslationManager(
         if (!prefs.enabled().get() || isGated() || !perMangaStore.isEnabled(mangaId)) return@withContext null
         val targetLang = prefs.targetLang().get().ifBlank { "en" }
         val model = effectiveModel()
+        val promptFingerprint = prefs.promptFingerprint()
         if (prefs.saveTranslatedPages().get() || prefs.mangaTranslatorCachePermanent().get()) {
-            pageStore.loadIfExists(mangaId, chapterId, pageIndex)?.let { if (it.isNotEmpty()) return@withContext it }
+            pageStore.loadIfExists(mangaId, chapterId, pageIndex, promptFingerprint)?.let { if (it.isNotEmpty()) return@withContext it }
         }
         if (prefs.cacheEnabled().get()) {
             val pageHash = cache.pageHash(imageBytes)
-            cache.getIfExists(pageHash, targetLang, model)?.let { f ->
+            cache.getIfExists(pageHash, targetLang, model, promptFingerprint)?.let { f ->
                 try {
                     val bytes = f.readBytes()
                     if (bytes.isNotEmpty()) return@withContext bytes
@@ -92,9 +93,10 @@ class TranslationManager(
         if (!prefs.enabled().get() || isGated() || !perMangaStore.isEnabled(mangaId)) return@withContext null
         val targetLang = prefs.targetLang().get().ifBlank { "en" }
         val model = effectiveModel()
+        val promptFingerprint = prefs.promptFingerprint()
         val cacheEnabled = prefs.cacheEnabled().get()
         if (prefs.saveTranslatedPages().get() || prefs.mangaTranslatorCachePermanent().get()) {
-            pageStore.loadIfExists(mangaId, chapterId, pageIndex)?.let { bytes ->
+            pageStore.loadIfExists(mangaId, chapterId, pageIndex, promptFingerprint)?.let { bytes ->
                 if (bytes.isNotEmpty()) {
                     status.pageCached(mangaId, chapterId, pageIndex)
                     return@withContext bytes
@@ -103,12 +105,12 @@ class TranslationManager(
         }
         val pageHash = cache.pageHash(imageBytes)
         if (cacheEnabled) {
-            cache.getIfExists(pageHash, targetLang, model)?.let { f ->
+            cache.getIfExists(pageHash, targetLang, model, promptFingerprint)?.let { f ->
                 try {
                     val bytes = f.readBytes()
                     if (bytes.isNotEmpty()) {
                         if (prefs.saveTranslatedPages().get() || prefs.mangaTranslatorCachePermanent().get()) {
-                            pageStore.save(mangaId, chapterId, pageIndex, bytes)
+                            pageStore.save(mangaId, chapterId, pageIndex, bytes, null, promptFingerprint)
                         }
                         status.pageCached(mangaId, chapterId, pageIndex)
                         return@withContext bytes
@@ -128,12 +130,12 @@ class TranslationManager(
                 if (webp != null && webp.isNotEmpty()) {
                     if (cacheEnabled) {
                         try {
-                            cache.put(pageHash, targetLang, model, webp)
+                            cache.put(pageHash, targetLang, model, webp, promptFingerprint)
                         } catch (_: Exception) {}
                     }
                     try {
                         if (prefs.mangaTranslatorCachePermanent().get() || prefs.saveTranslatedPages().get()) {
-                            pageStore.save(mangaId, chapterId, pageIndex, webp)
+                            pageStore.save(mangaId, chapterId, pageIndex, webp, null, promptFingerprint)
                         }
                     } catch (_: Exception) {}
                     status.pageDone(mangaId, chapterId, pageIndex)
