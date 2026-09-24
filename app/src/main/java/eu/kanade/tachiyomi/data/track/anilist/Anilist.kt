@@ -253,7 +253,7 @@ class Anilist(id: Long) : BaseTracker(id, "AniList"), DeletableTracker {
 
     override suspend fun getRelatedEntries(remoteId: Long): List<SequelPrequelEntry>? {
         val relations = getMangaRelations(remoteId) ?: return null
-        val entries = relations.data?.media?.relations?.edges?.mapNotNull { edge ->
+        val entries = relations.data.media.relations.edges.mapNotNull { edge ->
             val relation = SequelPrequelRelation.fromAniList(edge.relationType)
                 ?.takeIf { it == SequelPrequelRelation.PREQUEL || it == SequelPrequelRelation.SEQUEL }
                 ?: return@mapNotNull null
