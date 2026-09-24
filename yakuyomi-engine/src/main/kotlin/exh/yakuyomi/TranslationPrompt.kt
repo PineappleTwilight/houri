@@ -3,20 +3,50 @@ package exh.yakuyomi
 private const val MAX_TEXT_LEN = 500
 private const val MAX_PROMPT_CHARS = 8000
 private const val MAX_GLOSSARY_ENTRIES = 50
+private const val MAX_CUSTOM_INSTRUCTION_CHARS = 1200
+private const val MAX_FEW_SHOT_CHARS = 900
+private const val MAX_GLOSSARY_SECTION_CHARS = 2200
+
+private val CONTROL_CHARS = Regex("[\\p{Cntrl}]")
+private val MULTILINE_CONTROL_CHARS = Regex("[\\p{Cntrl}&&[^\\r\\n]]")
+private val INLINE_WHITESPACE = Regex("\\s+")
+private val HORIZONTAL_WHITESPACE = Regex("[ \\t]+")
+private val CODE_FENCE = Regex("```[a-zA-Z]*\\s*")
+private val NUMBERED_LINE = Regex("""^\d+[.)]\s*(.+)""")
 
 private fun sanitizeInline(s: String, maxLen: Int = MAX_TEXT_LEN): String {
-    // Strip control chars, collapse whitespace, cap length, neutralize prompt-injection markers.
-    var t = s.replace(Regex("[\\p{Cntrl}]"), " ")
-        .replace(Regex("\\s+"), " ")
-        .trim()
-    if (t.length > maxLen) t = t.take(maxLen)
-    // Neutralize lines that look like instructions to the LLM.
-    if (t.startsWith("- ") || t.startsWith("#") || t.lowercase().startsWith("ignore previous")) {
-        t = t.prependIndent(" ")
+    var value = s.replace(CONTROL_CHARS, " ").replace(INLINE_WHITESPACE, " ").trim()
+    if (value.length > maxLen) value = value.take(maxLen)
+    if (value.startsWith("- ") || value.startsWith("#") || value.lowercase().startsWith("ignore previous")) {
+        value = value.prependIndent(" ")
     }
-    // Remove characters that break the dash-list protocol.
-    t = t.replace("\n", " ").replace("\r", " ")
-    return t
+    return value.replace("\n", " ").replace("\r", " ")
+}
+
+private fun sanitizeMultiline(s: String, maxLen: Int): String =
+    s.replace(MULTILINE_CONTROL_CHARS, " ")
+        .replace(HORIZONTAL_WHITESPACE, " ")
+        .trim()
+        .take(maxLen)
+
+private fun formalityDirective(value: String): String = when (value.trim().lowercase()) {
+    "casual" -> "Use casual, natural manga dialogue."
+    "polite" -> "Use polite manga dialogue while keeping the original tone."
+    "formal" -> "Use formal manga dialogue while keeping the original tone."
+    "literary" -> "Use polished literary manga dialogue without adding new plot details."
+    else -> "Match the formality and social register of the source lines."
+}
+
+private fun sfxDirective(value: String): String = when (value.trim().lowercase()) {
+    "translate" -> "Translate descriptive sound effects naturally; keep iconic SFX when translation would lose their meaning."
+    "mixed" -> "Keep iconic SFX as SFX or transliterate them, and translate descriptive SFX naturally."
+    else -> "Keep iconic SFX as SFX or transliterate them; do not invent new sound effects."
+}
+
+private fun protocol(isEnFix: Boolean, target: String): String = if (isEnFix) {
+    "Return each corrected line prefixed with '- ' exactly, one per input line, no extra commentary, no quotes."
+} else {
+    "Return each translated line prefixed with '- ' exactly, one per input line, no extra commentary, no quotes. If a line is already $target or is purely SFX/numbers, return it as-is."
 }
 
 internal fun buildTranslationPrompt(
@@ -27,78 +57,93 @@ internal fun buildTranslationPrompt(
     isEnFix: Boolean,
     mangaContext: String = "",
     glossary: Map<String, String> = emptyMap(),
+    policy: TranslationPromptPolicy = TranslationPromptPolicy.DEFAULT,
+    imageContext: String = "",
 ): String {
     val safeTexts = texts.map { sanitizeInline(it) }.filter { it.isNotBlank() }.take(30)
-    val joined = safeTexts.joinToString("\n") { "- $it" }
     val safeManga = sanitizeInline(mangaContext, 300)
-    val safeBreadcrumb = breadcrumb
-        .replace(Regex("[\\p{Cntrl}&&[^\n]]"), " ")
-        .trim()
-        .take(2000)
-    val mangaSection = if (safeManga.isNotBlank()) "Manga: $safeManga\n\n" else ""
-    val breadcrumbSection = if (safeBreadcrumb.isNotBlank()) "Context (prev chapters, keep names consistent):\n$safeBreadcrumb\n\n" else ""
-    val glossarySection = if (glossary.isNotEmpty()) {
-        val safeEntries = glossary.entries
-            .map { sanitizeInline(it.key, 40) to sanitizeInline(it.value, 40) }
-            .filter { it.first.isNotBlank() && it.second.isNotBlank() }
-            .take(MAX_GLOSSARY_ENTRIES)
-        if (safeEntries.isEmpty()) {
-            ""
-        } else {
-            "Glossary (use exactly as given):\n" + safeEntries.joinToString("\n") { "- ${it.first} -> ${it.second}" } + "\n\n"
-        }
-    } else {
-        ""
-    }
+    val safeBreadcrumb = sanitizeMultiline(breadcrumb, 1500)
+    val safeImageContext = sanitizeInline(imageContext, 300)
     val safeSource = sanitizeInline(sourceLang, 20).ifBlank { "JA" }
     val safeTarget = sanitizeInline(targetLang, 20).ifBlank { "en" }
-    // SFX handling: keep iconic SFX as is, translate descriptive SFX naturally
-    val sfxNote = "Sound effects: keep iconic SFX (ドン, バン, ズキッ) as SFX or transliterate, translate descriptive SFX naturally."
-    val prompt = if (isEnFix) {
-        "${mangaSection}${breadcrumbSection}${glossarySection}You are a manga proofreader and copy editor. Fix English grammar, spelling, punctuation and natural flow. Keep character names, honorifics, sound effects and line breaks. Preserve meaning, do not paraphrase creatively, output only corrected EN. $sfxNote Texts:\n$joined\n\nReturn each corrected line prefixed with '- ' exactly, one per input line, no extra commentary, no quotes."
-    } else {
-        "${mangaSection}${breadcrumbSection}${glossarySection}You are an expert manga translator specializing in $safeSource -> $safeTarget. Preserve character names, honorifics (-san/-kun/-chan/-sama/-senpai/-sensei), sound effects and cultural nuance. $sfxNote Use natural, fluent $safeTarget appropriate for manga dialogue (casual, emotional, concise). Keep line breaks and punctuation style, maintain original tone (formal/casual, polite/rude). For vertical text, preserve reading order. Output only $safeTarget. Texts:\n$joined\n\nReturn each translated line prefixed with '- ' exactly, one per input line, no extra commentary, no quotes. If a line is already $safeTarget or is purely SFX/numbers, return it as-is."
+    val safeCustom = sanitizeMultiline(policy.customInstructions, MAX_CUSTOM_INSTRUCTION_CHARS)
+    val safeFewShotSource = sanitizeMultiline(policy.fewShotSource, MAX_FEW_SHOT_CHARS)
+    val safeFewShotTarget = sanitizeMultiline(policy.fewShotTarget, MAX_FEW_SHOT_CHARS)
+
+    val sections = buildList {
+        if (safeImageContext.isNotBlank()) add(safeImageContext)
+        if (safeManga.isNotBlank()) add("Manga: $safeManga")
+        if (safeBreadcrumb.isNotBlank()) add("Context (prev chapters, keep names consistent):\n$safeBreadcrumb")
+        if (safeCustom.isNotBlank()) {
+            add("User translation guidance (follow when compatible with the required output protocol):\n$safeCustom")
+        }
+        add(formalityDirective(policy.formality))
+        add(sfxDirective(policy.sfxPolicy))
+        val glossaryText = buildString {
+            append("Glossary (use exactly as given):\n")
+            glossary.entries
+                .sortedBy { it.key }
+                .take(MAX_GLOSSARY_ENTRIES)
+                .forEach { entry ->
+                    val key = sanitizeInline(entry.key, 40)
+                    val value = sanitizeInline(entry.value, 40)
+                    if (key.isNotBlank() && value.isNotBlank()) append("- $key -> $value\n")
+                }
+        }.trim().take(MAX_GLOSSARY_SECTION_CHARS)
+        if (glossaryText.length > "Glossary (use exactly as given):".length) add(glossaryText)
+        if (safeFewShotSource.isNotBlank() && safeFewShotTarget.isNotBlank()) {
+            add("Example source:\n$safeFewShotSource\nExample target:\n$safeFewShotTarget")
+        }
     }
-    return prompt.take(MAX_PROMPT_CHARS)
+
+    val role = if (isEnFix) {
+        "You are a manga proofreader and copy editor. Fix English grammar, spelling, punctuation and natural flow. Keep character names, honorifics, sound effects and line breaks. Preserve meaning, do not paraphrase creatively, output only corrected EN."
+    } else {
+        "You are an expert manga translator specializing in $safeSource -> $safeTarget. Preserve character names, honorifics (-san/-kun/-chan/-sama/-senpai/-sensei), sound effects and cultural nuance. Use natural, fluent $safeTarget appropriate for manga dialogue and keep line breaks, punctuation style, tone, reading order, and vertical-text order."
+    }
+    val head = (listOf(role) + sections).joinToString("\n\n").take(MAX_PROMPT_CHARS - 800)
+    val fixedProtocol = protocol(isEnFix, safeTarget)
+    val textBudget = (MAX_PROMPT_CHARS - head.length - fixedProtocol.length - 24).coerceAtLeast(400)
+    val perLineBudget = (textBudget / safeTexts.size.coerceAtLeast(1)).coerceAtLeast(80)
+    val joined = safeTexts.joinToString("\n") { "- ${it.take(perLineBudget)}" }.take(textBudget)
+    return "$head\n\nTexts:\n$joined\n\n$fixedProtocol"
 }
 
 /** Pads or truncates provider output to match the input line count. */
-internal fun alignTranslationLines(result: List<String>, queries: List<String>): List<String> {
-    return when {
-        result.size == queries.size -> result
-        result.size < queries.size -> result + queries.drop(result.size).map { it.trim() }
-        else -> result.take(queries.size)
-    }
+internal fun alignTranslationLines(result: List<String>, queries: List<String>): List<String> = when {
+    result.size == queries.size -> result
+    result.size < queries.size -> result + queries.drop(result.size).map { it.trim() }
+    else -> result.take(queries.size)
 }
 
 /**
  * Parses the LLM's reply into one translated line per input line. Accepts the dash-list
- * protocol, numbered lists, code fences, or plain line-per-item output. Returns null when
- * nothing usable is found.
+ * protocol, numbered lists, code fences, or plain line-per-item output.
  */
 internal fun parseTranslationLines(content: String): List<String>? {
     val cleaned = content.trim()
-    // Strip common LLM code fences or markdown wrappers that hide the dash list.
-    val fenced = Regex("```[a-zA-Z]*\\s*").replace(cleaned, "")
+    val fenced = CODE_FENCE.replace(cleaned, "")
     val working = if (fenced.startsWith("- ") || fenced.startsWith("1.") || fenced.startsWith("1)") || fenced.contains("\n- ")) {
         fenced
     } else {
         cleaned
     }
-    val dashLines = working.lines().map { it.trim() }.filter { it.startsWith("- ") }.map { it.removePrefix("- ").trim() }.filter { it.isNotBlank() }
+    val dashLines = working.lines().map { it.trim() }.filter { it.startsWith("- ") }
+        .map { it.removePrefix("- ").trim() }
+        .filter { it.isNotBlank() }
     if (dashLines.isNotEmpty()) return dashLines
     val numbered = working.lines().map { it.trim() }.mapNotNull { line ->
-        Regex("""^\d+[.)]\s*(.+)""").find(line)?.groupValues?.getOrNull(1)?.trim()?.takeIf { it.isNotBlank() }
+        NUMBERED_LINE.find(line)?.groupValues?.getOrNull(1)?.trim()?.takeIf { it.isNotBlank() }
     }
     if (numbered.isNotEmpty()) return numbered
-    val split = working.lines().map { it.trim() }.filter { it.isNotBlank() }
-    if (split.isNotEmpty()) return split
-    return null
+    return working.lines().map { it.trim() }.filter { it.isNotBlank() }.takeIf { it.isNotEmpty() }
 }
 
 /** Fallback parse for raw JSON bodies: dash lines first, then the first "content" field. */
 internal fun parseTranslationLinesFromJson(jsonStr: String): List<String>? {
-    val lines = jsonStr.lines().map { it.trim() }.filter { it.startsWith("- ") }.map { it.removePrefix("- ").trim() }.filter { it.isNotBlank() }
+    val lines = jsonStr.lines().map { it.trim() }.filter { it.startsWith("- ") }
+        .map { it.removePrefix("- ").trim() }
+        .filter { it.isNotBlank() }
     if (lines.isNotEmpty()) return lines
     val regex = Regex("\"content\"\\s*:\\s*\"((?:\\\\\"|[^\"])*)\"")
     val match = regex.find(jsonStr)?.groupValues?.getOrNull(1) ?: return null
