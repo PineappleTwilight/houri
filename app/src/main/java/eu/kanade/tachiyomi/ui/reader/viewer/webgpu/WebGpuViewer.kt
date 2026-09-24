@@ -140,6 +140,8 @@ open class WebGpuViewer(
     private val trimCallbacks = object : ComponentCallbacks2 {
         override fun onConfigurationChanged(newConfig: Configuration) = Unit
         override fun onLowMemory() = shrinkCacheOnTrim()
+
+        @Suppress("DEPRECATION", "OVERRIDE_DEPRECATION")
         override fun onTrimMemory(level: Int) {
             if (level >= ComponentCallbacks2.TRIM_MEMORY_MODERATE) shrinkCacheOnTrim()
         }
@@ -1364,7 +1366,7 @@ open class WebGpuViewer(
         // restore above (abort on user nav/chapter change, clamp to the live
         // page bounds). Restoring before decode would measure against the
         // ProgressPage placeholder, so wait for the real page like continuous.
-        if (needsPagedRestore && stored != null) {
+        if (needsPagedRestore) {
             try {
                 val restoreChapterId = chapterId
                 val anchorPage = currentPage
