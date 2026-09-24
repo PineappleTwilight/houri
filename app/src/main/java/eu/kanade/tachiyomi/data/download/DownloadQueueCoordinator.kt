@@ -17,7 +17,7 @@ object DownloadQueueCoordinator {
         queue.any { it.chapter.id == chapterId }
 
     fun pendingDownloads(chapters: List<tachiyomi.domain.chapter.model.Chapter>, queue: List<Download>): List<Long> =
-        chapters.filterNot { ch -> queue.any { it.chapter.id == ch.id } }.map { it.id!! }
+        chapters.filterNot { ch -> queue.any { it.chapter.id == ch.id } }.map { it.id }
 
     fun shouldDeleteOnUnfavorite(isBulk: Boolean, singleMangaDeletes: Boolean): Boolean =
         !isBulk || singleMangaDeletes
