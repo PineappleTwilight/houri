@@ -53,7 +53,7 @@ class TranslationPromptPolicyTest {
         prompt.contains("犬 -> dog") shouldBe true
         prompt.contains("- 犬だ") shouldBe true
         prompt.contains("Return each translated line prefixed") shouldBe true
-        prompt.length <= 8000 shouldBe true
+        (prompt.length <= 8000) shouldBe true
     }
 
     @Test
