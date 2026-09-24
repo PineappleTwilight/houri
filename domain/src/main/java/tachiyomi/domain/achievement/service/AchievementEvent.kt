@@ -17,7 +17,8 @@ sealed interface AchievementEvent {
     data class Translated(val count: Long) : AchievementEvent
 }
 
-class AchievementDispatcher @dev.zacsweers.metro.Inject constructor(
+@dev.zacsweers.metro.Inject
+class AchievementDispatcher(
     private val manager: AchievementManager,
     private val prefs: AchievementPreferences,
 ) {

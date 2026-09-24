@@ -72,7 +72,7 @@ class DeleteCategory(
         }
 
         val defaultCategory = libraryPreferences.defaultCategory().get()
-        if (defaultCategory != null && defaultCategory != 0 && toDelete.contains(defaultCategory.toLong())) {
+        if (defaultCategory != 0 && toDelete.contains(defaultCategory.toLong())) {
             try {
                 libraryPreferences.defaultCategory().delete()
             } catch (e: Exception) {
