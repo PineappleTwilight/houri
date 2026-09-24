@@ -20,6 +20,7 @@ class TranslatedPageStore(
         // KMK --> Sidecar holding the manga title next to its cached pages, so the
         // per-manga cache screen can name entries after the manga leaves the library.
         const val TITLE_FILE = "title.txt"
+        const val POLICY_FILE_PREFIX = "prompt_policy_"
         // KMK <--
     }
 
@@ -35,8 +36,16 @@ class TranslatedPageStore(
     fun pageFile(mangaId: Long, chapterId: Long, pageIndex: Int): File =
         File(chapterDir(mangaId, chapterId), "page_$pageIndex.webp")
 
-    fun loadIfExists(mangaId: Long, chapterId: Long, pageIndex: Int): ByteArray? {
+    fun loadIfExists(
+        mangaId: Long,
+        chapterId: Long,
+        pageIndex: Int,
+        expectedPolicyFingerprint: String? = null,
+    ): ByteArray? {
         val f = pageFile(mangaId, chapterId, pageIndex)
+        if (expectedPolicyFingerprint != null && loadPolicyFingerprint(mangaId, chapterId, pageIndex) != expectedPolicyFingerprint) {
+            return null
+        }
         return if (f.exists() && f.length() > 0) {
             try {
                 f.readBytes()
@@ -48,7 +57,14 @@ class TranslatedPageStore(
         }
     }
 
-    fun save(mangaId: Long, chapterId: Long, pageIndex: Int, webpBytes: ByteArray, mangaTitle: String? = null) {
+    fun save(
+        mangaId: Long,
+        chapterId: Long,
+        pageIndex: Int,
+        webpBytes: ByteArray,
+        mangaTitle: String? = null,
+        policyFingerprint: String? = null,
+    ) {
         if (webpBytes.isEmpty() || webpBytes.size > 5 * 1024 * 1024) return
         if (pageIndex < 0 || pageIndex > 5000) return
         val f = pageFile(mangaId, chapterId, pageIndex)
@@ -62,6 +78,7 @@ class TranslatedPageStore(
                 tmp.delete()
             }
         } catch (_: Exception) {}
+        if (!policyFingerprint.isNullOrBlank()) savePolicyFingerprint(mangaId, chapterId, pageIndex, policyFingerprint)
         saveTitle(mangaId, mangaTitle)
         pruneIfNeeded()
     }
@@ -79,6 +96,19 @@ class TranslatedPageStore(
             }
             lastTitles[mangaId] = clean
         } catch (_: Exception) {}
+    }
+
+    private fun policyFile(mangaId: Long, chapterId: Long, pageIndex: Int): File =
+        File(chapterDir(mangaId, chapterId), "$POLICY_FILE_PREFIX$pageIndex.txt")
+
+    private fun loadPolicyFingerprint(mangaId: Long, chapterId: Long, pageIndex: Int): String? = runCatching {
+        policyFile(mangaId, chapterId, pageIndex).takeIf { it.isFile }?.readText()?.trim()
+    }.getOrNull()
+
+    private fun savePolicyFingerprint(mangaId: Long, chapterId: Long, pageIndex: Int, fingerprint: String) {
+        runCatching {
+            policyFile(mangaId, chapterId, pageIndex).writeText(fingerprint.take(160))
+        }
     }
 
     fun loadTitle(mangaId: Long): String? {
