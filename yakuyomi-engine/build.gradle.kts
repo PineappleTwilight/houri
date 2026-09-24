@@ -6,7 +6,26 @@ plugins {
 
 android {
     namespace = "exh.yakuyomi"
-    ndkVersion = "27.0.12077973"
+    ndkVersion = "28.2.13676358"
+
+    defaultConfig {
+        ndk {
+            abiFilters += listOf("arm64-v8a", "armeabi-v7a")
+        }
+        externalNativeBuild {
+            cmake {
+                cppFlags += "-std=c++17"
+                arguments += "-DANDROID_STL=c++_static"
+            }
+        }
+    }
+
+    externalNativeBuild {
+        cmake {
+            path = file("src/main/cpp/CMakeLists.txt")
+            version = "3.22.1"
+        }
+    }
 }
 
 kotlin {
@@ -32,6 +51,8 @@ dependencies {
     implementation(libs.mlkit.genai.prompt)
     // On-device GGUF LLM runtime (llama.cpp via Llamatik).
     implementation(libs.llamatik)
+    // Shared ORT runtime for OCR and the NNAPI upscaler backend.
+    implementation(libs.onnxruntime.android)
     // KMK --> fake-OkHttp auth tests (401→refresh→retry-once, signup-200-stores-token, 429→friendlyError)
     testImplementation(libs.bundles.test)
     testImplementation(kotlinx.coroutines.test)
