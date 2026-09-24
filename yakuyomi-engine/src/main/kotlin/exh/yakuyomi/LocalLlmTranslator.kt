@@ -22,12 +22,27 @@ class LocalLlmTranslator(
     private val pageBitmap: Bitmap?,
     private val offlineFallback: Boolean,
     private val glossary: Map<String, String> = emptyMap(),
+    private val policy: TranslationPromptPolicy = TranslationPromptPolicy.DEFAULT,
 ) : Translator {
 
     override suspend fun translate(queries: List<String>): List<String> = withContext(AppDispatchersHolder.get().io) {
         if (queries.isEmpty()) return@withContext emptyList()
         val isEnFix = sourceLang.equals("EN", true) && targetLang.equals("EN", true)
-        val prompt = buildTranslationPrompt(queries, sourceLang, targetLang, breadcrumb, isEnFix, mangaContext, glossary)
+        val prompt = buildTranslationPrompt(
+            texts = queries,
+            sourceLang = sourceLang,
+            targetLang = targetLang,
+            breadcrumb = breadcrumb,
+            isEnFix = isEnFix,
+            mangaContext = mangaContext,
+            glossary = glossary,
+            policy = policy,
+            imageContext = if (pageBitmap != null) {
+                "Image context: the attached page is visual context only; do not invent or replace OCR text."
+            } else {
+                ""
+            },
+        )
         val imageBytes = pageBitmap?.let { bitmapToJpeg(it) }
         val result = try {
             manager.generate(prompt, imageBytes)

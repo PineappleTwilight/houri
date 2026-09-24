@@ -184,19 +184,18 @@ class GeminiNanoTranslator(
     private fun buildPrompt(queries: List<String>, imageContext: String, sourceLang: String): String {
         val targetLang = prefs.targetLang().get().ifBlank { "en" }.take(20)
         val isEnFix = sourceLang.equals("EN", true) && targetLang.equals("EN", true)
-        val glossary = prefs.glossaryMap().entries.take(30).joinToString("\n") { "- ${it.key.take(40)} -> ${it.value.take(40)}" }
-        val glossarySec = if (glossary.isNotBlank()) "Glossary:\n$glossary\n\n" else ""
-        return if (isEnFix) {
-            imageContext + glossarySec +
-                "Fix grammar, preserve names, output only EN. Texts:\n" +
-                queries.joinToString("\n") { "- ${it.replace("\n", " ")}" } +
-                "\n\nReturn each corrected line prefixed with '- ' exactly, one per input line, no extra commentary."
-        } else {
-            imageContext + glossarySec +
-                "Translate the lines to $targetLang. Preserve names, honorifics, output only $targetLang. Texts:\n" +
-                queries.joinToString("\n") { "- ${it.replace("\n", " ")}" } +
-                "\n\nReturn each translated line prefixed with '- ' exactly, one per input line, no extra commentary."
-        }
+        val policy = prefs.promptPolicy()
+        return buildTranslationPrompt(
+            texts = queries,
+            sourceLang = sourceLang,
+            targetLang = targetLang,
+            breadcrumb = "",
+            isEnFix = isEnFix,
+            mangaContext = "",
+            glossary = policy.glossary,
+            policy = policy,
+            imageContext = imageContext,
+        )
     }
 
     fun close() {

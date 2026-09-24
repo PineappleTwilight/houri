@@ -45,6 +45,7 @@ class YakuyomiTranslator(
     private val customHeaders: String = "",
     private val pageImageBytes: ByteArray? = null,
     private val glossary: Map<String, String> = emptyMap(),
+    private val policy: TranslationPromptPolicy = TranslationPromptPolicy.DEFAULT,
 ) : Translator {
 
     private fun isVisionModel(): Boolean {
@@ -90,7 +91,21 @@ class YakuyomiTranslator(
             throw TranslationException("Yakuyomi API key not configured (set it in Settings → Translation)")
         }
         val isEnFix = sourceLang.equals("EN", true) && targetLang.equals("EN", true)
-        val prompt = buildTranslationPrompt(queries, sourceLang, targetLang, breadcrumb, isEnFix, mangaContext, glossary)
+        val prompt = buildTranslationPrompt(
+            texts = queries,
+            sourceLang = sourceLang,
+            targetLang = targetLang,
+            breadcrumb = breadcrumb,
+            isEnFix = isEnFix,
+            mangaContext = mangaContext,
+            glossary = glossary,
+            policy = policy,
+            imageContext = if (pageImageBytes != null && isVisionModel()) {
+                "Image context: the attached page is visual context only; do not invent or replace OCR text."
+            } else {
+                ""
+            },
+        )
         val result = try {
             when (provider.lowercase()) {
                 "gemini" -> callGemini(prompt, apiKey, model)
