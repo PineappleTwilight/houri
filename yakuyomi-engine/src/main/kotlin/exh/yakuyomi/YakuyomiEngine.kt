@@ -2,6 +2,8 @@ package exh.yakuyomi
 
 import android.content.Context
 import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.Rect
 import android.graphics.Typeface
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.Inject
@@ -18,8 +20,13 @@ import li.joye.yakuyomi.engine.Detector
 import li.joye.yakuyomi.engine.Inpainter
 import li.joye.yakuyomi.engine.ModelSet
 import li.joye.yakuyomi.engine.Ocr
+import li.joye.yakuyomi.engine.PageAnalysis
 import li.joye.yakuyomi.engine.PageResult
+import li.joye.yakuyomi.engine.PageStats
 import li.joye.yakuyomi.engine.Pipeline
+import li.joye.yakuyomi.engine.Pt
+import li.joye.yakuyomi.engine.TextLine
+import li.joye.yakuyomi.engine.TextRegion
 import li.joye.yakuyomi.engine.Translator
 import mihon.core.concurrency.AppDispatchersHolder
 import tachiyomi.core.common.util.system.logcat
@@ -73,6 +80,7 @@ class YakuyomiEngine(
                 prefs.inpainterTileSize().changes(),
                 prefs.inpainterMaskDilate().changes(),
                 prefs.inpainterBboxPad().changes(),
+                prefs.inpainterUniformFastPath().changes(),
             ).collect { invalidateComponents() }
         }
     }
@@ -191,6 +199,7 @@ class YakuyomiEngine(
                 tileSize = prefs.inpainterTileSize().get().coerceIn(256, 1024),
                 maskDilate = prefs.inpainterMaskDilate().get().coerceIn(4f, 48f),
                 bboxPad = prefs.inpainterBboxPad().get().coerceIn(0, 32),
+                uniformFastPath = prefs.inpainterUniformFastPath().get(),
                 featherRadius = 1,
                 preserveAspect = true,
             ),
@@ -294,7 +303,24 @@ class YakuyomiEngine(
      * page. [translator] is the breadcrumb-aware LLM stage; pass null to skip translation (debug).
      * Serialized via Mutex because NCNN native backends are not thread-safe.
      */
-    suspend fun translatePage(bitmap: Bitmap, translator: Translator?, targetLang: String? = null): PageResult = withContext(AppDispatchersHolder.get().default) {
+    suspend fun translatePage(bitmap: Bitmap, translator: Translator?, targetLang: String? = null): PageResult =
+        translatePage(bitmap, { _: Bitmap -> translator }, targetLang)
+
+    /**
+     * Tall-page entry point: slices the original [bitmap] at low-variance gutters before the
+     * library's internal 4000px pre-scale, runs the existing [Pipeline] sequentially per slice
+     * (still under [pipelineMutex]), then stitches one full-size output. The factory receives
+     * each slice bitmap so providers get per-slice image context (vision) instead of the whole
+     * page. Any [PageResult.Failed] slice fails the whole page (no partial output escapes);
+     * [PageResult.Skipped] slices keep their original art; only an all-skipped page returns
+     * Skipped. [PageStats] are summed and [PageAnalysis] regions are offset to page coordinates,
+     * keeping only regions whose center lies in the slice's owned core (upper owns the overlap).
+     */
+    suspend fun translatePage(
+        bitmap: Bitmap,
+        translatorFactory: suspend (Bitmap) -> Translator?,
+        targetLang: String? = null,
+    ): PageResult = withContext(AppDispatchersHolder.get().default) {
         if (!isHardwareSupported()) {
             return@withContext PageResult.Failed(notEnoughMemoryReason, li.joye.yakuyomi.engine.PipelineErrorCode.INVALID_BITMAP)
         }
@@ -306,8 +332,200 @@ class YakuyomiEngine(
             val cfg = if (shouldForceHorizontal(targetLang)) horizontalConfig() else defaultConfig()
             val errs = cfg.validate()
             if (errs.isNotEmpty()) return@withContext PageResult.Failed("invalid config: ${errs.first()}", li.joye.yakuyomi.engine.PipelineErrorCode.UNKNOWN)
-            Pipeline(c.detector, c.ocr, translator, c.inpainter, cfg, resolveTypeface()).translatePage(bitmap)
+            if (!prefs.longPageSlicingEnabled().get() || !LongPageSlicer.shouldSlice(bitmap.width, bitmap.height)) {
+                return@withContext Pipeline(c.detector, c.ocr, translatorFactory(bitmap), c.inpainter, cfg, resolveTypeface()).translatePage(bitmap)
+            }
+            translateSliced(c, cfg, bitmap, translatorFactory)
         }
+    }
+
+    private suspend fun translateSliced(
+        c: Components,
+        cfg: li.joye.yakuyomi.engine.EngineConfig,
+        page: Bitmap,
+        translatorFactory: suspend (Bitmap) -> Translator?,
+    ): PageResult {
+        val width = page.width
+        val height = page.height
+        val slices = LongPageSlicer.buildSlices(height, LongPageSlicer.planCuts(page))
+        if (slices.size < 2) {
+            return Pipeline(c.detector, c.ocr, translatorFactory(page), c.inpainter, cfg, resolveTypeface()).translatePage(page)
+        }
+        val pieces = mutableListOf<SlicePiece>()
+        var failure: PageResult.Failed? = null
+        for (slice in slices) {
+            val input = try {
+                Bitmap.createBitmap(page, 0, slice.y, width, slice.height)
+            } catch (t: Throwable) {
+                failure = PageResult.Failed("slice crop failed: ${t.message}", li.joye.yakuyomi.engine.PipelineErrorCode.UNKNOWN)
+                break
+            }
+            val result = try {
+                val translator = try {
+                    translatorFactory(input)
+                } catch (t: Throwable) {
+                    failure = PageResult.Failed("slice translator failed: ${t.message}", li.joye.yakuyomi.engine.PipelineErrorCode.TRANSLATE_FAILED)
+                    break
+                }
+                Pipeline(c.detector, c.ocr, translator, c.inpainter, cfg, resolveTypeface()).translatePage(input)
+            } finally {
+                runCatching { input.recycle() }
+            }
+            when (result) {
+                is PageResult.Failed -> {
+                    failure = result
+                    break
+                }
+                is PageResult.Skipped -> {
+                    val art = try {
+                        Bitmap.createBitmap(page, 0, slice.y, width, slice.height)
+                    } catch (t: Throwable) {
+                        failure = PageResult.Failed("slice art copy failed: ${t.message}", li.joye.yakuyomi.engine.PipelineErrorCode.UNKNOWN)
+                        break
+                    }
+                    pieces.add(SlicePiece(slice, art, result.stats, null, result.reason))
+                }
+                is PageResult.Translated -> {
+                    pieces.add(SlicePiece(slice, result.page, result.stats, result.analysis, null))
+                }
+            }
+        }
+        if (failure != null) {
+            recyclePieces(pieces)
+            return failure
+        }
+        if (pieces.size != slices.size) {
+            recyclePieces(pieces)
+            return PageResult.Failed("sliced translation incomplete", li.joye.yakuyomi.engine.PipelineErrorCode.UNKNOWN)
+        }
+        if (pieces.all { it.analysis == null }) {
+            val stats = sumStats(pieces.map { it.stats })
+            val reason = pieces.mapNotNull { it.skipReason }.distinct().take(2).joinToString("; ").ifBlank { "No text detected" }
+            recyclePieces(pieces)
+            return PageResult.Skipped(reason, stats, li.joye.yakuyomi.engine.PipelineErrorCode.DETECT_FAILED)
+        }
+        val stitched = try {
+            Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+        } catch (t: Throwable) {
+            recyclePieces(pieces)
+            return PageResult.Failed("slice stitch failed: ${t.message}", li.joye.yakuyomi.engine.PipelineErrorCode.UNKNOWN)
+        }
+        try {
+            val canvas = Canvas(stitched)
+            // Lower slices first, upper slices last: the upper slice owns the overlap band.
+            for (i in pieces.indices.reversed()) {
+                val piece = pieces[i]
+                val dst = Rect(0, piece.slice.y, width, piece.slice.y + piece.slice.height)
+                canvas.drawBitmap(piece.bitmap, null, dst, null)
+            }
+        } catch (t: Throwable) {
+            recyclePieces(pieces)
+            runCatching { stitched.recycle() }
+            return PageResult.Failed("slice stitch failed: ${t.message}", li.joye.yakuyomi.engine.PipelineErrorCode.UNKNOWN)
+        }
+        val mask = stitchMask(pieces, width, height)
+        val regions = offsetRegions(pieces, slices)
+        pieces.forEach { runCatching { it.bitmap.recycle() } }
+        val stats = sumStats(pieces.map { it.stats })
+        val analysis = if (mask != null) {
+            PageAnalysis(mask, regions)
+        } else {
+            regions.takeIf { it.isNotEmpty() }?.let {
+                val fallbackMask = try {
+                    Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+                } catch (_: Throwable) {
+                    null
+                } ?: return PageResult.Translated(stitched, stats, null)
+                PageAnalysis(fallbackMask, it)
+            }
+        }
+        return PageResult.Translated(stitched, stats, analysis)
+    }
+
+    private class SlicePiece(
+        val slice: LongPageSlicer.Slice,
+        val bitmap: Bitmap,
+        val stats: PageStats,
+        val analysis: PageAnalysis?,
+        val skipReason: String?,
+    )
+
+    private fun recyclePieces(pieces: List<SlicePiece>) {
+        pieces.forEach { piece ->
+            runCatching { piece.bitmap.recycle() }
+            piece.analysis?.mask?.let { mask -> runCatching { mask.recycle() } }
+        }
+    }
+
+    private fun sumStats(all: List<PageStats>): PageStats = PageStats(
+        lines = all.sumOf { it.lines },
+        regions = all.sumOf { it.regions },
+        kept = all.sumOf { it.kept },
+        detectMs = all.sumOf { it.detectMs },
+        ocrMs = all.sumOf { it.ocrMs },
+        translateMs = all.sumOf { it.translateMs },
+        inpaintMs = all.sumOf { it.inpaintMs },
+        renderMs = all.sumOf { it.renderMs },
+        wallMs = all.sumOf { it.wallMs },
+        promptTokens = all.sumOf { it.promptTokens },
+        completionTokens = all.sumOf { it.completionTokens },
+    )
+
+    private fun recycleAnalysisMasks(pieces: List<SlicePiece>) {
+        pieces.mapNotNull { it.analysis?.mask }.forEach { mask -> runCatching { mask.recycle() } }
+    }
+
+    private fun stitchMask(pieces: List<SlicePiece>, width: Int, height: Int): Bitmap? {
+        if (pieces.none { it.analysis != null }) return null
+        val mask = try {
+            Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+        } catch (_: Throwable) {
+            recycleAnalysisMasks(pieces)
+            return null
+        }
+        return try {
+            val canvas = Canvas(mask)
+            for (i in pieces.indices.reversed()) {
+                val piece = pieces[i]
+                val sliceMask = piece.analysis?.mask ?: continue
+                if (sliceMask.isRecycled) continue
+                val dst = Rect(0, piece.slice.y, width, piece.slice.y + piece.slice.height)
+                canvas.drawBitmap(sliceMask, null, dst, null)
+            }
+            mask
+        } catch (_: Throwable) {
+            runCatching { mask.recycle() }
+            null
+        } finally {
+            recycleAnalysisMasks(pieces)
+        }
+    }
+
+    private fun offsetRegions(pieces: List<SlicePiece>, slices: List<LongPageSlicer.Slice>): List<TextRegion> {
+        val out = mutableListOf<TextRegion>()
+        for (i in pieces.indices) {
+            val piece = pieces[i]
+            val analysis = piece.analysis ?: continue
+            for (region in analysis.regions) {
+                val cyPage = region.cy + piece.slice.y
+                if (!LongPageSlicer.ownsCenter(i, slices, cyPage)) continue
+                val lines = region.lines.map { line ->
+                    TextLine(line.quad.map { Pt(it.x, it.y + piece.slice.y) }, line.score).also {
+                        it.direction = line.direction
+                        it.text = line.text
+                        it.translatedText = line.translatedText
+                    }
+                }
+                TextRegion(lines, region.direction, region.angle, region.cx, cyPage, region.boxW, region.boxH).also {
+                    it.translatedText = region.translatedText
+                    it.onArt = region.onArt
+                    it.dbgStd = region.dbgStd
+                    it.dbgWhite = region.dbgWhite
+                    out.add(it)
+                }
+            }
+        }
+        return out
     }
 
     private fun shouldForceHorizontal(lang: String?): Boolean {

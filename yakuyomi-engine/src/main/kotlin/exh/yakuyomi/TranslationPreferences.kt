@@ -233,6 +233,10 @@ class TranslationPreferences(
     fun inpainterTileSize() = preferenceStore.getInt("pref_yakuyomi_inpainter_tile", 768)
     fun inpainterMaskDilate() = preferenceStore.getFloat("pref_yakuyomi_inpainter_dilate", 24f)
     fun inpainterBboxPad() = preferenceStore.getInt("pref_yakuyomi_inpainter_pad", 16)
+    // KMK -->
+    fun inpainterUniformFastPath() = preferenceStore.getBoolean("pref_yakuyomi_inpainter_uniform_fastpath", true)
+    fun longPageSlicingEnabled() = preferenceStore.getBoolean("pref_yakuyomi_long_page_slicing", true)
+    // KMK <--
     fun renderFontScale() = preferenceStore.getFloat("pref_yakuyomi_render_font_scale", 0.85f)
     fun renderExpandW() = preferenceStore.getFloat("pref_yakuyomi_render_expand_w", 1.3f)
     fun renderExpandH() = preferenceStore.getFloat("pref_yakuyomi_render_expand_h", 1.5f)
@@ -251,6 +255,10 @@ class TranslationPreferences(
         inpainterTileSize().set(768)
         inpainterMaskDilate().set(24f)
         inpainterBboxPad().set(16)
+        // KMK -->
+        inpainterUniformFastPath().set(true)
+        longPageSlicingEnabled().set(true)
+        // KMK <--
         renderFontScale().set(0.85f)
         renderExpandW().set(1.3f)
         renderExpandH().set(1.5f)
