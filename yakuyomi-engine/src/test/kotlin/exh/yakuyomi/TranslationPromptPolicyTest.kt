@@ -51,7 +51,7 @@ class TranslationPromptPolicyTest {
         prompt.contains("Use casual") shouldBe true
         prompt.contains("Translate descriptive sound effects") shouldBe true
         prompt.contains("犬 -> dog") shouldBe true
-        prompt.contains("<|1|>犬だ") shouldBe true
+        prompt.contains("<|1|> 犬だ") shouldBe true
         prompt.contains("Return each translated line as") shouldBe true
         (prompt.length <= 8000) shouldBe true
     }

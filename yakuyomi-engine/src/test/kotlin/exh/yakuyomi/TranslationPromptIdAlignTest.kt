@@ -19,8 +19,8 @@ class TranslationPromptIdAlignTest {
             isEnFix = false,
         )
 
-        prompt.contains("<|1|>犬だ") shouldBe true
-        prompt.contains("<|2|>こんにちは") shouldBe true
+        prompt.contains("<|1|> 犬だ") shouldBe true
+        prompt.contains("<|2|> こんにちは") shouldBe true
         prompt.contains("<|n|>") shouldBe true
     }
 
