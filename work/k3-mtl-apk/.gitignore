@@ -1,0 +1,4 @@
+# Large local analysis artifacts are intentionally not committed.
+apk/
+analysis/
+reports/
