@@ -207,7 +207,9 @@ class TranslationManager(
                     policy = promptPolicy,
                 )
                 val result = localLlm.generate(prompt) ?: return null
-                parseTranslationLines(result) ?: return null
+                // KMK --> Stable-ID alignment: strip <|n|> prefixes before field mapping.
+                alignTranslationLines(parseTranslationLines(result) ?: return null, lines)
+                // KMK <--
             } else {
                 if (prefs.effectiveApiKey().isBlank()) return null
                 YakuyomiTranslator(
@@ -524,12 +526,25 @@ class TranslationManager(
                 status.pageError(mangaId, chapterId, pageIndex, "Unable to decode image bounds")
                 return null
             }
-            if (bounds.outWidth <= 0 || bounds.outHeight <= 0 || bounds.outWidth > 10000 || bounds.outHeight > 10000) {
+            if (bounds.outWidth <= 0 || bounds.outHeight <= 0) {
+                status.pageError(mangaId, chapterId, pageIndex, "Invalid image dimensions ${bounds.outWidth}x${bounds.outHeight}")
+                return null
+            }
+            val pixelCount = bounds.outWidth.toLong() * bounds.outHeight.toLong()
+            // KMK -->
+            val tallFullRes = prefs.longPageSlicingEnabled().get() &&
+                LongPageSlicer.shouldSlice(bounds.outWidth, bounds.outHeight) &&
+                pixelCount in 1..36_000_000L
+            // KMK <--
+            val widthOk = bounds.outWidth in 1..10000
+            val heightOk = bounds.outHeight in 1..if (tallFullRes) 30000 else 10000
+            if (!widthOk || !heightOk) {
                 status.pageError(mangaId, chapterId, pageIndex, "Invalid image dimensions ${bounds.outWidth}x${bounds.outHeight}")
                 return null
             }
             val maxDim = maxOf(bounds.outWidth, bounds.outHeight)
             val sampleSize = when {
+                tallFullRes -> 1
                 maxDim > 6000 -> 4
                 maxDim > 4096 -> 2
                 else -> 1
@@ -554,73 +569,85 @@ class TranslationManager(
             // KMK -->
             // Gemini Nano (on-device) is the priority LLM provider when the toggle is on and
             // the device has the model available; otherwise fall back to the cloud provider.
-            // The page bitmap is passed along for visual context (vision augments the OCR'd
-            // text lines — it never replaces them).
+            // Built as a factory over the slice bitmap: the engine may split a tall page into
+            // overlapping slices, and each provider must see its own slice (vision context and
+            // JPEG bytes are generated per slice, never from the whole page).
             val useGeminiNano = prefs.geminiNanoEnabled().get() && geminiNano.isAvailable()
-            val translator: li.joye.yakuyomi.engine.Translator = when {
-                useGeminiNano -> {
-                    object : li.joye.yakuyomi.engine.Translator {
-                        override suspend fun translate(queries: List<String>): List<String> {
-                            val result = geminiNano.translate(queries, bitmap, sourceLangHint)
-                            if (result != null) return result
-                            if (prefs.offlineFallback().get()) return queries.map { it.trim() }
-                            throw TranslationException("Gemini Nano unavailable on this device — enable a cloud provider in Settings → Translation")
+            val translatorFactory: suspend (Bitmap) -> li.joye.yakuyomi.engine.Translator = { sliceBitmap ->
+                when {
+                    useGeminiNano -> {
+                        object : li.joye.yakuyomi.engine.Translator {
+                            override suspend fun translate(queries: List<String>): List<String> {
+                                val result = geminiNano.translate(queries, sliceBitmap, sourceLangHint)
+                                if (result != null) return result
+                                if (prefs.offlineFallback().get()) return queries.map { it.trim() }
+                                throw TranslationException("Gemini Nano unavailable on this device — enable a cloud provider in Settings → Translation")
+                            }
                         }
                     }
-                }
-                localLlm.isLocalProvider() -> {
-                    LocalLlmTranslator(
-                        manager = localLlm,
-                        sourceLang = sourceLangHint,
-                        targetLang = targetLang,
-                        breadcrumb = breadcrumb,
-                        mangaContext = mangaContext,
-                        pageBitmap = bitmap,
-                        offlineFallback = prefs.offlineFallback().get(),
-                        glossary = glossary,
-                        policy = promptPolicy,
-                    )
-                }
-                else -> {
-                    val jpegBytes = runCatching {
-                        if (bitmap.width * bitmap.height > 2_000_000) {
-                            val scale = kotlin.math.sqrt(2_000_000.0 / (bitmap.width * bitmap.height)).toFloat()
-                            val nw = (bitmap.width * scale).toInt().coerceAtLeast(512)
-                            val nh = (bitmap.height * scale).toInt().coerceAtLeast(512)
-                            val scaled = android.graphics.Bitmap.createScaledBitmap(bitmap, nw, nh, true)
-                            val out = java.io.ByteArrayOutputStream()
-                            scaled.compress(Bitmap.CompressFormat.JPEG, 80, out)
-                            scaled.recycle()
-                            out.toByteArray()
-                        } else {
-                            val out = java.io.ByteArrayOutputStream()
-                            bitmap.compress(Bitmap.CompressFormat.JPEG, 80, out)
-                            out.toByteArray()
-                        }
-                    }.getOrNull()?.takeIf { it.size in 1..3_000_000 }
-                    YakuyomiTranslator(
-                        apiKey = prefs.effectiveApiKey(),
-                        sourceLang = sourceLangHint,
-                        targetLang = targetLang,
-                        breadcrumb = breadcrumb,
-                        mangaContext = mangaContext,
-                        provider = prefs.provider().get().lowercase(),
-                        model = model,
-                        offlineFallback = prefs.offlineFallback().get(),
-                        client = client,
-                        customBaseUrl = prefs.customBaseUrl().get(),
-                        customHeaders = prefs.customHeaders().get(),
-                        pageImageBytes = jpegBytes,
-                        glossary = glossary,
-                        policy = promptPolicy,
-                    )
+                    localLlm.isLocalProvider() -> {
+                        LocalLlmTranslator(
+                            manager = localLlm,
+                            sourceLang = sourceLangHint,
+                            targetLang = targetLang,
+                            breadcrumb = breadcrumb,
+                            mangaContext = mangaContext,
+                            pageBitmap = sliceBitmap,
+                            offlineFallback = prefs.offlineFallback().get(),
+                            glossary = glossary,
+                            policy = promptPolicy,
+                        )
+                    }
+                    else -> {
+                        val jpegBytes = runCatching {
+                            if (sliceBitmap.width * sliceBitmap.height > 2_000_000) {
+                                val scale = kotlin.math.sqrt(2_000_000.0 / (sliceBitmap.width * sliceBitmap.height)).toFloat()
+                                val nw = (sliceBitmap.width * scale).toInt().coerceAtLeast(512)
+                                val nh = (sliceBitmap.height * scale).toInt().coerceAtLeast(512)
+                                val scaled = android.graphics.Bitmap.createScaledBitmap(sliceBitmap, nw, nh, true)
+                                val out = java.io.ByteArrayOutputStream()
+                                scaled.compress(Bitmap.CompressFormat.JPEG, 80, out)
+                                scaled.recycle()
+                                out.toByteArray()
+                            } else {
+                                val out = java.io.ByteArrayOutputStream()
+                                sliceBitmap.compress(Bitmap.CompressFormat.JPEG, 80, out)
+                                out.toByteArray()
+                            }
+                        }.getOrNull()?.takeIf { it.size in 1..3_000_000 }
+                        YakuyomiTranslator(
+                            apiKey = prefs.effectiveApiKey(),
+                            sourceLang = sourceLangHint,
+                            targetLang = targetLang,
+                            breadcrumb = breadcrumb,
+                            mangaContext = mangaContext,
+                            provider = prefs.provider().get().lowercase(),
+                            model = model,
+                            offlineFallback = prefs.offlineFallback().get(),
+                            client = client,
+                            customBaseUrl = prefs.customBaseUrl().get(),
+                            customHeaders = prefs.customHeaders().get(),
+                            pageImageBytes = jpegBytes,
+                            glossary = glossary,
+                            policy = promptPolicy,
+                        )
+                    }
                 }
             }
             // KMK <--
 
             val currentBitmap = checkNotNull(bitmap)
+            // KMK -->
+            val pageTimeoutMs = if (prefs.longPageSlicingEnabled().get() &&
+                LongPageSlicer.shouldSlice(currentBitmap.width, currentBitmap.height)
+            ) {
+                600_000L
+            } else {
+                90_000L
+            }
+            // KMK <--
             val result = try {
-                kotlinx.coroutines.withTimeout(90_000) { engine.translatePage(currentBitmap, translator, targetLang) }
+                kotlinx.coroutines.withTimeout(pageTimeoutMs) { engine.translatePage(currentBitmap, translatorFactory, targetLang) }
             } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
                 status.pageError(mangaId, chapterId, pageIndex, friendlyError("Translation timed out"))
                 runCatching { currentBitmap.recycle() }

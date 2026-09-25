@@ -43,11 +43,15 @@ private fun sfxDirective(value: String): String = when (value.trim().lowercase()
     else -> "Keep iconic SFX as SFX or transliterate them; do not invent new sound effects."
 }
 
+// KMK --> Stable per-region IDs: source lines carry `<|n|>` tags and the model must
+// echo the ID with each translation, so reordered/dropped lines map back one-to-one
+// without fuzzy source-vs-translation matching.
 private fun protocol(isEnFix: Boolean, target: String): String = if (isEnFix) {
-    "Return each corrected line prefixed with '- ' exactly, one per input line, no extra commentary, no quotes."
+    "Return each corrected line as `<|n|> correction` with its original ID, one per input line, no extra commentary, no quotes."
 } else {
-    "Return each translated line prefixed with '- ' exactly, one per input line, no extra commentary, no quotes. If a line is already $target or is purely SFX/numbers, return it as-is."
+    "Return each translated line as `<|n|> translation` with its original ID, one per input line, no extra commentary, no quotes. If a line is already $target or is purely SFX/numbers, return it as-is with its ID."
 }
+// KMK <--
 
 internal fun buildTranslationPrompt(
     texts: List<String>,
@@ -105,16 +109,50 @@ internal fun buildTranslationPrompt(
     val fixedProtocol = protocol(isEnFix, safeTarget)
     val textBudget = (MAX_PROMPT_CHARS - head.length - fixedProtocol.length - 24).coerceAtLeast(400)
     val perLineBudget = (textBudget / safeTexts.size.coerceAtLeast(1)).coerceAtLeast(80)
-    val joined = safeTexts.joinToString("\n") { "- ${it.take(perLineBudget)}" }.take(textBudget)
+    // KMK --> Stable per-region IDs instead of dash bullets.
+    val joined = safeTexts.mapIndexed { index, line -> "<|${index + 1}|> ${line.take(perLineBudget)}" }
+        .joinToString("\n").take(textBudget)
+    // KMK <--
     return "$head\n\nTexts:\n$joined\n\n$fixedProtocol"
 }
 
-/** Pads or truncates provider output to match the input line count. */
-internal fun alignTranslationLines(result: List<String>, queries: List<String>): List<String> = when {
-    result.size == queries.size -> result
-    result.size < queries.size -> result + queries.drop(result.size).map { it.trim() }
-    else -> result.take(queries.size)
+// KMK --> Stable-ID alignment: `<|n|>` tags map output lines back to query order.
+private val LINE_ID = Regex("""^<\|\s*(\d+)\s*\|>\s*(.*)$""", RegexOption.DOT_MATCHES_ALL)
+
+/** Splits a `<|n|> text` line into its 1-based ID and remainder; non-ID lines yield null. */
+private fun extractLineId(line: String): Pair<Int?, String> {
+    val compact = line.trim().removePrefix("- ").trim()
+    val match = LINE_ID.find(compact) ?: return null to line
+    val id = match.groupValues[1].toIntOrNull() ?: return null to line
+    return id to match.groupValues[2].trim()
 }
+
+/**
+ * Maps provider output back to query order via stable IDs. Reordered IDs are restored,
+ * missing IDs are filled with the source line, duplicate IDs keep the first valid
+ * occurrence, and out-of-range IDs are ignored. Falls back to positional pad/truncate
+ * when no valid ID exists.
+ */
+internal fun alignTranslationLines(result: List<String>, queries: List<String>): List<String> {
+    if (queries.isEmpty()) return emptyList()
+    val byId = HashMap<Int, String>()
+    var sawValidId = false
+    for (line in result) {
+        val (id, text) = extractLineId(line)
+        if (id == null || id < 1 || id > queries.size) continue
+        sawValidId = true
+        if (text.isNotBlank() && !byId.containsKey(id)) byId[id] = text
+    }
+    if (!sawValidId) {
+        return when {
+            result.size == queries.size -> result
+            result.size < queries.size -> result + queries.drop(result.size).map { it.trim() }
+            else -> result.take(queries.size)
+        }
+    }
+    return queries.indices.map { index -> byId[index + 1] ?: queries[index].trim() }
+}
+// KMK <--
 
 /**
  * Parses the LLM's reply into one translated line per input line. Accepts the dash-list

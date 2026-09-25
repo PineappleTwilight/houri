@@ -100,7 +100,7 @@ class YakuyomiTranslator(
             mangaContext = mangaContext,
             glossary = glossary,
             policy = policy,
-            imageContext = if (pageImageBytes != null && isVisionModel()) {
+            imageContext = if (pageImageBytes != null && (isVisionModel() || provider.lowercase() == "gemini")) {
                 "Image context: the attached page is visual context only; do not invent or replace OCR text."
             } else {
                 ""
@@ -331,9 +331,30 @@ class YakuyomiTranslator(
                 else -> modelName
             }
             val url = "https://generativelanguage.googleapis.com/v1beta/models/$geminiModel:generateContent?key=$apiKey"
+            val visionBytes = cappedVisionBytes()
             val body = buildJsonObject {
                 putJsonArray("contents") {
-                    add(buildJsonObject { putJsonArray("parts") { add(buildJsonObject { put("text", prompt) }) } })
+                    add(
+                        buildJsonObject {
+                            putJsonArray("parts") {
+                                add(buildJsonObject { put("text", prompt) })
+                                if (visionBytes != null) {
+                                    val b64 = java.util.Base64.getEncoder().encodeToString(visionBytes)
+                                    add(
+                                        buildJsonObject {
+                                            put(
+                                                "inlineData",
+                                                buildJsonObject {
+                                                    put("mimeType", "image/jpeg")
+                                                    put("data", b64)
+                                                },
+                                            )
+                                        },
+                                    )
+                                }
+                            }
+                        },
+                    )
                 }
             }.toString().toRequestBody("application/json".toMediaType())
             val req = Request.Builder().url(url).post(body).header("Content-Type", "application/json").build()
