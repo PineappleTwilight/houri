@@ -460,6 +460,11 @@
     <string name="pref_mangatranslator_manage_cache_summary">Wipe translated pages for a specific manga — works even after removing it from library</string>
     <string name="pref_yakuyomi_engine_advanced_warning_title">Not recommended — unsupported</string>
     <string name="pref_yakuyomi_engine_advanced_warning">These are low-level engine tunables. Defaults are measured on real devices; changing them can break translation, degrade quality, or crash the engine. Only touch if you know what you\'re doing — this is not recommended or supported.</string>
+    <string name="pref_yakuyomi_quality_pipeline">Quality pipeline</string>
+    <string name="pref_yakuyomi_uniform_fast_cleanup">Uniform fast cleanup</string>
+    <string name="pref_yakuyomi_uniform_fast_cleanup_summary">Flat-color speech bubbles skip neural inpainting for faster cleanup</string>
+    <string name="pref_yakuyomi_long_page_slicing">Long-page slicing</string>
+    <string name="pref_yakuyomi_long_page_slicing_summary">Very tall pages are split before detection to preserve small text</string>
     <!-- Achievements onboarding -->
     <string name="onboarding_achievements_title">Achievements</string>
     <string name="onboarding_achievements_description">Track your reading milestones with ranks and unlocks. Disable if you want a minimal experience — no tracking or popups when off.</string>

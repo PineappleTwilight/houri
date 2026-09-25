@@ -9,6 +9,7 @@ import eu.kanade.presentation.more.settings.Preference
 import kotlinx.collections.immutable.toPersistentList
 import mihon.app.di.globalAppGraph
 import tachiyomi.i18n.kmk.KMR
+import tachiyomi.presentation.core.i18n.stringResource
 import tachiyomi.presentation.core.util.collectAsState
 import java.util.Locale
 
@@ -148,6 +149,25 @@ class SettingsYakuyomiEngineAdvancedScreen : SearchableSettings {
                     ),
                 ).toPersistentList(),
             ),
+            // KMK -->
+            Preference.PreferenceGroup(
+                title = stringResource(KMR.strings.pref_yakuyomi_quality_pipeline),
+                preferenceItems = listOf(
+                    Preference.PreferenceItem.SwitchPreference(
+                        preference = prefs.inpainterUniformFastPath(),
+                        title = stringResource(KMR.strings.pref_yakuyomi_uniform_fast_cleanup),
+                        subtitle = stringResource(KMR.strings.pref_yakuyomi_uniform_fast_cleanup_summary),
+                        enabled = true,
+                    ),
+                    Preference.PreferenceItem.SwitchPreference(
+                        preference = prefs.longPageSlicingEnabled(),
+                        title = stringResource(KMR.strings.pref_yakuyomi_long_page_slicing),
+                        subtitle = stringResource(KMR.strings.pref_yakuyomi_long_page_slicing_summary),
+                        enabled = true,
+                    ),
+                ).toPersistentList(),
+            ),
+            // KMK <--
             Preference.PreferenceGroup(
                 title = "Typesetting",
                 preferenceItems = listOf(
