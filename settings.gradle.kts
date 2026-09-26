@@ -66,6 +66,9 @@ include(":i18n")
 include(":i18n-kmk")
 include(":flagkit")
 // KMK <--
+// KMK --> on-device LLM runtime built from the external/llamatik fork (Vulkan-capable)
+include(":llamatik-native")
+// KMK <--
 // SY -->
 include(":i18n-sy")
 // SY <--

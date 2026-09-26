@@ -25,7 +25,7 @@ mlkit_text_japanese = "16.0.1"
 mlkit_text_korean = "16.0.1"
 mlkit_genai_prompt = "1.0.0-beta4"
 onnxruntime = "1.20.0"
-llamatik = "1.7.0"
+# llamatik is built locally from the external/llamatik fork (see llamatik-native/) — no version catalog entry
 
 [libraries]
 desugar = "com.android.tools:desugar_jdk_libs:2.1.5"
@@ -137,7 +137,6 @@ mlkit-text-chinese = { module = "com.google.mlkit:text-recognition-chinese", ver
 mlkit-text-japanese = { module = "com.google.mlkit:text-recognition-japanese", version.ref = "mlkit_text_japanese" }
 mlkit-text-korean = { module = "com.google.mlkit:text-recognition-korean", version.ref = "mlkit_text_korean" }
 mlkit-genai-prompt = { module = "com.google.mlkit:genai-prompt", version.ref = "mlkit_genai_prompt" }
-llamatik = { module = "com.llamatik:library", version.ref = "llamatik" }
 onnxruntime-android = { module = "com.microsoft.onnxruntime:onnxruntime-android", version.ref = "onnxruntime" }
 coroutines-play-services = "org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.11.0"
 

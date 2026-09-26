@@ -49,8 +49,11 @@ dependencies {
     implementation("li.joye.yakuyomi:engine")
     // On-device Gemini Nano LLM via ML Kit GenAI Prompt API (priority provider when available).
     implementation(libs.mlkit.genai.prompt)
-    // On-device GGUF LLM runtime (llama.cpp via Llamatik).
-    implementation(libs.llamatik)
+    // KMK --> On-device GGUF LLM runtime (llama.cpp). Built from the
+    // external/llamatik fork instead of com.llamatik:library because the published
+    // AAR is CPU-only; this one can compile the ggml Vulkan backend in.
+    implementation(projects.llamatikNative)
+    // KMK <--
     // Shared ORT runtime for OCR and the NNAPI upscaler backend.
     implementation(libs.onnxruntime.android)
     // KMK --> fake-OkHttp auth tests (401→refresh→retry-once, signup-200-stores-token, 429→friendlyError)
