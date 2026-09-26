@@ -25,6 +25,7 @@ Houri (`applicationId app.houri`) — Android manga reader (min SDK 26, target 3
 | `presentation-core/AGENTS.md` | Shared Compose components (+ parallel SettingsItems system) |
 | `presentation-widget/AGENTS.md` | Glance home-screen widget |
 | `yakuyomi-engine/AGENTS.md` | MTL orchestration (wrapper; native engine is a submodule, commit it first) |
+| `llamatik-native/AGENTS.md` | On-device LLM runtime: vendored llama.cpp from the `external/llamatik` fork (Vulkan opt-in) |
 
 ---
 
@@ -97,7 +98,9 @@ Before `git push`, confirm the current branch is not `master` or `main` (`git br
 | `presentation-widget/` | Home-screen Glance widget |
 | `yakuyomi-engine/` (`:yakuyomi`) | Komikku-side MTL wrapper (`exh.yakuyomi.*`: manager, translators, models, cache) |
 | `yakuyomi-stub/` (`:yakuyomi-stub`) | No-op MTL stub compiled by the `nomtl` flavor |
+| `llamatik-native/` (`:llamatik-native`) | Vendored llamatik/llama.cpp native runtime + Kotlin wrapper (replaces the `com.llamatik:library` AAR, which is CPU-only) |
 | `external/yakuyomi-engine` | Git **submodule** (houri-engine): native pipeline `li.joye.yakuyomi.engine.*` — commit it BEFORE the main repo |
+| `external/llamatik` | Git **submodule** (Llamatik fork) with **nested** submodules: needs `git submodule update --init --recursive`. Supplies llama.cpp for `:llamatik-native`; commit it BEFORE the main repo |
 | `external/webgpuviewer-houri`, `external/imagedecoder-houri` | Git submodules (composite builds): WebGPU viewer, image decoder |
 | `i18n/` | Mihon strings → `MR` (moko-resources) |
 | `i18n-kmk/` | Komikku strings → `KMR` |
