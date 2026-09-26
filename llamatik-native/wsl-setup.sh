@@ -10,6 +10,8 @@
 # checks the rest of the toolchain so a missing piece is reported here, once, instead of 380
 # steps into a Gradle build.
 #
+#   ./wsl-setup.sh --headers-only   stage/verify just the headers (used by CI)
+#
 # Safe to re-run: it re-checks everything and only re-downloads what is missing.
 
 set -euo pipefail
@@ -28,10 +30,20 @@ die()  { printf 'ERROR: %s\n' "$*" >&2; exit 1; }
 
 need() { command -v "$1" >/dev/null 2>&1 || die "'$1' is missing. Install it and re-run."; }
 
+# CI only needs the headers staged; it installs cmake/ninja in a later step and its NDK
+# lives somewhere this script's probes may not match, so skip the build-tool and NDK checks.
+headers_only=0
+if [[ "${1:-}" == "--headers-only" ]]; then
+  headers_only=1
+  shift
+fi
+
 info "checking host tools"
 need git
-need cmake
-need ninja
+if [[ $headers_only -eq 0 ]]; then
+  need cmake
+  need ninja
+fi
 printf '    cmake %s\n' "$(cmake --version | head -1 | awk '{print $3}')"
 printf '    ninja %s\n' "$(ninja --version)"
 
@@ -53,10 +65,16 @@ fi
 ndk_root=""
 for root in "/usr/lib/android-sdk/ndk/$NDK_VERSION" \
             "$HOME/Android/Sdk/ndk/$NDK_VERSION" \
-            "/opt/android-sdk/ndk/$NDK_VERSION"; do
+            "/opt/android-sdk/ndk/$NDK_VERSION" \
+            "${ANDROID_HOME:-/nonexistent}/ndk/$NDK_VERSION" \
+            "${ANDROID_SDK_ROOT:-/nonexistent}/ndk/$NDK_VERSION" \
+            "/usr/local/lib/android/sdk/ndk/$NDK_VERSION"; do
   [ -f "$root/build/cmake/android.toolchain.cmake" ] && { ndk_root="$root"; break; }
 done
-if [ -z "$ndk_root" ]; then
+if [ $headers_only -eq 1 ]; then
+  printf '    (headers-only: skipping the NDK check)\n'
+  ndk_root=""
+elif [ -z "$ndk_root" ]; then
   die "NDK $NDK_VERSION not found inside WSL. Install it:
     sudo sdkmanager --install \"ndk;$NDK_VERSION\"
   (the Windows NDK under C: cannot be used from WSL — its toolchain is windows-x86_64)
@@ -139,8 +157,7 @@ or, to do the native build in WSL (recommended, and what this module does anyway
     ./gradlew assembleDebug
 
 Notes:
-  * CPU-only build (skips all Vulkan work):  -Pmtl.gpuOffload=false
-  * Force the WSL glslc proxy inside WSL:    -Pmtl.vulkanToolchain=wsl
+  * Build without Vulkan entirely:          -Pmtl.gpuOffload=false
   * After editing CMakeLists.txt, NDK, or any -Pmtl.* property, run wipe-cache.sh — AGP
     caches CMake results and a stale one silently keeps old behaviour.
 EOF

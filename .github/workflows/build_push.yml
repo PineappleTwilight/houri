@@ -38,7 +38,8 @@ jobs:
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           fetch-depth: 0
-          submodules: true
+          # external/llamatik nests llama.cpp as a submodule of its own, so the checkout must be recursive.
+          submodules: recursive
 
       - name: Set up JDK
         uses: actions/setup-java@1bcf9fb12cf4aa7d266a90ae39939e61372fe520 # v5.4.0
@@ -74,6 +75,21 @@ jobs:
           key: ${{ runner.os }}-apt-${{ hashFiles('.github/workflows/build_push.yml') }}
           restore-keys: |
             ${{ runner.os }}-apt-
+
+      - name: Install Vulkan headers for the MTL on-device LLM
+        run: |
+          # :llamatik-native compiles ggml's Vulkan backend, which needs a shader compiler
+          # plus Vulkan-Hpp and SPIRV-Headers. None of those are usable from the Android
+          # SDK: the NDK hides its bundled glslc from find_package(Vulkan), and no SDK ships
+          # Vulkan-Hpp. wsl-setup.sh does the same staging the local WSL build uses, and its
+          # NDK probe also matches this runner's SDK location. Keep in sync with
+          # llamatik-native/BUILD.md.
+          sudo apt-get update
+          sudo apt-get install -y glslc
+          bash llamatik-native/wsl-setup.sh --headers-only
+          glslc --version
+          test -f /opt/vulkan-headers/vulkan/vulkan.hpp
+          test -f /opt/vulkan-headers/vk_video/vulkan_video_codec_av1std.h
 
       - name: Install native build dependencies
         run: |
