@@ -24,6 +24,7 @@ class LlamaCppLlmBackend private constructor(
     private val modelFile: File,
     private val mmprojFile: File?,
     private val sampling: LocalLlmSamplingConfig,
+    accelerator: LocalLlmAcceleratorInfo?,
 ) : LocalLlmBackend {
 
     override val backendType: LocalLlmBackendType = LocalLlmBackendType.LLAMACPP
@@ -32,8 +33,20 @@ class LlamaCppLlmBackend private constructor(
     private val textReady = AtomicBoolean(false)
     private val visionReady = AtomicBoolean(false)
 
+    /**
+     * `gpuLayers` as actually handed to llama.cpp. When no GPU backend is compiled in or
+     * the device has no Vulkan compute support, this is forced to 0: llama.cpp would
+     * accept a nonzero value, log `compiled without support for GPU offload` and run on
+     * the CPU anyway, which only makes the "GPU layers" setting a lie.
+     */
+    private val gpuLayers = if (accelerator?.canOffloadToGpu == true) {
+        sampling.gpuLayers
+    } else {
+        0
+    }
+
     companion object {
-        /** Whether the Llamatik runtime is on the classpath (true with the Maven dependency). */
+        /** Whether the vendored llamatik runtime is on the classpath. */
         fun isAvailable(): Boolean = runCatching {
             Class.forName("com.llamatik.library.platform.LlamaBridge")
             true
@@ -43,6 +56,7 @@ class LlamaCppLlmBackend private constructor(
             model: LocalLlmModel,
             modelDir: File,
             sampling: LocalLlmSamplingConfig = LocalLlmSamplingConfig(),
+            accelerator: LocalLlmAcceleratorInfo? = null,
             onError: (String) -> Unit = {},
         ): LlamaCppLlmBackend? {
             if (!isAvailable()) return null
@@ -62,7 +76,7 @@ class LlamaCppLlmBackend private constructor(
                         ?.let { File(modelDir, it) }
                         ?.takeIf { it.exists() && it.length() > 1_000_000L }
             }
-            return LlamaCppLlmBackend(model, file, mmproj, sampling)
+            return LlamaCppLlmBackend(model, file, mmproj, sampling, accelerator)
         }
     }
 
@@ -80,7 +94,7 @@ class LlamaCppLlmBackend private constructor(
                 useMmap = true,
                 flashAttention = true,
                 batchSize = 512,
-                gpuLayers = sampling.gpuLayers,
+                gpuLayers = gpuLayers,
             )
         }.onFailure { logcat { "llama.cpp updateGenerateParams failed: ${it.message}" } }
     }
@@ -91,8 +105,7 @@ class LlamaCppLlmBackend private constructor(
             if (textReady.get()) {
                 true
             } else {
-                // gpu_layers is read at MODEL LOAD, so params must be set before init; the
-                // runtime retries with 0 layers itself when the offload cannot load.
+                // gpu_layers is read at MODEL LOAD, so params must be set before init.
                 configureParams()
                 val ok = runCatching {
                     LlamaBridge.initGenerateModel(modelFile.absolutePath)

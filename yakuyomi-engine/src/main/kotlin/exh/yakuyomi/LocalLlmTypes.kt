@@ -3,9 +3,10 @@ package exh.yakuyomi
 /**
  * Native backend family for the on-device ("local") LLM provider.
  *
- * - [LLAMACPP] — llama.cpp via the Llamatik runtime (`com.llamatik:library`, prebuilt native
- *   libs from Maven Central). Loads any GGUF file directly — no per-model compilation — so
- *   users can also load their own GGUF models from device storage.
+ * - [LLAMACPP] — llama.cpp, built from the `external/llamatik` fork by the
+ *   `:llamatik-native` module. Loads any GGUF file directly — no per-model compilation — so
+ *   users can also load their own GGUF models from device storage. Built without a GPU backend
+ *   by default; `-Pmtl.gpuOffload=true` compiles the ggml Vulkan backend in.
  */
 enum class LocalLlmBackendType {
     LLAMACPP,

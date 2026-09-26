@@ -362,6 +362,15 @@ class LocalLlmManager(
     /** Whether the llama.cpp runtime is bundled in this build. */
     fun isRuntimeAvailable(): Boolean = LlamaCppLlmBackend.isAvailable()
 
+    @Volatile
+    private var acceleratorInfo: LocalLlmAcceleratorInfo? = null
+
+    /** What the runtime can offload to. Probed once; the answer cannot change at runtime. */
+    fun accelerator(): LocalLlmAcceleratorInfo =
+        acceleratorInfo ?: synchronized(this) {
+            acceleratorInfo ?: LocalLlmAccelerator.probe(context).also { acceleratorInfo = it }
+        }
+
     suspend fun generate(prompt: String, imageBytes: ByteArray? = null): String? {
         val model = resolveModel() ?: return null
         if (!downloadManager.isDownloaded(model)) {
@@ -408,7 +417,7 @@ class LocalLlmManager(
         current = null
         _running.value = false
         val dir = downloadManager.modelDir(model)
-        val backend = LlamaCppLlmBackend.create(model, dir, samplingFor(model)) { msg -> logcat { "llama.cpp: $msg" } }
+        val backend = LlamaCppLlmBackend.create(model, dir, samplingFor(model), accelerator()) { msg -> logcat { "llama.cpp: $msg" } }
         if (backend != null) {
             current = model to backend
             _running.value = true

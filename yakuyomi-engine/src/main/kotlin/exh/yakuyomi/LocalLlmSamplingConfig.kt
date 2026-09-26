@@ -6,9 +6,10 @@ import kotlinx.serialization.Serializable
  * llama.cpp sampling/context configuration for the on-device LLM provider, stored per model.
  * Defaults are sensible for instruct models; [contextLength] is seeded from the model's own
  * context and [temperature] from whether it is a translation finetune. A [numThreads] of 0
- * means "auto" (cores - 2, minimum 2). [gpuLayers] of 0 keeps everything on the CPU; raise it
- * (or use -1 for all layers) to offload when the runtime bundles a GPU backend — the runtime
- * falls back to CPU automatically if the offload cannot load.
+ * means "auto" (cores - 2, minimum 2). [gpuLayers] of 0 keeps everything on the CPU and -1
+ * offloads every layer, but only when the runtime was built with a GPU backend and the device
+ * supports it — see [LocalLlmAccelerator], which [LlamaCppLlmBackend] uses to force 0
+ * otherwise. llama.cpp itself never fails an offload it cannot perform; it just runs on the CPU.
  */
 @Serializable
 data class LocalLlmSamplingConfig(
