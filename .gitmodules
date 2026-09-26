@@ -7,3 +7,6 @@
 [submodule "external/imagedecoder-houri"]
 	path = external/imagedecoder-houri
 	url = https://github.com/PineappleTwilight/imagedecoder-houri.git
+[submodule "external/llamatik"]
+	path = external/llamatik
+	url = https://github.com/PineappleTwilight/Llamatik-extended.git
