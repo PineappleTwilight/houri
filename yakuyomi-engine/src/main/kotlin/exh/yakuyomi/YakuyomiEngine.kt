@@ -514,6 +514,7 @@ class YakuyomiEngine(
                         it.direction = line.direction
                         it.text = line.text
                         it.translatedText = line.translatedText
+                        it.tightQuad = line.tightQuad?.map { p -> Pt(p.x, p.y + piece.slice.y) }
                     }
                 }
                 TextRegion(lines, region.direction, region.angle, region.cx, cyPage, region.boxW, region.boxH).also {
