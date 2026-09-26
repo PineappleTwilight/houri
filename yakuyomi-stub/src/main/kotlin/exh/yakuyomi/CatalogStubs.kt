@@ -56,6 +56,17 @@ data class LocalGenerateRequest(
     val imageBytes: ByteArray? = null,
 )
 
+/** Stub of [LocalLlmAcceleratorInfo] for the no-MTL APK variant. */
+data class LocalLlmAcceleratorInfo(
+    val gpuBackendCompiledIn: Boolean = false,
+    val gpuBackendPluginShipped: Boolean = false,
+    val vulkanCompute: Boolean = false,
+) {
+    val gpuBackendAvailable: Boolean get() = gpuBackendCompiledIn || gpuBackendPluginShipped
+
+    val canOffloadToGpu: Boolean get() = gpuBackendAvailable && vulkanCompute
+}
+
 /**
  * Stub of [DeviceMemory] for the no-MTL APK variant. RAM is a device property, not a variant
  * property: the WebGPU (high-quality) renderer is available in both variants, so the checks

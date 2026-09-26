@@ -131,6 +131,8 @@ class LocalLlmManager {
 
     fun isRuntimeAvailable(): Boolean = false
 
+    fun accelerator(): LocalLlmAcceleratorInfo = LocalLlmAcceleratorInfo()
+
     suspend fun generate(prompt: String, imageBytes: ByteArray? = null): String? = null
 
     fun closeAll() = Unit
