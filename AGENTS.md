@@ -25,7 +25,7 @@ Houri (`applicationId app.houri`) — Android manga reader (min SDK 26, target 3
 | `presentation-core/AGENTS.md` | Shared Compose components (+ parallel SettingsItems system) |
 | `presentation-widget/AGENTS.md` | Glance home-screen widget |
 | `yakuyomi-engine/AGENTS.md` | MTL orchestration (wrapper; native engine is a submodule, commit it first) |
-| `llamatik-native/AGENTS.md` | On-device LLM runtime: vendored llama.cpp from the `external/llamatik` fork (Vulkan opt-in) |
+| `llamatik-native/AGENTS.md` | On-device LLM runtime: vendored llama.cpp from the `external/llamatik` fork (Vulkan on by default, 64-bit ABIs only; Windows hosts build in WSL) |
 
 ---
 
