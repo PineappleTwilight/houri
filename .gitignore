@@ -34,3 +34,6 @@ extensions-source/
 tasks/
 /opencode.json
 /opencode.json.evolver-backup.json
+
+# WSL-built native libs (llamatik-native/build.gradle.kts wslNativeBuild)
+llamatik-native/src/main/jniLibs/
