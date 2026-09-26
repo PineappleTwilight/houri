@@ -27,56 +27,67 @@ the native symbol names, and `System.loadLibrary("llama_jni")` fixes the `.so` n
 
 Vulkan is the only ggml backend with real Android support — CUDA/Metal/SYCL are
 desktop-only, OpenCL is not part of the platform, and Hexagon/QNN needs a licensed vendor
-SDK. It is **opt-in** because it needs two things a plain NDK install does not give you:
+SDK. It is **on by default**, and needs two things a plain NDK install does not give you:
 
-1. **A Vulkan SDK, or an equivalent header triple.** The NDK *does* ship `glslc` (under
-   `shader-tools/`) and the `libvulkan.so` loader stub, so shader compilation is fine. What
-   it does not ship is `vulkan/vulkan.hpp` (Vulkan-Hpp) or SPIRV-Headers. ggml-vulkan also
-   calls `find_package(SPIRV-Headers)` without ever linking the target, so that package's
-   include dir never reaches the compiler. And the Vulkan-Hpp you pair with it must be the
-   *same version* as your Vulkan-Headers — the NDK's bundled `VK_HEADER_VERSION 275` is
-   too old for a current Vulkan-Hpp (which wants 363).
+1. **A Vulkan SDK, or an equivalent header triple.** The NDK hides its bundled `glslc`
+   (`shader-tools/`) from `find_package(Vulkan)`, so we locate it ourselves, and what it
+   ships is a loader stub plus `vulkan_core.h` — not `vulkan/vulkan.hpp` (Vulkan-Hpp) and not
+   SPIRV-Headers. Vulkan-Hpp must also be the *same version* as your Vulkan-Headers: the
+   NDK's bundled `VK_HEADER_VERSION 275` is too old for a current Vulkan-Hpp (which wants
+   363). Run `llamatik-native/wsl-setup.sh` to stage a matched triple and verify it.
 2. **API level 29+.** ggml-vulkan needs the Vulkan 1.1 core entry point
    `vkGetPhysicalDeviceFeatures2`; the NDK's import stub only exports it from API 29
    (148 Vulkan symbols at API 26, 182 at 29). The Vulkan build therefore compiles against
    `android-29` even though the app itself supports API 26 — devices below that keep using
    the CPU path.
 
-```bash
-./gradlew :llamatik-native:assembleRelease -Pmtl.gpuOffload=true \
-    -Pmtl.vulkanSdkDir=/opt/VulkanSDK/1.4.313
+**Only 64-bit ABIs get the Vulkan backend.** ggml-vulkan does not compile for 32-bit at this
+llama.cpp revision: it relies on implicit `vk::Buffer` conversions that Vulkan-Hpp only
+provides when the native handle is a pointer. `armeabi-v7a` and `x86` therefore build
+CPU-only. All four ABIs still ship a working on-device LLM, and 64-bit devices get the full
+GPU runtime.
 
-# or, without a full SDK — Vulkan-Headers and Vulkan-Hpp must match versions:
-./gradlew :llamatik-native:assembleRelease -Pmtl.gpuOffload=true \
-    -Pmtl.vulkanIncludeDirs="/src/Vulkan-Headers/include;/src/Vulkan-Hpp;/src/SPIRV-Headers/include"
+```bash
+# One-time: stage the header triple (works unprivileged with MTL_VULKAN_HEADERS=~/vulkan-headers)
+wsl -e bash /mnt/c/Users/<you>/komikku-pineapple/llamatik-native/wsl-setup.sh
+
+# Linux / WSL / CI — AGP drives the per-ABI builds directly
+./gradlew :llamatik-native:assembleRelease
+
+# CPU-only, needs nothing beyond the NDK
+./gradlew :llamatik-native:assembleRelease -Pmtl.gpuOffload=false
 ```
 
-On Debian/Ubuntu the whole SDK is three apt packages — `glslc libvulkan-dev spirv-headers` —
-plus a staging dir holding only the headers. The full recipe, the Windows/WSL proxying, and
-every pitfall are documented in
+A **Windows** host does not configure CMake at all. Proxying tool calls across the
+Windows/WSL boundary does not work here: ggml-vulkan invokes `glslc` ~40 times per ABI, so
+each call would pay a VM round-trip, and the Vulkan headers cannot be proxied at all because
+a Windows `clang++.exe` cannot `#include` anything inside the WSL root filesystem. The whole
+configure and build instead runs inside WSL (`wslNativeBuild`), staging each
+`libllama_jni.so` into `src/main/jniLibs`. `wsl.exe` is required and its absence is a hard
+failure, with no MSYS2 fallback, matching `external/imagedecoder-houri`.
+
+`MTL_GPU_OFFLOAD=false` in the environment works too, and `VULKAN_SDK` is honoured as a
+fallback for `mtl.vulkanSdkDir`. The full recipe and every pitfall are documented in
 [`llamatik-native/BUILD.md`](../../llamatik-native/BUILD.md).
 
-`MTL_GPU_OFFLOAD=true` in the environment works too, and `VULKAN_SDK` is honoured as a
-fallback for `mtl.vulkanSdkDir`. Without the flag the build is CPU-only and needs nothing
-beyond the NDK.
-
 Once enabled, `gpuLayers` genuinely offloads. `LocalLlmAccelerator` decides whether to trust
-it: if the build has no GPU backend or the device reports no Vulkan compute support, the
-value is forced to `0` and the settings screen says so — llama.cpp never fails an offload it
-cannot perform, it just runs on the CPU and the "GPU layers" setting becomes a lie.
+it: if the build has no GPU backend for the current ABI, or the device reports no Vulkan
+compute support, the value is forced to `0` and the settings screen says so — llama.cpp
+never fails an offload it cannot perform, it just runs on the CPU and the "GPU layers"
+setting becomes a lie.
 
 ### Size
 
 Measured with NDK r28c, stripped (`llvm-strip --strip-unneeded`), per ABI:
 
-| Variant | `libllama_jni.so` |
-|---|---|
-| CPU-only (default) | **6.6 MB** |
-| Vulkan | **64.2 MB** |
+| Variant | ABIs | `libllama_jni.so` |
+|---|---|---|
+| CPU-only | all four | **6.6 MB** |
+| Vulkan | 64-bit only | **64.2 MB** |
 
 The Vulkan variant is ~58 MB larger per ABI because ggml embeds its SPIR-V compute shaders.
-With both `arm64-v8a` and `armeabi-v7a` that is ~128 MB added to the APK, versus ~13 MB for
-the CPU-only build. (For reference, the `com.llamatik:library` AAR it replaces ships 24 MB
+Across the two 64-bit ABIs (`arm64-v8a`, `x86_64`) that is ~115 MB added to the APK; the two
+32-bit ABIs stay CPU-only, so a CPU-only build is ~26 MB. (For reference, the `com.llamatik:library` AAR it replaces ships 24 MB
 of `libllama_jni.so` *plus* 4 MB of whisper, and that figure is unstripped.)
 
 ## NPU

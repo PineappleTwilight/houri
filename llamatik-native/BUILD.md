@@ -28,9 +28,12 @@ On top of that, GPU offload is on by default (§2), so a build host also needs
 `glslc`, Vulkan-Hpp and SPIRV-Headers — see §3 for the three apt packages, or
 `-Pmtl.gpuOffload=false` to build CPU-only without them.
 
-**Verified:** `arm64-v8a` and `armeabi-v7a` at API 26 both configure, compile and link with
-zero failures, producing `libllama_jni.so` with all 33 `Java_com_llamatik_library_platform_*`
-JNI symbols exported.
+**Verified:** CPU-only configures, compiles and links with zero failures for all four ABIs
+at API 26; the Vulkan variant does so for the 64-bit ABIs at API 29. The linked
+`libllama_jni.so` exports all 33 `Java_com_llamatik_library_platform_*` JNI symbols, and the
+Vulkan one additionally exports 150 `ggml_vk` symbols.
+
+**Vulkan is 64-bit only.** See §2.6.
 
 **Platform note.** The default build is pure CMake driven by AGP's own NDK toolchain, so it
 needs no Windows/WSL interop at all — `cmake.exe` + the Windows NDK work natively, and so do
@@ -130,7 +133,7 @@ requires one.
 
 There is **no `wsl.exe` proxy** for glslc or anything else. A Windows Gradle build never runs
 CMake: `llamatik-native/build.gradle.kts` registers a `wslNativeBuild` task that configures and
-compiles every ABI inside WSL, stages each `libllama_jni.so` into `build/wsl-jniLibs/<abi>/`,
+compiles every ABI inside WSL, stages each `libllama_jni.so` into `src/main/jniLibs/<abi>/`,
 and lets AGP package them from `jniLibs`. On Linux/WSL/CI, AGP's normal `externalNativeBuild`
 is used instead and that task does not exist.
 
@@ -148,6 +151,36 @@ Vulkan header paths are normalised across the boundary, so one `-DMTL_VULKAN_INC
 works from either host (`/mnt/c/x` ↔ `C:/x`), and a path still rooted at `/` on a **Windows**
 host is rejected — that filesystem is only readable from WSL. Use `-Pmtl.wslVulkanHeaders` to
 point the WSL build at a non-default staging root.
+
+### 2.6 Vulkan is compiled for 64-bit ABIs only
+
+`ggml-vulkan` does not compile for 32-bit ABIs at this llama.cpp revision. It relies on
+implicit `vk::Buffer` conversions that Vulkan-Hpp only provides when the native handle is a
+pointer:
+
+| target | `Buffer`'s conversion to `VkBuffer` |
+|---|---|
+| 64-bit | implicit |
+| 32-bit | `explicit` |
+
+So `stream << handle` and `copyBuffer((VkBuffer) handle, ...)` compile on `arm64-v8a` and
+fail on `armeabi-v7a` and `x86`. Rather than fork-patch upstream per breakage, CMake
+downgrades 32-bit ABIs to a CPU-only build:
+
+```cmake
+if(HOURI_GPU_OFFLOAD AND ANDROID_ABI AND
+   NOT ANDROID_ABI MATCHES "^(arm64-v8a|x86_64|riscv64)$")
+    set(HOURI_GPU_OFFLOAD OFF)
+endif()
+```
+
+Doing it there means AGP's per-ABI builds, the WSL build and CI all behave the same way from
+one place. All four ABIs still ship a working on-device LLM; 64-bit devices get the GPU
+runtime and 32-bit ones fall back to the CPU path the app already handles.
+`LlamatikBuildInfo` reports GPU offload as unavailable on a 32-bit device so the UI does not
+offer a `gpuLayers` slider that would do nothing.
+
+---
 
 ## 3. Debian / Ubuntu setup (verified on Debian 13 "trixie")
 
@@ -240,9 +273,9 @@ WSL; on Linux/WSL/CI they are ignored.
 5. **The wrapper must not write to stdout** — that stream carries the SPIR-V binary from
    `glslc -o -`. The sanitized text goes to stderr, or the generated shader header is
    corrupted and the link fails with undefined `*_data` / `*_len` symbols.
-6. **Never treat `wsl.exe` as a proxy target on a non-Windows host.** It is on PATH inside
-   WSL, so doing so routes ~40 shader compiles per ABI out to Windows and back — a
-   plausible-looking hang.
+6. **Never proxy `wsl.exe` from inside WSL.** It is on PATH there, so using it routes ~40
+   shader compiles per ABI out to Windows and back — a plausible-looking hang. There is no
+   proxy at all now: a Windows host builds entirely inside WSL (§2.5).
 7. **API 26 stub** → `undefined symbol: vkGetPhysicalDeviceFeatures2` at link time.
 8. **A host `/usr/include` on the include path** shadows the NDK sysroot's libc headers.
 9. **CMake silently drops `/usr/include`** from a target's include path as an implicit system
@@ -264,21 +297,21 @@ WSL; on Linux/WSL/CI they are ignored.
 
 Measured with NDK r28c, `llvm-strip --strip-unneeded`, per ABI:
 
-| Variant | `libllama_jni.so` stripped | unstripped |
-|---|---|---|
-| CPU-only (default) | **6.6 MB** | 75 MB |
-| Vulkan | **64.2 MB** | 141 MB |
+| Variant | ABIs | `libllama_jni.so` stripped | unstripped |
+|---|---|---|---|
+| CPU-only | all four | **6.6 MB** | 75 MB |
+| Vulkan | 64-bit only | **64.2 MB** | 141 MB |
 
-The ~58 MB Vulkan delta is ggml's embedded SPIR-V compute shaders. With `arm64-v8a` and
-`armeabi-v7a` that is ~128 MB of APK versus ~13 MB for the CPU-only build. The unstripped
-figures are dominated by debug info; AGP strips release builds.
+The ~58 MB Vulkan delta is ggml's embedded SPIR-V compute shaders, and it applies only to
+`arm64-v8a` and `x86_64` (§2.6), so that is ~115 MB of APK. A CPU-only build across all four
+ABIs is ~26 MB. The unstripped figures are dominated by debug info; AGP strips release builds.
 
 ---
 
 ## 7. Verifying a build
 
 ```bash
-# CPU-only — both ABIs
+# default: Vulkan on the 64-bit ABIs, CPU-only on the 32-bit ones
 ./gradlew :llamatik-native:assembleRelease
 
 # confirm the JNI surface
@@ -306,7 +339,8 @@ ninja -C /tmp/llm
 ## 8. Provenance
 
 Verified with: Debian 13 (trixie) on WSL2, NDK `28.2.13676358` (linux-x86_64), CMake 3.31.6,
-Ninja, llama.cpp pinned at `961e9a3e46ca4cf7e6e86cfceb5b5e32084bf5f0`. CPU-only and Vulkan
-variants were both configured *and fully built* for `arm64-v8a`; CPU-only also for
-`armeabi-v7a` and `x86_64`. The Windows-host branches in §2.4 are implemented and
-time-bounded but were not exercised in that environment.
+Ninja, llama.cpp pinned at `961e9a3e46ca4cf7e6e86cfceb5b5e32084bf5f0`. The Vulkan variant was
+configured *and fully built* for `arm64-v8a`; CPU-only was fully built for `armeabi-v7a` and
+`x86_64`; all four ABIs were configured for the per-ABI gate in §2.6. A Windows host was
+confirmed to drive the whole build through WSL, but the Windows-side Gradle task itself was
+exercised by the project owner rather than in the environment above.

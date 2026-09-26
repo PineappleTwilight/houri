@@ -29,6 +29,15 @@ instead of needing a plugin `.so`.
 | `src/main/kotlin/.../LlamatikBuildInfo.kt` | Exposes whether a GPU backend was compiled in |
 | `consumer-rules.pro` | Keeps the wrapper's class + native method names survive R8 |
 
+## Vulkan is 64-bit only
+
+ggml-vulkan does not compile for 32-bit at this llama.cpp revision — it relies on implicit
+`vk::Buffer` conversions that Vulkan-Hpp only provides when the native handle is a pointer,
+so `armeabi-v7a` and `x86` fail on `stream << handle` and `copyBuffer((VkBuffer)handle, ...)`.
+CMake downgrades 32-bit ABIs to CPU-only (see `BUILD.md` §2.6) rather than fork-patching
+upstream per breakage. `LlamatikBuildInfo` reports GPU offload as unavailable on a 32-bit
+device, otherwise the UI would offer a `gpuLayers` slider that silently does nothing.
+
 ## Windows: WSL is the only path
 
 Matches `external/imagedecoder-houri` — deliberately **no** MSYS2/Git Bash fallback. On a
@@ -40,7 +49,7 @@ Windows host `build.gradle.kts`:
 2. skips AGP's `externalNativeBuild` entirely and instead runs the `wslNativeBuild` task,
    which configures and builds all four ABIs inside WSL with the **Linux** NDK
    (`-Pmtl.wslNdkDir`, default `/usr/lib/android-sdk/ndk/<version>`) and stages each
-   `libllama_jni.so` into `build/wsl-jniLibs/<abi>/`;
+   `libllama_jni.so` into `src/main/jniLibs/<abi>/`;
 3. feeds that dir to `jniLibs`, and hard-fails if any ABI's `.so` is missing so a split APK
    can never ship without the runtime.
 
