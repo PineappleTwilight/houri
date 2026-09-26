@@ -12,6 +12,10 @@ import androidx.compose.ui.unit.dp
 
 @Composable
 fun PreferenceGroupHeader(title: String) {
+    // KMK --> A blank title is how a group opts out of a header (e.g. a bare list of
+    // subpage links). Returning early avoids a 22dp empty band where the header would be.
+    if (title.isBlank()) return
+    // KMK <--
     Box(
         contentAlignment = Alignment.CenterStart,
         modifier = Modifier

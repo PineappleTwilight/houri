@@ -6,6 +6,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import dev.icerock.moko.resources.StringResource
 import eu.kanade.presentation.more.settings.Preference
+import eu.kanade.presentation.more.settings.filterVisible
 import kotlinx.collections.immutable.persistentListOf
 import mihon.app.di.globalAppGraph
 import tachiyomi.i18n.kmk.KMR
@@ -41,7 +42,12 @@ object SettingsYakuyomiModelsScreen : SearchableSettings {
             SettingsYakuyomiScreen.getRemoteModelGroup(prefs, modelManager).takeIf { !isMangatranslator && !isNomtl },
             SettingsYakuyomiScreen.getAdvancedGroup(prefs).takeIf { !isNomtl && !isMangatranslator },
         )
-        if (groups.isNotEmpty()) return groups
+        // KMK --> Gate first, then decide whether the page is empty: getModelGroup is
+        // ramGated, so a low-RAM (but non-nomtl) device has every group filtered out and
+        // would otherwise land on a blank page with no explanation.
+        val visible = groups.filterVisible()
+        // KMK <--
+        if (visible.isNotEmpty()) return visible
         val emptyNote = if (isNomtl) {
             KMR.strings.pref_yakuyomi_models_nomtl_note
         } else {

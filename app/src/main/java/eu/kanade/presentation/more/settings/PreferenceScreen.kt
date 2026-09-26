@@ -1,6 +1,5 @@
 package eu.kanade.presentation.more.settings
 
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
@@ -30,9 +29,14 @@ fun PreferenceScreen(
 ) {
     val state = rememberLazyListState()
     val highlightKey = SearchableSettings.highlightKey
+    // KMK --> Drop rows that fail their gates, plus groups left empty by that. Without this a
+    // fully-gated group still renders its header and trailing spacer, leaving a blank band;
+    // it also keeps the screen in step with the search index, which filters via getIndex().
+    val visibleItems = items.filterVisible()
+    // KMK <--
     if (highlightKey != null) {
         LaunchedEffect(Unit) {
-            val i = items.findHighlightedIndex(highlightKey)
+            val i = visibleItems.findHighlightedIndex(highlightKey)
             if (i >= 0) {
                 delay(0.5.seconds)
                 state.animateScrollToItem(i)
@@ -46,7 +50,7 @@ fun PreferenceScreen(
         state = state,
         contentPadding = contentPadding,
     ) {
-        items.fastForEachIndexed { i, preference ->
+        visibleItems.fastForEachIndexed { i, preference ->
             when (preference) {
                 // Create Preference Group
                 is Preference.PreferenceGroup -> {
@@ -56,9 +60,7 @@ fun PreferenceScreen(
                         // @Composable gate check cannot run here.
                         if (!preference.isVisible()) return@item
                         // KMK <--
-                        Column {
-                            PreferenceGroupHeader(title = preference.title)
-                        }
+                        PreferenceGroupHeader(title = preference.title)
                     }
                     items(preference.preferenceItems) { item ->
                         PreferenceItem(
@@ -68,7 +70,7 @@ fun PreferenceScreen(
                     }
                     item {
                         if (!preference.isVisible()) return@item
-                        if (i < items.lastIndex) {
+                        if (i < visibleItems.lastIndex) {
                             Spacer(modifier = Modifier.height(12.dp))
                         }
                     }

@@ -46,10 +46,23 @@ class SettingsYakuyomiLlmAdvancedScreen(
             contextLength = model.contextLength,
         )
 
+        val accelerator = remember { manager.accelerator() }
+        val canOffload = accelerator.canOffloadToGpu
+        val acceleratorSummary = when {
+            canOffload -> "Vulkan offload available — layers are sent to the GPU"
+            accelerator.gpuBackendAvailable -> "No Vulkan compute support on this device — CPU only"
+            else -> "This build has no GPU backend — CPU only"
+        }
+
         return listOf(
             Preference.PreferenceGroup(
                 title = "llama.cpp sampling",
                 preferenceItems = listOf(
+                    Preference.PreferenceItem.TextPreference(
+                        title = "Accelerator",
+                        subtitle = acceleratorSummary,
+                        onClick = null,
+                    ),
                     Preference.PreferenceItem.SliderPreference(
                         value = (cfg.temperature * 100).toInt().coerceIn(0, 100),
                         title = "Temperature",
@@ -116,10 +129,15 @@ class SettingsYakuyomiLlmAdvancedScreen(
                     Preference.PreferenceItem.SliderPreference(
                         value = cfg.gpuLayers.coerceIn(-1, 99),
                         title = "GPU layers",
-                        subtitle = "Layers offloaded to the GPU (-1 = auto, falls back to CPU): %s",
+                        subtitle = if (canOffload) {
+                            "Layers offloaded to the GPU (-1 = all): %s"
+                        } else {
+                            "GPU offload unavailable: %s"
+                        },
                         valueString = if (cfg.gpuLayers < 0) "auto (all layers)" else cfg.gpuLayers.toString(),
                         valueRange = -1..99,
                         steps = 99,
+                        enabled = canOffload,
                         onValueChanged = { v -> update { it.copy(gpuLayers = v) } },
                     ),
                 ).toPersistentList(),

@@ -78,12 +78,10 @@ object SettingsYakuyomiScreen : SearchableSettings {
         val manager = remember { globalAppGraph.localLlmManager }
         val enabled by prefs.enabled().collectAsState()
         val provider by prefs.provider().collectAsState()
-        val targetLang by prefs.targetLang().collectAsState()
         val localModelKey by prefs.localModel().collectAsState()
         val running by manager.running.collectAsState()
         val loading by manager.loading.collectAsState()
         val downloadStatus by remember { globalAppGraph.localLlmDownloadManager.status }.collectAsState()
-        val context = LocalContext.current
 
         val resolvedLocalModel = remember(localModelKey, provider, downloadStatus) { manager.resolveModel() }
         val isModelReady = remember(downloadStatus, resolvedLocalModel) {
@@ -111,21 +109,12 @@ object SettingsYakuyomiScreen : SearchableSettings {
             else -> Color(0xFF4CAF50) to listOf("Cloud provider: ${provider.ifBlank { "openrouter" }}")
         }
 
-        val subtitle = buildString {
-            append("MTL: ${if (enabled) "on" else "off"}")
-            if (enabled && provider != "local") append(" · target ${targetLang.ifBlank { "en" }}")
-            if (isNomtl) {
-                append(" · no-MTL build (off-device only)")
-            } else if (!exh.yakuyomi.DeviceMemory.isMtlSupported(context)) {
-                append(" · low-RAM device (translation blocked)")
-            }
-        }
-
         return Preference.PreferenceGroup(
             title = "Status",
             preferenceItems = listOf(
                 Preference.PreferenceItem.CustomPreference(
-                    title = subtitle,
+                    // Only an index key — CustomPreference renders `content` alone.
+                    title = "Status",
                     content = {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
@@ -158,7 +147,9 @@ object SettingsYakuyomiScreen : SearchableSettings {
         val context = LocalContext.current
         val lowRam = !exh.yakuyomi.DeviceMemory.isMtlSupported(context)
         return Preference.PreferenceGroup(
-            title = stringResource(KMR.strings.pref_yakuyomi_enabled),
+            // KMK --> No header: every row below is already self-labelled, and a header
+            // repeating the "Enable AI Translation" switch title was pure duplication.
+            title = "",
             preferenceItems = buildList {
                 add(
                     Preference.PreferenceItem.SwitchPreference(
@@ -241,12 +232,6 @@ object SettingsYakuyomiScreen : SearchableSettings {
                             // KMK -->
                             mtlOnly = true,
                             // KMK <--
-                        ),
-                    )
-                } else {
-                    add(
-                        Preference.PreferenceItem.InfoPreference(
-                            title = "Local typesetting settings (font, color) are hidden while MangaTranslator is selected — it returns translated images directly and does not use on-device rendering.",
                         ),
                     )
                 }
@@ -482,13 +467,6 @@ object SettingsYakuyomiScreen : SearchableSettings {
                             // KMK -->
                             mtlOnly = true,
                             // KMK <--
-                        ),
-                    )
-                }
-                if (isMangatranslatorProvider && enabled) {
-                    add(
-                        Preference.PreferenceItem.InfoPreference(
-                            title = "MangaTranslator manages its own API key & model — cloud API key / model and Fetch models are hidden. Use the MangaTranslator service section below to sign in.",
                         ),
                     )
                 }
@@ -981,12 +959,6 @@ object SettingsYakuyomiScreen : SearchableSettings {
                             // KMK <--
                         ),
                     )
-                } else {
-                    add(
-                        Preference.PreferenceItem.InfoPreference(
-                            title = "On-device behavior & cache settings are hidden while MangaTranslator is selected — it manages its own remote cache and chapter-folder saving.",
-                        ),
-                    )
                 }
                 add(
                     Preference.PreferenceItem.TextPreference(
@@ -1072,7 +1044,8 @@ object SettingsYakuyomiScreen : SearchableSettings {
             lastProvider = provider
         }
         return Preference.PreferenceGroup(
-            title = stringResource(KMR.strings.pref_yakuyomi_provider),
+            // KMK --> No header: it only repeated the "Provider" row's own title.
+            title = "",
             preferenceItems = persistentListOf(
                 Preference.PreferenceItem.ListPreference(
                     preference = prefs.provider(),
