@@ -9,7 +9,6 @@ import de.stefan_oltmann.kim.Kim
 import de.stefan_oltmann.kim.android.readMetadata
 import de.stefan_oltmann.kim.format.tiff.constant.TiffTag
 import eu.kanade.tachiyomi.source.model.Page
-import eu.kanade.tachiyomi.ui.reader.setting.UpscaleReaderHook
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.takeWhile
@@ -171,6 +170,9 @@ internal suspend fun WebGpuViewer.decodeReaderPage(page: ViewerReaderPage) {
         return
     }
 
+    val trace = activeDecode
+
+    traceStage(trace, "stream")
     val stream = try {
         page.page.stream?.invoke()
     } catch (e: Exception) {
@@ -178,6 +180,7 @@ internal suspend fun WebGpuViewer.decodeReaderPage(page: ViewerReaderPage) {
         null
     } ?: run {
         synchronized(lock) { if (pageInCache(page)) page.state = PageState.IDLE }
+        trace?.complete("no-stream")
         return
     }
 
@@ -185,12 +188,16 @@ internal suspend fun WebGpuViewer.decodeReaderPage(page: ViewerReaderPage) {
         synchronized(lock) {
             if (isDestroyed || !pageInCache(page) || page.isDecoded) {
                 if (pageInCache(page) && !isDestroyed) page.state = PageState.IDLE
+                trace?.complete("abandoned")
                 return
             }
         }
 
         val isLowRam = isLowRamDevice
         val maxPageBytes = if (isLowRam) 40 * 1024 * 1024 else 80 * 1024 * 1024
+        // The read is the first unbounded blocking call on the worker's single thread, so it gets a
+        // stage of its own rather than being folded into the surrounding work.
+        traceStage(trace, "readBytes", "cap=${maxPageBytes / (1024 * 1024)}MB lowRam=$isLowRam")
         val decodeBytes: ByteArray? = try {
             val bytes = input.readBytes()
             if (bytes.size > maxPageBytes) throw Exception("Page too large: ${bytes.size} bytes >${maxPageBytes / (1024 * 1024)}MB")
@@ -201,14 +208,52 @@ internal suspend fun WebGpuViewer.decodeReaderPage(page: ViewerReaderPage) {
         } catch (_: Exception) {
             null
         }
-        if (decodeBytes == null) throw Exception("Failed to read page bytes")
+        if (decodeBytes == null) {
+            trace?.complete("no-bytes")
+            throw Exception("Failed to read page bytes")
+        }
+        trace?.bytes = decodeBytes.size
+
+        // KMK --> Refuse bytes no decoder should be trusted with, before any native work sees them.
+        //
+        // Placed here on purpose: this is the last point before the upscale hook and the native
+        // decoder, both of which are known to misbehave on malformed input, and both of which run on
+        // the single thread every other page queues behind. A fault this catches is recoverable -
+        // the page is dropped and its source asked again - whereas the same bytes reaching the
+        // decoder may not come back at all.
+        traceStage(trace, "validate", "bytes=${decodeBytes.size}")
+        val verdict = PageBytesValidator.inspect(decodeBytes)
+        if (!verdict.isAcceptable) {
+            val detail = "${verdict.fault} format=${verdict.format?.label ?: "?"} ${verdict.detail ?: ""}".trim()
+            logcat(LogPriority.ERROR) {
+                "Rejected page bytes ch=${page.page.chapter.chapter.id}/i=${page.page.index}: $detail"
+            }
+            requerySuspectPage(page, detail)
+            trace?.complete("rejected:${verdict.fault}")
+            throw Exception("Corrupt page data: $detail")
+        }
+        traceStage(trace, "upscale-check", "format=${verdict.format?.label} dims=${verdict.width}x${verdict.height}")
+        // KMK <--
         // KMK -->
         // Display-time upscale; translation and spread matching below keep the originals.
-        val displayBytes = UpscaleReaderHook.upscaleDisplayBytes(
-            page.page.chapter.chapter.manga_id,
+        // Native inference, on the worker's only thread: the second unbounded call in this path.
+        traceStage(trace, "upscale")
+        // KMK -->
+        // Display-time only: translation, EXIF and spread matching below all read decodeBytes, so
+        // the chain's output never becomes the page's canonical bytes.
+        val displayBytes = applyByteTransforms(
+            WebGpuExtensions.active(),
+            WebGpuPageRef(
+                chapterId = page.page.chapter.chapter.id ?: -1L,
+                pageIndex = page.page.index,
+                mangaId = page.page.chapter.chapter.manga_id ?: -1L,
+            ),
             decodeBytes,
-        ) ?: decodeBytes
+        )
+        trace?.transformed = (displayBytes !== decodeBytes)
         // KMK <--
+        // KMK <--
+        traceStage(trace, "jxl-sniff")
         val isJxlBytes = try {
             tachiyomi.core.common.util.system.ImageUtil.findImageType(decodeBytes.inputStream()) == tachiyomi.core.common.util.system.ImageUtil.ImageType.JXL
         } catch (_: Exception) {
@@ -228,6 +273,7 @@ internal suspend fun WebGpuViewer.decodeReaderPage(page: ViewerReaderPage) {
         // spread side tag (dual mode only - single-page display never pairs, so the tag
         // lookup is skipped there). EXIF lives in the original bytes: the display hook
         // below may strip it, so orientation is read here, before any transform.
+        traceStage(trace, "metadata")
         var exifOrientation = 1
         val spreadTag: SpreadPosition? = try {
             val metadata = Kim.readMetadata(decodeBytes.inputStream(), decodeBytes.size.toLong())
@@ -268,6 +314,7 @@ internal suspend fun WebGpuViewer.decodeReaderPage(page: ViewerReaderPage) {
             page.spreadBytes = null
         }
 
+        traceStage(trace, "decoderInit", "bytes=${displayBytes.size}")
         val dec = try {
             ImageDecoder.new(displayBytes.inputStream()).also { d ->
                 if (d.pages <= 0) {
@@ -286,12 +333,18 @@ internal suspend fun WebGpuViewer.decodeReaderPage(page: ViewerReaderPage) {
         }
 
         val pageCount = dec.pages
+        trace?.format = runCatching { dec.format }.getOrNull()
 
         if (pageCount == 0) throw Exception("No frames decoded")
 
         val backgroundColor = if (config.automaticBackground) null else readerBackgroundColor()
 
+        // The prime suspect for a wedged worker: a native decode of malformed input that loops
+        // instead of failing. This is the stage a stall report will name if the bytes were plausible
+        // enough to get past validation.
+        traceStage(trace, "decodeNext", "frames=$pageCount fmt=${trace?.format}")
         val firstFrame = dec.decodeNext()
+        trace?.dimensions = "${firstFrame.width}x${firstFrame.height}"
         if (firstFrame.width <= 4 || firstFrame.height <= 4) {
             try {
                 dec.close()
@@ -351,6 +404,7 @@ internal suspend fun WebGpuViewer.decodeReaderPage(page: ViewerReaderPage) {
                 null
             }
 
+            traceStage(trace, "gpuUpload", "dims=${frameWidth}x$frameHeight mipmaps=true")
             val firstImage = Image(
                 framePixels,
                 frameWidth,
@@ -444,6 +498,7 @@ internal suspend fun WebGpuViewer.decodeReaderPage(page: ViewerReaderPage) {
         // that superseded it - the old code simply fell through and dropped the reference, leaking
         // every uploaded texture of a decode nothing will ever show. That is ~47MB of GPU memory
         // per wasted split-segment decode, on a path that a split triggers by construction.
+        traceStage(trace, "adopt")
         var adopted = false
         synchronized(lock) {
             if (pageInCache(page) && !page.isDecoded && !page.imagePage.destroyed) {
@@ -467,12 +522,17 @@ internal suspend fun WebGpuViewer.decodeReaderPage(page: ViewerReaderPage) {
         if (!adopted) {
             page.wantedByRender = false
             imagePage.cleanup()
+            trace?.complete("not-adopted")
             return
         }
+        trace?.complete("decoded")
         pager.state.invalidate()
-        // Hook AI translation: baked Image replacement (handles dual-page height-match, no overlay drift)
+        // KMK --> Post-decode compartment. Translation is one extension in it; anything else that
+        // needs to act on a freshly decoded page hooks here rather than at each of the sites that
+        // decode, which is why this is called once here and not wired per feature.
         translationBytes?.let { bytes ->
-            scheduleTranslation(page, bytes)
+            runPageDecodedExtensions(page, bytes)
         }
+        // KMK <--
     }
 }

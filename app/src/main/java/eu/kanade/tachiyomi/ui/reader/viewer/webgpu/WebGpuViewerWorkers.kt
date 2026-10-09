@@ -54,6 +54,16 @@ internal fun WebGpuViewer.startDecodeWorker() {
                     continue
                 }
 
+                // Published before the decode so the watchdog can see a page that never returns.
+                // decodeReaderPage reads this back as its trace.
+                val trace = DecodeTrace(
+                    chapterId = page.page.chapter.chapter.id ?: -1L,
+                    pageIndex = page.page.index,
+                    startedAtMs = System.currentTimeMillis(),
+                )
+                activeDecode = trace
+                logQueueDepth("dequeue")
+
                 try {
                     decodeReaderPage(page)
                 } catch (e: CancellationException) {
@@ -102,6 +112,8 @@ internal fun WebGpuViewer.startDecodeWorker() {
                     // Resetting here makes "the worker is not on this page anymore" the single
                     // invariant every exit path agrees on.
                     // KMK <--
+                    if (!trace.finished) trace.complete("threw")
+                    activeDecode = null
                     synchronized(lock) {
                         if (pageInCache(page) && page.state == PageState.DECODING) {
                             page.state = PageState.IDLE
@@ -261,6 +273,7 @@ internal fun WebGpuViewer.resetDecodedPagesAfterDeviceLoss() {
         }
         pageCache.clear()
         stuckRecords.clear()
+        requeryRecords.clear()
         loneIndices.clear()
         continuousPageWindow.reset(null)
         val previous = currentPage

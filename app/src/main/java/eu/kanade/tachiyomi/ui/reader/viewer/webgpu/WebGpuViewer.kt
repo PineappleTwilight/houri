@@ -211,6 +211,21 @@ open class WebGpuViewer(
     internal val stuckSignal = Channel<Unit>(Channel.CONFLATED)
 
     // KMK -->
+
+    /**
+     * How many times each page has been re-queried at its source, keyed like [pageCache] - see
+     * [RequeryRecord] for why this cannot live on the shell.
+     */
+    internal val requeryRecords = HashMap<PageKey, RequeryRecord>()
+
+    /**
+     * The page the decode worker is holding, published so the watchdog can report a stall from
+     * outside the worker. A worker stuck in native code cannot report itself, which is the entire
+     * reason this field exists.
+     */
+    @Volatile
+    internal var activeDecode: DecodeTrace? = null
+
     private val chapterPreloadGuard = ChapterPreloadGuard()
     // KMK <--
 
@@ -406,10 +421,18 @@ open class WebGpuViewer(
         try {
             ca.mpreg.webgpuviewer.renderer.WebGpuRenderer.addDeviceLostListener(deviceLostListener)
         } catch (_: Exception) {}
+        // KMK --> Populates the decode path's extension compartments before the worker that consumes
+        // them starts. Installing here rather than lazily means no page can decode through a chain
+        // that is missing its upscaler, and install-by-id makes a second viewer's call a no-op.
+        installBuiltinWebGpuExtensions()
         startDecodeWorker()
         startStuckPageSweep()
         // KMK --> Drives the live spin of the ProgressPage pineapple while a page is loading.
         startProgressSpinner()
+        // KMK -->
+        // KMK --> Reports a decode stage that never finishes. Separate from the worker on purpose:
+        // the worker is what gets stuck, so it cannot be the thing that notices.
+        startDecodeStallWatchdog()
         // KMK <--
     }
 
@@ -739,7 +762,7 @@ open class WebGpuViewer(
         if (!mgr.isEnabled() || mgr.isGated()) return
         val page = currentPage as? ViewerReaderPage ?: return
         if (page.isDecoded) {
-            scheduleTranslation(page, page.sourceBytes())
+            runPageDecodedExtensions(page, page.sourceBytes())
         }
     }
     // KMK <--
