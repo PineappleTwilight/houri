@@ -227,7 +227,7 @@ internal fun WebGpuViewer.scheduleSpreadHeightMatch(sourcePage: ViewerReaderPage
 
             if (swapped) {
                 pager.state.invalidate()
-                translationSource?.let { scheduleTranslation(sourcePage, it) }
+                translationSource?.let { runPageDecodedExtensions(sourcePage, it) }
             }
         } finally {
             // Cancellation skipped the reset above, because the catch rethrows before reaching it.
