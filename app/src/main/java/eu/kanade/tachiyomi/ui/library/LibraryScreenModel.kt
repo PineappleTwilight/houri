@@ -1650,7 +1650,7 @@ class LibraryScreenModel(
                 activeSubCategoryId = if (newCategoryId == state.activeCategoryId) {
                     state.activeSubCategoryId
                 } else {
-                    null
+                    defaultSubCategoryId(state, newCategoryId)
                 },
                 // KMK <--
             )
@@ -1662,6 +1662,36 @@ class LibraryScreenModel(
         if (newCategoryId != Companion.ACHIEVEMENTS_CATEGORY_ID) {
             libraryPreferences.lastUsedCategory().set(newIndex)
         }
+    }
+
+    /**
+     * The subcategory a category should open on, or null to open on the combined view.
+     *
+     * With the "All" chip turned off there is no way back to the combined view from the chip row, so
+     * opening a category on it left the user on a screen they could not change: every title in every
+     * subcategory, with no control to narrow it. Falling through to the first subcategory makes the
+     * chip row the thing that was already on screen do the work.
+     *
+     * Deliberately not applied under the folder layout. There, a null subcategory is not the combined
+     * view but the folder overview itself - it is how you navigate - so auto-selecting a subcategory
+     * would hide the folders on entry and strand the user inside the first one.
+     *
+     * Filters hidden and unnamed subcategories exactly as the composable does before showing the row.
+     * Selecting one the UI then refuses to draw would open the category on nothing at all, which is a
+     * worse failure than the one being fixed.
+     */
+    private fun defaultSubCategoryId(state: State, categoryId: Long?): Long? {
+        if (categoryId == null) return null
+        if (categoryId == Companion.ACHIEVEMENTS_CATEGORY_ID) return null
+        if (!libraryPreferences.hideSubcategoryAllChip().get()) return null
+        if (libraryPreferences.subcategoryFolderLayout().get()) return null
+        return state.libraryData.categories
+            .firstOrNull {
+                it.parentId == categoryId &&
+                    !it.hidden &&
+                    it.name.isNotBlank()
+            }
+            ?.id
     }
 
     fun leaveAchievements() {
