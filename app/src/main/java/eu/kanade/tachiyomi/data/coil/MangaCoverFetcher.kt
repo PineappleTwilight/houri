@@ -347,6 +347,26 @@ class MangaCoverFetcher(
         force: Boolean = false,
     ) {
         if (!uiPreferences.preloadLibraryColor().get()) return
+        // Non-library covers never reach this through a cached file, and the bufferedSource they do
+        // arrive with belongs to Coil.
+        //
+        // Only a library manga gets a CoverCache file: libraryCoverCacheFile is null otherwise, and
+        // both moveSnapshotToCoverCache and writeResponseToCoverCache bail out on a null cache file.
+        // So every cover this guard drops would have been sampled from a source Coil is concurrently
+        // reading to decode the very image being returned - the same BufferedSource instance, read by
+        // BitmapFactory.decodeStream on one side and Coil on the other, then closed by Coil when the
+        // request finishes. That is a read-position race that corrupts the displayed image, and the
+        // coroutine outliving the close makes it an IOException for whichever side loses.
+        //
+        // A search results page is the worst case for it: no result is a library item, so every cover
+        // on the page arrives over the network through that shared source, and one page of results
+        // launches one untracked coroutine each to race Coil for it. Hence covers that never load and
+        // an app that stays wedged afterwards.
+        //
+        // Cost of dropping them: nothing that reads the result. dominantCoverColors is read only
+        // behind a libraryColored gate, and vibrantCoverColor only by the manga details screen and the
+        // reader - each for the one manga being opened, which gets its own cover load anyway.
+        if (!isLibraryManga) return
         FetcherScope.scope.launch {
             MangaCoverMetadata.setRatioAndColors(mangaCover, bufferedSource, ogFile, onlyFavorite, force)
         }
@@ -354,7 +374,15 @@ class MangaCoverFetcher(
     // KMK <--
 
     private object FetcherScope {
-        val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        // Bounded, and none of it is awaited: a cover load used to fan out one coroutine per cover
+        // onto the shared IO pool, so a page of search results had that many bitmap decodes queued
+        // behind each other with nothing metering them. Two matches the decoder pool, which is the
+        // work actually competing for CPU and memory here.
+        //
+        // Queued rather than dropped when the limit is reached. This is a cache warm-up whose result
+        // nothing awaits, so running late costs nothing, whereas refusing to start would silently
+        // lose the colour until a later visit happened to re-fetch the cover.
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO.limitedParallelism(2))
     }
 
     private enum class Type {
