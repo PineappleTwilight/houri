@@ -226,6 +226,24 @@ open class WebGpuViewer(
     @Volatile
     internal var activeDecode: DecodeTrace? = null
 
+    /**
+     * How each page's last decode ended, keyed like [pageCache] - see
+     * [WebGpuViewerWorkers.recordDecodeOutcome].
+     *
+     * The stuck-page ladder can say a page did not finish and which state it was left in, which is
+     * not the same as saying why. A page whose stream has gone away, one the render walk evicted
+     * mid-decode, and one the loader never delivered bytes for all end up in the same IDLE shell
+     * behind the same placeholder - and the recovery for each is different. Keeping the reason is
+     * what turns a recovery line into an answer.
+     *
+     * Access-ordered and capped by [DECODE_OUTCOME_CAP], because a reader that works through a
+     * long chapter touches hundreds of pages and this is keyed per page, not per page-shell.
+     */
+    internal val decodeOutcomes = object : LinkedHashMap<PageKey, String>(16, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<PageKey, String>?): Boolean =
+            size > DECODE_OUTCOME_CAP
+    }
+
     private val chapterPreloadGuard = ChapterPreloadGuard()
     // KMK <--
 

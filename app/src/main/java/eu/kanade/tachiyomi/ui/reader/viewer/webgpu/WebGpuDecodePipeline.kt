@@ -24,6 +24,28 @@ import tachiyomi.core.common.util.system.logcat
 // set bounded lives in `WebGpuPageCache`.
 
 /**
+ * Hands a page whose bytes can no longer be read back to its loader.
+ *
+ * Only for a page whose cached image is gone rather than whose load failed: `retryPage` puts it
+ * back on the loader's queue and the loader re-resolves it - for a split segment that means
+ * re-cutting the segment file the LRU evicted, which is the one thing that produces the bytes
+ * again. HttpPageLoader's own `isImageInCache` check makes the call idempotent while the image is
+ * still cached, so this cannot double-download.
+ *
+ * Skipped for a page already out of the cache, because nothing is listening for the result, and
+ * for a recycled loader, whose queue nobody drains.
+ */
+private fun WebGpuViewer.askLoaderToResolvePage(page: ViewerReaderPage) {
+    val loader = page.page.chapter.pageLoader ?: return
+    if (loader.isRecycled) return
+    // Under the lock like every other read of the cache. Both call sites reach this from a
+    // different thread than the one holding it, and a LinkedHashMap is not safe to read unguarded.
+    if (!synchronized(lock) { pageInCache(page) }) return
+    runCatching { loader.retryPage(page.page) }
+        .onFailure { logcat(LogPriority.WARN, it) { "retryPage failed for i=${page.page.index}" } }
+}
+
+/**
  * Start loading a page and set up listener to re-queue when ready.
  * Hardened: checks destroyed, handles loader null, cleans up jobs on eviction/cancel,
  * and surfaces load errors as tap-retry ErrorPage without leaking collectors.
@@ -120,6 +142,8 @@ internal fun WebGpuViewer.startPageLoad(page: ViewerReaderPage) {
                 downloadProgressJob?.cancel()
             } catch (_: Exception) {
             }
+            // Set inside the lock, acted on outside it - see the bottom of this block.
+            var askLoaderAgain = false
             // KMK --> Always clear LOADING, even for a page that left the cache. The old guard
             // returned early on !pageInCache, which is exactly the eviction case that stranded the
             // state: evictFarthestPage resets the shell it removes, but a shell evicted while this
@@ -156,9 +180,24 @@ internal fun WebGpuViewer.startPageLoad(page: ViewerReaderPage) {
                             }
                         }
                     }
-                    else -> Unit
+                    else -> {
+                        // The load ended in neither terminal state, so the loader never advanced
+                        // the page. Doing nothing strands it: the LOADING reset above leaves an
+                        // IDLE shell behind its placeholder, and the only thing that moves a page
+                        // in that shape is the stuck-page sweep on its cooldown, which re-enters
+                        // startPageLoad and reaches this same no-op. Asking the loader is what
+                        // makes the bytes actually arrive.
+                        logcat(LogPriority.WARN) {
+                            "Page load ended undecided ch=${page.page.chapter.chapter.id}/" +
+                                "i=${page.page.index} status=$s - asking the loader again"
+                        }
+                        askLoaderAgain = true
+                    }
                 }
             }
+            // Outside the lock: retryPage reaches the loader's queue, and the viewer lock is never
+            // held across a call into it.
+            if (askLoaderAgain) askLoaderToResolvePage(page)
         }
     }
 }
@@ -179,8 +218,23 @@ internal suspend fun WebGpuViewer.decodeReaderPage(page: ViewerReaderPage) {
         logcat(LogPriority.ERROR, e) { "page.stream failed index ${page.page.index}" }
         null
     } ?: run {
-        synchronized(lock) { if (pageInCache(page)) page.state = PageState.IDLE }
+        // The stream is gone, not the page. A split segment is built with `status = Ready`, so it
+        // takes the branch above instead of the one that calls startPageLoad - and loadSegment,
+        // the only code that re-cuts a segment whose cache file the LRU evicted, is reached from
+        // startPageLoad. Without this call the page resets to IDLE, keeps its placeholder, and the
+        // only thing that will move it again is the stuck-page sweep, which sends it straight back
+        // down this same path.
+        val stillWanted = synchronized(lock) {
+            val cached = pageInCache(page)
+            if (cached) page.state = PageState.IDLE
+            cached
+        }
         trace?.complete("no-stream")
+        logcat(LogPriority.WARN) {
+            "No stream ch=${page.page.chapter.chapter.id}/i=${page.page.index} " +
+                "segment=${page.page.splitSegment} - resolving the page again through its loader"
+        }
+        if (stillWanted) askLoaderToResolvePage(page)
         return
     }
 

@@ -51,6 +51,12 @@ internal fun WebGpuViewer.startDecodeWorker() {
                             page.state = PageState.IDLE
                         }
                     }
+                    // All three reasons share one outcome and cannot be told apart from the state.
+                    logcat(LogPriority.DEBUG) {
+                        "Decode skipped ch=${page.page.chapter.chapter.id}/i=${page.page.index} " +
+                            "cached=${pageInCache(page)} state=${page.state} " +
+                            "decoded=${page.isDecoded} last=${lastDecodeOutcome(page) ?: "none"}"
+                    }
                     continue
                 }
 
@@ -113,6 +119,9 @@ internal fun WebGpuViewer.startDecodeWorker() {
                     // invariant every exit path agrees on.
                     // KMK <--
                     if (!trace.finished) trace.complete("threw")
+                    // Before the sweep is signalled: the reason this page is about to be looked
+                    // at is the one thing it cannot work out for itself.
+                    recordDecodeOutcome(page, trace.outcome ?: "unfinished")
                     activeDecode = null
                     synchronized(lock) {
                         if (pageInCache(page) && page.state == PageState.DECODING) {
@@ -154,15 +163,21 @@ internal fun WebGpuViewer.startStuckPageSweep() {
             if (isDestroyed) break
             try {
                 val orphans = synchronized(lock) {
-                    pageCache.values.filterIsInstance<ViewerReaderPage>().filter { page ->
-                        if (page.isDecoded || page.imagePage.destroyed) return@filter false
-                        when (page.state) {
+                    pageCache.values.filterIsInstance<ViewerReaderPage>().mapNotNull { page ->
+                        if (page.isDecoded || page.imagePage.destroyed) return@mapNotNull null
+                        // Named as it is collected, because the branch that matched is what the
+                        // recovery depends on and it is gone by the time the page is logged.
+                        val branch = when (page.state) {
                             // Queued but absent from the queue: nothing will ever pop it.
-                            PageState.QUEUED -> !decodeQueue.contains(page)
+                            PageState.QUEUED ->
+                                if (decodeQueue.contains(page)) null else "queued-but-absent"
+
                             // LOADING is only released when the bytes are already there: a page
                             // genuinely fetching must keep its state, and queueForDecode will
                             // promote it the moment it reports Ready.
-                            PageState.LOADING -> page.page.status == Page.State.Ready
+                            PageState.LOADING ->
+                                if (page.page.status == Page.State.Ready) "loading-done" else null
+
                             // The terminal case: not being worked on at all. The renderer
                             // reached this page (fetchPage called ensureDecoding), so it is on
                             // screen or prewarmed, and nothing else will schedule it - a decode
@@ -170,19 +185,26 @@ internal fun WebGpuViewer.startStuckPageSweep() {
                             // strands it behind its placeholder indefinitely. Checking
                             // wantedByRender is what keeps this from queueing speculative shells
                             // that only a preload walk ever touched.
-                            PageState.IDLE -> page.wantedByRender && page.imagePage is ProgressPage
-                            else -> false
+                            PageState.IDLE ->
+                                if (page.wantedByRender && page.imagePage is ProgressPage) {
+                                    "idle-placeholder"
+                                } else {
+                                    null
+                                }
+
+                            else -> null
                         }
+                        branch?.let { page to it }
                     }
                 }
                 if (orphans.isEmpty()) continue
                 // A page inside its cooldown is not an event: logging it would be the spew this
                 // sweep is meant to stop, and re-driving it is what could not terminate.
                 var reArm = false
-                val acted = ArrayList<ViewerReaderPage>(orphans.size)
-                orphans.forEach { page ->
+                val acted = ArrayList<Pair<ViewerReaderPage, String>>(orphans.size)
+                orphans.forEach { (page, branch) ->
                     when (requeueStuckPage(page)) {
-                        StuckRecovery.REDRIVEN, StuckRecovery.REBUILT -> acted += page
+                        StuckRecovery.REDRIVEN, StuckRecovery.REBUILT -> acted += page to branch
                         StuckRecovery.DEFERRED -> reArm = true
                         StuckRecovery.GONE -> Unit
                     }
@@ -199,7 +221,10 @@ internal fun WebGpuViewer.startStuckPageSweep() {
                 }
                 logcat(LogPriority.WARN) {
                     "Re-driving ${acted.size} stuck page(s): " +
-                        acted.joinToString { "${it.page.chapter.chapter.id}/${it.page.index}=${it.state}" }
+                        acted.joinToString { (page, branch) ->
+                            "${page.page.chapter.chapter.id}/${page.page.index}=${page.state} " +
+                                "[was=$branch last=${lastDecodeOutcome(page) ?: "none"}]"
+                        }
                 }
             } catch (e: CancellationException) {
                 throw e

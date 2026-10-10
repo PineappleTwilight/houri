@@ -33,6 +33,28 @@ private const val DECODE_STALL_REPEAT_MS = 10_000L
 private const val DECODE_WATCHDOG_TICK_MS = 1_000L
 
 /**
+ * How many pages keep their last decode outcome - see [WebGpuViewer.decodeOutcomes].
+ *
+ * Comfortably larger than the continuous window, so the sweep never asks about a page whose
+ * outcome was already dropped.
+ */
+internal const val DECODE_OUTCOME_CAP = 96
+
+/**
+ * Records how one page's decode ended, so a later recovery can say why it did not finish.
+ *
+ * Written from the decode worker and read from the sweep, so every access is under the viewer
+ * lock. The map itself is access-ordered and capped.
+ */
+internal fun WebGpuViewer.recordDecodeOutcome(page: ViewerReaderPage, outcome: String) {
+    synchronized(lock) { decodeOutcomes[pageKey(page)] = outcome }
+}
+
+/** What [page]'s last decode did, or null when this shell has never been decoded. */
+internal fun WebGpuViewer.lastDecodeOutcome(page: ViewerPage): String? =
+    synchronized(lock) { decodeOutcomes[pageKey(page)] }
+
+/**
  * One page's decode in progress, with the stage it is currently in.
  *
  * Every field is volatile because the decode worker writes them from the decode thread while the
@@ -68,6 +90,11 @@ internal class DecodeTrace(
     /** Whether an extension replaced the page bytes before decode - the one native step before the decoder. */
     @Volatile
     var transformed: Boolean? = null
+
+    /** The reason [complete] was last called with, or null while the decode is still running. */
+    @Volatile
+    var outcome: String? = null
+        private set
 
     private var lastReportedStage: String? = null
     private var lastReportedAtMs: Long = 0L
@@ -111,10 +138,11 @@ internal class DecodeTrace(
     }
 
     /** Marks the decode finished and logs how long the whole thing took. */
-    fun complete(outcome: String, nowMs: Long = System.currentTimeMillis()) {
+    fun complete(reason: String, nowMs: Long = System.currentTimeMillis()) {
         finished = true
+        outcome = reason
         logcat(LogPriority.DEBUG) {
-            "DecodeTrace ch=$chapterId/i=$pageIndex $outcome total=${nowMs - startedAtMs}ms ${describe()}"
+            "DecodeTrace ch=$chapterId/i=$pageIndex $reason total=${nowMs - startedAtMs}ms ${describe()}"
         }
     }
 

@@ -2,6 +2,8 @@
 package eu.kanade.tachiyomi.ui.reader.viewer.webgpu
 
 import eu.kanade.tachiyomi.source.model.Page
+import logcat.LogPriority
+import tachiyomi.core.common.util.system.logcat
 
 // The decode queue and its recovery ladder: which pages are owed a decode, how often a page that
 // cannot finish is retried, and when its own state is thrown away instead.
@@ -32,6 +34,10 @@ internal fun WebGpuViewer.queueForDecode(page: ViewerReaderPage, prioritize: Boo
                     decodeQueue.addFirst(page)
                 }
                 lock.notify()
+                logcat(LogPriority.DEBUG) {
+                    "Queued ch=${page.page.chapter.chapter.id}/i=${page.page.index} " +
+                        "priority=$prioritize depth=${decodeQueue.size}"
+                }
             }
 
             PageState.QUEUED -> {
@@ -104,6 +110,11 @@ internal fun WebGpuViewer.ensureDecoding(page: ViewerPage) {
                 // a new shell moments after the old one, so resetting on that would restart the
                 // ladder on every rebuild - which is the churn the escalation exists to stop.
                 if (System.currentTimeMillis() - record.lastAttemptAt > STUCK_REDRIVE_FRESH_WINDOW_MS) {
+                    logcat(LogPriority.DEBUG) {
+                        "Re-demand ch=${page.page.chapter.chapter.id}/i=${page.page.index} " +
+                            "after ${System.currentTimeMillis() - record.lastAttemptAt}ms away " +
+                            "- stuck ladder reset from ${record.attempts} attempts"
+                    }
                     record.attempts = 0
                 }
             }
@@ -151,7 +162,21 @@ internal fun WebGpuViewer.requeueStuckPage(page: ViewerReaderPage): StuckRecover
         when {
             record.attempts <= STUCK_REDRIVE_SOFT_LIMIT -> page.state = PageState.IDLE
             record.attempts <= STUCK_REDRIVE_HARD_LIMIT -> escalate = true
-            else -> return StuckRecovery.GONE
+            else -> {
+                // Out of budget, and simply returning here is what makes it permanent. The shell
+                // stays resident with `wantedByRender` still set, and ensureDecoding - the one
+                // place that resets the record - returns before it can reach the reset. Nothing
+                // then queues this page again for the rest of the session, however long the reader
+                // sits on it. Releasing the flag hands the page back to the render walk, which
+                // re-arms the whole ladder once the reader has been away for the fresh window.
+                page.wantedByRender = false
+                logcat(LogPriority.WARN) {
+                    "Giving up on ch=${page.page.chapter.chapter.id}/i=${page.page.index} " +
+                        "after ${record.attempts} attempts last=${lastDecodeOutcome(page) ?: "none"} " +
+                        "- handing it back to the render walk"
+                }
+                return StuckRecovery.GONE
+            }
         }
     }
 

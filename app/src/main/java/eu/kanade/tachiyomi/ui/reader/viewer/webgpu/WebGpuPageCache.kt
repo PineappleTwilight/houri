@@ -5,6 +5,8 @@ import ca.mpreg.webgpuviewer.viewer.ImagePage
 import eu.kanade.tachiyomi.ui.reader.model.ReaderChapter
 import eu.kanade.tachiyomi.ui.reader.model.ReaderPage
 import eu.kanade.tachiyomi.ui.reader.model.ViewerChapters
+import logcat.LogPriority
+import tachiyomi.core.common.util.system.logcat
 import kotlin.math.abs
 
 /** How far either side of the anchor [continuousPage] will cache; wider asks walk uncached. */
@@ -79,6 +81,9 @@ internal class PageListWatch {
     /** False while nothing changed since the last [sync] / [reset]. */
     fun isUnchanged(versions: IntArray): Boolean = versions.contentEquals(seen)
 
+    /** The versions last reconciled against, so a change log can name both sides of it. */
+    fun current(): List<Int> = seen.toList()
+
     fun reset(versions: IntArray) {
         seen = versions
     }
@@ -101,6 +106,9 @@ internal fun ViewerChapters.pageListVersions(): IntArray = intArrayOf(
 internal fun WebGpuViewer.syncPageList(chapters: ViewerChapters): Boolean {
     val version = chapters.pageListVersions()
     if (pageListWatch.isUnchanged(version)) return false
+    logcat(LogPriority.DEBUG) {
+        "Page list changed ${pageListWatch.current()} -> ${version.toList()} - reconciling"
+    }
     pageListWatch.reset(version)
     // Any replacement invalidates the render window, not only one the reader happens to be looking
     // at. The split is normally announced long before the reader reaches it - the whole point of
@@ -112,6 +120,10 @@ internal fun WebGpuViewer.syncPageList(chapters: ViewerChapters): Boolean {
     // resume target, which is where the chapter was opened and can be pages away from where the
     // reader actually was.
     val replacement = discarded.page.chapter.splitReplacementOf(discarded.page) ?: discarded.page
+    logcat(LogPriority.DEBUG) {
+        "Re-anchoring on the replacement for ch=${discarded.page.chapter.chapter.id}/" +
+            "i=${discarded.page.index} (${replacement.index}, segment=${replacement.splitSegment})"
+    }
     // No eviction reference: the one available is the shell just torn down, and eviction distance
     // is measured from the reference's own position - which a superseded page no longer has, so
     // every same-chapter distance came out shifted by one for the call that builds the page the
@@ -174,6 +186,10 @@ private fun WebGpuViewer.evictReplacedPages(): ViewerReaderPage? {
         val orphaned = pageCache.values.filterIsInstance<ViewerReaderPage>()
             .filter { it.page.supersededBySplit }
         if (orphaned.isEmpty()) return null
+        logcat(LogPriority.DEBUG) {
+            "Dropping ${orphaned.size} superseded shell(s): " +
+                orphaned.joinToString { "ch=${it.page.chapter.chapter.id}/i=${it.page.index}" }
+        }
         orphaned.forEach { shell ->
             pageCache.remove(pageKey(shell))
             decodeQueue.remove(shell)
@@ -576,6 +592,13 @@ internal fun WebGpuViewer.evictFarthestPage(reference: ViewerPage? = null) {
 
     pageCache.remove(pageKey(toRemove))
     decodeQueue.remove(toRemove)
+    if (toRemove is ViewerReaderPage) {
+        logcat(LogPriority.DEBUG) {
+            "Evicted ch=${toRemove.page.chapter.chapter.id}/i=${toRemove.page.index} " +
+                "state=${toRemove.state} decoded=${toRemove.isDecoded} " +
+                "drawn=${toRemove.imagePage.isOnScreen} cache=${pageCache.size}"
+        }
+    }
     // Removing a page from the queue is what can strand an unrelated in-flight page, so the sweep
     // runs here rather than on a timer.
     stuckSignal.trySend(Unit)
