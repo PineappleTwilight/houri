@@ -37,6 +37,11 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 - Fix app not reading `tachiyomix.extensionLib` extension metadata ([@AntsyLich](https://github.com/AntsyLich)) ([#3545](https://github.com/mihonapp/mihon/pull/3545), [#3559](https://github.com/mihonapp/mihon/pull/3559))
 - Fix reader navigator slider steps not updating after changing chapter ([@AntsyLich](https://github.com/AntsyLich)) ([#3549](https://github.com/mihonapp/mihon/pull/3549))
 
+## [v1.23.16] - 2026-10-10
+### Fix
+- **Fixed pages refusing to load in the WebGPU long-strip reader.** A long page is cut into pieces to be decodable, and if the device dropped one of those pieces from its cache the reader kept asking for a file that was no longer there and never recovered — leaving a blank strip at that spot, most often when a new chapter started loading while you were still scrolling. The reader now asks the source for that piece again, and a page it has retried too many times is handed back to be retried instead of being abandoned for the rest of the session.
+
+
 ## [v1.23.15] - 2026-10-09
 ### New
 - **Opening a category now lands on its first subcategory when the "All" subcategory is turned off.** Previously it still showed every title from every subcategory combined, with no "All" chip left to narrow it back down.
