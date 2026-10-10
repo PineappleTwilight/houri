@@ -37,6 +37,15 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 - Fix app not reading `tachiyomix.extensionLib` extension metadata ([@AntsyLich](https://github.com/AntsyLich)) ([#3545](https://github.com/mihonapp/mihon/pull/3545), [#3559](https://github.com/mihonapp/mihon/pull/3559))
 - Fix reader navigator slider steps not updating after changing chapter ([@AntsyLich](https://github.com/AntsyLich)) ([#3549](https://github.com/mihonapp/mihon/pull/3549))
 
+## [v1.23.15] - 2026-10-09
+### New
+- **Opening a category now lands on its first subcategory when the "All" subcategory is turned off.** Previously it still showed every title from every subcategory combined, with no "All" chip left to narrow it back down.
+### Fix
+- **Fixed global search hanging the app with covers that never load.** Using global search left every result spinning and the app unusable until it was force-closed; searching a single source was unaffected. Only on Houri and Komikku previews — Mihon and Chimahon were never affected.
+- **A single broken page no longer stops every other page from loading.** The WebGPU reader decoded everything on one thread, with no timeout at all in the path, so a page that never finished decoding left the rest of the chapter queued behind it indefinitely.
+- Pages that arrive as something other than an image — an error or captcha page served in place of a real page — are now spotted before they reach the image decoder, and your source is asked for that page again instead of the reader giving up on it.
+
+
 ## [v1.23.14] - 2026-10-09
 ### New
 - **Are you? Are you? Coming to the tree?** They strung up a man, and say he murdered three.
