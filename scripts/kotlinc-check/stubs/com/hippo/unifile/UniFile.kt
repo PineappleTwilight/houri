@@ -25,6 +25,9 @@ open class UniFile {
     fun createFile(name: String): UniFile? = null
     fun openInputStream(): InputStream = throw UnsupportedOperationException("stub")
     fun openOutputStream(): OutputStream = throw UnsupportedOperationException("stub")
+
+    /** Real signature: `openOutputStream(boolean)` - true opens SAF/raw mode "wa" (append). */
+    fun openOutputStream(append: Boolean): OutputStream = throw UnsupportedOperationException("stub")
     fun delete(): Boolean = false
 
     companion object {

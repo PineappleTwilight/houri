@@ -284,7 +284,12 @@ class EnhancedFilePrinter internal constructor(
          */
         fun open(file: UniFile): Boolean {
             return try {
-                bufferedWriter = file.openOutputStream().bufferedWriter()
+                // KMK -->
+                // Append, like XLog's own SimpleWriter (`new FileWriter(file, true)`): the no-arg
+                // openOutputStream() opens SAF/raw mode "w", which TRUNCATES - so every process
+                // start wiped the current day's log down to that session's boot lines.
+                bufferedWriter = file.openOutputStream(true).bufferedWriter()
+                // KMK <--
                 lastFileName = file.name
                 this.file = file
                 true

@@ -8,14 +8,14 @@ import eu.kanade.tachiyomi.network.interceptor.CloudflareInterceptor
 import eu.kanade.tachiyomi.network.interceptor.FlareSolverr
 import eu.kanade.tachiyomi.network.interceptor.UncaughtExceptionInterceptor
 import eu.kanade.tachiyomi.network.interceptor.UserAgentInterceptor
-import exh.log.EHLogLevel
+import exh.log.maybeInjectEHLogger
+import exh.log.maybeInjectExtraHeaderLogger
 import exh.pref.DelegateSourcePreferences
 import logcat.LogPriority
 import okhttp3.Cache
 import okhttp3.Headers
 import okhttp3.OkHttpClient
 import okhttp3.Response
-import okhttp3.logging.HttpLoggingInterceptor
 import okio.IOException
 import tachiyomi.core.common.util.system.logcat
 import java.io.File
@@ -72,15 +72,16 @@ open /* SY <-- */ class NetworkHelper(
             )
             .addInterceptor(UncaughtExceptionInterceptor())
             .addInterceptor(UserAgentInterceptor(::defaultUserAgentProvider))
-
-        // KMK -->
-        if (EHLogLevel.isExtraLogging()) {
-            // KMK <--
-            val httpLoggingInterceptor = HttpLoggingInterceptor().apply {
-                level = HttpLoggingInterceptor.Level.HEADERS
-            }
-            builder.addNetworkInterceptor(httpLoggingInterceptor)
-        }
+            // KMK -->
+            // EXTRA ("Log everything") request/response headers routed through XLog so they reach
+            // the log files and the logcat bridge - the previous HttpLoggingInterceptor here used
+            // the default logger, which prints to System.out where nothing reads it. EXTREME
+            // ("Network inspection mode") instruments the base client itself, so every client
+            // built from it - source clients, Coil image loads, downloads, EH API calls - is
+            // captured, not just source page fetches.
+            .maybeInjectExtraHeaderLogger()
+            .maybeInjectEHLogger()
+        // KMK <--
 
         when (preferences.dohProvider().get()) {
             PREF_DOH_CLOUDFLARE -> builder.dohCloudflare()
