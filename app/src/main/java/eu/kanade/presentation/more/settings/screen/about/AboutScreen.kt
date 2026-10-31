@@ -39,6 +39,7 @@ import mihon.app.di.globalAppGraph
 import mihon.core.navigation.NewUpdateRoute
 import mihon.core.navigation.OpenSourceLicensesRoute
 import mihon.core.navigation.RoadmapRoute
+import mihon.core.navigation.util.LocalBackButtonVisibility
 import mihon.core.navigation.util.LocalBackStack
 import tachiyomi.core.common.util.lang.withIOContext
 import tachiyomi.core.common.util.lang.withUIContext
@@ -62,6 +63,7 @@ fun AboutScreen() {
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     val uriHandler = LocalUriHandler.current
+    val backVisibility = LocalBackButtonVisibility.current
     val backStack = LocalBackStack.current
     var isCheckingUpdates by remember { mutableStateOf(false) }
     var versionTapTimes by remember { mutableStateOf(listOf<Long>()) }
@@ -70,7 +72,10 @@ fun AboutScreen() {
         topBar = { scrollBehavior ->
             AppBar(
                 title = stringResource(MR.strings.pref_category_about),
-                navigateUp = backStack::removeLastOrNull,
+                navigateUp = {
+                    backStack.removeLastOrNull()
+                    Unit
+                }.takeIf { backVisibility },
                 scrollBehavior = scrollBehavior,
             )
         },
