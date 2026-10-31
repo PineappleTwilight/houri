@@ -515,47 +515,25 @@ find_library(log-lib log)
 # MultimodalBridge loads a vision GGUF plus an mmproj GGUF; mtmd implements the
 # projector. Only llama.cpp is built here — the fork's whisper.cpp and
 # stable-diffusion.cpp submodules are intentionally left unchecked out.
-add_library(mtmd_sources OBJECT
-        ${MTMD_DIR}/mtmd.cpp
-        ${MTMD_DIR}/mtmd-helper.cpp
-        ${MTMD_DIR}/mtmd-audio.cpp
-        ${MTMD_DIR}/mtmd-image.cpp
-        ${MTMD_DIR}/clip.cpp
-        ${MTMD_DIR}/models/cogvlm.cpp
-        ${MTMD_DIR}/models/conformer.cpp
-        ${MTMD_DIR}/models/deepseekocr.cpp
-        ${MTMD_DIR}/models/deepseekocr2.cpp
-        ${MTMD_DIR}/models/dotsocr.cpp
-        ${MTMD_DIR}/models/exaone4_5.cpp
-        ${MTMD_DIR}/models/gemma4a.cpp
-        ${MTMD_DIR}/models/gemma4ua.cpp
-        ${MTMD_DIR}/models/gemma4uv.cpp
-        ${MTMD_DIR}/models/gemma4v.cpp
-        ${MTMD_DIR}/models/glm4v.cpp
-        ${MTMD_DIR}/models/granite-speech.cpp
-        ${MTMD_DIR}/models/granite4-vision.cpp
-        ${MTMD_DIR}/models/hunyuanvl.cpp
-        ${MTMD_DIR}/models/internvl.cpp
-        ${MTMD_DIR}/models/kimik25.cpp
-        ${MTMD_DIR}/models/kimivl.cpp
-        ${MTMD_DIR}/models/llama4.cpp
-        ${MTMD_DIR}/models/llava.cpp
-        ${MTMD_DIR}/models/minicpmv.cpp
-        ${MTMD_DIR}/models/mimovl.cpp
-        ${MTMD_DIR}/models/mobilenetv5.cpp
-        ${MTMD_DIR}/models/nemotron-v2-vl.cpp
-        ${MTMD_DIR}/models/paddleocr.cpp
-        ${MTMD_DIR}/models/pixtral.cpp
-        ${MTMD_DIR}/models/qwen2vl.cpp
-        ${MTMD_DIR}/models/qwen3a.cpp
-        ${MTMD_DIR}/models/qwen3vl.cpp
-        ${MTMD_DIR}/models/siglip.cpp
-        ${MTMD_DIR}/models/step3vl.cpp
-        ${MTMD_DIR}/models/whisper-enc.cpp
-        ${MTMD_DIR}/models/yasa2.cpp
-        ${MTMD_DIR}/models/youtuvl.cpp
-        ${MTMD_DIR}/deprecation-warning.cpp
+# The file list mirrors llama.cpp's own tools/mtmd/CMakeLists.txt at the pinned
+# revision. Models are globbed instead of enumerated: clip.cpp/models.h at any
+# given llama.cpp revision reference every models/*.cpp's out-of-line graph code,
+# so a stale hardcoded list links successfully-compiled objects and then dies on
+# undefined vtables (the exact failure that forced this to a glob).
+# mtmd-cli.cpp is excluded on purpose: it is the CLI binary, not library code.
+file(GLOB MTMD_CORE_SOURCES CONFIGURE_DEPENDS
+        "${MTMD_DIR}/mtmd.cpp"
+        "${MTMD_DIR}/mtmd-helper.cpp"
+        "${MTMD_DIR}/mtmd-helper-gen.cpp"
+        "${MTMD_DIR}/mtmd-audio.cpp"
+        "${MTMD_DIR}/mtmd-image.cpp"
+        "${MTMD_DIR}/clip.cpp"
+        "${MTMD_DIR}/deprecation-warning.cpp"
 )
+file(GLOB MTMD_MODEL_SOURCES CONFIGURE_DEPENDS "${MTMD_DIR}/models/*.cpp")
+add_library(mtmd_sources OBJECT ${MTMD_CORE_SOURCES} ${MTMD_MODEL_SOURCES})
+# mtmd-helper uses the vendored SHA-256 wrapper for bitmap fingerprinting.
+target_sources(mtmd_sources PRIVATE "${LLAMA_CPP_DIR}/vendor/hash/hash.cpp")
 
 target_include_directories(mtmd_sources PRIVATE
         ${MTMD_DIR}
@@ -565,6 +543,7 @@ target_include_directories(mtmd_sources PRIVATE
         ${LLAMA_CPP_DIR}/ggml/src
         ${LLAMA_CPP_DIR}/common
         ${LLAMA_CPP_DIR}/vendor
+        ${LLAMA_CPP_DIR}/vendor/hash
         ${LLAMA_CPP_DIR}/vendor/stb
         ${LLAMA_CPP_DIR}/vendor/nlohmann
 )
