@@ -4,6 +4,35 @@ project(llamatik_llama_jni C CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# ---- ccache -------------------------------------------------------------------
+# llama.cpp+mtmd compile ~590 steps per ABI, x4 ABIs x debug/release — without a
+# cache every flavor/ABI change is a full rebuild. Launchers propagate through
+# add_subdirectory(llama.cpp) automatically. This configure always runs on Linux
+# (WSL via wslNativeBuild on Windows, or a Linux host directly), so the plain
+# 'ccache' resolves via PATH; there is no Windows-side CMake path to configure.
+find_program(LLAMATIK_CCACHE_PROGRAM ccache)
+if(LLAMATIK_CCACHE_PROGRAM)
+    # Not guarded on launcher-already-set: a cached launcher must not skip this
+    # ccache block, or reconfigures silently lose the launcher.
+    set(CMAKE_C_COMPILER_LAUNCHER "${LLAMATIK_CCACHE_PROGRAM}" CACHE STRING "" FORCE)
+    set(CMAKE_CXX_COMPILER_LAUNCHER "${LLAMATIK_CCACHE_PROGRAM}" CACHE STRING "" FORCE)
+    # Same policy as imagedecoder-houri: fresh worktree checkouts keep hits
+    # despite new mtimes, and cache lookup must not depend on the CWD.
+    if(NOT DEFINED ENV{CCACHE_SLOPPINESS})
+        set(ENV{CCACHE_SLOPPINESS} "pch_defines,time_macros,file_macro,include_file_mtime,include_file_ctime")
+    endif()
+    if(NOT DEFINED ENV{CCACHE_NOHASHDIR})
+        set(ENV{CCACHE_NOHASHDIR} "true")
+    endif()
+    if(NOT DEFINED ENV{CCACHE_MAXSIZE})
+        set(ENV{CCACHE_MAXSIZE} "20G")
+    endif()
+    message(STATUS "Houri MTL: ccache enabled for llama_jni (${LLAMATIK_CCACHE_PROGRAM})")
+else()
+    message(STATUS "Houri MTL: ccache not found — llama_jni compiles uncached (sudo apt install ccache)")
+endif()
+
+
 # =============================================================================
 # Houri's on-device LLM runtime.
 #
@@ -26,9 +55,18 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # which vendors llama.cpp as a nested submodule.
 set(LLAMATIK_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../../../../external/llamatik")
 set(LLAMA_CPP_DIR "${LLAMATIK_ROOT}/llama.cpp")
-set(LLAMATIK_CPP_DIR "${LLAMATIK_ROOT}/library/src/commonMain/cpp")
-set(LLAMATIK_INTEROP_DIR "${LLAMATIK_ROOT}/library/src/commonMain/c_interop/include")
 set(MTMD_DIR "${LLAMA_CPP_DIR}/tools/mtmd")
+
+# The fork's "Llamatik 2.0" restructure moved library/src/commonMain/{cpp,c_interop}
+# to core/src/commonMain/. This repo pins a post-restructure commit, so core/ is the
+# primary layout; library/ is kept as a fallback so a checkout at or below the last
+# pre-2.0 pin still configures. Failing with one clear error beats silently choosing.
+set(LLAMATIK_CPP_DIR "${LLAMATIK_ROOT}/core/src/commonMain/cpp")
+set(LLAMATIK_INTEROP_DIR "${LLAMATIK_ROOT}/core/src/commonMain/c_interop/include")
+if(NOT EXISTS "${LLAMATIK_CPP_DIR}/llama_jni.cpp")
+    set(LLAMATIK_CPP_DIR "${LLAMATIK_ROOT}/library/src/commonMain/cpp")
+    set(LLAMATIK_INTEROP_DIR "${LLAMATIK_ROOT}/library/src/commonMain/c_interop/include")
+endif()
 
 if(NOT EXISTS "${LLAMA_CPP_DIR}/CMakeLists.txt")
     message(FATAL_ERROR
@@ -37,16 +75,13 @@ if(NOT EXISTS "${LLAMA_CPP_DIR}/CMakeLists.txt")
         "  git submodule update --init --recursive external/llamatik")
 endif()
 
-# The fork's "Llamatik 2.0" restructure moved these from library/ to core/; the
-# superproject pins the pre-restructure commit, so a checkout that drifted onto
-# the fork's main branch loses the JNI sources and add_library() below dies with
-# a bare "Cannot find source file / No SOURCES given to target" instead.
 if(NOT EXISTS "${LLAMATIK_CPP_DIR}/llama_jni.cpp")
     message(FATAL_ERROR
         "llamatik JNI sources not found at ${LLAMATIK_CPP_DIR}.\n"
-        "external/llamatik is checked out past the commit this repo pins; the Llamatik\n"
-        "2.0 restructure moved library/src/commonMain/cpp to core/. Restore the pin:\n"
-        "  git submodule update --force external/llamatik")
+        "Checked core/src/commonMain/cpp (Llamatik 2.0 restructure) and\n"
+        "library/src/commonMain/cpp (pre-2.0 layout). external/llamatik is either\n"
+        "not checked out or at an unexpected commit. Run:\n"
+        "  git submodule update --init --recursive external/llamatik")
 endif()
 
 # ---- Windows / WSL interop ---------------------------------------------------
@@ -540,7 +575,7 @@ target_compile_features(mtmd_sources PRIVATE cxx_std_17)
 # ---- JNI library -------------------------------------------------------------
 # The output name MUST stay `llama_jni`: the vendored Kotlin wrapper calls
 # System.loadLibrary("llama_jni"), and JNI symbols are looked up by the
-# `com_llamatik_library_platform_*` mangling of the Kotlin package.
+# `com_llamatik_core_platform_*` mangling of the Kotlin package.
 add_library(llama_jni
         SHARED
         ${LLAMATIK_CPP_DIR}/llama_jni.cpp
@@ -548,6 +583,12 @@ add_library(llama_jni
         ${LLAMATIK_CPP_DIR}/multimodal_jni.cpp
         $<TARGET_OBJECTS:mtmd_sources>
 )
+
+# 2.0 restructure added a runtime CPU-backend picker used by llama_jni.cpp
+# (llamatik_load_android_cpu_backend). Only the new layout ships it.
+if(EXISTS "${LLAMATIK_CPP_DIR}/android_cpu_backend.cpp")
+    target_sources(llama_jni PRIVATE ${LLAMATIK_CPP_DIR}/android_cpu_backend.cpp)
+endif()
 
 target_include_directories(llama_jni PRIVATE
         ${LLAMATIK_INTEROP_DIR}
