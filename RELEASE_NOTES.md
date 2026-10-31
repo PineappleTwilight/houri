@@ -10,6 +10,8 @@ files moved. See .github/scripts/release_notes.py.
 
 ### New
 
+- Scope the library list (CSV) export to specific categories: the export dialog now lists your categories below the column options, and only entries in the checked ones are written — including `Default` for entries in no category. Leave everything checked to export the whole library as before.
+
 ### Improve
 
 ### Fix

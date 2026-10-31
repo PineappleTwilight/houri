@@ -58,6 +58,12 @@ interface MangaRepository {
     suspend fun getFavoriteCategoryCounts(): Map<Long, Long>
 
     fun getFavoriteCategoryCountsAsFlow(): Flow<Map<Long, Long>>
+
+    /** Each library entry's category memberships as mangaId -> category ids, for callers
+     * that scope a whole-library operation (the CSV export) by category without paying the
+     * libraryView aggregate. Entries with no memberships are absent from the map.
+     */
+    suspend fun getFavoriteCategoryPairs(): Map<Long, Set<Long>>
     // KMK <--
 
     suspend fun getUpcomingManga(statuses: Set<Long>): Flow<List<Manga>>

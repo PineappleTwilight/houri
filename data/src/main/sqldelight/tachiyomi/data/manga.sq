@@ -501,6 +501,17 @@ FROM manga_category mc
 JOIN manga M ON M.id = mc.manga_id
 WHERE M.user_favorite_at IS NOT NULL
 GROUP BY mc.category_id;
+
+-- Each library entry paired with one category membership, for scoping a whole-library
+-- operation (the CSV export) by category. Entries with no membership row are absent,
+-- which is how "Default" (uncategorized) is recognized.
+getFavoriteCategoryPairs:
+SELECT
+    mc.manga_id AS mangaId,
+    mc.category_id AS categoryId
+FROM manga_category mc
+JOIN manga M ON M.id = mc.manga_id
+WHERE M.user_favorite_at IS NOT NULL;
 -- KMK <--
 
 selectLastInsertRow:
