@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "setupWorktree": [
+    "git submodule update --init --recursive"
+  ],
+  "projectActions": [
+    {
+      "id": "ee8e75e2-0336-4472-9159-b19378d449b1",
+      "name": "Compile",
+      "command": "./gradlew spotlessApply spotlessCheck compileDebugUnitTestKotlin app:assembleDebug",
+      "icon": "play"
+    }
+  ]
+}
