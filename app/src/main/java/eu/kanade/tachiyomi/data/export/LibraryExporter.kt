@@ -12,6 +12,12 @@ object LibraryExporter {
         val includeTitle: Boolean,
         val includeAuthor: Boolean,
         val includeArtist: Boolean,
+        // KMK -->
+        /** Category ids the export is scoped to, or null for the whole library. The app
+         * resolves ids to entries; the exporter only renders what it is handed.
+         */
+        val includedCategoryIds: Set<Long>? = null,
+        // KMK <--
     )
 
     suspend fun exportToCsv(

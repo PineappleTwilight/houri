@@ -165,6 +165,13 @@ class MangaRepositoryImpl(
             mangaQueries.getFavoriteCategoryCounts { categoryId, mangaCount -> categoryId to mangaCount }
         }.map { it.toMap() }
     }
+
+    override suspend fun getFavoriteCategoryPairs(): Map<Long, Set<Long>> {
+        return handler.awaitList {
+            mangaQueries.getFavoriteCategoryPairs { mangaId, categoryId -> mangaId to categoryId }
+        }.groupBy(keySelector = { it.first }, valueTransform = { it.second })
+            .mapValues { it.value.toSet() }
+    }
     // KMK <--
 
     override suspend fun getDuplicateLibraryManga(id: Long, title: String): List<MangaWithChapterCount> {

@@ -16,13 +16,17 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.HelpOutline
 import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MultiChoiceSegmentedButtonRow
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
@@ -41,6 +45,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
 import androidx.navigation3.runtime.NavKey
 import com.google.zxing.client.android.Intents
@@ -48,6 +53,8 @@ import com.hippo.unifile.UniFile
 import com.journeyapps.barcodescanner.ScanContract
 import com.journeyapps.barcodescanner.ScanOptions
 import eu.kanade.domain.sync.SyncPreferences
+import eu.kanade.presentation.category.hierarchicalVisualName
+import eu.kanade.presentation.category.sortedByHierarchy
 import eu.kanade.presentation.more.settings.Preference
 import eu.kanade.presentation.more.settings.screen.SettingsSecurityRoute.PasswordDialog
 import eu.kanade.presentation.more.settings.screen.data.CreateBackupScreen
@@ -94,9 +101,11 @@ import tachiyomi.core.common.util.lang.withIOContext
 import tachiyomi.core.common.util.lang.withUIContext
 import tachiyomi.core.common.util.system.logcat
 import tachiyomi.domain.backup.service.BackupPreferences
+import tachiyomi.domain.category.interactor.GetCategories
+import tachiyomi.domain.category.model.Category
+import tachiyomi.domain.category.model.Category.Companion.UNCATEGORIZED_ID
 import tachiyomi.domain.library.service.LibraryPreferences
 import tachiyomi.domain.manga.interactor.GetFavorites
-import tachiyomi.domain.manga.model.Manga
 import tachiyomi.domain.storage.service.StorageManager.Companion.allowAccessStorage
 import tachiyomi.domain.storage.service.StorageManager.Companion.directoryAccessible
 import tachiyomi.domain.storage.service.StoragePreferences
@@ -436,28 +445,48 @@ data object SettingsDataRoute : NavKey, SearchableRoute {
         val context = LocalContext.current
         val scope = rememberCoroutineScope()
         val getFavorites = remember { globalAppGraph.getFavorites }
-        var favorites by remember { mutableStateOf<List<Manga>>(emptyList()) }
-        LaunchedEffect(Unit) {
-            favorites = withIOContext { getFavorites.await() }
+        val getCategories = remember { globalAppGraph.getCategories }
+        val mangaRepository = remember { globalAppGraph.mangaRepository }
+        var categories by remember { mutableStateOf<List<Category>>(emptyList()) }
+        // KMK --> Loaded when the dialog opens, so the list reflects the current categories
+        // without paying for a query while the settings screen merely sits here.
+        LaunchedEffect(showDialog) {
+            if (showDialog) categories = withIOContext { getCategories.await() }
         }
+        // KMK <--
 
         val saveFileLauncher = rememberLauncherForActivityResult(
             contract = ActivityResultContracts.CreateDocument("text/csv"),
         ) { uri ->
-            uri?.let {
-                scope.launch {
-                    LibraryExporter.exportToCsv(
-                        context = context,
-                        uri = it,
-                        favorites = favorites,
-                        options = exportOptions,
-                        onExportComplete = {
-                            scope.launch(Dispatchers.Main) {
-                                context.toast(MR.strings.library_exported)
-                            }
-                        },
-                    )
-                }
+            uri ?: return@rememberLauncherForActivityResult
+            scope.launch {
+                // KMK --> Favorites and memberships are fetched here rather than when the
+                // settings screen opened, so the file reflects the library as of the moment
+                // the user confirmed the export. An entry with no membership is "Default";
+                // selecting Default exports those entries alongside the named categories.
+                val favorites = withIOContext { getFavorites.await() }
+                val scopedFavorites = exportOptions.includedCategoryIds
+                    ?.let { selectedIds ->
+                        val memberships = withIOContext { mangaRepository.getFavoriteCategoryPairs() }
+                        favorites.filter { manga ->
+                            val mangaCategories = memberships[manga.id].orEmpty()
+                            (UNCATEGORIZED_ID in selectedIds && mangaCategories.isEmpty()) ||
+                                mangaCategories.any(selectedIds::contains)
+                        }
+                    }
+                    ?: favorites
+                // KMK <--
+                LibraryExporter.exportToCsv(
+                    context = context,
+                    uri = uri,
+                    favorites = scopedFavorites,
+                    options = exportOptions,
+                    onExportComplete = {
+                        scope.launch(Dispatchers.Main) {
+                            context.toast(MR.strings.library_exported)
+                        }
+                    },
+                )
             }
         }
 
@@ -485,8 +514,9 @@ data object SettingsDataRoute : NavKey, SearchableRoute {
         }
 
         if (showDialog) {
-            ColumnSelectionDialog(
+            ExportOptionsDialog(
                 options = exportOptions,
+                categories = categories,
                 onConfirm = { options ->
                     exportOptions = options
                     saveFileLauncher.launch("houri_library.csv")
@@ -515,15 +545,23 @@ data object SettingsDataRoute : NavKey, SearchableRoute {
         )
     }
 
+    // KMK --> Extended from the column-only picker: it also scopes the export to categories.
+    // Default (uncategorized) is listed alongside the named categories and selects the
+    // entries with no category membership, matching how the library groups them.
     @Composable
-    private fun ColumnSelectionDialog(
+    private fun ExportOptionsDialog(
         options: ExportOptions,
+        categories: List<Category>,
         onConfirm: (ExportOptions) -> Unit,
         onDismissRequest: () -> Unit,
     ) {
         var titleSelected by remember { mutableStateOf(options.includeTitle) }
         var authorSelected by remember { mutableStateOf(options.includeAuthor) }
         var artistSelected by remember { mutableStateOf(options.includeArtist) }
+        val categoryIds = remember(categories) { categories.map { it.id } }
+        var selectedCategories by remember(categories) {
+            mutableStateOf(options.includedCategoryIds ?: categoryIds.toSet())
+        }
 
         AlertDialog(
             onDismissRequest = onDismissRequest,
@@ -531,7 +569,7 @@ data object SettingsDataRoute : NavKey, SearchableRoute {
                 Text(text = stringResource(MR.strings.migration_dialog_what_to_include))
             },
             text = {
-                Column {
+                Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Checkbox(
                             checked = titleSelected,
@@ -563,16 +601,44 @@ data object SettingsDataRoute : NavKey, SearchableRoute {
                         )
                         Text(text = stringResource(MR.strings.artist))
                     }
+
+                    if (categories.isNotEmpty()) {
+                        HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+                        Text(
+                            text = stringResource(MR.strings.categories),
+                            style = MaterialTheme.typography.titleSmall,
+                        )
+                        categories.sortedByHierarchy().forEach { category ->
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Checkbox(
+                                    checked = category.id in selectedCategories,
+                                    onCheckedChange = { checked ->
+                                        selectedCategories = if (checked) {
+                                            selectedCategories + category.id
+                                        } else {
+                                            selectedCategories - category.id
+                                        }
+                                    },
+                                )
+                                Text(text = category.hierarchicalVisualName)
+                            }
+                        }
+                    }
                 }
             },
             confirmButton = {
                 TextButton(
+                    enabled = categories.isEmpty() || selectedCategories.isNotEmpty(),
                     onClick = {
                         onConfirm(
                             ExportOptions(
                                 includeTitle = titleSelected,
                                 includeAuthor = authorSelected,
                                 includeArtist = artistSelected,
+                                // All categories checked means no scoping: the file matches
+                                // the pre-scoping export and stays reload-compatible.
+                                includedCategoryIds = selectedCategories
+                                    .takeUnless { categoryIds.isEmpty() || it.size == categoryIds.size },
                             ),
                         )
                         onDismissRequest()
@@ -588,6 +654,7 @@ data object SettingsDataRoute : NavKey, SearchableRoute {
             },
         )
     }
+    // KMK <--
 
     // SY -->
     @Composable
