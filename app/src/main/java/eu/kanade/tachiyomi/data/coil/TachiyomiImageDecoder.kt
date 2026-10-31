@@ -106,6 +106,14 @@ class TachiyomiImageDecoder(private val resources: ImageSource, private val opti
     class Factory : Decoder.Factory {
 
         override fun create(result: SourceFetchResult, options: Options, imageLoader: ImageLoader): Decoder? {
+            // KMK --> A request that set the new-decoder extra asked for NewImageDecoder
+            // specifically, whatever the bytes turn out to be. Both factories claim
+            // AVIF/JXL/HEIF, and this one is registered first (see App.kt), so an AVIF cover used
+            // to be decoded here and handed back as a coil3.BitmapImage - which the caller,
+            // having asked for NewImageDecoder.DecodeResultImage, then failed to cast and killed
+            // the app with on the main thread from inside the cover dialog's target lambda.
+            if (options.newDecoder) return null
+            // KMK <--
             return if (options.customDecoder || isApplicable(result.source.source())) {
                 TachiyomiImageDecoder(result.source, options)
             } else {

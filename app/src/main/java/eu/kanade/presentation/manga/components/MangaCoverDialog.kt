@@ -63,7 +63,9 @@ import eu.kanade.tachiyomi.data.coil.newDecoder
 import eu.kanade.tachiyomi.ui.reader.viewer.ReaderPageImageView
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.coroutines.launch
+import logcat.LogPriority
 import mihon.app.di.appGraph
+import tachiyomi.core.common.util.system.logcat
 import tachiyomi.domain.manga.model.Manga
 import tachiyomi.i18n.MR
 import tachiyomi.presentation.core.components.material.Scaffold
@@ -250,17 +252,34 @@ fun MangaCoverDialog(
                             // instead keeps the UI thread free; see WebGpuDecode for the same call
                             // made from a plain suspend fun.
                             scope.launch {
+                                // KMK --> The request asks for the new decoder specifically, and
+                                // only that decoder hands back the raw RGBA pixels this GPU path
+                                // needs. Anything else Coil picks would be a coil3.BitmapImage, so
+                                // the old unchecked cast was a ClassCastException on the main
+                                // thread the moment a cover's bytes let TachiyomiImageDecoder claim
+                                // the request first (AVIF/JXL/HEIF - see TachiyomiImageDecoder.Factory).
+                                // Safe cast: the wrong image leaves the viewer empty rather than
+                                // taking the whole app down with the cover dialog.
+                                val decoded = result as? NewImageDecoder.DecodeResultImage
+                                if (decoded == null) {
+                                    logcat(LogPriority.ERROR) {
+                                        "Cover dialog expected NewImageDecoder pixels, got " +
+                                            "${result::class.java.simpleName} - leaving the viewer empty"
+                                    }
+                                    return@launch
+                                }
                                 val page = ImagePage.ImageSingle(
                                     Image(
-                                        (result as NewImageDecoder.DecodeResultImage).res.image,
-                                        result.res.width,
-                                        result.res.height,
+                                        decoded.res.image,
+                                        decoded.res.width,
+                                        decoded.res.height,
                                         createMipMaps = true,
                                         backgroundColor = 0,
                                     ),
                                 )
                                 installedPage.getAndSet(page)?.cleanup()
                                 state.invalidate()
+                                // KMK <--
                             }
                         }
                         .build()
