@@ -261,6 +261,82 @@ internal class NovelWebViewer(
         )
     }
 
+    /**
+     * Finished inline builds, keyed by chapter and document, so a document that comes back on
+     * screen does not pay for its surgery twice.
+     *
+     * The cost being saved is the biggest one the turn loop has: inlining re-reads every plate
+     * out of the archive and re-spells it as base64 — megabytes of string building per document —
+     * and it used to run again for every *look* at a document. Turning forward and then back is
+     * enough to hit it, and the continuous window is built almost entirely out of re-looks: every
+     * scroll makes the reader revisit the section just trimmed, and the trim/append cycle that
+     * keeps the DOM bounded re-reads the same few sections over and over. With the cache, the
+     * archive is read once per document per chapter instead of once per render.
+     *
+     * Bounded like [readerFontCache], for the same reason: a rule carries whole plates spelled as
+     * `data:` URIs, so an unbounded cache pins every illustrated document the reader has ever
+     * opened for the life of the viewer. Four is wide enough to hold a document, both its
+     * neighbours and one step of back-and-forth, which is every shape a re-look actually takes.
+     *
+     * Keyed on the chapter as well as the document: one viewer instance serves a whole folder of
+     * books, and two of them can spell their sections identically. Synchronized on the map rather
+     * than on the builds behind it — the builds are the expensive part and stay on whichever
+     * [Dispatchers.Default] worker is free; only the map hand-over, which is what two in-flight
+     * builds could corrupt, is serialized. A double build from a simultaneous miss is wasted work,
+     * not corruption: same input, same output, last write wins.
+     */
+    private val inlineCache = object : LinkedHashMap<InlineKey, String>(2 * INLINE_CACHE_DOCUMENTS, 0.75f, true) {
+        override fun removeEldestEntry(
+            eldest: MutableMap.MutableEntry<InlineKey, String>,
+        ): Boolean = size > 2 * INLINE_CACHE_DOCUMENTS
+    }
+
+    private data class InlineKey(val chapterUrl: String, val documentUrl: String, val kind: String)
+
+    /**
+     * The markup [page]'s document inlines into, from the cache when it is warm.
+     *
+     * Callers are already off the main thread — [showDocument] and the window growers each run
+     * their build inside `Dispatchers.Default` — so the read and the possible build both happen
+     * where they belong.
+     */
+    private fun documentInline(page: ReaderPage): String {
+        val textPage = page.textPage ?: return ""
+        return cachedInline(page, INLINE_KIND_DOCUMENT) {
+            NovelInline.inline(textPage.text, baseUrlFor(textPage), inlineFetcher)
+        }
+    }
+
+    /**
+     * The body fragment [page]'s document grows the continuous window with, from the cache when it
+     * is warm.
+     *
+     * A *different build* from [documentInline] for the same page — the fragment is the body
+     * content only, because the live document already carries the head the renderer needs — and
+     * cached under its own kind so the two can never hand each other's markup over.
+     */
+    private fun fragmentInline(page: ReaderPage): String {
+        val textPage = page.textPage ?: return ""
+        return cachedInline(page, INLINE_KIND_FRAGMENT) {
+            NovelInline.inline(
+                NovelContinuous.bodyFragment(textPage.text),
+                baseUrlFor(textPage),
+                inlineFetcher,
+            )
+        }
+    }
+
+    /** The cache lookup and fill [documentInline] and [fragmentInline] share. */
+    private inline fun cachedInline(page: ReaderPage, kind: String, build: () -> String): String {
+        val textPage = page.textPage ?: return ""
+        val baseUrl = baseUrlFor(textPage)
+        val key = InlineKey(page.chapter.chapter.url, textPage.url, kind)
+        synchronized(inlineCache) { inlineCache[key] }?.let { return it }
+        val inlined = build()
+        synchronized(inlineCache) { inlineCache[key] = inlined }
+        return inlined
+    }
+
     /** The reader font's `@font-face`, when the family chosen is one the reader or the app brought. */
     private fun readerFontCss(): String {
         val family = typography.fontFamily
@@ -429,20 +505,19 @@ internal class NovelWebViewer(
             override fun onDown(e: MotionEvent): Boolean = true
 
             override fun onSingleTapConfirmed(e: MotionEvent): Boolean {
-                handleTap(e.x)
+                scrollTap(e.x)
                 return true
             }
 
             // KMK --> Deliberately no `onLongPress` here. In an image chapter a long press opens the
             // page-actions sheet — Set as cover, Share, Save — because that is the only thing a long
             // press can mean there. In a book, long-pressing *text* means "select text", and the
-            // WebView already answers it with its own selection toolbar; opening our sheet as well
-            // put an image toolbar on top of the selection one, and every action in it then
-            // crashed: those actions act on `ReaderPage.stream`, and a document has no image
-            // stream, so the stream was null. So a book's action sheet arrives only through the
-            // WebView's own long-click hit test below (setOnLongClickListener) — offered when, and
-            // only when, the finger is on an illustration, and acting on that image's own stream,
-            // never on the page's.
+            // WebView already answers it with its own selection toolbar; opening our image viewer on
+            // top of the selection one would fight it, and the crash history came from actions that
+            // act on `ReaderPage.stream`, which a document has no image of. So a book's viewer
+            // arrives only through the WebView's own long-click hit test below
+            // (setOnLongClickListener) — shown when, and only when, the finger is on an
+            // illustration, and carrying that image's own stream, never the page's.
             // KMK <--
 
             override fun onScroll(e1: MotionEvent?, e2: MotionEvent, dx: Float, dy: Float): Boolean {
@@ -486,13 +561,13 @@ internal class NovelWebViewer(
         // selection follows exactly as it did before this existed. `IMAGE_TYPE` carries the image's
         // src in `extra` — either a `https://book.internal/…` reference this archive still streams
         // or a `data:` URI the inliner embedded into the document, both resolvable from the
-        // chapter's lease later, when the user confirms. `SRC_IMAGE_ANCHOR_TYPE` is a *linked*
+        // chapter's lease when the viewer loads it. `SRC_IMAGE_ANCHOR_TYPE` is a *linked*
         // illustration, where `extra` names the link's target rather than the picture; the async
         // `requestFocusNodeHref` reply carries the src instead. An external image — a CDN plate the
-        // publisher linked in — is not this book's art, so it opens no sheet at all.
+        // publisher linked in — is not this book's art, so it opens no viewer at all.
         setOnLongClickListener { _ ->
             when (hitTestResult.type) {
-                WebView.HitTestResult.IMAGE_TYPE -> hitTestResult.extra?.let(::openImageSheet) ?: false
+                WebView.HitTestResult.IMAGE_TYPE -> hitTestResult.extra?.let(::openImageViewer) ?: false
                 WebView.HitTestResult.SRC_IMAGE_ANCHOR_TYPE -> {
                     // Consumed even when the reply names no image: a selection dragging across a
                     // linked picture would otherwise start underneath the same gesture.
@@ -508,7 +583,7 @@ internal class NovelWebViewer(
     override fun getView(): View = webView
 
     // KMK -->
-    // ---------------------------------------------------------------- image actions
+    // ---------------------------------------------------------------- image viewer
 
     /**
      * Replies to `requestFocusNodeHref` for a long press that landed on a **linked** illustration.
@@ -520,22 +595,23 @@ internal class NovelWebViewer(
      * name an image produces.
      */
     private val focusNodeReply = Handler(Looper.getMainLooper()) { message ->
-        message.data?.getString("src")?.let(::openImageSheet)
+        message.data?.getString("src")?.let(::openImageViewer)
         true
     }
 
     /**
-     * Opens the actions sheet for [imageUrl] — the long-pressed illustration — when it is one this
-     * feature can act on.
+     * Opens the full-screen image viewer for [imageUrl] — the long-pressed illustration — when it
+     * is one this feature can show.
      *
      * Two spellings count, and both resolve later from the chapter's own lease: the reserved
      * [EpubArchiveUrls] space, and the `data:` URIs [NovelInline] embedded into the markup. An
-     * external image is the publisher's business and its action would only ever fail, so refusing
-     * here keeps the sheet off a press that could never do anything.
+     * external image is the publisher's business and showing it would leak a request to a server
+     * the book merely linked at, so refusing here keeps the viewer off a press that could never
+     * show anything.
      *
      * @return whether the press was claimed, so a selection does not also start underneath it.
      */
-    private fun openImageSheet(imageUrl: String): Boolean {
+    private fun openImageViewer(imageUrl: String): Boolean {
         if (!EpubArchiveUrls.isArchiveUrl(imageUrl) &&
             !imageUrl.startsWith(INLINED_DATA_IMAGE, ignoreCase = true)
         ) {
@@ -743,10 +819,9 @@ internal class NovelWebViewer(
                 // A newer turn won while this document was being read; its own request will render.
                 if (request != documentRequest) return@withContext null
                 val ready = page.textPage ?: return@withContext null
-                val baseUrl = baseUrlFor(ready)
-                val inlined = NovelInline.inline(ready.text, baseUrl, inlineFetcher)
+                val inlined = documentInline(page)
                 val position = chapters?.currChapter?.positionOf(page) ?: page.index
-                BuiltDocument(inlined, baseUrl, position)
+                BuiltDocument(inlined, baseUrlFor(ready), position)
             }
             if (built == null) {
                 // A superseded request is the reader pressing on, not a failure; only a read that
@@ -926,30 +1001,19 @@ internal class NovelWebViewer(
         showDocument(page, fraction = fraction.coerceIn(0f, 1f))
     }
 
-    private fun handleTap(x: Float) {
-        val width = webView.width
-        if (width <= 0) return
-
-        // A figure answers its own tap, so ask before doing anything else with it. One round trip,
-        // and the whole tap waits on it - which is the trade for not scrolling a screen away from a
-        // picture the reader was trying to look at. The answer is false whenever the document cannot
-        // answer at all, and the tap then falls through to exactly what it did before.
-        webView.evaluateJavascript(NovelScrollBridge.TAKE_IMAGE_TAP) { answer ->
-            if (answer == "true") return@evaluateJavascript
-            scrollTap(x)
-        }
-    }
-
     /**
-     * A tap that was not a figure: menu in the middle, page/scroll at either edge.
-     *
-     * Split out of [handleTap] so the figure check can sit in front of it without either half
-     * having to know the other exists.
+     * A tap: menu in the middle, page/scroll at either edge.
      *
      * The edge zones mean *direction*, not screen halves: on a book whose forward is leftward -
      * vertical writing, right-to-left, or a paged book the bridge reported as such - the forward
      * zone is the left edge, because that is where the next page physically is. A Latin reader's
      * reflexes and a Japanese reader's reflexes both have to be right.
+     *
+     * Deliberately synchronous: there is no figure check in front of it any more. The bridge once
+     * answered a round trip about whether the tap had landed on an illustration (which zoomed
+     * itself in place), and every tap in every book paid for that question whether it landed on an
+     * illustration or not. Zooming lives behind the long-press hit test below now, so a tap only
+     * ever means scroll, page or menu, and it means it on the frame it happened.
      */
     private fun scrollTap(x: Float) {
         val width = webView.width
@@ -1267,13 +1331,10 @@ internal class NovelWebViewer(
             val textPage = page.textPage ?: return@launch
             // KMK --> The fragment build is the same megabyte-of-base64 surgery a full document
             // is, and it runs while the reader is mid-scroll: off the main thread, like the
-            // document build in [showDocument].
+            // document build in [showDocument] — and through the same cache, because the
+            // trim-and-regrow cycle around the viewport re-looks at the same few sections.
             val fragment = withContext(Dispatchers.Default) {
-                NovelInline.inline(
-                    NovelContinuous.bodyFragment(textPage.text),
-                    baseUrlFor(textPage),
-                    inlineFetcher,
-                )
+                fragmentInline(page)
             }
             // KMK <--
             webView.evaluateJavascript(
@@ -1316,11 +1377,7 @@ internal class NovelWebViewer(
             val textPage = page.textPage ?: return@launch
             // KMK --> Off the main thread for the same reason as [appendAhead]'s build.
             val fragment = withContext(Dispatchers.Default) {
-                NovelInline.inline(
-                    NovelContinuous.bodyFragment(textPage.text),
-                    baseUrlFor(textPage),
-                    inlineFetcher,
-                )
+                fragmentInline(page)
             }
             // KMK <--
             webView.evaluateJavascript(
@@ -1875,6 +1932,20 @@ internal class NovelWebViewer(
          * How many font faces the [readerFontCache] may hold. See its comment for the number.
          */
         const val READER_FONT_CACHE_FACES = 4
+
+        /**
+         * How many builds of each kind the [inlineCache] may hold — whole documents and body
+         * fragments each get this many slots, so a paged hop back and forth and the continuous
+         * window's trim-and-regrow both stay warm. Four holds a document, both its neighbours and
+         * one step of back-and-forth, which is every shape a re-look actually takes.
+         */
+        const val INLINE_CACHE_DOCUMENTS = 4
+
+        /** [inlineCache] key kind for a whole document, as [showDocument] renders it. */
+        private const val INLINE_KIND_DOCUMENT = "document"
+
+        /** [inlineCache] key kind for a body fragment, as the continuous window grows with. */
+        private const val INLINE_KIND_FRAGMENT = "fragment"
 
         const val SMALL_TAP_ZONE = 0.15f
 

@@ -14,6 +14,8 @@ files moved. See .github/scripts/release_notes.py.
 
 ### Improve
 
+- Books with illustrations (EPUB) turn and scroll much faster now: the images of a document you come back to — turning back a page, or the reader growing its window around you — are kept built instead of being re-read from the archive and re-embedded into the page on every look, and a tap acts the moment you touch the screen instead of waiting on the page's own script.
+- Long-pressing an illustration in a book now opens it full screen, with pinch and double-tap zoom and a tap to leave — the same viewer the cover preview uses — together with a Set-as-cover action behind the usual confirmation. This replaces the old tap-to-zoom, which scaled the picture in place and read as broken layout.
 ### Fix
 
 - Remove the redundant back button next to the About title on tablet UI: it could pop the About pane out of the two-pane settings layout and drop the app into the phone-style settings screen.

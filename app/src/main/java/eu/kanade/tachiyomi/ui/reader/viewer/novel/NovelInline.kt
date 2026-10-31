@@ -22,9 +22,9 @@ import java.net.URI
  *
  * A document carries only its own plates, so the cost is per-document rather than per-book: a
  * novel chapter holds a handful of images; an art book's pages are not read here. Each resource is
- * capped by [MAX_RESOURCE_BYTES] and the document by [MAX_TOTAL_BYTES]; over either, the original
- * URL is left standing for the serving path to answer — a ceiling degrades to the old behaviour,
- * never into a missing chapter.
+ * capped by [MAX_RESOURCE_BYTES] and the document by [MAX_TOTAL_BYTES]; over either, the reference
+ * is re-spelled absolute for the serving path to answer — a ceiling degrades to the stream, never
+ * into a missing chapter.
  *
  * Pure: resolution is [URI] arithmetic, fetching is the caller's lambda. Asserted off-device in
  * `DocumentHarness`.
@@ -119,15 +119,30 @@ object NovelInline {
      *
      * Attributes are matched by name rather than position — publishers order them every which way —
      * and the match is replaced in place so the rest of the tag (`class`, `alt`, `style`) is
-     * untouched. A value that cannot be resolved or fetched leaves the whole tag alone: the
-     * reference then behaves exactly as it did before this existed, rather than half-rewritten.
+     * untouched.
+     *
+     * A reference that cannot be **inlined** but is still this book's file — a plate over a
+     * ceiling, an archive entry the fetch could not read, a budget already spent — is re-spelled
+     * **absolute** rather than left relative. That matters for the continuous window: an appended
+     * fragment's markup is not given a base of its own, so a relative `src` left in it would
+     * resolve against the *live document's* directory and silently point one or two folders away
+     * from the file. The absolute spelling is the same URL the engine would have requested for the
+     * main document, which the serving path already answers; the stream still wins the memory
+     * argument, and correctness stops depending on where the markup happens to land.
+     *
+     * A value that cannot be resolved at all — a bare fragment, malformed — leaves the whole tag
+     * alone: the reference then behaves exactly as it did before this existed, rather than
+     * half-rewritten. So does an external URL, which is not this book's file to re-point.
      */
     private fun rewriteAttribute(tag: String, baseUrl: String, budget: Budget, names: Set<String>): String {
         val attribute = ATTRIBUTE.findAll(tag).firstOrNull {
             it.groupValues[1].lowercase() in names
         } ?: return tag
         val value = attribute.valueOrNull() ?: return tag
-        val data = inlineValue(value, baseUrl, budget) ?: return tag
+        val absolute = resolve(baseUrl, value) ?: return tag
+        val data = budget.dataUri(absolute)
+            ?: absolute.takeIf { EpubArchiveUrls.isArchiveUrl(it) }
+            ?: return tag
         return tag.replaceRange(attribute.range, "${attribute.groupValues[1]}=\"$data\"")
     }
 
@@ -193,17 +208,6 @@ object NovelInline {
         } catch (_: Exception) {
             null
         }
-    }
-
-    /**
-     * Inlines a single attribute value: resolve, fetch, encode.
-     *
-     * Fragments and non-archive URLs fall out along the way — a fragment is not a reference at
-     * all, and an external URL is not this book's to copy.
-     */
-    private fun inlineValue(value: String, baseUrl: String, budget: Budget): String? {
-        val absolute = resolve(baseUrl, value) ?: return null
-        return budget.dataUri(absolute)
     }
 }
 // KMK <--

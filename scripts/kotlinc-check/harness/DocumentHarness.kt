@@ -392,9 +392,28 @@ fun main() {
         inlined,
         """<style>body{background:url(data:image/png;base64,iVBOR""",
     )
-    contains("missing reference untouched", inlined, """src="../images/missing.png"""")
+    // A reference that is this book's file but cannot be inlined is re-spelled absolute, not left
+    // relative: a fragment has no base of its own, so a relative spelling would resolve against
+    // the live document's directory and point a folder away from the file.
+    contains(
+        "missing reference re-pointed absolute",
+        inlined,
+        """src="https://book.internal/OEBPS/images/missing.png"""",
+    )
     contains("external image untouched", inlined, """src="https://example.com/x.jpg"""")
     containsTrue("svg image inlined", inlined, """xlink:href="data:image/svg+xml;base64,""")
+
+    // The same, in a *fragment*: the continuous window's appends carry body markup with no base,
+    // which is exactly where the relative spelling went wrong.
+    val fragmentInlined = NovelInline.inline(
+        """<img src="../images/missing.png" />""",
+        BASE,
+    ) { url -> archive[url] }
+    contains(
+        "fragment missing reference re-pointed absolute",
+        fragmentInlined,
+        """src="https://book.internal/OEBPS/images/missing.png"""",
+    )
 
     // ---------------- malformed input ----------------
     // A document that opens <head> and never closes it is common in generated EPUBs; the injection
@@ -471,25 +490,18 @@ fun main() {
     checkTrue("bridge no longer probes edges", !script.contains("edge"))
 
     // ---------------- tapping a figure ----------------
-    // In place rather than in a viewer: the engine already holds the decoded bitmap, so a transform
-    // costs nothing, cannot OOM on a long illustrated book, and works on an inline <svg>.
-    checkTrue("bridge zooms images", script.contains("zoomImage"))
-    checkTrue("only images answer a tap", script.contains("el.nodeName !== 'IMG'"))
-    checkTrue("the tap is consumed, not also scrolled", script.contains("stopPropagation"))
-    // Capture phase, so a publisher's own listener cannot claim the tap first and leave the figure
-    // doing nothing — which would look exactly like the feature not existing.
-    checkTrue("listener is capture-phase", script.contains("}, true);"))
-    // Zooming to the element's own corner throws away whatever the reader was looking at.
-    checkTrue("zoom origin is the tapped point", script.contains("getBoundingClientRect()"))
-    checkTrue("zoomed class is used", script.contains(NovelScrollBridge.ZOOMED_CLASS))
-    // The lift is the stylesheet's job, not the bridge's - assert it where it actually lives.
+    // Zooming used to live here too — a capture-phase listener that scaled the <img> in place, and
+    // a takeImageTap flag every tap in the book paid a script round trip to read. The in-place
+    // scale read as broken layout, and the round trip delayed the scroll itself; zooming is the
+    // long-press viewer's job now (NovelImageViewerDialog). These assert the removal stays total:
+    // a tap means scroll, page or menu, on the frame it happened.
+    checkTrue("bridge no longer zooms", !script.contains("zoomImage"))
+    checkTrue("bridge no longer intercepts taps", !script.contains("addEventListener('click'"))
+    checkTrue("no tap flag to read", !script.contains("takeImageTap"))
     checkTrue(
-        "zoomed figure is lifted out of the text",
-        NovelTypographyCss.stylesheet(NovelTypography()).contains("img.${NovelScrollBridge.ZOOMED_CLASS}"),
+        "no zoomed-class rule left in the stylesheet",
+        !NovelTypographyCss.stylesheet(NovelTypography()).contains("kmk-zoomed"),
     )
-    // Every failure mode has to land on the behaviour that already worked.
-    checkTrue("missing bridge reads as not-a-figure", NovelScrollBridge.TAKE_IMAGE_TAP.contains(": false"))
-    checkTrue("the flag is read and cleared", script.contains("takeImageTap") && script.contains("self.imageTap = false"))
 
     // evaluateJavascript hands back the JSON encoding, so a script returning NaN arrives as "null".
     // Reading that as anything but "no value" breaks the position save on every document.

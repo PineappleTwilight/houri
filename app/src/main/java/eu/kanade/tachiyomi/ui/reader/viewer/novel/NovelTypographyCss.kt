@@ -152,13 +152,6 @@ object NovelTypographyCss {
             // column, and the alternative to this rule is horizontal scroll mid-sentence — the one
             // direction of reading a book must never open.
             appendLine("img, svg, video { max-width: 100% !important; height: auto !important; }")
-            // A figure the reader has tapped open. Lifted out of the text so it reads as magnified
-            // rather than as a stretched picture, and `!important` because the publisher's own
-            // `position` on an image would otherwise win on specificity and leave it in the line.
-            appendLine(
-                "${NovelScrollBridge.ZOOMED_CLASS.let { "img.$it" }} " +
-                    "{ position: relative !important; z-index: 2 !important; cursor: zoom-out !important; }",
-            )
 
             // The synthesized cover page (EpubTextSource prepends one when the book declares a
             // cover its spine never shows). The reader's own rules above would otherwise restyle
