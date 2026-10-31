@@ -461,10 +461,13 @@ internal class MigrationConfigViewModel(
             // KMK --> Anything searchable, not just HttpSource. The filter excluded the local
             // libraries outright - they are `CatalogueSource`, never `HttpSource` - so
             // migrating *into* a local folder (a common destination for a downloaded series)
-            // was impossible: the source was not on the list to tick. Both are lang "other"
-            // and bypass the language filter like everywhere else.
+            // was impossible: the source was not on the list to tick. Local sources are lang
+            // "other" and bypass the language filter like everywhere else; the filter must
+            // still gate everything else. `it is HttpSource ||` here used to invert that:
+            // every language of every extension showed up, and migrationSources() then
+            // searched (and saved) them all.
             .filter { it is HttpSource || it.isLocal() }
-            .filter { it is HttpSource || it.lang in languages }
+            .filter { it.lang in languages || it.isLocal() }
             .map {
                 val source = Source(
                     id = it.id,
