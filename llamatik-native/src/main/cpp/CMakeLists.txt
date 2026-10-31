@@ -534,6 +534,18 @@ file(GLOB MTMD_MODEL_SOURCES CONFIGURE_DEPENDS "${MTMD_DIR}/models/*.cpp")
 add_library(mtmd_sources OBJECT ${MTMD_CORE_SOURCES} ${MTMD_MODEL_SOURCES})
 # mtmd-helper uses the vendored SHA-256 wrapper for bitmap fingerprinting.
 target_sources(mtmd_sources PRIVATE "${LLAMA_CPP_DIR}/vendor/hash/hash.cpp")
+# ...and the C cores behind the wrapper, mirroring vendor/hash/CMakeLists.txt
+# at the pin: -w on third-party C, sha1 kept as C++ (namespaced upstream to
+# avoid a boringssl clash), and vendor/hash on the include path for the
+# "rotate-bits/rotate-bits.h" style includes inside the vendored sources.
+set(MTMD_VENDOR_HASH_SRCS
+        "${LLAMA_CPP_DIR}/vendor/hash/xxhash/xxhash.c"
+        "${LLAMA_CPP_DIR}/vendor/hash/sha1/sha1.c"
+        "${LLAMA_CPP_DIR}/vendor/hash/sha256/sha256.c"
+)
+target_sources(mtmd_sources PRIVATE ${MTMD_VENDOR_HASH_SRCS})
+set_source_files_properties(${MTMD_VENDOR_HASH_SRCS} PROPERTIES COMPILE_OPTIONS -w)
+set_source_files_properties("${LLAMA_CPP_DIR}/vendor/hash/sha1/sha1.c" PROPERTIES LANGUAGE CXX)
 
 target_include_directories(mtmd_sources PRIVATE
         ${MTMD_DIR}
