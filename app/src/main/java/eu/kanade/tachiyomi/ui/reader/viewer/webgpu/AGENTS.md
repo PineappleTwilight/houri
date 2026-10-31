@@ -181,6 +181,30 @@ cached survives.
 recovery meant one unlucky attempt latched `initError` for the life of the process. Bounded, not
 indefinite: an unrecoverable device must stop trying rather than spin for the session.
 
+**The library ladders recoveries too (`RECOVERY_GIVE_UP_ATTEMPTS`).** A failed recovery loses
+the device it just built, whose own loss callback starts the next chain — so the app's 3-attempt
+bound never bounded anything across chains. `WebGpuRenderer.recoverFromDeviceLoss` now counts
+consecutive failures itself: early failures run inside the app chain's own pacing (300 ms
+steps), deeper failures buy longer cooldowns (`recovery deferred …` in the log), and 12
+consecutive failures stop the self-retries until a fresh loss event. A recovery resets the
+dial only after its device has stayed alive 15 s (`RECOVERY_STABLE_MS`) — a device that dies
+again immediately belongs to the same pressure era. A failed recovery also self-retries once
+per cooldown (`scheduleRecoveryRetry`), because the loss callback fires once and the reader
+used to stay dead until recreated even after the pressure passed. The app's
+`recoveryChainRunning` guard keeps parallel chains from stacking on top of a running one: a new
+loss while recovery is in flight is absorbed by the running chain's retries.
+
+**A recovery that lost its device at birth now reports failure.** After `createSurface()` the
+recovery re-reads `deviceLost`: a surface build that fails (`VK_ERROR_NATIVE_WINDOW_IN_USE_KHR`)
+loses the fresh device synchronously on the loss-callback executor, and recovery used to return
+`true` for exactly that case — hiding the loop from every caller.
+
+**`DeviceRecoveredListener` for the silent successes.** The loss callback fires once, on the
+loss itself; the library's self-healing retries succeed later with no callback. The app
+registers `WebGpuRenderer.addDeviceRecoveredListener` and re-runs
+`resetDecodedPagesAfterDeviceLoss` there — a page that failed to decode *while the device was
+dead* carries an `ErrorPage` and a latched `wantedByRender` that only a fresh reset clears.
+
 **A requery must evict the segment key, not just its parent.** A split segment's slice is cached
 under its own derived key; evicting only the parent re-downloads the parent and then
 `ensureSegment` finds the stale slice still cached and hands the same bad bytes back.
@@ -604,7 +628,10 @@ above — a type mismatch that a compiler will not catch.
 | `DecodeTrace STALL` | The watchdog saw a page past its stage deadline. The worker cannot report its own stall. |
 | `Device not available` / blank pages after backgrounding | Device loss; check the recovery path above, not the page. |
 | `F/libc Fatal signal 11 (SIGSEGV), ... fault addr 0x0 ... (WebGPU-Render-T)` with `Java_androidx_webgpu_GPUQueue_submit` above `submitAndRelease` in the tombstone | Device loss landed **mid-frame**: `render()` passed its entry `isAvailable` gate, then the draw suspended (tile generation), and the loss invalidated the native queue before `submitAndRelease`. Submitting on the dead handle is a null-deref inside `libwebgpu_c_bundled` that kills the process — no Kotlin exception can catch it. `render()` re-checks `isAvailable` immediately before the submit and drops the frame; the residual recheck→JNI window cannot be closed from Kotlin (UNVERIFIED how wide). Same rule as `cleanup()`: once the device is lost, nothing drives its objects. |
-| `device lost reason=1: CreateAndroidSurfaceKHR failed with VK_ERROR_NATIVE_WINDOW_IN_USE_KHR`, preceded by `BufferQueueProducer ... connect: already connected` and `vulkan: native_window_api_connect() failed` | A **second** swapchain was created on a window the old one still owned. Dawn can defer `vkDestroySurfaceKHR` past `close()`, so recovery must drop the old `GPUSurface` *and* release the retained `ANativeWindow` (`NativeWindow.release`) **before** it builds the replacement — see `recoverFromDeviceLoss`. The `SurfaceTexture-0-…` name means the TextureView path (API < 34), where the window is a `SurfaceTexture`'s BufferQueue. |
+| `device lost reason=1: CreateAndroidSurfaceKHR failed with VK_ERROR_NATIVE_WINDOW_IN_USE_KHR`, preceded by `BufferQueueProducer ... connect: already connected` and `vulkan: native_window_api_connect() failed` | A **second** swapchain was created on a window the old one still owned. Dawn can defer `vkDestroySurfaceKHR` past `close()`, so recovery must drop the old `GPUSurface` *and* release the retained `ANativeWindow` (`NativeWindow.release`) **before** it builds the replacement — see `recoverFromDeviceLoss`. The `SurfaceTexture-0-…` name means the TextureView path (API < 34), where the window is a `SurfaceTexture`'s BufferQueue. **If it still appears on a current build, the surface-teardown pump failed — see the landmine below.** |
+| `recovery failed (consecutive: N, next attempt in Xms)` | A recovery produced no usable device; the library ladder is escalating. Consecutive counts reset only after a device survives 15 s. Each failed recovery used to also leak a whole Dawn device (no finalizer on the wrapper) — retired devices are freed one recovery cycle later now (`destroyRetired`), so a persistently climbing `consecutive:` with native memory growth is the trace to send. |
+| `recovery deferred Xs (consecutive failures: N)` | A recovery attempt arrived inside the ladder's cooldown and was refused without touching the GPU. Normal while the ladder is escalating; a fresh loss event or a stable device resets it. |
+| `recovery gave up after N consecutive failures` | The ladder stopped self-retrying. The reader stays on a dead device until a *new* device-loss event arrives (which restarts the ladder) or the viewer is recreated. Everything app-side keeps working; only WebGPU draws are parked. |
 | `Transition ensureTextures clamped WxH -> W'xH'` | The device's `maxTextureDimension2D` is below 8192 (4096 on PowerVR-class Compatibility-mode adapters) and the transition cache was sized for a larger surface — now clamped so the turn renders. Before the clamp the symptom was `ensureTextures create failed` **every page turn, for the whole session**. |
 | `FilterChain acquire clamped WxH -> W'xH'` | The same device cap reached through the filter pool. Before the clamp, `beginFrame`'s catch silently disabled every filter for the rest of the session. |
 | Blank/garbage page in dual-page mode only | Check `spreadPage` lifecycle — see landmines. |
@@ -648,7 +675,23 @@ line, for instance, does not appear anywhere in the current tree.
   on a window the old swapchain still owns, and Dawn defers `vkDestroySurfaceKHR` past
   `close()`, so it fails with `VK_ERROR_NATIVE_WINDOW_IN_USE_KHR` and loses the device it was
   trying to recover. Closing the `GPUSurface` is not enough; the retained `ANativeWindow` has to
-  go too.
+  go too. **Releasing the references is still not enough:** the deferred destroy only runs when
+  the instance's event loop is pumped, so both recovery and `cleanup()` now pump
+  `instance.processEvents()` a few times after closing (`pumpSurfaceTeardown`) before anything
+  may build a surface on that window again. Without the pump the failed build loses the *fresh*
+  device at birth, its loss callback starts the next recovery, and the two other landmines in
+  this file compound it into the unbounded recreate loop the field log showed (90 device
+  generations, one leaked device each). Never add a `createSurface()` path that runs without a
+  preceding pump.
+- **Retiring a device is a two-phase free, and the second phase waits a full recovery cycle.**
+  `recreateDeviceLocked` reassigns the companion's `device`/`adapter` — and the wrappers hold
+  native references nothing but `close()` drops (see the submodule's `Release.kt`), so each
+  recreation leaked an entire Dawn device. Recovery now parks the dead handles in
+  `retiredDevice`/`retiredAdapter` and frees them at the *next* recovery's start: continuations
+  that were mid-flight when the device died read `device` from the companion when they resume
+  (see `onDispatcher`), so the safe free point is one full cycle later, under the render mutex.
+  Freeing at reassignment time or from an arbitrary thread risks pulling the ground out from a
+  resuming continuation.
 - **`render()`'s `isAvailable` gate is a point-in-time check, not a lock.** The gate runs once
   at entry, then the draw suspends inside `fn` (tile generation waits on it) — a device loss
   landing in that window invalidates every device-bound handle *before* the frame's

@@ -46,6 +46,7 @@ import mihon.core.concurrency.AppDispatchersHolder
 import tachiyomi.core.common.util.system.logcat
 import java.util.TreeSet
 import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.math.abs
 import kotlin.math.min
 import kotlin.time.Duration.Companion.milliseconds
@@ -557,13 +558,22 @@ open class WebGpuViewer(
         }
     }
 
+    // KMK --> One recovery chain at a time. Every device-lost callback used to launch its own
+    // chain, so a failed recovery - which loses the device it built and fires the callback
+    // again - stacked chains: each attempted while the previous one sat in its backoff, and
+    // each failure reset every decoded page on top of that. A new loss while one is already
+    // running is absorbed: the running chain's retries cover it, and the library's recovery
+    // ladder owns the escalation now.
+    private val recoveryChainRunning = AtomicBoolean(false)
+
     private val deviceLostListener =
         ca.mpreg.webgpuviewer.renderer.WebGpuRenderer.Companion.DeviceLostListener { _, _ ->
             if (isDestroyed) return@DeviceLostListener
-            // KMK --> Counted on the loss itself, not on a successful recovery: a device loss
+            // Counted on the loss itself, not on a successful recovery: a device loss
             // on a phone is usually the app being backgrounded and the GPU going away, and
             // recovery routinely succeeds either way, so waiting for success would under-count.
             runCatching { mihon.app.di.globalAppGraph.achievementManager.incrementCounter("webgpu_rescues") }
+            if (!recoveryChainRunning.compareAndSet(false, true)) return@DeviceLostListener
             scope.launch {
                 try {
                     recoverDeviceWithRetries()
@@ -573,9 +583,34 @@ open class WebGpuViewer(
                     } catch (_: Exception) {
                     }
                 } catch (_: Exception) {
+                } finally {
+                    recoveryChainRunning.set(false)
                 }
             }
         }
+
+    /**
+     * A recovery produced a live device. Runs for the library's self-healing retries too -
+     * those succeed long after the loss-driven chain gave up, and pages that failed to decode
+     * while the device was dead carry an ErrorPage and a latched `wantedByRender` that only a
+     * fresh reset clears. Double-resetting after a chain's own success is harmless: it only
+     * releases.
+     */
+    private val deviceRecoveredListener =
+        ca.mpreg.webgpuviewer.renderer.WebGpuRenderer.Companion.DeviceRecoveredListener {
+            if (isDestroyed) return@DeviceRecoveredListener
+            scope.launch {
+                try {
+                    resetDecodedPagesAfterDeviceLoss()
+                    try {
+                        pager.state.invalidate()
+                    } catch (_: Exception) {
+                    }
+                } catch (_: Exception) {
+                }
+            }
+        }
+    // KMK <--
 
     /**
      * Rebuild the GPU device, retrying a bounded number of times before giving up.
@@ -627,6 +662,9 @@ open class WebGpuViewer(
         // KMK <--
         try {
             ca.mpreg.webgpuviewer.renderer.WebGpuRenderer.addDeviceLostListener(deviceLostListener)
+        } catch (_: Exception) {}
+        try {
+            ca.mpreg.webgpuviewer.renderer.WebGpuRenderer.addDeviceRecoveredListener(deviceRecoveredListener)
         } catch (_: Exception) {}
         // KMK --> Populates the decode path's extension compartments before the worker that consumes
         // them starts. Installing here rather than lazily means no page can decode through a chain
@@ -893,6 +931,9 @@ open class WebGpuViewer(
         } catch (_: Exception) {}
         try {
             ca.mpreg.webgpuviewer.renderer.WebGpuRenderer.removeDeviceLostListener(deviceLostListener)
+        } catch (_: Exception) {}
+        try {
+            ca.mpreg.webgpuviewer.renderer.WebGpuRenderer.removeDeviceRecoveredListener(deviceRecoveredListener)
         } catch (_: Exception) {}
         // KMK <--
         try {
