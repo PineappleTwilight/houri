@@ -1659,9 +1659,9 @@ class ReaderViewModel(
         mutableState.update { it.copy(dialog = Dialog.NovelSearch) }
     }
 
-    /** Actions for an illustration the reader long-pressed on inside the open book. */
+    /** The full-screen viewer for an illustration the reader long-pressed on inside the open book. */
     fun openNovelImageDialog(imageUrl: String) {
-        mutableState.update { it.copy(dialog = Dialog.NovelImageActions(imageUrl)) }
+        mutableState.update { it.copy(dialog = Dialog.NovelImageView(imageUrl)) }
     }
     // KMK <--
 
@@ -1989,6 +1989,22 @@ class ReaderViewModel(
     }
 
     /**
+     * Reads the bytes of the image [imageUrl] names — the zoom viewer's payload.
+     *
+     * The bytes rather than a stream: the viewer holds its own copy and decodes it off the main
+     * thread, so nothing here needs to stay open, and a stream left in a Compose state would be a
+     * resource a recomposition has no reason to close.
+     *
+     * Suspending rather than posting back through dialog state: the viewer outlives the read —
+     * dismisses, rotations and chapter swaps all arrive while the bytes are in flight — and a
+     * cancelled read simply fails to produce an image, which the viewer already renders as "could
+     * not decode".
+     */
+    suspend fun getBookImageBytes(imageUrl: String): ByteArray? = withIOContext {
+        runCatching { bookImageStream(imageUrl)?.use { stream -> stream.readBytes() } }.getOrNull()
+    }
+
+    /**
      * Opens an image inside the open book, or null when the URL is not one the chapter can answer.
      *
      * The hit test hands over exactly two spellings: a `book.internal` reference, which the
@@ -2135,7 +2151,7 @@ class ReaderViewModel(
         data object NovelContents : Dialog
         data object NovelSearch : Dialog
 
-        data class NovelImageActions(
+        data class NovelImageView(
             /** URL of the pressed illustration, spelled as the engine's hit test handed it over. */
             val imageUrl: String,
         ) : Dialog

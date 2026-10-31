@@ -223,9 +223,11 @@ that can fail without a single log line, and it has now failed three times. So t
 reader actually reads — `<img>`, SVG `<image>`, and `<link rel="stylesheet">` with the `url()`s
 inside it — are resolved and embedded into the document itself before it is handed over, travelling
 the same channel as the text, which has never once failed to arrive. Per-resource and per-document
-ceilings degrade oversized books to the streaming path rather than to a missing chapter; external
-URLs are never copied. The interception path stays — for over-ceiling files and anything the
-inliner does not cover — and the two read from the same archive lease.
+ceilings degrade oversized books to the streaming path rather than to a missing chapter — the
+reference is re-spelled *absolute* for that path to answer (a relative one in an appended fragment
+would resolve against the live document's directory; see the inlining-cache rule below) — and
+external URLs are never copied. The interception path stays — for over-ceiling files and anything
+the inliner does not cover — and the two read from the same archive lease.
 
 **A reader-imported font reaches the document the same way (`NovelFonts`).** The picked file is
 copied into private storage (a SAF grant is not the document's to inherit, and the reader's own
@@ -360,17 +362,35 @@ sounds — is everything a book can act on, beside its own Reading appearance ta
 
 **Long-press is split on what the finger is on, and only the WebView's hit test knows.** On text it
 answers false and the engine's own selection proceeds; on an `IMAGE_TYPE`/`SRC_IMAGE_ANCHOR_TYPE`
-hit (`NovelWebViewer.setOnLongClickListener`) the `NovelImageActionsDialog` sheet opens, whose one
-action sets the series cover. This is the revival of the page-actions sheet that was removed because
-it crashed on books — with the two halves of that crash designed out: the sheet is offered *only*
-for an illustration (never on a text press) and its action acts on that image's own stream, resolved
-by `ReaderViewModel.setBookImageAsCover` from the loader (`resourceSource` for a `book.internal`
-URL, base64 decode for a `data:` URI `NovelInline` embedded), never on `ReaderPage.stream`, which a
-text page does not have. The URL comes from the hit test, which is either of those two spellings;
-an external image opens no sheet at all. Known gaps: an inline-SVG `<image>` and a CSS background
-are not hit-tested as images, so no sheet appears for them — the extra `Message`-based
-`requestFocusNodeHref` hop exists because for an image inside a link the synchronous hit test's
-`extra` names the link's target, not the picture.
+hit (`NovelWebViewer.setOnLongClickListener`) the `NovelImageViewerDialog` opens — the illustration
+full screen over the book's background, pinch and double-tap zoom through the same
+`ReaderPageImageView` the cover preview uses, and a Set-as-cover action behind the shared
+`SetCoverDialog` confirmation. A tap on the un-zoomed image dismisses it. The reader's taps never
+zoom in place: an earlier design scaled the `<img>` with a CSS transform and made every tap in the
+book pay a `takeImageTap` script round trip before it could scroll; both halves are gone (the bridge
+asserts their removal in `DocumentHarness`), and a tap always means scroll, page or menu,
+synchronously. The long-press sheet's crash history stays designed out: the viewer is offered *only*
+for an illustration (never on a text press) and its bytes are resolved for that image alone, by
+`ReaderViewModel.getBookImageBytes` (cover action: `setBookImageAsCover`) from the loader
+(`resourceSource` for a `book.internal` URL, base64 decode for a `data:` URI `NovelInline` embedded),
+never from `ReaderPage.stream`, which a text page does not have. The URL comes from the hit test,
+which is either of those two spellings; an external image opens no viewer at all. Known gaps: an
+inline-SVG `<image>` and a CSS background are not hit-tested as images, so no viewer appears for
+them — the extra `Message`-based `requestFocusNodeHref` hop exists because for an image inside a
+link the synchronous hit test's `extra` names the link's target, not the picture.
+
+**Inlining results are cached per document, and un-inlinable references are re-spelled absolute.**
+`NovelWebViewer.inlineCache` keeps the finished `NovelInline` builds (whole documents and continuous
+fragments under separate key kinds — a document and its body fragment are different strings) for
+`INLINE_CACHE_DOCUMENTS` documents per chapter, because the continuous window's trim-and-regrow and
+a turn back both re-look at documents that were already built; without it every re-look re-read the
+plates out of the archive and re-encoded them as base64, which was the visible lag on illustrated
+books. Callers (`showDocument`, `appendAhead`, `prependBehind`) all build inside
+`Dispatchers.Default`; only the map hand-over is synchronized. A plate that stays relative when it
+cannot be inlined would resolve against the *live document's* directory inside an appended fragment,
+which has no base of its own — so `NovelInline.rewriteAttribute` re-spells it absolute instead, the
+same URL the main document's serving path already answers, and leaves only truly external (and
+unresolvable) references untouched.
 
 ## Contents and search
 

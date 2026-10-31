@@ -12,6 +12,8 @@ files moved. See .github/scripts/release_notes.py.
 
 ### Improve
 
+- Books with illustrations (EPUB) turn and scroll much faster now: the images of a document you come back to — turning back a page, or the reader growing its window around you — are kept built instead of being re-read from the archive and re-embedded into the page on every look, and a tap acts the moment you touch the screen instead of waiting on the page's own script.
+- Long-pressing an illustration in a book now opens it full screen, with pinch and double-tap zoom and a tap to leave — the same viewer the cover preview uses — together with a Set-as-cover action behind the usual confirmation. This replaces the old tap-to-zoom, which scaled the picture in place and read as broken layout.
 ### Fix
 
 - Fixed a crash when opening a manga's cover preview on a source that serves covers in AVIF, JXL or HEIF (Atsumaru, for one). The preview asked the new image decoder for its raw pixels while another decoder also claimed those formats and won the race, so the app tried to treat an ordinary bitmap as raw pixel data and died on the main thread. The request now reaches the decoder it asked for, and a cover that arrives in an unexpected form leaves the preview empty instead of taking the app down with it.

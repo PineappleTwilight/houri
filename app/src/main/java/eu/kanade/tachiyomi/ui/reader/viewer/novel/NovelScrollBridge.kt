@@ -20,6 +20,13 @@ package eu.kanade.tachiyomi.ui.reader.viewer.novel
  * element a contents entry names. Both degrade to nothing when the bridge is absent, which is
  * survivable — a book opens at the top of a section instead of where it was left.
  *
+ * The bridge once also zoomed a figure on tap — a capture-phase click listener that scaled the
+ * `<img>` in place, and a flag the host read afterwards to keep the tap from also scrolling. That
+ * cost every tap in the book a script round trip before it could scroll, and the in-place scale (a
+ * CSS transform on an element the text flows around) read as broken layout rather than as a zoom.
+ * Both are gone: a tap always scrolls, and the figure itself is reached by long-pressing it, which
+ * opens the full-screen viewer the hit test has always answered for.
+ *
  * ### Scroll fraction, not pixel offset
  *
  * Everything is expressed as a fraction of the scrollable range so a position survives a font-size
@@ -77,92 +84,14 @@ object NovelScrollBridge {
               target = Math.min(1, Math.max(0, target));
               window.scrollTo(0, Math.round(max * target));
               return true;
-            },
-            /*
-             * Zooming a figure, and the flag the host reads to know the tap was not its own.
-             *
-             * In place rather than in a viewer of its own, because the engine already holds the
-             * decoded bitmap: a CSS transform costs nothing, cannot run out of memory on a long
-             * illustrated book, and keeps the reader's place in the text. It also works for an inline
-             * `<svg>`, which an extract-and-decode path would have to render first.
-             *
-             * The transform origin is the point that was tapped, so the pixel under the finger stays
-             * put — zooming to the element's own top-left instead throws away whatever the reader was
-             * looking at, which for a tall plate is most of it.
-             */
-            zoomImage: function (img, cx, cy) {
-              var box = img.getBoundingClientRect();
-              var ox = ((cx - box.left) / Math.max(1, box.width)) * 100;
-              var oy = ((cy - box.top) / Math.max(1, box.height)) * 100;
-              if (img.classList.contains('${ZOOMED_CLASS}')) {
-                img.classList.remove('${ZOOMED_CLASS}');
-                img.style.transform = '';
-                img.style.transformOrigin = '';
-                return false;
-              }
-              img.style.transformOrigin = ox + '% ' + oy + '%';
-              img.style.transform = 'scale(${ZOOM_SCALE})';
-              img.classList.add('${ZOOMED_CLASS}');
-              return true;
-            },
-            /*
-             * Consumes the "a figure answered this tap" flag.
-             *
-             * Read-and-cleared rather than just read, because the host asks once per tap and a flag
-             * left set would make the *next* tap scroll nothing. Returns false when the bridge is
-             * absent, which is the host's signal to carry on and scroll as it always did.
-             */
-            takeImageTap: function () {
-              var hit = self.imageTap;
-              self.imageTap = false;
-              return hit === true;
             }
           };
           window.KmkReader = self;
-          /*
-           * Capture phase, so a publisher listener on the same element cannot claim the tap first
-           * and leave the reader tapping a figure that does nothing.
-           *
-           * Only an `<img>` is zoomed. The document is still fully scrollable and text is still
-           * selectable, so this is one extra meaning for one element rather than a mode the reader
-           * has to enter and leave.
-           */
-          d.addEventListener('click', function (e) {
-            var el = e.target;
-            if (!el || el.nodeName !== 'IMG') return;
-            e.preventDefault();
-            e.stopPropagation();
-            self.imageTap = true;
-            self.zoomImage(el, e.clientX, e.clientY);
-          }, true);
         })();
         """
 
     /** Installed into every document's head; defines `window.KmkReader`. */
     val BRIDGE_SCRIPT: String = BRIDGE_SCRIPT_BODY.trimIndent()
-
-    /** Marks a figure the reader has zoomed; the stylesheet gives it the rules that come with it. */
-    const val ZOOMED_CLASS: String = "kmk-zoomed"
-
-    /**
-     * How far a tapped figure grows.
-     *
-     * Fixed rather than a pinch gesture, deliberately: the WebView already owns pinch for the
-     * viewport, and a book that is 3× further away is still a book. Tapping the same figure again
-     * puts it back, which is why there is no way to end up zoomed into something you cannot leave.
-     */
-    private const val ZOOM_SCALE = 3
-
-    /**
-     * Whether a tap was a figure answering it.
-     *
-     * The host asks this before scrolling, and `false` — the answer when the bridge is missing, when
-     * scripting is off, or when the document cannot answer — sends the tap on to the scroll path
-     * unchanged. Every failure mode of the zoom therefore lands on the behaviour that already
-     * worked, which is the only acceptable direction for this to fail in.
-     */
-    const val TAKE_IMAGE_TAP: String =
-        "(window.KmkReader && window.KmkReader.takeImageTap) ? window.KmkReader.takeImageTap() : false"
 
     /** Current scroll position as a fraction of the scrollable range, 0..1. */
     const val FRACTION: String = "(window.KmkReader && window.KmkReader.fraction()) || 0"
