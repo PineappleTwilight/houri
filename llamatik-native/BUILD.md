@@ -30,7 +30,7 @@ On top of that, GPU offload is on by default (§2), so a build host also needs
 
 **Verified:** CPU-only configures, compiles and links with zero failures for all four ABIs
 at API 26; the Vulkan variant does so for the 64-bit ABIs at API 29. The linked
-`libllama_jni.so` exports all 33 `Java_com_llamatik_library_platform_*` JNI symbols, and the
+`libllama_jni.so` exports all 33 `Java_com_llamatik_core_platform_*` JNI symbols, and the
 Vulkan one additionally exports 150 `ggml_vk` symbols.
 
 **Vulkan is 64-bit only.** See §2.6.
@@ -288,7 +288,7 @@ WSL; on Linux/WSL/CI they are ignored.
    up by that exact name, and a second artifact containing the same name is a duplicate
    `jniLibs` packaging error. That is why the `com.llamatik:library` AAR is not depended on.
 12. **Every `external fun` needs a matching C++ symbol.** The vendored Kotlin wrapper is a
-   trimmed subset; adding a function without the `Java_com_llamatik_library_platform_*`
+   trimmed subset; adding a function without the `Java_com_llamatik_core_platform_*`
    counterpart fails at runtime with `UnsatisfiedLinkError`.
 
 ---

@@ -19,7 +19,7 @@ Two reasons for the fork:
    it `dlopen`s and version-checks. We link ggml statically instead, which puts a compiled-in
    backend directly inside `libllama_jni.so`.
 
-The Kotlin wrapper (`com.llamatik.library.platform`) is vendored into
+The Kotlin wrapper (`com.llamatik.core.platform`) is vendored into
 `llamatik-native/src/main/kotlin`. It must stay in that package: JNI mangles the package into
 the native symbol names, and `System.loadLibrary("llama_jni")` fixes the `.so` name.
 

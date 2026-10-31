@@ -128,7 +128,7 @@ plugins {
 val wslJniLibsDir = file("src/main/jniLibs")
 
 android {
-    namespace = "com.llamatik.library.platform"
+    namespace = "com.llamatik.core.platform"
     ndkVersion = "28.2.13676358"
 
     buildFeatures {

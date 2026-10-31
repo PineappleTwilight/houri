@@ -1,4 +1,4 @@
-package com.llamatik.library.platform
+package com.llamatik.core.platform
 
 /**
  * Streaming callback handed to the native bridge.

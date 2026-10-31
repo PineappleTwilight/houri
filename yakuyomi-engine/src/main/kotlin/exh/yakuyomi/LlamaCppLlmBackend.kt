@@ -1,8 +1,8 @@
 package exh.yakuyomi
 
-import com.llamatik.library.platform.GenStream
-import com.llamatik.library.platform.LlamaBridge
-import com.llamatik.library.platform.MultimodalBridge
+import com.llamatik.core.platform.GenStream
+import com.llamatik.core.platform.LlamaBridge
+import com.llamatik.core.platform.MultimodalBridge
 import kotlinx.coroutines.withContext
 import mihon.core.concurrency.AppDispatchersHolder
 import tachiyomi.core.common.util.system.logcat
@@ -48,7 +48,7 @@ class LlamaCppLlmBackend private constructor(
     companion object {
         /** Whether the vendored llamatik runtime is on the classpath. */
         fun isAvailable(): Boolean = runCatching {
-            Class.forName("com.llamatik.library.platform.LlamaBridge")
+            Class.forName("com.llamatik.core.platform.LlamaBridge")
             true
         }.getOrDefault(false)
 

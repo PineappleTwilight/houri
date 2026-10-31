@@ -1,4 +1,4 @@
-package com.llamatik.library.platform
+package com.llamatik.core.platform
 
 import android.os.Build
 

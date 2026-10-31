@@ -3,7 +3,7 @@ package exh.yakuyomi
 import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
-import com.llamatik.library.platform.LlamatikBuildInfo
+import com.llamatik.core.platform.LlamatikBuildInfo
 import java.io.File
 
 /**

@@ -1,4 +1,4 @@
-package com.llamatik.library.platform
+package com.llamatik.core.platform
 
 /**
  * Vision-language bridge: loads a vision GGUF together with its `mmproj` projector and

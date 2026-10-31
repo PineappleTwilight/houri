@@ -1,8 +1,9 @@
 # llamatik-native/ Module
 
 On-device LLM runtime: the vendored llamatik JNI layer + llama.cpp, built from source. Package
-root `com.llamatik.library.platform` — **do not rename it**; JNI mangles the package into the
-native symbol names. Consumed by `yakuyomi-engine` (`LlamaCppLlmBackend`,
+root `com.llamatik.core.platform` — **do not rename it**; JNI mangles the package into the
+native symbol names, and it mirrors the Llamatik 2.0 restructure (`library` → `core`) that
+the submodule pin follows. Consumed by `yakuyomi-engine` (`LlamaCppLlmBackend`,
 `MultimodalBridge`).
 
 **Full build requirements — including the verified Debian setup, the Vulkan header staging
@@ -144,8 +145,8 @@ Every configure now prints what it probed, so a miss is a one-glance diagnosis:
 - **The output name must stay `llama_jni`** — `System.loadLibrary("llama_jni")` picks it, and
   a same-named lib in another artifact would be a duplicate-jniLibs packaging error.
 - **Adding a Kotlin function means adding the C++.** Every `external` declaration needs a
-  matching `Java_com_llamatik_library_platform_*` symbol in
-  `external/llamatik/library/src/commonMain/cpp/llama_jni.cpp`, or it fails at runtime with
+  matching `Java_com_llamatik_core_platform_*` symbol in
+  `external/llamatik/core/src/commonMain/cpp/llama_jni.cpp`, or it fails at runtime with
   `UnsatisfiedLinkError`. The shim is a deliberate subset of the fork's API — do not "restore"
   the rest without adding the C++ side.
 - `PackageManager.FEATURE_VULKAN` was **removed in API 36**; use

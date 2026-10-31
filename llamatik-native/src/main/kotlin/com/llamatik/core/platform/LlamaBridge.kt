@@ -1,4 +1,4 @@
-package com.llamatik.library.platform
+package com.llamatik.core.platform
 
 /**
  * llama.cpp text generation, vendored from the Llamatik fork.
@@ -14,10 +14,10 @@ package com.llamatik.library.platform
  * ## Contract with the native side
  *
  * This file is a deliberately trimmed copy of the fork's
- * `library/src/androidMain/kotlin/.../LlamaBridge.android.kt` with the `actual`
+ * `core/src/androidMain/kotlin/.../LlamaBridge.android.kt` with the `actual`
  * modifiers removed. Every `external` declaration here must have a matching
- * `Java_com_llamatik_library_platform_LlamaBridge_*` symbol in
- * `external/llamatik/library/src/commonMain/cpp/llama_jni.cpp`; adding a function
+ * `Java_com_llamatik_core_platform_LlamaBridge_*` symbol in
+ * `external/llamatik/core/src/commonMain/cpp/llama_jni.cpp`; adding a function
  * without adding the C++ counterpart fails at runtime with `UnsatisfiedLinkError`.
  *
  * The package name is load-bearing — JNI mangles it into the symbol names.
