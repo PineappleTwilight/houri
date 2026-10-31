@@ -37,6 +37,23 @@ DROP VIEW libraryView;
 DROP VIEW updatesView;
 DROP VIEW libraryUpdateErrorView;
 
+-- The sync-era triggers go before a single row is rewritten, because dropping a table does not
+-- drop the triggers attached to a different one. `update_chapter_and_manga_version` lives on
+-- chapters while its body writes to mangas: the moment `DROP TABLE mangas` below has run, every
+-- UPDATE on chapters compiles that trigger's body and fails with "no such table: main.mangas",
+-- which rolls the whole migration back and leaves the app unable to open its database. Keeping
+-- them would also stamp the surviving rows' last_modified_at / favorite_modified_at with the
+-- migration time and bump their version, marking every merged entry as changed and pushing it on
+-- the next sync. The new-shape equivalents are created against the new tables further down, so
+-- that bookkeeping is restored as soon as the rework is finished.
+DROP TRIGGER IF EXISTS update_last_favorited_at_mangas;
+DROP TRIGGER IF EXISTS update_last_modified_at_mangas;
+DROP TRIGGER IF EXISTS update_manga_version;
+DROP TRIGGER IF EXISTS update_chapter_and_manga_version;
+DROP TRIGGER IF EXISTS update_last_modified_at_chapters;
+DROP TRIGGER IF EXISTS update_last_modified_at_mangas_categories;
+DROP TRIGGER IF EXISTS insert_manga_category_update_version;
+
 -- ---------------------------------------------------------------------------------------------------------
 -- table - manga
 -- ---------------------------------------------------------------------------------------------------------
@@ -70,10 +87,16 @@ SET
     description = (SELECT M2.description FROM duplicate_mangas D JOIN mangas M2 ON M2._id = D._id WHERE D.keep_id = mangas._id AND M2.description IS NOT NULL ORDER BY D.precedence LIMIT 1),
     genre = (SELECT M2.genre FROM duplicate_mangas D JOIN mangas M2 ON M2._id = D._id WHERE D.keep_id = mangas._id AND M2.genre IS NOT NULL ORDER BY D.precedence LIMIT 1),
     thumbnail_url = (SELECT M2.thumbnail_url FROM duplicate_mangas D JOIN mangas M2 ON M2._id = D._id WHERE D.keep_id = mangas._id AND M2.thumbnail_url IS NOT NULL ORDER BY D.precedence LIMIT 1),
-    status = (SELECT M2.status FROM duplicate_mangas D JOIN mangas M2 ON M2._id = D._id WHERE D.keep_id = mangas._id AND M2.status != 0 ORDER BY D.precedence LIMIT 1),
-    viewer = (SELECT M2.viewer FROM duplicate_mangas D JOIN mangas M2 ON M2._id = D._id WHERE D.keep_id = mangas._id AND M2.viewer != 0 ORDER BY D.precedence LIMIT 1),
-    chapter_flags = (SELECT M2.chapter_flags FROM duplicate_mangas D JOIN mangas M2 ON M2._id = D._id WHERE D.keep_id = mangas._id AND M2.chapter_flags != 0 ORDER BY D.precedence LIMIT 1),
-    notes = (SELECT M2.notes FROM duplicate_mangas D JOIN mangas M2 ON M2._id = D._id WHERE D.keep_id = mangas._id AND M2.notes != '' ORDER BY D.precedence LIMIT 1),
+    -- These four columns are NOT NULL and carry no DEFAULT to fall back on (manga.remote_status,
+    -- manga.user_reader_flags, manga.user_chapter_flags and manga.user_notes all inherit them as
+    -- NOT NULL), so a subquery that filters every copy out - a group of entries that never set a
+    -- status, never picked a reader, never flagged a chapter or never wrote a note - returns NULL
+    -- and aborts the migration on the survivor row. coalesce falls back to the value already on
+    -- that row, which holds the default in exactly that case.
+    status = coalesce((SELECT M2.status FROM duplicate_mangas D JOIN mangas M2 ON M2._id = D._id WHERE D.keep_id = mangas._id AND M2.status != 0 ORDER BY D.precedence LIMIT 1), status),
+    viewer = coalesce((SELECT M2.viewer FROM duplicate_mangas D JOIN mangas M2 ON M2._id = D._id WHERE D.keep_id = mangas._id AND M2.viewer != 0 ORDER BY D.precedence LIMIT 1), viewer),
+    chapter_flags = coalesce((SELECT M2.chapter_flags FROM duplicate_mangas D JOIN mangas M2 ON M2._id = D._id WHERE D.keep_id = mangas._id AND M2.chapter_flags != 0 ORDER BY D.precedence LIMIT 1), chapter_flags),
+    notes = coalesce((SELECT M2.notes FROM duplicate_mangas D JOIN mangas M2 ON M2._id = D._id WHERE D.keep_id = mangas._id AND M2.notes != '' ORDER BY D.precedence LIMIT 1), notes),
     memo = (SELECT M2.memo FROM duplicate_mangas D JOIN mangas M2 ON M2._id = D._id WHERE D.keep_id = mangas._id ORDER BY M2.memo = '{}', D.precedence LIMIT 1),
     last_update = (SELECT max(M2.last_update) FROM duplicate_mangas D JOIN mangas M2 ON M2._id = D._id WHERE D.keep_id = mangas._id),
     cover_last_modified = (SELECT max(M2.cover_last_modified) FROM duplicate_mangas D JOIN mangas M2 ON M2._id = D._id WHERE D.keep_id = mangas._id),
