@@ -39,6 +39,7 @@ import tachiyomi.domain.manga.interactor.GetMergedManga
 import tachiyomi.domain.manga.interactor.GetMergedMangaById
 import tachiyomi.domain.manga.interactor.GetMergedMangaForDownloading
 import tachiyomi.domain.manga.interactor.GetMergedReferencesById
+import tachiyomi.domain.manga.interactor.GetMergedReferencesByManga
 import tachiyomi.domain.manga.interactor.GetReadMangaNotInLibraryView
 import tachiyomi.domain.manga.interactor.GetSearchMetadata
 import tachiyomi.domain.manga.interactor.GetSearchTags
@@ -117,6 +118,7 @@ class SYDomainModule : InjektModule {
         addFactory { GetMergedManga(get()) }
         addFactory { GetMergedMangaById(get()) }
         addFactory { GetMergedReferencesById(get()) }
+        addFactory { GetMergedReferencesByManga(get()) }
         addFactory { GetMergedChaptersByMangaId(get(), get()) }
         addFactory { InsertMergedReference(get()) }
         addFactory { UpdateMergedSettings(get()) }
