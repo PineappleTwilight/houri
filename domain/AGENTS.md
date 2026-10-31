@@ -1,6 +1,6 @@
 # domain/ Module
 
-Core domain layer with104 interactors,28 models, and18 repository interfaces. Package root: `tachiyomi.domain.*` (90%), `mihon.domain.*` (Mihon upstream), `exh.*` (SY features).
+Core domain layer with105 interactors,28 models, and18 repository interfaces. Package root: `tachiyomi.domain.*` (90%), `mihon.domain.*` (Mihon upstream), `exh.*` (SY features).
 
 ## Package structure
 

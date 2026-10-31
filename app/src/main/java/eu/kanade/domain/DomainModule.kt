@@ -166,8 +166,16 @@ class DomainModule : InjektModule {
         addFactory { GetExcludedScanlators(get()) }
         addFactory { SetExcludedScanlators(get()) }
         addFactory {
+            // KMK -->
+            // The trailing 6 gets are the merged-entry migration support: GetManga and the
+            // merged-reference interactors.
+            // KMK <--
             MigrateMangaUseCase(
-                get(), get(), get(), get(), get(), get(), get(), get(), get(), get(), get(), get(), get(), get(), get(),
+                get(), get(), get(), get(), get(), get(), get(),
+                get(), get(), get(), get(), get(), get(), get(),
+                // KMK -->
+                get(), get(), get(), get(), get(), get(), get(),
+                // KMK <--
             )
         }
 

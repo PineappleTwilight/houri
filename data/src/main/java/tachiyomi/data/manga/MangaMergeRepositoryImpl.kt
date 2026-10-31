@@ -44,6 +44,16 @@ class MangaMergeRepositoryImpl(
         return handler.subscribeToList { mergedQueries.selectByMergeId(id, MergedMangaMapper::map) }
     }
 
+    override suspend fun getReferencesByManga(
+        mangaId: Long,
+        mangaUrl: String,
+        mangaSourceId: Long,
+    ): List<MergedMangaReference> {
+        return handler.awaitList {
+            mergedQueries.selectByManga(mangaId, mangaUrl, mangaSourceId, MergedMangaMapper::map)
+        }
+    }
+
     override suspend fun updateSettings(update: MergeMangaSettingsUpdate): Boolean {
         return try {
             partialUpdate(update)
