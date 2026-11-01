@@ -363,6 +363,12 @@ class MangaRepositoryImpl(
         }
     }
 
+    // KMK -->
+    override suspend fun getNonLibraryManga(): List<Manga> {
+        return handler.awaitList { mangaQueries.getNonLibraryManga(MangaMapper::mapManga) }
+    }
+    // KMK <--
+
     override suspend fun getReadMangaNotInLibraryView(): List<LibraryManga> {
         return handler.awaitList {
             libraryViewQueries.readMangaNonLibrary(

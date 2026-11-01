@@ -809,4 +809,34 @@
     <string name="pref_novel_custom_js_support">Runs inside every book you open. Injected JavaScript can have security risks — only enable it for code you trust</string>
     <string name="novel_custom_js_edit">Edit custom JavaScript</string>
     <string name="novel_custom_js_hint">Runs in each document\'s head, after the reader\'s bridge — takes effect when the next page is loaded</string>
+    <!-- KMK: discovery screen for downloads and cached chapters whose entry is not in the
+         library, plus the chapter-cache retention timer that drives its countdown. -->
+    <string name="pref_downloaded_content">Downloaded and cached content</string>
+    <string name="pref_downloaded_content_support">Find and free space used by downloads and cached chapters of entries not in your library</string>
+    <string name="downloaded_content_badge_not_in_library">Not in library</string>
+    <string name="downloaded_content_badge_unknown">Unknown to database</string>
+    <string name="downloaded_content_chapters_count">%1$d chapters</string>
+    <string name="downloaded_content_downloaded_header">Downloaded chapters</string>
+    <string name="downloaded_content_cached_header">Cached chapters</string>
+    <string name="downloaded_content_expires_in">expires in %1$s</string>
+    <string name="downloaded_content_cached_ago">cached %1$s ago</string>
+    <string name="downloaded_content_kept_until_space">kept until space is needed</string>
+    <string name="downloaded_content_removed_next_sweep">removed at next sweep</string>
+    <string name="downloaded_content_size_unknown">Size unavailable</string>
+    <string name="downloaded_content_unattributed_footer">%1$s of cached data could not be attributed to a chapter (its page list was evicted)</string>
+    <string name="downloaded_content_empty">No non-library downloads or cached chapters found</string>
+    <string name="downloaded_content_delete_all">Delete all shown</string>
+    <string name="downloaded_content_delete_all_confirm">Delete all downloaded and cached content listed here? This cannot be undone.</string>
+    <string name="downloaded_content_delete_entry_confirm">Delete all downloaded and cached content of \"%1$s\"?</string>
+    <string name="downloaded_content_delete_cached_chapter">Delete cached pages</string>
+    <string name="downloaded_content_deleted">Deleted</string>
+    <string name="downloaded_content_delete_error">Couldn\'t delete everything</string>
+    <string name="chapter_cache_retention_title">Chapter cache retention</string>
+    <string name="chapter_cache_retention_off">Until space is needed</string>
+    <string name="chapter_cache_retention_12h">12 hours</string>
+    <string name="chapter_cache_retention_24h">24 hours</string>
+    <string name="chapter_cache_retention_3d">3 days</string>
+    <string name="chapter_cache_retention_7d">7 days</string>
+    <string name="chapter_cache_retention_30d">30 days</string>
+    <string name="chapter_cache_retention_support">Cached chapters are dropped once unread for this long. The size limit can still evict them earlier, and auto-clear on launch still wipes everything</string>
 </resources>

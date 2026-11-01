@@ -242,6 +242,11 @@ data object BackupSchemaRoute : NavKey {
 @Serializable
 data object ClearDatabaseRoute : NavKey
 
+// KMK -->
+@Serializable
+data object DownloadedContentRoute : NavKey
+// KMK <--
+
 @Serializable
 data object CreateBackupRoute : NavKey
 

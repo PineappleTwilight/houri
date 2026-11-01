@@ -1,6 +1,7 @@
 package eu.kanade.tachiyomi.ui.reader.loader
 
 import eu.kanade.domain.source.service.SourcePreferences
+import eu.kanade.tachiyomi.data.cache.CHAPTER_CACHE_SEGMENT_KEY_SUFFIX
 import eu.kanade.tachiyomi.data.cache.ChapterCache
 import eu.kanade.tachiyomi.data.database.models.toDomainChapter
 import eu.kanade.tachiyomi.extension.reportingSourceErrorsOrNull
@@ -39,8 +40,11 @@ import kotlin.concurrent.atomics.ExperimentalAtomicApi
 import kotlin.concurrent.atomics.incrementAndFetch
 import kotlin.math.min
 
-/** Cache-key suffix distinguishing a split segment from the image it was cut from. */
-private const val SEGMENT_KEY_SUFFIX = "#segment-"
+/** Cache-key suffix distinguishing a split segment from the image it was cut from.
+ * KMK --> Shared with ChapterCache, whose cache-info/removal walk derives the same keys.
+ */
+private const val SEGMENT_KEY_SUFFIX = CHAPTER_CACHE_SEGMENT_KEY_SUFFIX
+// KMK <--
 
 /**
  * How many times one source image may be re-cut before it is left to fail visibly.

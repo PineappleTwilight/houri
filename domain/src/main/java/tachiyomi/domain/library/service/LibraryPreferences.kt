@@ -302,6 +302,11 @@ class LibraryPreferences(
 
     fun autoClearChapterCache() = preferenceStore.getBoolean("auto_clear_chapter_cache", false)
 
+    // KMK --> Sliding retention for the chapter cache, in hours; 0 keeps today's behaviour
+    // (entries live until the size limit evicts them or auto-clear wipes everything).
+    fun chapterCacheRetention() = preferenceStore.getInt("chapter_cache_retention_hours", 0)
+    // KMK <--
+
     fun hideMissingChapters() = preferenceStore.getBoolean("pref_hide_missing_chapter_indicators", false)
 
     // KMK -->

@@ -45,6 +45,7 @@ import eu.kanade.presentation.more.settings.screen.data.SyncTriggerOptionsScreen
 import eu.kanade.presentation.more.settings.screen.debug.BackupSchemaScreen
 import eu.kanade.presentation.more.settings.screen.debug.DebugInfoScreen
 import eu.kanade.presentation.more.settings.screen.debug.WorkerInfoScreen
+import eu.kanade.presentation.more.settings.screen.downloaded.DownloadedContentScreen
 import eu.kanade.tachiyomi.ui.browse.extension.ExtensionsRoute
 import eu.kanade.tachiyomi.ui.browse.extension.ExtensionsScreen
 import eu.kanade.tachiyomi.ui.category.CategoryScreen
@@ -385,6 +386,12 @@ fun EntryProviderScope<NavKey>.appEntries() {
     entry<ClearDatabaseRoute> {
         ClearDatabaseScreen()
     }
+
+    // KMK -->
+    entry<DownloadedContentRoute> {
+        DownloadedContentScreen()
+    }
+    // KMK <--
 
     entry<CreateBackupRoute> {
         CreateBackupScreen()

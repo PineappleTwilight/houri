@@ -197,6 +197,7 @@ import tachiyomi.domain.manga.interactor.GetMergedManga
 import tachiyomi.domain.manga.interactor.GetMergedMangaById
 import tachiyomi.domain.manga.interactor.GetMergedMangaForDownloading
 import tachiyomi.domain.manga.interactor.GetMergedReferencesById
+import tachiyomi.domain.manga.interactor.GetNonLibraryManga
 import tachiyomi.domain.manga.interactor.GetReadMangaNotInLibraryView
 import tachiyomi.domain.manga.interactor.GetSearchMetadata
 import tachiyomi.domain.manga.interactor.GetSearchTags
@@ -388,6 +389,9 @@ interface AppGraph : ViewModelGraph {
     val deleteLibraryUpdateErrors: DeleteLibraryUpdateErrors
     val deleteMergeById: DeleteMergeById
     val deleteNonLibraryManga: DeleteNonLibraryManga
+    // KMK -->
+    val getNonLibraryManga: GetNonLibraryManga
+    // KMK <--
     val deleteOrphanedSubcategories: DeleteOrphanedSubcategories
     val deleteSavedSearchById: DeleteSavedSearchById
     val deleteSortTag: DeleteSortTag

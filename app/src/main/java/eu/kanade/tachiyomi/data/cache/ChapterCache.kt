@@ -99,6 +99,16 @@ class ChapterCache(
      * @return the list of pages.
      */
     fun getPageListFromCache(chapter: Chapter): List<Page> {
+        val pages = readPageList(chapter)
+
+        // KMK --> A read is an access: refresh the entry's retention clock.
+        touch(cacheFileFor(getKey(chapter)))
+        // KMK <--
+
+        return pages
+    }
+
+    private fun readPageList(chapter: Chapter): List<Page> {
         // Get the key for the chapter.
         val key = DiskUtil.hashKeyForDisk(getKey(chapter))
 
@@ -166,7 +176,13 @@ class ChapterCache(
     fun getImageFile(imageUrl: String): File {
         // Get file from md5 key.
         val imageName = DiskUtil.hashKeyForDisk(imageUrl) + ".0"
-        return File(diskCache.directory, imageName)
+        val file = File(diskCache.directory, imageName)
+
+        // KMK --> Serving an image is an access: refresh its retention clock.
+        touch(file)
+        // KMK <--
+
+        return file
     }
 
     /**
@@ -219,6 +235,111 @@ class ChapterCache(
             editor?.abortUnlessCommitted()
         }
     }
+
+    // KMK -->
+
+    /** Total bytes the cache directory currently holds (journal included, approximate). */
+    val sizeBytes: Long
+        get() = realSize
+
+    /**
+     * Removes every cache entry whose file has aged past [retentionMs] since its last access.
+     * Returns the number of entries removed. Retention of 0 (or less) disables the sweep.
+     */
+    fun sweepExpired(retentionMs: Long): Int {
+        if (retentionMs <= 0L) return 0
+        val now = System.currentTimeMillis()
+        var removed = 0
+        cacheDir.listFiles()?.forEach {
+            // Journal files are guarded inside removeFileFromCache.
+            if (ChapterCacheRetention.isExpired(it.lastModified(), now, retentionMs) &&
+                removeFileFromCache(it.name)
+            ) {
+                removed++
+            }
+        }
+        return removed
+    }
+
+    /**
+     * Drops a chapter's cached page list along with every page image still cached for it
+     * (segment keys included).
+     */
+    fun removePageListFromCache(chapter: Chapter) {
+        val pages = try {
+            readPageList(chapter)
+        } catch (e: Exception) {
+            logcat(LogPriority.WARN, e) { "Failed to read cached page list for removal" }
+            null
+        }
+        pages?.forEach { page ->
+            val imageUrl = page.imageUrl ?: return@forEach
+            removeImageFromCache(imageUrl)
+            var index = 0
+            while (removeImageFromCache(imageUrl + CHAPTER_CACHE_SEGMENT_KEY_SUFFIX + index)) {
+                index++
+            }
+        }
+        removeFileFromCache(DiskUtil.hashKeyForDisk(getKey(chapter)) + ".0")
+    }
+
+    /**
+     * Size/age summary of everything cached for one chapter: its page list entry plus the image
+     * files the stored page list still points at (segment keys included). This is a query - it
+     * does not refresh any retention clock. Images whose page list was evicted cannot be
+     * attributed to a chapter and are invisible here.
+     */
+    fun getChapterCacheInfo(chapter: Chapter): ChapterCacheInfo? {
+        val pageListFile = cacheFileFor(getKey(chapter))
+        if (!pageListFile.exists()) return null
+
+        val pages = try {
+            readPageList(chapter)
+        } catch (e: Exception) {
+            logcat(LogPriority.WARN, e) { "Failed to read cached page list" }
+            return null
+        }
+
+        var totalBytes = pageListFile.length()
+        var oldestModified = pageListFile.lastModified()
+        var imageCount = 0
+
+        pages.asSequence()
+            .mapNotNull { it.imageUrl }
+            .forEach { imageUrl ->
+                var misses = 0
+                var index = -1 // -1 probes the unsegmented image itself
+                while (misses < SEGMENT_PROBE_MISS_LIMIT && index <= SEGMENT_PROBE_MAX_INDEX) {
+                    val key = if (index < 0) imageUrl else imageUrl + CHAPTER_CACHE_SEGMENT_KEY_SUFFIX + index
+                    val file = cacheFileFor(key)
+                    if (file.exists()) {
+                        misses = 0
+                        imageCount++
+                        totalBytes += file.length()
+                        val modified = file.lastModified()
+                        if (modified < oldestModified) oldestModified = modified
+                    } else {
+                        misses++
+                    }
+                    index++
+                }
+            }
+
+        return ChapterCacheInfo(totalBytes, oldestModified, imageCount)
+    }
+
+    private fun cacheFileFor(key: String): File {
+        return File(diskCache.directory, DiskUtil.hashKeyForDisk(key) + ".0")
+    }
+
+    /** Refreshes a file's mtime - the sliding part of the retention clock. */
+    private fun touch(file: File) {
+        if (file.exists()) {
+            runCatching { file.setLastModified(System.currentTimeMillis()) }
+                .onFailure { logcat(LogPriority.DEBUG) { "Failed to touch cache file: ${file.name}" } }
+        }
+    }
+    // KMK <--
 
     fun clear(): Int {
         var deletedFiles = 0
@@ -277,3 +398,18 @@ private const val PARAMETER_VALUE_COUNT = 1
 
 /** The maximum number of bytes this cache should use to store.  */
 private const val PARAMETER_CACHE_SIZE = 100L * 1024 * 1024
+
+// KMK -->
+/** Cached-data summary for one chapter, as reported by [ChapterCache.getChapterCacheInfo]. */
+data class ChapterCacheInfo(
+    val totalBytes: Long,
+    val oldestLastModifiedMs: Long,
+    val imageCount: Int,
+)
+
+/** How many consecutive absent segment keys a cache-info probe tolerates before giving up. */
+private const val SEGMENT_PROBE_MISS_LIMIT = 4
+
+/** Hard upper bound on the segment indexes a cache-info probe walks. */
+private const val SEGMENT_PROBE_MAX_INDEX = 64
+// KMK <--

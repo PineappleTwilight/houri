@@ -10,6 +10,8 @@ files moved. See .github/scripts/release_notes.py.
 
 ### New
 
+- **Downloaded & cached content** screen (More → Data and storage): every download on disk whose entry is not in your library is now listed — grouped by source, with chapter count and disk size — and can be deleted per chapter, per entry, or all at once. Entries whose source extension is gone show as folders; merge children are excluded so a library merge's content is never listed.
+- **Chapter cache retention**: a new setting drops cached chapters once unread for a chosen time (12 hours to 30 days; default off). Reading a chapter resets its timer, and the new discovery screen shows each cached chapter's live countdown — or "kept until space is needed" when retention is off.
 - Scope the library list (CSV) export to specific categories: the export dialog now lists your categories below the column options, and only entries in the checked ones are written — including `Default` for entries in no category. Leave everything checked to export the whole library as before.
 
 ### Improve

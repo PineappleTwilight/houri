@@ -598,6 +598,14 @@ class MainActivity : BaseActivity() {
                 chapterCache.clear()
             }
         }
+
+        // KMK --> Retention sweep: drop cached chapters unread for longer than the setting allows.
+        if (isLaunch) {
+            lifecycleScope.launchIO {
+                chapterCache.sweepExpired(libraryPreferences.chapterCacheRetention().get() * 3_600_000L)
+            }
+        }
+        // KMK <--
     }
 
     // KMK -->

@@ -48,6 +48,25 @@ object DiskUtil {
         return size
     }
 
+    // KMK -->
+    /**
+     * Sums the byte size of everything under [file], with a depth cap so a pathological folder
+     * cannot make a UI caller hang on a slow SAF provider.
+     */
+    fun getDirectorySize(file: UniFile, maxDepth: Int = DIRECTORY_SIZE_MAX_DEPTH): Long {
+        if (maxDepth <= 0) return 0L
+        var size = 0L
+        for (child in file.listFiles().orEmpty()) {
+            if (child.isDirectory) {
+                size += getDirectorySize(child, maxDepth - 1)
+            } else if (child.isFile) {
+                size += child.length()
+            }
+        }
+        return size
+    }
+    // KMK <--
+
     /**
      * Gets the total space for the disk that a file path points to, in bytes.
      */
@@ -204,4 +223,9 @@ object DiskUtil {
     // To allow for writing to ext4 through a FUSE layer in the future, also subtract 15
     // reserved characters.
     const val MAX_FILE_NAME_BYTES = 240
+
+    // KMK -->
+    /** Depth cap for the UniFile size walk. */
+    private const val DIRECTORY_SIZE_MAX_DEPTH = 6
+    // KMK <--
 }
