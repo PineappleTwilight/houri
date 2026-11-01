@@ -600,6 +600,9 @@ private fun MangaAndSourceTitlesLarge(
                     onCoverLoaded(mangaCover, image)
                 },
                 showLoadingSpinner = showCoverSpinner,
+                // Show the cover whole: size the box to the cover's true ratio instead of
+                // cropping its borders to the template's fixed one.
+                useImageRatio = true,
                 // KMK <--
             )
         } else {
@@ -620,6 +623,9 @@ private fun MangaAndSourceTitlesLarge(
                     onCoverLoaded(mangaCover, image)
                 },
                 showLoadingSpinner = showCoverSpinner,
+                // Show the cover whole: size the box to the cover's true ratio instead of
+                // cropping its borders to the template's fixed one.
+                useImageRatio = true,
                 // KMK <--
             )
         }
@@ -699,6 +705,9 @@ private fun MangaAndSourceTitlesSmall(
                     onCoverLoaded(mangaCover, image)
                 },
                 showLoadingSpinner = showCoverSpinner,
+                // Show the cover whole: size the box to the cover's true ratio instead of
+                // cropping its borders to the template's fixed one.
+                useImageRatio = true,
                 // KMK <--
             )
         } else {
@@ -722,6 +731,9 @@ private fun MangaAndSourceTitlesSmall(
                     onCoverLoaded(mangaCover, image)
                 },
                 showLoadingSpinner = showCoverSpinner,
+                // Show the cover whole: size the box to the cover's true ratio instead of
+                // cropping its borders to the template's fixed one.
+                useImageRatio = true,
                 // KMK <--
             )
         }
