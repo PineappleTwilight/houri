@@ -288,6 +288,16 @@ AND id NOT IN (
 );
 -- KMK <--
 
+-- KMK --> Non-library entries whose on-disk content the discovery screen can list and delete;
+-- merge children are excluded because their content belongs to a library merged entry.
+getNonLibraryManga:
+SELECT * FROM manga
+WHERE user_favorite_at IS NULL
+AND id NOT IN (
+    SELECT DISTINCT manga_id FROM merged WHERE manga_id != merge_id
+);
+-- KMK <--
+
 insert:
 INSERT INTO manga(
     source_id, remote_url, remote_title, remote_author, remote_artist, remote_description,

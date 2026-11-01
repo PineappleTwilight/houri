@@ -106,6 +106,17 @@ class DownloadProvider(
         return sourceDir?.findFile(getMangaDirName(mangaTitle))
     }
 
+    // KMK -->
+    /**
+     * Returns the download directory for an already-computed manga directory name - used for
+     * folders on disk that may not correspond to any known manga entry.
+     */
+    fun findMangaDirByDirName(mangaDirName: String, source: Source): UniFile? {
+        val sourceDir = findSourceDir(source)
+        return sourceDir?.findFile(mangaDirName)
+    }
+    // KMK <--
+
     /**
      * Returns the download directory for a chapter if it exists.
      *

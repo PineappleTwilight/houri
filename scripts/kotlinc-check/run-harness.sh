@@ -73,6 +73,10 @@ for MAIN in "$HARNESS_DIR"/*Harness.kt; do
     # LocalBookFolder is pure string handling on a name that is about to become a path segment, which
     # is exactly the kind of rule that is cheap to assert and expensive to discover on a device.
     SOURCES+=("$REPO_ROOT/source-local/src/commonMain/kotlin/tachiyomi/source/local/io/LocalBookFolder.kt")
+    # ChapterCacheRetention is the pure math behind the chapter cache's sliding expiry and the
+    # discovery screen's countdown. No Android imports, compiled directly for the same reason as
+    # EpubDoctype above.
+    SOURCES+=("$REPO_ROOT/app/src/main/java/eu/kanade/tachiyomi/data/cache/ChapterCacheRetention.kt")
 
     # The OPF metadata harness drives the real pull parser — kxml2, the library Android ships
     # behind `Xml.newPullParser` — so `EpubXmlReader`/`EpubOpfParser`/`EpubTocParser` can run on a

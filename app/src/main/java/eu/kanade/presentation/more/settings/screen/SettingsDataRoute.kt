@@ -92,6 +92,7 @@ import kotlinx.serialization.Serializable
 import logcat.LogPriority
 import mihon.app.di.globalAppGraph
 import mihon.core.navigation.CreateBackupRoute
+import mihon.core.navigation.DownloadedContentRoute
 import mihon.core.navigation.RestoreBackupRoute
 import mihon.core.navigation.util.LocalBackStack
 import tachiyomi.core.common.i18n.stringResource
@@ -358,6 +359,10 @@ data object SettingsDataRoute : NavKey, SearchableRoute {
         val scope = rememberCoroutineScope()
         val libraryPreferences = remember { globalAppGraph.libraryPreferences }
 
+        // KMK -->
+        val backStack = LocalBackStack.current
+        // KMK <--
+
         val chapterCache = remember { globalAppGraph.chapterCache }
         var cacheReadableSizeSema by remember { mutableIntStateOf(0) }
         val cacheReadableSize = remember(cacheReadableSizeSema) { chapterCache.readableSize }
@@ -425,6 +430,28 @@ data object SettingsDataRoute : NavKey, SearchableRoute {
                     preference = libraryPreferences.autoClearChapterCache(),
                     title = stringResource(MR.strings.pref_auto_clear_chapter_cache),
                 ),
+                // KMK -->
+                Preference.PreferenceItem.ListPreference(
+                    preference = libraryPreferences.chapterCacheRetention(),
+                    entries = persistentMapOf(
+                        0 to stringResource(KMR.strings.chapter_cache_retention_off),
+                        12 to stringResource(KMR.strings.chapter_cache_retention_12h),
+                        24 to stringResource(KMR.strings.chapter_cache_retention_24h),
+                        72 to stringResource(KMR.strings.chapter_cache_retention_3d),
+                        168 to stringResource(KMR.strings.chapter_cache_retention_7d),
+                        720 to stringResource(KMR.strings.chapter_cache_retention_30d),
+                    ),
+                    title = stringResource(KMR.strings.chapter_cache_retention_title),
+                ),
+                Preference.PreferenceItem.InfoPreference(
+                    stringResource(KMR.strings.chapter_cache_retention_support),
+                ),
+                Preference.PreferenceItem.TextPreference(
+                    title = stringResource(KMR.strings.pref_downloaded_content),
+                    subtitle = stringResource(KMR.strings.pref_downloaded_content_support),
+                    onClick = { backStack.add(DownloadedContentRoute) },
+                ),
+                // KMK <--
             ),
         )
     }

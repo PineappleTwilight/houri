@@ -97,6 +97,10 @@ interface MangaRepository {
 
     suspend fun deleteNonLibraryManga(sourceIds: List<Long>, keepReadManga: Boolean)
 
+    // KMK -->
+    suspend fun getNonLibraryManga(): List<Manga>
+    // KMK <--
+
     suspend fun getReadMangaNotInLibraryView(): List<LibraryManga>
     // SY <--
 }

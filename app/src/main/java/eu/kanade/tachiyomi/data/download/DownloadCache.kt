@@ -371,6 +371,53 @@ class DownloadCache(
         notifyChanges()
     }
 
+    // KMK -->
+
+    /**
+     * Read-only copy of the download tree as it is currently cached: one entry per manga
+     * directory on disk. Callers pair this with the database to find content whose entry is not
+     * in the library.
+     */
+    suspend fun snapshotDownloadedMangaDirs(): List<DownloadedMangaDir> {
+        return rootDownloadsDirMutex.withLock {
+            rootDownloadsDir.sourceDirs.flatMap { (sourceId, sourceDir) ->
+                sourceDir.mangaDirs.map { (mangaDirName, mangaDir) ->
+                    DownloadedMangaDir(sourceId, mangaDirName, mangaDir.chapterDirs.toSet())
+                }
+            }
+        }
+    }
+
+    /**
+     * Forgets a cached manga directory identified by its directory name alone - for content that
+     * does not match any manga row (the [removeManga] variant needs a Manga).
+     */
+    suspend fun removeMangaDirByIdName(sourceId: Long, mangaDirName: String) {
+        rootDownloadsDirMutex.withLock {
+            val sourceDir = rootDownloadsDir.sourceDirs[sourceId] ?: return
+            if (sourceDir.mangaDirs.containsKey(mangaDirName)) {
+                sourceDir.mangaDirs -= mangaDirName
+            }
+        }
+
+        notifyChanges()
+    }
+
+    /** Forgets cached chapter directories by name, without needing a Manga. */
+    suspend fun removeChapterDirNamesByIdName(
+        sourceId: Long,
+        mangaDirName: String,
+        chapterDirNames: Collection<String>,
+    ) {
+        rootDownloadsDirMutex.withLock {
+            val mangaDir = rootDownloadsDir.sourceDirs[sourceId]?.mangaDirs?.get(mangaDirName) ?: return
+            chapterDirNames.forEach { mangaDir.chapterDirs -= it }
+        }
+
+        notifyChanges()
+    }
+    // KMK <--
+
     fun invalidateCache() {
         lastRenew = 0L
         renewalJob?.cancel()
@@ -568,3 +615,12 @@ private object UniFileAsStringSerializer : KSerializer<UniFile?> {
         }
     }
 }
+
+// KMK -->
+/** One manga directory as seen in the download tree snapshot. */
+data class DownloadedMangaDir(
+    val sourceId: Long,
+    val mangaDirName: String,
+    val chapterDirNames: Set<String>,
+)
+// KMK <--
