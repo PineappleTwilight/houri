@@ -71,14 +71,24 @@ enum class MangaCover(val ratio: Float) {
         scale: ContentScale = ContentScale.Crop,
         /** Off draws no spinner while loading, leaving just the skeleton placeholder (Mihon's look). */
         showLoadingSpinner: Boolean = true,
+        /**
+         * Size the box to the loaded cover's true aspect ratio instead of this template's fixed
+         * one, so a cover whose proportions differ from the template is shown whole - borders
+         * included - instead of having them cropped away by [scale]. The template ratio still
+         * rules until the image decodes. Tap-to-view dialogs load the original uncropped, so
+         * without this the preview and the original disagree whenever the ratios differ.
+         */
+        useImageRatio: Boolean = false,
         // KMK <--
     ) {
         // KMK -->
         var succeed by remember { mutableStateOf(false) }
+        /** True w/h of the decoded cover once [useImageRatio] has seen it; null keeps the template ratio. */
+        var imageRatio by remember { mutableStateOf<Float?>(null) }
         // KMK <--
 
         val modifierColored = modifier
-            .aspectRatio(ratio)
+            .aspectRatio(imageRatio ?: ratio)
             .clip(shape)
             // KMK -->
             .alpha(if (succeed) alpha else 1f)
@@ -146,6 +156,15 @@ enum class MangaCover(val ratio: Float) {
             },
             onSuccess = { result ->
                 succeed = true
+                // KMK -->
+                if (useImageRatio) {
+                    val image = result.result.image
+                    if (image.width > 0 && image.height > 0) {
+                        imageRatio = (image.width.toFloat() / image.height)
+                            .coerceIn(DomainMangaCover.MIN_COVER_RATIO, DomainMangaCover.MAX_COVER_RATIO)
+                    }
+                }
+                // KMK <--
                 if (onCoverLoaded != null) {
                     when (data) {
                         is Manga -> onCoverLoaded(data.asMangaCover(), result)
