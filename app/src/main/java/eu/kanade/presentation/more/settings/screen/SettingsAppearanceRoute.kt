@@ -25,7 +25,6 @@ import eu.kanade.presentation.more.settings.screen.appearance.AppCustomThemeColo
 import eu.kanade.presentation.more.settings.screen.appearance.AppLanguageScreen
 import eu.kanade.presentation.more.settings.widget.AppThemeModePreferenceWidget
 import eu.kanade.presentation.more.settings.widget.AppThemePreferenceWidget
-import eu.kanade.tachiyomi.util.system.toast
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableMap
 import kotlinx.serialization.Serializable
@@ -250,7 +249,7 @@ data object SettingsAppearanceRoute : NavKey, SearchableRoute {
                         .toImmutableMap(),
                     title = stringResource(MR.strings.pref_tablet_ui_mode),
                     onValueChanged = {
-                        context.toast(MR.strings.requires_app_restart)
+                        (context as? Activity)?.let { ActivityCompat.recreate(it) }
                         true
                     },
                 ),
