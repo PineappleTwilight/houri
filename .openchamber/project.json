@@ -9,6 +9,18 @@
       "name": "Compile",
       "command": "./gradlew spotlessApply spotlessCheck compileDebugUnitTestKotlin app:assembleDebug",
       "icon": "play"
+    },
+    {
+      "id": "f457c77e-0a1b-4785-98ef-6e1276f84c87",
+      "name": "Deep Update Git Submodules",
+      "command": "git submodule update --init --recursive",
+      "icon": "play"
+    },
+    {
+      "id": "f1946c9e-0d46-43b5-b5ea-2d8f01eb7d82",
+      "name": "Wipe ImageDecoder Cache",
+      "command": "rm -rf external/imagedecoder-houri/library/.cxx",
+      "icon": "play"
     }
   ]
 }
