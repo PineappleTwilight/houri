@@ -13,3 +13,6 @@ files moved. See .github/scripts/release_notes.py.
 ### Improve
 
 ### Fix
+
+- Tablet: pressing the device back button on settings sub-screens opened from the two-pane detail (debug menu, licenses, and similar) no longer collapses the two-pane view to the phone layout
+- The debug menu in Settings → Advanced shows its back arrow again when opened from a tablet's two-pane detail

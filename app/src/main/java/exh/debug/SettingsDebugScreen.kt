@@ -57,6 +57,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
+import mihon.core.navigation.util.LocalBackStack
 import tachiyomi.presentation.core.components.ScrollbarLazyColumn
 import tachiyomi.presentation.core.components.material.Scaffold
 import tachiyomi.presentation.core.components.material.topSmallPaddingValues
@@ -75,12 +76,12 @@ private data class DebugToggle(val name: String, val pref: PreferenceMutableStat
 @Composable
 fun SettingsDebugScreen() {
     val scope = rememberCoroutineScope()
-    // KMK -->
-    // val navigator = LocalNavigator.currentOrThrow
-    // DisposableEffect(Unit) {
-    //     onDispose { navigator.pop() }
-    // }
+    // KMK --> Like Licenses/Search/NewUpdate: a sub-screen pushed inside the two-pane detail keeps
+    // its back arrow ungated (LocalBackButtonVisibility is false there and gating it would hide
+    // the arrow); both the arrow and the system back pop the single route back to the category.
+    // The old Voyager pop(), commented out under the Nav3 port, is replaced by LocalBackStack.
     // KMK <--
+    val backStack = LocalBackStack.current
     val functions by produceState<ImmutableList<Pair<KFunction<*>, String>>?>(initialValue = null) {
         value = withContext(Dispatchers.Default) {
             DebugFunctions::class.declaredFunctions.filter {
@@ -101,6 +102,7 @@ fun SettingsDebugScreen() {
         topBar = { scrollBehavior ->
             AppBar(
                 title = "DEBUG MENU",
+                navigateUp = backStack::removeLastOrNull,
                 scrollBehavior = scrollBehavior,
             )
         },
