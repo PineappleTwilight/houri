@@ -13,3 +13,5 @@ files moved. See .github/scripts/release_notes.py.
 ### Improve
 
 ### Fix
+
+- WebGPU reader: fixed a crash when rotating the device while a page was rendering. The renderer could submit a frame to a window the system was tearing down mid-rotation, killing the app with an abort in the GPU driver (SIGABRT in `GPUQueue_submit`). Frames are now drained and gated during surface teardown, so rotation only relayouts the reader.
