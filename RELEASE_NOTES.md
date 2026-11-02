@@ -15,6 +15,8 @@ files moved. See .github/scripts/release_notes.py.
 
 ### Improve
 
+- **Extension updates through the Shizuku installer register immediately.** The install session now asks Android to skip its package-verification step (the Play Protect consult), which previously held every update for 5-10 seconds before the app could see it — exactly what `pm install --skip-verification` does for shell installs. First-time installs are still scanned by the platform, by its own rule; use the Private installer if you also want those to register instantly.
+
 ### Fix
 
 - WebGPU reader: fixed a crash when rotating the device while a page was rendering. The renderer could submit a frame to a window the system was tearing down mid-rotation, killing the app with an abort in the GPU driver (SIGABRT in `GPUQueue_submit`). Frames are now drained and gated during surface teardown, so rotation only relayouts the reader.

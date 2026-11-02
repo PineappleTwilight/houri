@@ -81,10 +81,14 @@ class ShellInterface : IShellInterface.Stub() {
                 val installFlags = this::class.java.getField("installFlags")
                 installFlags.set(
                     this,
-                    installFlags.getInt(this) or REPLACE_EXISTING_INSTALL_FLAG,
+                    installFlags.getInt(this) or REPLACE_EXISTING_INSTALL_FLAG or SKIP_VERIFICATION_INSTALL_FLAG,
                 )
             } catch (e: ReflectiveOperationException) {
-                Log.w("ShellInterface", "Unable to set installFlags via reflection; continuing without REPLACE_EXISTING_INSTALL_FLAG", e)
+                Log.w(
+                    "ShellInterface",
+                    "Unable to set installFlags via reflection; continuing without REPLACE_EXISTING/SKIP_VERIFICATION flags",
+                    e,
+                )
             }
 
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -199,6 +203,18 @@ class ShellInterface : IShellInterface.Stub() {
     }
 }
 
-// Constant hidden from the SDK
+// Constants hidden from the SDK
 // https://cs.android.com/android/platform/superproject/main/+/512046e84bcc51cc241bc6599f83ab345e93ab12:frameworks/base/core/java/android/content/pm/PackageManager.java;l=1682-1689
 private const val REPLACE_EXISTING_INSTALL_FLAG = 0x00000002
+
+// Skip the package-verification consult (Play Protect on GMS devices) for this session. The
+// session is created as shell (uid 2000), so PackageManagerService.createSessionInternal keeps
+// this flag (it is only stripped for non-shell callers), and VerifyingSession then skips
+// verification for an update of an existing, non-debuggable package - the same rule
+// `pm install --skip-verification` follows. Fresh installs are always verified, regardless of
+// this flag. Without it every update waits for the verifier to answer, or for the verification
+// timeout (10s), which is the multi-second gap between committing an update and the app seeing
+// PACKAGE_REPLACED. Signature continuity on update is still enforced by the standard install
+// scan, independent of the verifier consult.
+// https://cs.android.com/android/platform/superproject/main/+/main:frameworks/base/services/core/java/com/android/server/pm/VerifyingSession.java
+private const val SKIP_VERIFICATION_INSTALL_FLAG = 0x00080000
