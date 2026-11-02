@@ -12,4 +12,6 @@ files moved. See .github/scripts/release_notes.py.
 
 ### Improve
 
+- **Extension updates through the Shizuku installer register immediately.** The install session now asks Android to skip its package-verification step (the Play Protect consult), which previously held every update for 5-10 seconds before the app could see it — exactly what `pm install --skip-verification` does for shell installs. First-time installs are still scanned by the platform, by its own rule; use the Private installer if you also want those to register instantly.
+
 ### Fix
