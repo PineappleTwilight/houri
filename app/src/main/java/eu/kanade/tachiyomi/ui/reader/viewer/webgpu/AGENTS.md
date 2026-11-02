@@ -628,6 +628,7 @@ above — a type mismatch that a compiler will not catch.
 | `DecodeTrace STALL` | The watchdog saw a page past its stage deadline. The worker cannot report its own stall. |
 | `Device not available` / blank pages after backgrounding | Device loss; check the recovery path above, not the page. |
 | `F/libc Fatal signal 11 (SIGSEGV), ... fault addr 0x0 ... (WebGPU-Render-T)` with `Java_androidx_webgpu_GPUQueue_submit` above `submitAndRelease` in the tombstone | Device loss landed **mid-frame**: `render()` passed its entry `isAvailable` gate, then the draw suspended (tile generation), and the loss invalidated the native queue before `submitAndRelease`. Submitting on the dead handle is a null-deref inside `libwebgpu_c_bundled` that kills the process — no Kotlin exception can catch it. `render()` re-checks `isAvailable` immediately before the submit and drops the frame; the residual recheck→JNI window cannot be closed from Kotlin (UNVERIFIED how wide). Same rule as `cleanup()`: once the device is lost, nothing drives its objects. |
+| `F/libc Fatal signal 6 (SIGABRT), code -1 (SI_QUEUE) ... (WebGPU-Render-T)` at `Java_androidx_webgpu_GPUQueue_submit`, preceded by a barrage of `GraphicBufferAllocator: Failed to allocate (4 x 4) layerCount 1 format 59 usage b00: 7` / `AHardwareBuffer ... failed` | **Rotation landed while a frame was in flight.** `ReaderActivity` declares no `configChanges`, so rotating recreates the activity; Compose's `dispatchSurfaceDestroyed` cancels the render job but does not wait for it, and the framework dismantles the window — its BufferQueue and every gralloc buffer behind the swapchain images (the format-59 BLOB failures) — as soon as the surfaceDestroyed callbacks return. A cancellation only lands at a suspension point, so a frame already past its last one (the fast tile path suspends only while generating) ran its whole `render` tail — submit and present — into that teardown, and the bundled Dawn aborted inside the submit. Fixed library-side: `ViewerSurface` registers `Surface.onDestroyed` (which runs on main *before* Compose cancels, while the framework is still holding the teardown off) and `WebGpuRenderer.detachSurface` sets a `surfaceDetached` gate plus drains the in-flight frame on the render mutex before returning. If it ever reappears, check that the destroy callback registration survived and that `render()` still gates on `surfaceDetached` at entry and at the submit. |
 | `device lost reason=1: CreateAndroidSurfaceKHR failed with VK_ERROR_NATIVE_WINDOW_IN_USE_KHR`, preceded by `BufferQueueProducer ... connect: already connected` and `vulkan: native_window_api_connect() failed` | A **second** swapchain was created on a window the old one still owned. Dawn can defer `vkDestroySurfaceKHR` past `close()`, so recovery must drop the old `GPUSurface` *and* release the retained `ANativeWindow` (`NativeWindow.release`) **before** it builds the replacement — see `recoverFromDeviceLoss`. The `SurfaceTexture-0-…` name means the TextureView path (API < 34), where the window is a `SurfaceTexture`'s BufferQueue. **If it still appears on a current build, the surface-teardown pump failed — see the landmine below.** |
 | `recovery failed (consecutive: N, next attempt in Xms)` | A recovery produced no usable device; the library ladder is escalating. Consecutive counts reset only after a device survives 15 s. Each failed recovery used to also leak a whole Dawn device (no finalizer on the wrapper) — retired devices are freed one recovery cycle later now (`destroyRetired`), so a persistently climbing `consecutive:` with native memory growth is the trace to send. |
 | `recovery deferred Xs (consecutive failures: N)` | A recovery attempt arrived inside the ladder's cooldown and was refused without touching the GPU. Normal while the ladder is escalating; a fresh loss event or a stable device resets it. |
@@ -703,6 +704,21 @@ line, for instance, does not appear anywhere in the current tree.
   suspending step inside a frame must re-assert the device is alive first — and never add one
   that assumes the entry gate still holds.** UNVERIFIED: the window between the recheck and the
   JNI call itself remains; only a native-side guard can close it.
+- **The platform surface dies under a mid-flight frame, and Compose does not stop the frame
+  for it.** Compose's `dispatchSurfaceDestroyed` invokes the `Surface.onDestroyed` hooks first
+  and *then* cancels the render job — without waiting for it — while the framework dismantles
+  the window (BufferQueue and every gralloc buffer behind the swapchain images) as soon as the
+  callbacks return. Cancellation only lands at a suspension point, so a frame past its last
+  one (the fast tile path suspends only while generating) submitted and presented into a
+  window that was being freed underneath it: the rotation SIGABRT inside `GPUQueue_submit`,
+  preceded by the format-59 BLOB gralloc failure barrage. The library now treats the destroy
+  callback as the last wait before teardown: `WebGpuRenderer.detachSurface` (wired from
+  `ViewerSurface`'s `Surface.onDestroyed`, registered before the host block's first
+  suspension) gates new frames and drains the in-flight one on the render mutex under a
+  bounded timeout before returning, and `render()` re-checks `surfaceDetached` at the submit —
+  the same point-in-time rule as the device check above. **Rule: the framework only waits for
+  the surfaceDestroyed callbacks to return, so anything that must not race the teardown has to
+  be made true inside one.**
 - **Never assume a queued page reached the loader.** `HttpPageLoader`'s collector is
   `.filter { it.status == Page.State.Queue }`, so offering a page in any other state is a
   silent no-op — no log, no work. Anything that re-offers a page must set `Queue` itself.
