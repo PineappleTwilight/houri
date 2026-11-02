@@ -89,7 +89,22 @@ class TwoPaneSettingsSceneStrategy<T : Any>(val isTabletUi: Boolean) : SceneStra
 
         val detailEntry =
             entries.lastOrNull()?.takeUnless { it.metadata.contains(TwoPaneSettingsScene.ListKey) } ?: return null
-        val listEntry = entries.findLast { it.metadata.contains(TwoPaneSettingsScene.ListKey) } ?: return null
+        val listEntryIndex = entries.indexOfLast { it.metadata.contains(TwoPaneSettingsScene.ListKey) }
+        val listEntry = entries.getOrNull(listEntryIndex) ?: return null
+
+        // KMK --> System back pops the stack down to the scene's previousEntries: one press pops
+        // entries.size - previousEntries.size entries (NavigationBackHandler repeats onBack that
+        // many times, and NavDisplay's default pops one per call). dropLast(2) is only correct
+        // while the detail is the category sitting directly beside the list entry - back then
+        // leaves the settings hub entirely. But when a sub-screen is pushed on top of the
+        // category (debug menu, licenses, ...), the category lives BETWEEN the list and the
+        // detail, and dropping the last two swallowed the sub-screen AND the category, landing
+        // the stack on the bare SettingsRoute list - no list+detail pair, so the tablet UI
+        // collapsed into the phone list layout. When anything sits between the list entry and
+        // the top, drop only that top entry so a back restores [list, category] and the two-pane
+        // scene; the root pair keeps its drop-both exit behaviour. KMK <--
+        val previousEntries =
+            if (listEntryIndex == entries.size - 2) entries.dropLast(2) else entries.dropLast(1)
 
         // We use the list's contentKey to uniquely identify the scene.
         // This allows the detail panes to be animated in and out by the scene, rather than
@@ -98,7 +113,7 @@ class TwoPaneSettingsSceneStrategy<T : Any>(val isTabletUi: Boolean) : SceneStra
 
         return TwoPaneSettingsScene(
             key = sceneKey,
-            previousEntries = entries.dropLast(2),
+            previousEntries = previousEntries,
             firstEntry = listEntry,
             secondEntry = detailEntry,
         )
