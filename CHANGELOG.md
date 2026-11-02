@@ -37,6 +37,19 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 - Fix app not reading `tachiyomix.extensionLib` extension metadata ([@AntsyLich](https://github.com/AntsyLich)) ([#3545](https://github.com/mihonapp/mihon/pull/3545), [#3559](https://github.com/mihonapp/mihon/pull/3559))
 - Fix reader navigator slider steps not updating after changing chapter ([@AntsyLich](https://github.com/AntsyLich)) ([#3549](https://github.com/mihonapp/mihon/pull/3549))
 
+## [v1.25.2] - 2026-11-02
+### New
+- **Downloaded & cached content** screen (More → Data and storage): every download on disk whose entry is not in your library is now listed — grouped by source, with chapter count and disk size — and can be deleted per chapter, per entry, or all at once. Entries whose source extension is gone show as folders; merge children are excluded so a library merge's content is never listed.
+- **Chapter cache retention**: a new setting drops cached chapters once unread for a chosen time (12 hours to 30 days; default off). Reading a chapter resets its timer, and the new discovery screen shows each cached chapter's live countdown — or "kept until space is needed" when retention is off.
+### Improve
+- **Extension updates through the Shizuku installer register immediately.** The install session now asks Android to skip its package-verification step (the Play Protect consult), which previously held every update for 5-10 seconds before the app could see it — exactly what `pm install --skip-verification` does for shell installs. First-time installs are still scanned by the platform, by its own rule; use the Private installer if you also want those to register instantly.
+### Fix
+- WebGPU reader: fixed a crash when rotating the device while a page was rendering. The renderer could submit a frame to a window the system was tearing down mid-rotation, killing the app with an abort in the GPU driver (SIGABRT in `GPUQueue_submit`). Frames are now drained and gated during surface teardown, so rotation only relayouts the reader.
+- Fixed a native crash on the WebGPU reader (abort `JNI ERROR (app bug): accessed deleted Global`, seconds after a black screen following a device loss): a device retired by the recovery ladder could still carry a pending driver-callback record, and freeing its wrapper deleted a reference that record was later marshalled through when the next frame was submitted. Retired devices now free their GPU memory without dropping that reference, and stale callback dispatches are ignored instead of driving spurious recoveries.
+- Tablet: pressing the device back button on settings sub-screens opened from the two-pane detail (debug menu, licenses, and similar) no longer collapses the two-pane view to the phone layout
+- The debug menu in Settings → Advanced shows its back arrow again when opened from a tablet's two-pane detail
+
+
 ## [v1.25.1] - 2026-11-01
 ### New
 - Scope the library list (CSV) export to specific categories: the export dialog now lists your categories below the column options, and only entries in the checked ones are written — including `Default` for entries in no category. Leave everything checked to export the whole library as before.
