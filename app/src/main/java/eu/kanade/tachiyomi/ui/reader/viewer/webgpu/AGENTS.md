@@ -629,7 +629,7 @@ above — a type mismatch that a compiler will not catch.
 | `Device not available` / blank pages after backgrounding | Device loss; check the recovery path above, not the page. |
 | `F/libc Fatal signal 11 (SIGSEGV), ... fault addr 0x0 ... (WebGPU-Render-T)` with `Java_androidx_webgpu_GPUQueue_submit` above `submitAndRelease` in the tombstone | Device loss landed **mid-frame**: `render()` passed its entry `isAvailable` gate, then the draw suspended (tile generation), and the loss invalidated the native queue before `submitAndRelease`. Submitting on the dead handle is a null-deref inside `libwebgpu_c_bundled` that kills the process — no Kotlin exception can catch it. `render()` re-checks `isAvailable` immediately before the submit and drops the frame; the residual recheck→JNI window cannot be closed from Kotlin (UNVERIFIED how wide). Same rule as `cleanup()`: once the device is lost, nothing drives its objects. |
 | `device lost reason=1: CreateAndroidSurfaceKHR failed with VK_ERROR_NATIVE_WINDOW_IN_USE_KHR`, preceded by `BufferQueueProducer ... connect: already connected` and `vulkan: native_window_api_connect() failed` | A **second** swapchain was created on a window the old one still owned. Dawn can defer `vkDestroySurfaceKHR` past `close()`, so recovery must drop the old `GPUSurface` *and* release the retained `ANativeWindow` (`NativeWindow.release`) **before** it builds the replacement — see `recoverFromDeviceLoss`. The `SurfaceTexture-0-…` name means the TextureView path (API < 34), where the window is a `SurfaceTexture`'s BufferQueue. **If it still appears on a current build, the surface-teardown pump failed — see the landmine below.** |
-| `recovery failed (consecutive: N, next attempt in Xms)` | A recovery produced no usable device; the library ladder is escalating. Consecutive counts reset only after a device survives 15 s. Each failed recovery used to also leak a whole Dawn device (no finalizer on the wrapper) — retired devices are freed one recovery cycle later now (`destroyRetired`), so a persistently climbing `consecutive:` with native memory growth is the trace to send. |
+| `recovery failed (consecutive: N, next attempt in Xms)` | A recovery produced no usable device; the library ladder is escalating. Consecutive counts reset only after a device survives 15 s. Each failed recovery used to also leak a whole Dawn device (no finalizer on the wrapper) — retired devices are destroyed one recovery cycle later now (`destroyRetired`, with `destroy()` alone; `close()` on a retired device corrupts a still-pending loss record), so a persistently climbing `consecutive:` with native memory growth is the trace to send. |
 | `recovery deferred Xs (consecutive failures: N)` | A recovery attempt arrived inside the ladder's cooldown and was refused without touching the GPU. Normal while the ladder is escalating; a fresh loss event or a stable device resets it. |
 | `recovery gave up after N consecutive failures` | The ladder stopped self-retrying. The reader stays on a dead device until a *new* device-loss event arrives (which restarts the ladder) or the viewer is recreated. Everything app-side keeps working; only WebGPU draws are parked. |
 | `Transition ensureTextures clamped WxH -> W'xH'` | The device's `maxTextureDimension2D` is below 8192 (4096 on PowerVR-class Compatibility-mode adapters) and the transition cache was sized for a larger surface — now clamped so the turn renders. Before the clamp the symptom was `ensureTextures create failed` **every page turn, for the whole session**. |
@@ -692,6 +692,19 @@ line, for instance, does not appear anywhere in the current tree.
   (see `onDispatcher`), so the safe free point is one full cycle later, under the render mutex.
   Freeing at reassignment time or from an arbitrary thread risks pulling the ground out from a
   resuming continuation.
+  **And that free is `destroy()`, never `close()`:** the androidx.webgpu glue constructs its
+  callback runnables *at dispatch time* from the global refs it holds for the wrapper —
+  `DeviceLostCallbackRunnable` is built with `(callback, GPUDevice, …)` when Dawn flushes a
+  pending loss record, which can be long after the device was parked (nothing drives a parked
+  device, so its record rides until a later command flushes it). `close()` on a retired device
+  deleted those globals out from under the pending record, and the next frame's `finish()` —
+  which pumps the callback queue — aborted in `NewObjectV` with ART's
+  `JNI ERROR (app bug): accessed deleted Global` (field: double device loss in one pressure
+  era, Multilaser M8_4G / Android 11; tombstone: `submitAndRelease` → `finish$default` →
+  `NewObjectV`). `destroy()` frees the GPU memory that fed the loss loop while the wrapper's
+  global stays alive for any late dispatch, and the submodule's stale-fire guard keeps that
+  dispatch from reaching the recovery ladder. `Release.kt` deliberately defines no
+  `GPUDevice.destroyAndRelease()`.
 - **`render()`'s `isAvailable` gate is a point-in-time check, not a lock.** The gate runs once
   at entry, then the draw suspends inside `fn` (tile generation waits on it) — a device loss
   landing in that window invalidates every device-bound handle *before* the frame's

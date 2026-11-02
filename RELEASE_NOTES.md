@@ -13,3 +13,5 @@ files moved. See .github/scripts/release_notes.py.
 ### Improve
 
 ### Fix
+
+- Fixed a native crash on the WebGPU reader (abort `JNI ERROR (app bug): accessed deleted Global`, seconds after a black screen following a device loss): a device retired by the recovery ladder could still carry a pending driver-callback record, and freeing its wrapper deleted a reference that record was later marshalled through when the next frame was submitted. Retired devices now free their GPU memory without dropping that reference, and stale callback dispatches are ignored instead of driving spurious recoveries.
