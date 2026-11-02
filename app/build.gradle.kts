@@ -38,8 +38,8 @@ android {
         applicationId = "app.houri"
 
         // These need to be updated for every new release that should be automatically pushed
-        versionCode = 216
-        versionName = "1.25.1"
+        versionCode = 217
+        versionName = "1.25.2"
 
         buildConfigField("String", "COMMIT_COUNT", "\"${getCommitCount()}\"")
         buildConfigField("String", "COMMIT_SHA", "\"${getGitSha()}\"")
