@@ -57,7 +57,17 @@ internal fun WebGpuViewer.startDecodeWorker() {
 
                     if (!shouldProcess) {
                         synchronized(lock) {
-                            if (pageInCache(page) && page.state == PageState.DECODING) {
+                            // KMK --> The reset must not be gated on the page still being cached.
+                            // The invariant is "DECODING has a worker on it", and this worker is
+                            // leaving either way. A page evicted between its queue insert and this
+                            // pop kept DECODING - queueForDecode reads that as in-flight and
+                            // refuses to re-queue the shell when it re-enters the cache, so the
+                            // page could not decode again until the stuck-page sweep happened to
+                            // notice. An evicted shell is otherwise unreachable except through a
+                            // stale queue entry, and for exactly that re-entry this reset is what
+                            // makes a later queue call work.
+                            // KMK <--
+                            if (page.state == PageState.DECODING) {
                                 page.state = PageState.IDLE
                             }
                         }
@@ -134,7 +144,10 @@ internal fun WebGpuViewer.startDecodeWorker() {
                         recordDecodeOutcome(page, trace.outcome ?: "unfinished")
                         unregisterActiveDecode(trace)
                         synchronized(lock) {
-                            if (pageInCache(page) && page.state == PageState.DECODING) {
+                            // KMK --> Unconditional, same as the skip path above: a page evicted
+                            // mid-decode must not keep DECODING once its worker is gone.
+                            // KMK <--
+                            if (page.state == PageState.DECODING) {
                                 page.state = PageState.IDLE
                             }
                         }
