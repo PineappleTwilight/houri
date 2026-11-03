@@ -1065,14 +1065,25 @@ class ReaderViewModel(
             (hasExtraPage && readerChapter.pages?.lastIndex?.minus(1) == pageIndex)
         // SY <--
 
-        if (!incognitoMode && page.status !is Page.State.Error) {
+        // KMK --> The position write no longer depends on the page having loaded. The viewer
+        // reports the page the user scrolled past; a failed load does not change where they are.
+        // The WebGPU continuous reader in particular scrolls straight through pages its stuck-page
+        // ladder has permanently given up on (a strip whose segment cache file was evicted, a
+        // network hiccup), so gating this write on Page.State.Error silently dropped every
+        // crossing over a failed page - and when it was a chapter's last page, the chapter never
+        // completed, the manga details screen resumed a chapter (or several) behind, and its
+        // chapter list stayed stale until some later successful write landed. Only the completion
+        // side-effects stay gated on the page having rendered: a chapter whose last page never
+        // displayed must not count as read.
+        val pageFailedToLoad = page.status is Page.State.Error
+        if (!incognitoMode) {
             // Written in the coordinates the list will have on the next open, not the ones it has
             // now: a split shifted every position after it, and the list that survives the close is
             // the un-split one. pageIndex stays above because everything else here - the progress
             // display, requestedPage, and the read check below - is about the list as it stands.
             readerChapter.chapter.last_page_read = readerChapter.savedIndexOf(page)
 
-            if (reachedLastPage) {
+            if (reachedLastPage && !pageFailedToLoad) {
                 updateChapterProgressOnComplete(readerChapter)
 
                 // SY -->

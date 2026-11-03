@@ -415,6 +415,24 @@ evidence:
 > SavedStateHandle, DB, position store — says which list its coordinate belongs to; `last_page_read`
 > is the one written in the coordinates a fresh list actually rebuilds.
 
+**Progress writes do not depend on the page's load state.** `ReaderViewModel.updateChapterProgress`
+used to skip its entire `last_page_read` write while `page.status is Page.State.Error`. Continuous
+mode scrolls *through* such pages — the stuck-page ladder leaves `GONE` shells as `ErrorPage`s on
+long strips (evicted segment cache, network hiccup), and nothing stops the camera at them — so every
+crossing over a failed page silently dropped its write. A chapter crossed past its last page never
+turned `read`, the manga details screen resumed a chapter (or several) behind, and its chapter list
+stayed stale until some later successful write happened to land — "spotty", because it only showed on
+the crossings unlucky enough to straddle failed pages. The write is now unconditional (incognito
+still writes nothing); only the completion side-effects (`updateChapterProgressOnComplete`, the read
+sync trigger) stay gated on the page having rendered.
+
+**In continuous mode, `onPageChange` resolves what the strip actually showed** (`continuousPage(delta)`,
+the same window/chain walk the render used). It previously re-walked the chapter chain independently,
+which can disagree with the strip at a chapter boundary: the strip serves a window-cached slot, while
+a fresh link over an un-loaded next chapter returns null and the walk aborts — the strip keeps
+moving, and every further crossing is reported from a page the reader is no longer on, compounding
+the lag. The walk is kept in paged mode (deltas > 1 there; continuous only ever fires ±1).
+
 **Read-through only advances while real scrolling happens** (KMK island in submodule
 `ImageViewerContinuousState.kt`; port of upstream `92be54d`). `onPageScrolledThrough` guards the
 `last_page_read`/position-store writes on this path, and its ratchet computed from walk geometry —
@@ -637,6 +655,7 @@ above — a type mismatch that a compiler will not catch.
 | `FilterChain acquire clamped WxH -> W'xH'` | The same device cap reached through the filter pool. Before the clamp, `beginFrame`'s catch silently disabled every filter for the rest of the session. |
 | Blank/garbage page in dual-page mode only | Check `spreadPage` lifecycle — see landmines. |
 | Pages decode then vanish when scrolling back | Eviction. Check `isOnScreen` immunity and `pageDistance` anchoring. |
+| Saved position / read flags lag behind actual reading — by pages, or whole chapters; the Manga Details screen updates only after leaving and re-entering it | The reader's per-crossing progress write in `ReaderViewModel.updateChapterProgress` used to be gated on `page.status !is Page.State.Error`, and continuous mode scrolls straight through pages the stuck-page ladder has given up on (`GONE` → `ErrorPage`): every crossing over such a page dropped its write, and a chapter crossed past its last page never turned `read`. The write no longer depends on the page's load state — only the completion side-effects do. If writes look correct but still lag, check the continuous `onPageChange` walk resolving what the strip actually showed (see *Reading-position restore*). |
 | Same page stuck forever, no ErrorPage | `wantedByRender` is still set and `imagePage` is still a `ProgressPage` — the sweep only sees that one shape. |
 
 ## LOG TAGS / GREPS

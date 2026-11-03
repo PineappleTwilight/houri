@@ -1134,12 +1134,26 @@ open class WebGpuViewer(
                 // We need to update currentPage to match that.
                 val current = currentPage ?: return@onPageChange
 
-                // Navigate the same way fetchPage does
-                var page = current
-                val step = if (delta > 0) 1 else -1
-                repeat(abs(delta)) {
-                    page = nextPage(page, step) ?: return@onPageChange
+                // KMK --> In continuous mode, resolve the crossing through the strip's own
+                // window/chain - continuousPage(delta) is exactly what the render walk asked for
+                // when it moved, so the reported page is by construction the page the strip drew.
+                // The independent chain walk below could disagree with the strip at a chapter
+                // boundary: the strip serves a window-cached slot, while a fresh link over an
+                // un-loaded next chapter returns null, the walk aborts, the strip keeps moving -
+                // and every further crossing is reported from a page the reader is no longer on,
+                // which lagged the saved position by whole chapters. Paged mode keeps the walk
+                // (deltas there can exceed 1; continuous only ever fires ±1).
+                val page = if (isContinuous) {
+                    continuousPage(delta) ?: return@onPageChange
+                } else {
+                    var p = current
+                    val step = if (delta > 0) 1 else -1
+                    repeat(abs(delta)) {
+                        p = nextPage(p, step) ?: return@onPageChange
+                    }
+                    p
                 }
+                // KMK <--
 
                 currentPage = page
                 // KMK --> Report the spread's lastmost page, not the anchor.

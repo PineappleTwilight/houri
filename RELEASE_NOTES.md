@@ -13,3 +13,5 @@ files moved. See .github/scripts/release_notes.py.
 ### Improve
 
 ### Fix
+
+- **WebGPU reader:** fixed reading position and read-state lagging behind actual progress — sometimes by whole chapters. Progress is now saved even when a page's load has failed, and the WebGPU reader reports the exact page its scroll actually reached, so reopening a manga resumes where you left off and the Manga Details screen reflects it immediately.
