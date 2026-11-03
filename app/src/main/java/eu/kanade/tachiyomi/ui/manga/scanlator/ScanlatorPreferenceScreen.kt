@@ -154,7 +154,17 @@ private fun PriorityTab(
     val dragList = remember { state.orderedScanlators.toMutableStateList() }
     val reorderableState = rememberReorderableLazyListState(listState) { from, to ->
         if (!mergeEnabled) return@rememberReorderableLazyListState
-        dragList.apply { add(to.index, removeAt(from.index)) }
+        // KMK --> from.index/to.index are ABSOLUTE LazyColumn indexes and include the
+        // auto-priority/merge-off note item above the entries, so indexing dragList with them
+        // shifts every move one row off and overruns its last row (data size N has max index
+        // N-1): dragging the last entry upward crashed with IndexOutOfBoundsException
+        // (index: 7, size: 7). Resolve positions by stable item key instead, as
+        // CategoryScreen/MigrationConfigScreen do; guard -1 for hovering the note item,
+        // which is not an entry.
+        val fromEntry = dragList.indexOfFirst { it.name == from.key }
+        val toEntry = dragList.indexOfFirst { it.name == to.key }
+        if (fromEntry == -1 || toEntry == -1) return@rememberReorderableLazyListState
+        dragList.apply { add(toEntry, removeAt(fromEntry)) }
         model.setPriority(dragList.map { it.name })
     }
     LaunchedEffect(state.orderedScanlators) {

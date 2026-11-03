@@ -271,15 +271,29 @@ fun MigrationListItemResult(
     Box(modifier.height(IntrinsicSize.Min)) {
         when (result) {
             MigratingManga.SearchResult.Searching -> {
+                // KMK --> the upstream variant centers the spinner inside a full-cell
+                // fillMaxSize().aspectRatio() box, which stretches to the whole row and leaves
+                // the circle hanging low between the left cover's center and its text block
+                // (and off-cap horizontally on wide cells). Give it the same geometry as the
+                // other two states: a top-aligned cover-ratio slot with the circle centered in
+                // it, so it lines up with the left cover and sits exactly where the match
+                // cover will appear.
                 Box(
                     modifier = Modifier
                         .widthIn(max = 150.dp)
                         .fillMaxSize()
-                        .aspectRatio(MangaCover.Book.ratio),
-                    contentAlignment = Alignment.Center,
+                        .padding(4.dp),
                 ) {
-                    CircularProgressIndicator()
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .aspectRatio(MangaCover.Book.ratio),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        CircularProgressIndicator()
+                    }
                 }
+                // KMK <--
             }
             MigratingManga.SearchResult.NotFound -> {
                 Column(

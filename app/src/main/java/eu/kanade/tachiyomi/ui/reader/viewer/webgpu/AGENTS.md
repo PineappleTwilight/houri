@@ -632,6 +632,8 @@ above — a type mismatch that a compiler will not catch.
 
 | Symptom in logcat | Where to look |
 |---|---|
+| `No surface texture: Error` repeating from the first frame, screen black, no crash | The swapchain is wedged (PowerVR field signature). The renderer now escalates: `swapchain error streak ... recreating the surface` after 30 failed frames, `parking until the surface changes` after 120. If you see endless spam with no recreate line, the escalation was reverted — check `surfaceErrorStreak` in `WebGpuRenderer.render`. |
+| `Decode skipped ... state=DECODING` storms next to an `Evicted`/`Queued` loop | A page evicted between its queue insert and the worker pop kept DECODING — the one state `queueForDecode` refuses to re-queue. Both worker exit paths now reset DECODING unconditionally (the page is out of the worker's hands either way). If it returns, check the skip path's reset in `startDecodeWorker`. |
 | `adapter is "consumed"` | Device is permanently dead. Nothing above it recovers. Check `recreateDeviceLocked` re-requests an adapter. |
 | `WebGPU not available: ...` from `decodeReaderPage` | `requireAvailable()` failed inside an upload. Same root cause; it is a *symptom*, not the bug. |
 | `Re-driving ... last=no-stream` | `page.stream` returned null — the source/loader has no bytes, not a decode failure. Follow `askLoaderToResolvePage`. **If it repeats, the page is probably wedged in LOADING** — see *Page loading*. |
@@ -821,6 +823,19 @@ line, for instance, does not appear anywhere in the current tree.
   path claims bit-identical boundaries and the rasterizer's own rule gives each boundary row to
   exactly one page. **Rule: continuous content is placed from the snapped anchor, never the raw
   one — a second derivation of the same boundary is the seam, whatever paints it.**
+- **The residual seam after the anchor fix: two float expressions for one boundary.** Snapping the
+  anchor removed the half-pixel disagreement, but each page's clip edges were still that page's
+  own derivation (`snapY + centerYOffset + halfB` for the upper page vs the next page's
+  `centerYOffset - halfT`): the same boundary, computed twice, agreeing only to a few ULPs — and a
+  boundary value that lands within that window of a pixel centre again leaves the row to neither
+  page. The fix carries the rule to its end: `captureRenderState` **chains** the device-space
+  edges through the walked band (each page's top edge is the previous page's bottom edge plus the
+  device-space gap; the two walks share one base, the same snapped-anchor expression over
+  `height`), and the tile path takes the chained pair via `TileRenderer.ClipEdges` (uncropped
+  pages only — a crop's content edge is mid-slot and shares no boundary), as do the `Render` slot
+  fill and the placeholder's own placement centre. **Rule: adjacent pages' boundary values must
+  be *assigned* from one another, never computed twice from neighbours' inputs — the only value
+  that cannot disagree is the one both sides share.**
 - **Double-tap opt-out is one flag with a tied shadow** (port of upstream `34fb12b` in the
   library's `ImageViewerState.kt` KMK island). The app sets `doubleTapZoomEnabled`
   (`WebGpuViewer`/`WebGpuViewerContinuous`, from `WebGpuConfig.resolveDoubleTapZoom()`), and the
