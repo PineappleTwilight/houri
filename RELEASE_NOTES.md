@@ -16,4 +16,6 @@ files moved. See .github/scripts/release_notes.py.
 
 ### Fix
 
+- Fix the loading circle shown while the migration list searches a source sitting off-center in the row; it is now aligned with the cover slot where the result will appear
+
 - Fix a crash in the scanlator priority reorder screen when dragging a row while the automatic-priority note is shown (`IndexOutOfBoundsException`), and items no longer move from the wrong position in that state
