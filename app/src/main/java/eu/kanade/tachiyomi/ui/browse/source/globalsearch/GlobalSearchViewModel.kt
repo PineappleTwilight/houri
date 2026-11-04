@@ -11,7 +11,9 @@ import eu.kanade.domain.source.service.SourcePreferences
 import eu.kanade.tachiyomi.extension.ExtensionManager
 import eu.kanade.tachiyomi.source.Source
 import mihon.domain.manga.model.toDomainManga
+import mihon.domain.source.interactor.UpdateMangaFromRemote
 import tachiyomi.core.common.util.lang.launchIO
+import tachiyomi.domain.chapter.interactor.GetChaptersByMangaId
 import tachiyomi.domain.manga.interactor.GetManga
 import tachiyomi.domain.manga.interactor.NetworkToLocalManga
 import tachiyomi.domain.source.service.SourceManager
@@ -27,6 +29,8 @@ class GlobalSearchViewModel(
     getManga: GetManga,
     preferences: SourcePreferences,
     appDispatchers: mihon.core.concurrency.AppDispatchers,
+    updateMangaFromRemote: UpdateMangaFromRemote,
+    getChaptersByMangaId: GetChaptersByMangaId,
 ) : SearchViewModel(
     initialState = State(searchQuery = initialQuery),
     sourcePreferences = sourcePreferences,
@@ -36,6 +40,8 @@ class GlobalSearchViewModel(
     getManga = getManga,
     preferences = preferences,
     appDispatchers = appDispatchers,
+    updateMangaFromRemote = updateMangaFromRemote,
+    getChaptersByMangaId = getChaptersByMangaId,
 ) {
 
     @AssistedFactory

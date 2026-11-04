@@ -142,6 +142,11 @@ class MangaBaka(id: Long) : BaseTracker(id, "MangaBaka"), DeletableTracker {
         return status?.trim()?.equals(FINISHED_STATUS, ignoreCase = true) == true
     }
 
+    // KMK --> The refresh path: an ongoing series' live total is "released so far", so the
+    // caught-up check must ask the series' publishing status, not just compare counts.
+    override suspend fun shouldAutoCompleteOnCatchUp(track: Track): Boolean = isSeriesFinished(track)
+    // KMK <--
+
     override suspend fun bind(
         track: Track,
         hasReadChapters: Boolean,

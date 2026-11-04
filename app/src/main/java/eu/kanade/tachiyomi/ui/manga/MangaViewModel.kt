@@ -13,8 +13,6 @@ import androidx.compose.runtime.produceState
 import androidx.compose.runtime.toMutableStateList
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.util.fastAny
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.flowWithLifecycle
 import androidx.lifecycle.viewModelScope
 import coil3.Image
 import dev.zacsweers.metro.AppScope
@@ -192,7 +190,6 @@ import androidx.compose.runtime.State as RuntimeState
 @AssistedInject
 class MangaViewModel(
     @Assisted private val context: Context,
-    @Assisted private val lifecycle: Lifecycle,
     @Assisted private val mangaId: Long,
     // SY -->
     /** If it is opened from Source then it will auto expand the manga description */
@@ -278,7 +275,6 @@ class MangaViewModel(
     interface Factory : ManualViewModelAssistedFactory {
         fun create(
             context: Context,
-            lifecycle: Lifecycle,
             mangaId: Long,
             isFromSource: Boolean,
             smartSearched: Boolean,
@@ -364,7 +360,6 @@ class MangaViewModel(
 
     private val downloads = ChapterDownloadsController(
         scope = viewModelScope,
-        lifecycle = lifecycle,
         context = context,
         downloadManager = downloadManager,
         filterChaptersForDownload = filterChaptersForDownload,
@@ -459,7 +454,6 @@ class MangaViewModel(
         }
         viewModelScope.launchIO {
             detailsPipeline.details()
-                .flowWithLifecycle(lifecycle)
                 .collectLatest { (manga, chapters, flatMetadata, mergedData) ->
                     // KMK -->
                     bindMangaInfo(manga, successState?.source ?: sourceManager.getOrStub(manga.source))
@@ -497,7 +491,6 @@ class MangaViewModel(
 
         viewModelScope.launchIO {
             getExcludedScanlators.subscribe(mangaId)
-                .flowWithLifecycle(lifecycle)
                 .distinctUntilChanged()
                 .collectLatest { excludedScanlators ->
                     updateSuccessState {
@@ -508,7 +501,6 @@ class MangaViewModel(
 
         viewModelScope.launchIO {
             getAvailableScanlators.subscribe(mangaId)
-                .flowWithLifecycle(lifecycle)
                 .distinctUntilChanged()
                 // SY -->
                 .combine(
@@ -853,7 +845,6 @@ class MangaViewModel(
         return produceState(initialValue = initialManga) {
             getManga.subscribe(initialManga.url, initialManga.source)
                 .filterNotNull()
-                .flowWithLifecycle(lifecycle)
                 .collectLatest { manga ->
                     value = manga
                 }
@@ -1842,7 +1833,6 @@ class MangaViewModel(
                     // KMK <--
                 }
                 // SY <--
-                .flowWithLifecycle(lifecycle)
                 .distinctUntilChanged()
                 .collectLatest { (trackingCount, hasLoggedInTrackers, sequelInputs) ->
                     updateSuccessState {

@@ -3,8 +3,6 @@ package eu.kanade.tachiyomi.ui.manga
 import android.content.Context
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.flowWithLifecycle
 import eu.kanade.presentation.manga.DownloadAction
 import eu.kanade.presentation.manga.components.ChapterDownloadAction
 import eu.kanade.tachiyomi.data.download.DownloadManager
@@ -30,12 +28,12 @@ import tachiyomi.i18n.MR
  * Mirrors download queue status/progress into the chapter list and owns the
  * download-related user actions (start/now/cancel/delete, bulk download presets).
  *
- * Screen-model state is accessed through the provider/callback parameters; flows are
- * lifecycle-aware so mirroring stops when the screen stops.
+ * Screen-model state is accessed through the provider/callback parameters; the download
+ * status/progress flows are collected for the life of the view model (an entry covered by
+ * another route keeps its view model).
  */
 internal class ChapterDownloadsController(
     private val scope: CoroutineScope,
-    private val lifecycle: Lifecycle,
     private val context: Context,
     private val downloadManager: DownloadManager,
     private val filterChaptersForDownload: FilterChaptersForDownload,
@@ -72,7 +70,6 @@ internal class ChapterDownloadsController(
                     }
                 }
                 .catch { error -> logcat(LogPriority.ERROR, error) }
-                .flowWithLifecycle(lifecycle)
                 .collect {
                     withUIContext {
                         updateDownloadState(it)
@@ -91,7 +88,6 @@ internal class ChapterDownloadsController(
                     }
                 }
                 .catch { error -> logcat(LogPriority.ERROR, error) }
-                .flowWithLifecycle(lifecycle)
                 .collect {
                     withUIContext {
                         updateDownloadState(it)

@@ -177,6 +177,12 @@ class SourcePreferences(
     // KMK -->
     fun migrationSmartSearchSingleEntry() = preferenceStore.getBoolean("migration_smart_search_single_entry", false)
 
+    // Fetch each manual-search result's chapter list in the background so the latest chapter
+    // number can be shown on the card. Adds one request per result; shown for results only,
+    // and skipped for entries whose chapters are already known.
+    fun migrationFetchChaptersForResults() = preferenceStore.getBoolean("migration_fetch_chapters_for_results", true)
+    // KMK <--
+
     fun globalSearchPinnedState() = preferenceStore.getEnum(
         Preference.appStateKey("global_search_pinned_toggle_state"),
         SourceFilter.PinnedOnly,

@@ -22,6 +22,7 @@ import eu.kanade.tachiyomi.ui.browse.source.globalsearch.SearchViewModel
 import eu.kanade.tachiyomi.ui.browse.source.globalsearch.SourceFilter
 import eu.kanade.tachiyomi.util.system.LocaleHelper
 import kotlinx.collections.immutable.ImmutableMap
+import kotlinx.collections.immutable.persistentMapOf
 import tachiyomi.domain.manga.model.Manga
 import tachiyomi.presentation.core.components.material.Scaffold
 import tachiyomi.domain.source.model.Source as DomainSource
@@ -110,6 +111,7 @@ fun GlobalSearchScreen(
             onLongClickItem = onLongClickItem,
             // KMK -->
             selection = bulkFavoriteState.selection,
+            latestChapters = state.latestChapters,
             // KMK <--
         )
     }
@@ -126,6 +128,7 @@ internal fun GlobalSearchContent(
     fromSourceId: Long? = null,
     // KMK -->
     selection: List<Manga>,
+    latestChapters: ImmutableMap<Long, Double> = persistentMapOf(),
     // KMK <--
 ) {
     LazyColumn(
@@ -174,6 +177,7 @@ internal fun GlobalSearchContent(
                                     onLongClick = onLongClickItem,
                                     // KMK -->
                                     selection = selection,
+                                    latestChapters = latestChapters,
                                     // KMK <--
                                 )
                             }

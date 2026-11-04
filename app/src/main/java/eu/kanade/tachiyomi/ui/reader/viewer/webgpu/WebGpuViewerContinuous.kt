@@ -93,7 +93,16 @@ class WebGpuViewerContinuous(activity: ReaderActivity, val useGap: Boolean = fal
         // before it finished - reaching a page's top comes a screen too early. Reported on every
         // change, so scrolling back up over it and down again selects that last page again.
         state.onPageScrolledThrough = onScrolledThrough@{ imagePage ->
-            val chapter = (imagePage as? TransitionPage)?.prevChapter ?: return@onScrolledThrough
+            val transition = imagePage as? TransitionPage
+            val chapter = transition?.prevChapter ?: return@onScrolledThrough
+            // KMK --> The paged viewer pops the menu when the reader lands on the terminal
+            // "no more chapters" transition (they are probably going to close it); the strip
+            // never selects that page, so show it when the transition is scrolled through
+            // instead. Idempotent - showMenu is a no-op while the menu is visible.
+            if (transition.nextChapter == null) {
+                activity.showMenu()
+            }
+            // KMK <--
             // Only while the chapter is still the active one. Once the reader has entered the next
             // chapter the same transition page keeps reporting on every pass back over it, and each
             // report ran loadNewChapter again - a fresh ChapterLoader, a read-timer restart and a

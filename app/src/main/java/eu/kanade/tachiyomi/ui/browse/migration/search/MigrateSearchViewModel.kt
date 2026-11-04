@@ -16,6 +16,8 @@ import eu.kanade.tachiyomi.ui.browse.source.globalsearch.SearchViewModel
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import mihon.core.concurrency.AppDispatchers
+import mihon.domain.source.interactor.UpdateMangaFromRemote
+import tachiyomi.domain.chapter.interactor.GetChaptersByMangaId
 import tachiyomi.domain.manga.interactor.GetManga
 import tachiyomi.domain.manga.interactor.NetworkToLocalManga
 import tachiyomi.domain.source.service.SourceManager
@@ -30,6 +32,8 @@ class MigrateSearchViewModel(
     networkToLocalManga: NetworkToLocalManga,
     preferences: SourcePreferences,
     appDispatchers: AppDispatchers,
+    updateMangaFromRemote: UpdateMangaFromRemote,
+    getChaptersByMangaId: GetChaptersByMangaId,
 ) : SearchViewModel(
     initialState = State(),
     sourcePreferences = sourcePreferences,
@@ -39,7 +43,14 @@ class MigrateSearchViewModel(
     getManga = getManga,
     preferences = preferences,
     appDispatchers = appDispatchers,
+    updateMangaFromRemote = updateMangaFromRemote,
+    getChaptersByMangaId = getChaptersByMangaId,
 ) {
+    // KMK --> Show the latest chapter number on migration search results, like the migration list does.
+    // Read live so a toggle change applies to the next search.
+    override val fetchChaptersForResults: Boolean
+        get() = sourcePreferences.migrationFetchChaptersForResults().get()
+    // KMK <--
 
     @AssistedFactory
     @ManualViewModelAssistedFactoryKey

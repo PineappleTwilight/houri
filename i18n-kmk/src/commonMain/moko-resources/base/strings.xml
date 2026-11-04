@@ -304,6 +304,8 @@
     <string name="current_">Current: %1$s</string>
     <string name="migrationConfigScreen_smartSearchSingleEntryTitle">Use smart search</string>
     <string name="migrationConfigScreen_smartSearchSingleEntrySubtitle">If enabled, automatically picks the best match result. Otherwise, shows all search results for manual selection.</string>
+    <string name="migrationConfigScreen_fetchChaptersForResultsTitle">Fetch chapters in manual search</string>
+    <string name="migrationConfigScreen_fetchChaptersForResultsSubtitle">Shows the latest chapter number on migration search results. Adds one request per result.</string>
     <!-- Misc -->
     <string name="job_failed_schedule_update_check">Failed to schedule automatic library update: %s</string>
     <string name="job_failed_schedule_backup_check">Failed to schedule automatic backup: %s</string>

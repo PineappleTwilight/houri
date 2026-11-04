@@ -15,23 +15,29 @@ import kotlinx.collections.immutable.PersistentMap
 import kotlinx.collections.immutable.persistentMapOf
 import kotlinx.collections.immutable.toImmutableMap
 import kotlinx.collections.immutable.toPersistentMap
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import logcat.LogPriority
 import mihon.app.di.globalAppGraph
 import mihon.core.concurrency.AppDispatchers
 import mihon.core.viewmodel.StateViewModel
 import mihon.core.viewmodel.ioCoroutineScope
 import mihon.domain.manga.model.toDomainManga
+import mihon.domain.source.interactor.UpdateMangaFromRemote
 import tachiyomi.core.common.preference.toggle
 import tachiyomi.core.common.util.QuerySanitizer.sanitize
 import tachiyomi.core.common.util.lang.launchIO
+import tachiyomi.core.common.util.system.logcat
+import tachiyomi.domain.chapter.interactor.GetChaptersByMangaId
 import tachiyomi.domain.manga.interactor.GetManga
 import tachiyomi.domain.manga.interactor.NetworkToLocalManga
 import tachiyomi.domain.manga.model.Manga
@@ -47,6 +53,10 @@ abstract class SearchViewModel(
     private val getManga: GetManga,
     private val preferences: SourcePreferences,
     private val appDispatchers: AppDispatchers,
+    // KMK --> Migration-only chapter prefetch (see fetchChaptersForResults).
+    private val updateMangaFromRemote: UpdateMangaFromRemote,
+    private val getChaptersByMangaId: GetChaptersByMangaId,
+    // KMK <--
 ) : StateViewModel<SearchViewModel.State>(initialState) {
 
     private val coroutineDispatcher = appDispatchers.extensions
@@ -278,6 +288,12 @@ abstract class SearchViewModel(
 
                         if (isActive) {
                             updateItem(source, SearchItemResult.Success(matches))
+                            // KMK --> Prefetch chapter lists in the background so the latest
+                            // chapter number appears as it lands. Cancelled with the search.
+                            if (fetchChaptersForResults) {
+                                launch { fetchLatestChapters(matches) }
+                            }
+                            // KMK <--
                         }
                     } catch (e: Exception) {
                         // KMK --> Recorded but never prompted. A global search queries every source
@@ -296,6 +312,36 @@ abstract class SearchViewModel(
                 .awaitAll()
         }
     }
+
+    // KMK -->
+    /**
+     * Migration-only: while the results for a source land, fetch each match's chapter list in the
+     * background so the latest chapter number can be shown. Global search keeps this off.
+     * Entries already known are skipped so re-searches do not re-fetch.
+     */
+    protected open val fetchChaptersForResults: Boolean = false
+
+    private suspend fun fetchLatestChapters(matches: List<Manga>) {
+        matches.forEach { manga ->
+            if (!currentCoroutineContext().isActive) return
+            if (state.value.latestChapters.containsKey(manga.id)) return@forEach
+            try {
+                updateMangaFromRemote(manga = manga, fetchChapters = true)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                logcat(LogPriority.WARN, e) { "Failed to prefetch chapters for ${manga.url}" }
+                return@forEach
+            }
+            val latest = getChaptersByMangaId.await(manga.id).maxOfOrNull { it.chapterNumber }
+            if (latest != null) {
+                mutableState.update {
+                    it.copy(latestChapters = it.latestChapters.put(manga.id, latest))
+                }
+            }
+        }
+    }
+    // KMK <--
 
     private fun updateItems(items: Map<Source, SearchItemResult>) {
         mutableState.update {
@@ -343,6 +389,10 @@ abstract class SearchViewModel(
         val exactAuthorMatch: Boolean = false,
         // KMK <--
         val items: PersistentMap<Source, SearchItemResult> = persistentMapOf(),
+        // KMK --> Latest chapter number per local manga id, filled in the background by the
+        // migration search. Empty on the global search path.
+        val latestChapters: PersistentMap<Long, Double> = persistentMapOf(),
+        // KMK <--
         val dialog: Dialog? = null,
     ) {
         val progress: Int = items.count { it.value !is SearchItemResult.Loading }
