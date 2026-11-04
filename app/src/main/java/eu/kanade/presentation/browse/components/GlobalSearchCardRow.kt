@@ -21,12 +21,14 @@ import eu.kanade.domain.ui.UiPreferences
 import eu.kanade.presentation.library.components.CommonMangaItemDefaults
 import eu.kanade.presentation.library.components.MangaComfortableGridItem
 import eu.kanade.presentation.manga.components.RatioSwitchToPanorama
+import eu.kanade.presentation.util.formatChapterNumber
 import exh.util.isLewd
 import mihon.app.di.globalAppGraph
 import tachiyomi.domain.manga.model.Manga
 import tachiyomi.domain.manga.model.MangaCover
 import tachiyomi.domain.manga.model.asMangaCover
 import tachiyomi.i18n.MR
+import tachiyomi.presentation.core.components.Badge
 import tachiyomi.presentation.core.components.material.padding
 import tachiyomi.presentation.core.i18n.stringResource
 import tachiyomi.presentation.core.util.collectAsState
@@ -39,6 +41,7 @@ fun GlobalSearchCardRow(
     onLongClick: (Manga) -> Unit,
     // KMK -->
     selection: List<Manga>,
+    latestChapters: Map<Long, Double> = emptyMap(),
     // KMK <--
 ) {
     if (titles.isEmpty()) {
@@ -61,6 +64,7 @@ fun GlobalSearchCardRow(
                 onLongClick = { onLongClick(title) },
                 // KMK -->
                 isSelected = selection.fastAny { selected -> selected.id == title.id },
+                latestChapter = latestChapters[it.id],
                 // KMK <--
             )
         }
@@ -78,6 +82,7 @@ internal fun MangaItem(
     // KMK -->
     isSelected: Boolean = false,
     usePanoramaCover: Boolean? = null,
+    latestChapter: Double? = null,
     // KMK <--
 ) {
     // KMK -->
@@ -99,6 +104,20 @@ internal fun MangaItem(
             coverBadgeStart = {
                 InLibraryBadge(enabled = isFavorite)
             },
+            // KMK -->
+            coverBadgeEnd = if (latestChapter != null) {
+                {
+                    Badge(
+                        text = stringResource(
+                            MR.strings.migrationListScreen_latestChapterLabel,
+                            formatChapterNumber(latestChapter),
+                        ),
+                    )
+                }
+            } else {
+                null
+            },
+            // KMK <--
             // KMK -->
             isSelected = isSelected,
             coverRatio = coverRatio,

@@ -93,7 +93,15 @@ class TrackChapter(
                                 val syncChapter = maxOf(chapterNumber, globalMax)
                                 refreshed.copy(lastChapterRead = syncChapter)
                             }
-                            val withCompletion = if (toUpdate.totalChapters > 0 && toUpdate.lastChapterRead >= toUpdate.totalChapters) {
+                            val withCompletion = if (
+                                toUpdate.totalChapters > 0 &&
+                                toUpdate.lastChapterRead >= toUpdate.totalChapters &&
+                                // KMK --> MangaBaka's total is a live "released so far" count, so the
+                                // series' publishing status vetoes the completion when it is still
+                                // releasing. The tracker hook fails closed on any error.
+                                service.shouldAutoCompleteOnCatchUp(toUpdate.toDbTrack())
+                                // KMK <--
+                            ) {
                                 toUpdate.copy(status = service.getCompletionStatus())
                             } else {
                                 toUpdate

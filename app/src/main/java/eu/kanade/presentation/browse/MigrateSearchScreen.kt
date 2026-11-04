@@ -92,6 +92,7 @@ fun MigrateSearchScreen(
             onLongClickItem = onLongClickItem,
             // KMK -->
             selection = bulkFavoriteState.selection,
+            latestChapters = state.latestChapters,
             // KMK <--
         )
     }

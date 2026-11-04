@@ -28,6 +28,7 @@ import eu.kanade.tachiyomi.BuildConfig
 import eu.kanade.tachiyomi.data.updater.AppUpdateChecker
 import eu.kanade.tachiyomi.data.updater.RELEASE_URL
 import eu.kanade.tachiyomi.util.lang.toDateTimestampString
+import eu.kanade.tachiyomi.util.system.copyToClipboard
 import eu.kanade.tachiyomi.util.system.isDebugBuildType
 import eu.kanade.tachiyomi.util.system.isPreviewBuildType
 import eu.kanade.tachiyomi.util.system.isReleaseBuildType
@@ -67,6 +68,7 @@ fun AboutScreen() {
     val backStack = LocalBackStack.current
     var isCheckingUpdates by remember { mutableStateOf(false) }
     var versionTapTimes by remember { mutableStateOf(listOf<Long>()) }
+    val versionTitle = stringResource(MR.strings.version)
 
     Scaffold(
         topBar = { scrollBehavior ->
@@ -89,9 +91,13 @@ fun AboutScreen() {
 
             item {
                 TextPreferenceWidget(
-                    title = stringResource(MR.strings.version),
+                    title = versionTitle,
                     subtitle = getVersionName(withBuildDate = true),
                     onPreferenceClick = {
+                        context.copyToClipboard(
+                            versionTitle,
+                            getVersionName(withBuildDate = true),
+                        )
                         val now = System.currentTimeMillis()
                         val pruned = (versionTapTimes.filter { now - it < 60_000 } + now)
                         versionTapTimes = pruned

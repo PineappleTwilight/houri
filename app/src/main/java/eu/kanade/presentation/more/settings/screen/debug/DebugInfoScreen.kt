@@ -18,15 +18,20 @@ import kotlinx.collections.immutable.persistentListOf
 import kotlinx.coroutines.guava.await
 import mihon.core.navigation.BackupSchemaRoute
 import mihon.core.navigation.WorkerInfoRoute
+import mihon.core.navigation.util.LocalBackButtonVisibility
 import mihon.core.navigation.util.LocalBackStack
 import tachiyomi.i18n.MR
 
 @Composable
 fun DebugInfoScreen() {
     val backStack = LocalBackStack.current
+    val backVisibility = LocalBackButtonVisibility.current
     PreferenceScaffold(
         titleRes = MR.strings.pref_debug_info,
-        onBackPressed = backStack::removeLastOrNull,
+        onBackPressed = {
+            backStack.removeLastOrNull()
+            Unit
+        }.takeIf { backVisibility },
         itemsProvider = {
             listOf(
                 Preference.PreferenceItem.TextPreference(

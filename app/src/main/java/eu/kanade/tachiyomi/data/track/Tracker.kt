@@ -53,6 +53,16 @@ interface Tracker {
 
     suspend fun update(track: Track, didReadChapter: Boolean = false): Track
 
+    /**
+     * Whether reaching the recorded chapter total may mark the entry as completed.
+     *
+     * Defaults to true: for most services `total_chapters` is only known once the series is
+     * finished, so progress equalling the total means the series is done. Services whose total is a
+     * live "released so far" count for ongoing series must override this and consult the service's
+     * publishing status instead.
+     */
+    suspend fun shouldAutoCompleteOnCatchUp(track: Track): Boolean = true
+
     suspend fun bind(track: Track, hasReadChapters: Boolean = false): Track
 
     suspend fun search(query: String): List<TrackSearch>

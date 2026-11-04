@@ -29,7 +29,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
-import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation3.runtime.NavBackStack
 import androidx.navigation3.runtime.NavKey
@@ -170,11 +169,9 @@ fun MangaScreen(
     val isTabletUi = isTabletUi()
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val lifecycleOwner = LocalLifecycleOwner.current
     val screenModel = assistedMetroViewModel<MangaViewModel, MangaViewModel.Factory> {
         create(
             context = context,
-            lifecycle = lifecycleOwner.lifecycle,
             mangaId = mangaId,
             isFromSource = fromSource,
             smartSearched = smartSearchConfig != null,
