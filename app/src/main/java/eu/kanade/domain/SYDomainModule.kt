@@ -83,7 +83,11 @@ class SYDomainModule : InjektModule {
         addFactory { SetSourceCategories(get()) }
         addFactory { GetAllManga(get()) }
         addFactory { GetMangaBySource(get()) }
-        addFactory { DeleteChapters(get()) }
+        // SY --> MangaRepository + ChapterTombstones (no-op on Injekt path; Metro binds the real one)
+        addFactory {
+            DeleteChapters(get(), get(), tachiyomi.domain.chapter.service.ChapterTombstones { })
+        }
+        // SY <--
         addFactory { DeleteMangaById(get()) }
         addFactory { FilterSerializer() }
         addFactory { GetChapterByUrl(get()) }

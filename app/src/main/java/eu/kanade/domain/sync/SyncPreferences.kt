@@ -6,6 +6,8 @@ import dev.zacsweers.metro.SingleIn
 import eu.kanade.domain.sync.models.SyncSettings
 import eu.kanade.tachiyomi.data.sync.SyncManager
 import eu.kanade.tachiyomi.data.sync.models.SyncTriggerOptions
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import tachiyomi.core.common.preference.Preference
 import tachiyomi.core.common.preference.PreferenceStore
 import java.util.UUID
@@ -20,6 +22,27 @@ class SyncPreferences(
     fun lastSyncTimestamp() = preferenceStore.getLong(Preference.appStateKey("last_sync_timestamp"), 0L)
 
     fun lastSyncEtag() = preferenceStore.getString("sync_etag", "")
+
+    // SyncYomi protocol v2 state
+    fun syncCursor() = preferenceStore.getLong(Preference.appStateKey("sync_cursor"), 0L)
+
+    /** Epoch seconds of the start of the last successful sync; the next delta starts here. */
+    fun lastPushedAt() = preferenceStore.getLong(Preference.appStateKey("sync_last_pushed_at"), 0L)
+
+    /** Epoch millis of the last sync that carried the complete library. */
+    fun lastFullSync() = preferenceStore.getLong(Preference.appStateKey("sync_last_full_sync"), 0L)
+    fun fullSyncRequested() = preferenceStore.getBoolean(Preference.appStateKey("sync_full_requested"), false)
+    fun serverSupportsV2() = preferenceStore.getBoolean(Preference.appStateKey("sync_server_supports_v2"), false)
+    fun v2ProbedHost() = preferenceStore.getString(Preference.appStateKey("sync_v2_probed_host"), "")
+    fun pendingDeletedCategoryUids() = preferenceStore.getStringSet(
+        Preference.appStateKey("sync_pending_deleted_category_uids"),
+        emptySet(),
+    )
+    fun pendingDeletedChapterKeys() = preferenceStore.getStringSet(
+        Preference.appStateKey("sync_pending_deleted_chapter_keys"),
+        emptySet(),
+    )
+    private val tombstoneMutex = Mutex()
 
     fun syncInterval() = preferenceStore.getInt("sync_interval", 0)
     fun syncService() = preferenceStore.getInt("sync_service", 0)
@@ -56,6 +79,35 @@ class SyncPreferences(
 
     fun isSyncEnabled(): Boolean {
         return syncService().get() != SyncManager.SyncService.NONE.value
+    }
+
+    private fun isSyncYomiEnabled() = syncService().get() == SyncManager.SyncService.SYNCYOMI.value
+
+    /**
+     * Remembers a deleted category so the next SyncYomi v2 request can send it as a tombstone.
+     */
+    suspend fun rememberDeletedCategory(uid: Long) {
+        if (uid == 0L || !isSyncYomiEnabled()) return
+        tombstoneMutex.withLock {
+            pendingDeletedCategoryUids().set(pendingDeletedCategoryUids().get() + uid.toString())
+        }
+    }
+
+    suspend fun forgetDeletedCategories(uids: Collection<String>) = tombstoneMutex.withLock {
+        pendingDeletedCategoryUids().set(pendingDeletedCategoryUids().get() - uids.toSet())
+    }
+
+    suspend fun rememberDeletedChapters(keys: Collection<String>) {
+        if (keys.isEmpty() || !isSyncYomiEnabled()) return
+        tombstoneMutex.withLock {
+            pendingDeletedChapterKeys().set(pendingDeletedChapterKeys().get() + keys)
+        }
+    }
+
+    suspend fun forgetDeletedChapters(keys: Collection<String>) = tombstoneMutex.withLock {
+        val pending = pendingDeletedChapterKeys().get()
+        val remaining = pending - keys.toSet()
+        if (remaining.size != pending.size) pendingDeletedChapterKeys().set(remaining)
     }
 
     fun getSyncSettings(): SyncSettings {

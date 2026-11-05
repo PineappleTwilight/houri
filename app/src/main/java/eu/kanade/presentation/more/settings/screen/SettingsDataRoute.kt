@@ -901,6 +901,8 @@ data object SettingsDataRoute : NavKey, SearchableRoute {
                         val trimmedValue = newValue.trim()
                         val modifiedValue = trimmedValue.trimEnd { it == '/' }
                         syncPreferences.clientHost().set(modifiedValue)
+                        // Force a capabilities re-probe on the next SyncYomi sync.
+                        syncPreferences.v2ProbedHost().set("")
                     }
                     true
                 },

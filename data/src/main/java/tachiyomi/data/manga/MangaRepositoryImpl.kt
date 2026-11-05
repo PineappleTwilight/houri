@@ -326,7 +326,10 @@ class MangaRepositoryImpl(
                     updateStrategy = value.updateStrategy?.let(UpdateStrategyColumnAdapter::encode),
                     calculateInterval = value.fetchInterval?.toLong(),
                     version = value.version,
-                    isSyncing = 0,
+                    // SY -->
+                    lastModifiedAt = null,
+                    isSyncing = null,
+                    // SY <--
                     notes = value.notes,
                     memo = value.memo?.let(MemoColumnAdapter::encode),
                     // KMK -->

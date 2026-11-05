@@ -1,0 +1,16 @@
+-- Sync uploads keyed off favorite_modified_at, but that column stays NULL for library
+-- entries created by backup restore / network insert (only UPDATE OF user_favorite_at
+-- stamped it). Backfill from user_favorite_at and stamp on INSERT going forward.
+
+UPDATE manga
+SET favorite_modified_at = CAST(user_favorite_at / 1000 AS INTEGER)
+WHERE user_favorite_at IS NOT NULL AND favorite_modified_at IS NULL;
+
+CREATE TRIGGER IF NOT EXISTS insert_favorite_modified_at_mangas
+AFTER INSERT ON manga
+WHEN new.user_favorite_at IS NOT NULL AND new.favorite_modified_at IS NULL
+BEGIN
+  UPDATE manga
+  SET favorite_modified_at = strftime('%s', 'now')
+  WHERE id = new.id;
+END;

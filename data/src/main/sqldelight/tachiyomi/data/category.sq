@@ -30,8 +30,14 @@ CREATE TABLE category(
     -- KMK --> Role of a subcategory (author, artist, ...). NULL is unclassified, so no
     -- existing row changes character. Appended last to match migration 65's ALTER, which
     -- can only add a column at the end of the physical table.
-    type INTEGER
+    type INTEGER,
     -- KMK <--
+    -- SY --> SyncYomi protocol v2 identity (appended to match migration 67 ALTER order).
+    uid INTEGER NOT NULL DEFAULT 0,
+    version INTEGER NOT NULL DEFAULT 0,
+    last_modified_at INTEGER NOT NULL DEFAULT 0,
+    is_syncing INTEGER NOT NULL DEFAULT 0
+    -- SY <--
 );
 
 -- Insert system category
@@ -45,9 +51,38 @@ BEGIN SELECT CASE
     END;
 END;
 
+-- SY -->
+CREATE TRIGGER insert_category_uid AFTER INSERT ON category
+BEGIN
+    UPDATE category
+    SET uid = CASE WHEN uid = 0 THEN abs(random()) ELSE uid END,
+        last_modified_at = CASE WHEN last_modified_at = 0 THEN strftime('%s', 'now') ELSE last_modified_at END
+    WHERE id = new.id;
+END;
+
+CREATE TRIGGER update_category_version AFTER UPDATE ON category
+WHEN new.is_syncing = 0 AND (
+    new.name != old.name OR
+    new.`order` != old.`order` OR
+    new.flags != old.flags OR
+    new.hidden != old.hidden OR
+    new.parent_id != old.parent_id OR
+    new.track_status IS NOT old.track_status OR
+    new.update_interval IS NOT old.update_interval OR
+    new.type IS NOT old.type
+)
+BEGIN
+    UPDATE category
+    SET version = version + 1,
+        last_modified_at = strftime('%s', 'now')
+    WHERE id = new.id;
+END;
+-- SY <--
+
 -- Keyed on the primary key, so there is never more than one row to return
 getCategory:
-SELECT id, name, `order`, flags, hidden, parent_id, date_added, date_modified, track_status, update_interval, type
+SELECT id, name, `order`, flags, hidden, parent_id, date_added, date_modified, track_status, update_interval, type,
+    uid, version, last_modified_at, is_syncing
 FROM category
 WHERE id = :id;
 
@@ -64,8 +99,11 @@ date_added,
 date_modified,
 track_status,
 update_interval,
-type
+type,
 -- KMK <--
+-- SY -->
+uid, version, last_modified_at, is_syncing
+-- SY <--
 FROM category
 ORDER BY `order`;
 
@@ -82,8 +120,11 @@ C.date_added,
 C.date_modified,
 C.track_status,
 C.update_interval,
-C.type
+C.type,
 -- KMK <--
+-- SY -->
+C.uid, C.version, C.last_modified_at, C.is_syncing
+-- SY <--
 FROM category C
 JOIN manga_category MC
 ON C.id = MC.category_id
@@ -102,7 +143,8 @@ date_added,
 date_modified,
 track_status,
 update_interval,
-type
+type,
+uid, version, last_modified_at, is_syncing
 FROM category
 WHERE parent_id = :parentId
 ORDER BY `order`;
@@ -119,7 +161,8 @@ date_added,
 date_modified,
 track_status,
 update_interval,
-type
+type,
+uid, version, last_modified_at, is_syncing
 FROM category
 WHERE parent_id = 0
 ORDER BY `order`;
@@ -140,6 +183,37 @@ WHERE parent_id != 0 AND parent_id NOT IN (SELECT id FROM category);
 insert:
 INSERT INTO category(name, `order`, flags, manga_order, hidden, parent_id, type, date_added, date_modified)
 VALUES (:name, :order, :flags, "", :hidden, :parentId, :type, strftime('%s', 'now'), strftime('%s', 'now'));
+
+-- SY --> Sync restore: adopt the server's identity and timestamps without bumping local version.
+insertSync:
+INSERT INTO category(
+    name, `order`, flags, manga_order, hidden, parent_id, type,
+    date_added, date_modified, uid, version, last_modified_at, is_syncing
+)
+VALUES (
+    :name, :order, :flags, "", :hidden, :parentId, :type,
+    strftime('%s', 'now'), strftime('%s', 'now'), :uid, :version, :lastModifiedAt, 1
+);
+
+updateSync:
+UPDATE category SET
+    name = :name,
+    `order` = :order,
+    flags = :flags,
+    hidden = :hidden,
+    parent_id = :parentId,
+    type = :type,
+    uid = :uid,
+    version = :version,
+    last_modified_at = :lastModifiedAt,
+    is_syncing = 1
+WHERE id = :id;
+
+resetIsSyncing:
+UPDATE category
+SET is_syncing = 0
+WHERE is_syncing = 1;
+-- SY <--
 
 delete:
 DELETE FROM category

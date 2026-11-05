@@ -7,9 +7,10 @@ import tachiyomi.domain.track.model.Track
 @Serializable
 data class BackupTracking(
     // in 1.x some of these values have different types or names
-    @ProtoNumber(1) var syncId: Int,
-    // LibraryId is not null in 1.x
-    @ProtoNumber(2) var libraryId: Long,
+    @ProtoNumber(1) var syncId: Int = 0,
+    // LibraryId is not null in 1.x. Default 0 so SyncYomi v2 responses that omit the
+    // field (tracker never set a remote library id) still decode.
+    @ProtoNumber(2) var libraryId: Long = 0,
     @Deprecated("Use mediaId instead", level = DeprecationLevel.WARNING)
     @ProtoNumber(3)
     var mediaIdInt: Int = 0,

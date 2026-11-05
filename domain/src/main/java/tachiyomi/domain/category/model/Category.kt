@@ -25,6 +25,11 @@ data class Category(
     // how every existing row behaves; see [CategoryType].
     val type: Int? = null,
     // KMK <--
+    // SY --> SyncYomi protocol v2 identity
+    val uid: Long = 0,
+    val version: Long = 0,
+    val lastModifiedAt: Long = 0,
+    // SY <--
 ) : Serializable {
 
     val isSystemCategory: Boolean = id == UNCATEGORIZED_ID

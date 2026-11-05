@@ -7,8 +7,9 @@ import java.util.Date
 
 @Serializable
 data class BackupHistory(
-    @ProtoNumber(1) var url: String,
-    @ProtoNumber(2) var lastRead: Long,
+    // Defaults so SyncYomi-rendered backups that omit zero/empty proto3 fields still decode.
+    @ProtoNumber(1) var url: String = "",
+    @ProtoNumber(2) var lastRead: Long = 0,
     @ProtoNumber(3) var readDuration: Long = 0,
 ) {
     fun getHistoryImpl(): History {

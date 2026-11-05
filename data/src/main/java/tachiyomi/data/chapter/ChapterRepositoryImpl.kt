@@ -62,6 +62,10 @@ class ChapterRepositoryImpl(
                         dateFetch = chapter.dateFetch,
                         dateUpload = chapter.dateUpload,
                         version = chapter.version,
+                        // SY -->
+                        lastModifiedAt = 0,
+                        isSyncing = 0,
+                        // SY <--
                         memo = chapter.memo,
                     )
                     val lastInsertId = chapterQueries.selectLastInsertedRowId().executeAsOne()
@@ -99,7 +103,10 @@ class ChapterRepositoryImpl(
                     dateUpload = chapterUpdate.dateUpload,
                     chapterId = chapterUpdate.id,
                     version = chapterUpdate.version,
-                    isSyncing = 0,
+                    // SY -->
+                    lastModifiedAt = null,
+                    isSyncing = null,
+                    // SY <--
                     memo = chapterUpdate.memo?.let(MemoColumnAdapter::encode),
                     // KMK -->
                     bookmarkColor = chapterUpdate.bookmarkColor?.value?.toLong(),

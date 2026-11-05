@@ -24,6 +24,12 @@ BEGIN
     UPDATE manga SET version = version + 1
     WHERE id = new.manga_id AND (SELECT is_syncing FROM manga WHERE id = new.manga_id) = 0;
 END;
+
+CREATE TRIGGER delete_manga_category_update_version AFTER DELETE ON manga_category
+BEGIN
+    UPDATE manga SET version = version + 1
+    WHERE id = old.manga_id AND (SELECT is_syncing FROM manga WHERE id = old.manga_id) = 0;
+END;
 -- SY <--
 
 deleteMangaCategoryByMangaId:

@@ -1,0 +1,85 @@
+-- SyncYomi protocol v2: category sync identity, delta-safe last_modified triggers,
+-- chapter reads no longer bump the manga version, and category removals bump manga version.
+
+-- Category sync columns (uid is the cross-device identity for tombstones).
+ALTER TABLE category ADD COLUMN uid INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE category ADD COLUMN version INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE category ADD COLUMN last_modified_at INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE category ADD COLUMN is_syncing INTEGER NOT NULL DEFAULT 0;
+
+UPDATE category
+SET uid = abs(random()),
+    last_modified_at = CASE WHEN last_modified_at = 0 THEN strftime('%s', 'now') ELSE last_modified_at END
+WHERE id > 0 AND uid = 0;
+
+CREATE TRIGGER IF NOT EXISTS insert_category_uid AFTER INSERT ON category
+BEGIN
+    UPDATE category
+    SET uid = CASE WHEN uid = 0 THEN abs(random()) ELSE uid END,
+        last_modified_at = CASE WHEN last_modified_at = 0 THEN strftime('%s', 'now') ELSE last_modified_at END
+    WHERE id = new.id;
+END;
+
+CREATE TRIGGER IF NOT EXISTS update_category_version AFTER UPDATE ON category
+WHEN new.is_syncing = 0 AND (
+    new.name != old.name OR
+    new.`order` != old.`order` OR
+    new.flags != old.flags OR
+    new.hidden != old.hidden OR
+    new.parent_id != old.parent_id OR
+    new.track_status IS NOT old.track_status OR
+    new.update_interval IS NOT old.update_interval OR
+    new.type IS NOT old.type
+)
+BEGIN
+    UPDATE category
+    SET version = version + 1,
+        last_modified_at = strftime('%s', 'now')
+    WHERE id = new.id;
+END;
+
+-- Chapters are versioned separately in v2; bumping manga version on every read let the
+-- device that read more chapters win all manga-level merges.
+DROP TRIGGER IF EXISTS update_chapter_and_manga_version;
+CREATE TRIGGER update_chapter_and_manga_version AFTER UPDATE ON chapter
+WHEN new.is_syncing = 0 AND (
+    new.user_read != old.user_read OR
+    new.user_bookmark != old.user_bookmark OR
+    new.user_last_page_read != old.user_last_page_read
+)
+BEGIN
+    UPDATE chapter SET version = version + 1
+    WHERE id = new.id;
+END;
+
+-- Removing a manga from a category is a manga-level change and must bump its version.
+CREATE TRIGGER IF NOT EXISTS delete_manga_category_update_version AFTER DELETE ON manga_category
+BEGIN
+    UPDATE manga
+    SET version = version + 1
+    WHERE id = old.manga_id AND (SELECT is_syncing FROM manga WHERE id = old.manga_id) = 0;
+END;
+
+-- Sync restores (is_syncing = 1) and the flag reset afterwards (old.is_syncing = 1) must not
+-- stamp last_modified_at, or every restored row is uploaded straight back by the next delta.
+DROP TRIGGER IF EXISTS update_last_modified_at_mangas;
+CREATE TRIGGER update_last_modified_at_mangas
+AFTER UPDATE ON manga
+FOR EACH ROW
+WHEN new.is_syncing = 0 AND old.is_syncing = 0
+BEGIN
+  UPDATE manga
+  SET last_modified_at = strftime('%s', 'now')
+  WHERE id = new.id;
+END;
+
+DROP TRIGGER IF EXISTS update_last_modified_at_chapters;
+CREATE TRIGGER update_last_modified_at_chapters
+AFTER UPDATE ON chapter
+FOR EACH ROW
+WHEN new.is_syncing = 0 AND old.is_syncing = 0
+BEGIN
+  UPDATE chapter
+  SET last_modified_at = strftime('%s', 'now')
+  WHERE id = new.id;
+END;
