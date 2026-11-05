@@ -40,12 +40,14 @@ CREATE INDEX chapter_remote_url_index ON chapter(remote_url);
 CREATE TRIGGER update_last_modified_at_chapters
 AFTER UPDATE ON chapter
 FOR EACH ROW
+WHEN new.is_syncing = 0 AND old.is_syncing = 0
 BEGIN
   UPDATE chapter
   SET last_modified_at = strftime('%s', 'now')
   WHERE id = new.id;
 END;
 
+-- Chapters are versioned separately in SyncYomi v2; do not bump the manga version on reads.
 CREATE TRIGGER update_chapter_and_manga_version AFTER UPDATE ON chapter
 WHEN new.is_syncing = 0 AND (
     new.user_read != old.user_read OR
@@ -53,13 +55,8 @@ WHEN new.is_syncing = 0 AND (
     new.user_last_page_read != old.user_last_page_read
 )
 BEGIN
-    -- Update the chapter version
     UPDATE chapter SET version = version + 1
     WHERE id = new.id;
-
-    -- Update the manga version
-    UPDATE manga SET version = version + 1
-    WHERE id = new.manga_id AND (SELECT is_syncing FROM manga WHERE id = new.manga_id) = 0;
 END;
 
 -- KMK --> Columns in the table's order, mapper parameters named after them, and the same
@@ -203,7 +200,7 @@ VALUES (
     :mangaId, :url, :name, :scanlator, :chapterNumber,
     :dateUpload, :sourceOrder, :memo, :read, :bookmark,
     :bookmarkColor, :lastPageRead, :dateFetch,
-    0, :version, 0
+    :lastModifiedAt, :version, :isSyncing
 )
 -- Two syncs of the same entry can race; the chapter the other one already stored is skipped
 -- rather than failing the whole batch. (source_id, remote_url) uniqueness on manga does the
@@ -233,6 +230,7 @@ SET manga_id = coalesce(:mangaId, manga_id),
     state_date_fetch = coalesce(:dateFetch, state_date_fetch),
     remote_date_upload = coalesce(:dateUpload, remote_date_upload),
     version = coalesce(:version, version),
+    last_modified_at = coalesce(:lastModifiedAt, last_modified_at),
     is_syncing = coalesce(:isSyncing, is_syncing),
     remote_memo = coalesce(:memo, remote_memo)
 WHERE id = :chapterId;

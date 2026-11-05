@@ -56,9 +56,20 @@ BEGIN
   WHERE id = new.id;
 END;
 
+-- INSERT does not fire UPDATE OF triggers; stamp favorites created via restore/network insert.
+CREATE TRIGGER insert_favorite_modified_at_mangas
+AFTER INSERT ON manga
+WHEN new.user_favorite_at IS NOT NULL AND new.favorite_modified_at IS NULL
+BEGIN
+  UPDATE manga
+  SET favorite_modified_at = strftime('%s', 'now')
+  WHERE id = new.id;
+END;
+
 CREATE TRIGGER update_last_modified_at_mangas
 AFTER UPDATE ON manga
 FOR EACH ROW
+WHEN new.is_syncing = 0 AND old.is_syncing = 0
 BEGIN
   UPDATE manga
   SET last_modified_at = strftime('%s', 'now')
@@ -153,8 +164,8 @@ getAllMangaSourceAndUrl:
 SELECT source_id, remote_url
 FROM manga;
 
--- SY --> Entries the sync services consider changed: a favorite_modified_at is stamped by
--- update_last_favorited_at_mangas whenever favorite state moves.
+-- SY --> Library entries for sync. Houri library membership is user_favorite_at (not the
+-- SY-era favorite_modified_at stamp, which stays NULL for restore/network inserts).
 getMangasWithFavoriteTimestamp:
 SELECT
     id, source_id, remote_url, remote_title, remote_author, remote_artist, remote_description,
@@ -166,7 +177,23 @@ SELECT
     scanlator_priority, blacklisted_chapters, reread_count, rereading, reread_started_at,
     scanlator_range_rules, is_light_novel
 FROM manga
-WHERE favorite_modified_at IS NOT NULL;
+WHERE user_favorite_at IS NOT NULL;
+
+-- Manga (or any of their chapters) modified at or after :since — SyncYomi v2 delta uploads.
+getMangasModifiedSince:
+SELECT
+    M.id, M.source_id, M.remote_url, M.remote_title, M.remote_author, M.remote_artist, M.remote_description,
+    M.remote_genre, M.remote_status, M.remote_cover, M.remote_update_strategy, M.remote_memo,
+    M.user_favorite_at, M.user_notes, M.user_reader_flags, M.user_chapter_flags,
+    M.state_chapter_last_update, M.state_chapter_next_update, M.state_chapter_fetch_interval,
+    M.state_cover_last_modified, M.state_initialized,
+    M.last_modified_at, M.favorite_modified_at, M.version, M.is_syncing,
+    M.scanlator_priority, M.blacklisted_chapters, M.reread_count, M.rereading, M.reread_started_at,
+    M.scanlator_range_rules, M.is_light_novel
+FROM manga M
+WHERE M.user_favorite_at IS NOT NULL
+AND (M.last_modified_at >= :since
+OR EXISTS (SELECT 1 FROM chapter C WHERE C.manga_id = M.id AND C.last_modified_at >= :since));
 -- SY <--
 
 getSourceIdWithFavoriteCount:
@@ -305,7 +332,7 @@ INSERT INTO manga(
     user_favorite_at, user_notes, user_reader_flags, user_chapter_flags,
     state_chapter_last_update, state_chapter_next_update, state_chapter_fetch_interval,
     state_cover_last_modified, state_initialized,
-    last_modified_at, version, scanlator_priority, blacklisted_chapters, reread_count,
+    last_modified_at, version, is_syncing, scanlator_priority, blacklisted_chapters, reread_count,
     rereading, reread_started_at, scanlator_range_rules, is_light_novel
 )
 VALUES (
@@ -314,7 +341,7 @@ VALUES (
     :favoriteAt, :notes, :viewerFlags, :chapterFlags,
     :lastUpdate, :nextUpdate, :calculateInterval,
     :coverLastModified, :initialized,
-    0, :version,
+    :lastModifiedAt, :version, :isSyncing,
     :scanlatorPriority, :blacklistedChapters, :rereadCount,
     :rereading, :rereadStartedAt, :scanlatorRangeRules, :isLightNovel
 );
@@ -344,6 +371,7 @@ UPDATE manga SET
     remote_update_strategy = coalesce(:updateStrategy, remote_update_strategy),
     state_chapter_fetch_interval = coalesce(:calculateInterval, state_chapter_fetch_interval),
     version = coalesce(:version, version),
+    last_modified_at = coalesce(:lastModifiedAt, last_modified_at),
     is_syncing = coalesce(:isSyncing, is_syncing),
     user_notes = coalesce(:notes, user_notes),
     remote_memo = coalesce(:memo, remote_memo),

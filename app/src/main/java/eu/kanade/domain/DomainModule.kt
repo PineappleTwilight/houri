@@ -62,6 +62,7 @@ import tachiyomi.domain.category.interactor.SetSortModeForCategory
 import tachiyomi.domain.category.interactor.SyncCategoriesWithTrackStatus
 import tachiyomi.domain.category.interactor.UpdateCategory
 import tachiyomi.domain.category.repository.CategoryRepository
+import tachiyomi.domain.category.service.CategoryTombstones
 import tachiyomi.domain.chapter.interactor.GetBookmarkedChaptersByMangaId
 import tachiyomi.domain.chapter.interactor.GetChapter
 import tachiyomi.domain.chapter.interactor.GetChapterByUrlAndMangaId
@@ -126,7 +127,10 @@ class DomainModule : InjektModule {
         addFactory { RenameCategory(get()) }
         addFactory { ReorderCategory(get()) }
         addFactory { UpdateCategory(get()) }
-        addFactory { DeleteCategory(get(), get(), get()) }
+        // SY --> CategoryTombstones is Metro-bound in the app; Injekt still needs a no-op for
+        // any remaining Injekt-resolved DeleteCategory construction paths.
+        addFactory { DeleteCategory(get(), get(), get(), CategoryTombstones { }) }
+        // SY <--
         // KMK -->
         addFactory { HideCategory(get()) }
         addFactory { MergeCategories(get(), get()) }
@@ -206,7 +210,14 @@ class DomainModule : InjektModule {
         addFactory { SetReadStatus(get(), get(), get(), get(), get(), get()) }
         // KMK <--
         addFactory { NeedsChapterUpdate() }
-        addFactory { SyncChaptersWithSource(get(), get(), get(), get(), get(), get(), get(), get(), get()) }
+        // SY --> ChapterTombstones is Metro-bound; Injekt path gets a no-op.
+        addFactory {
+            SyncChaptersWithSource(
+                get(), get(), get(), get(), get(), get(), get(), get(), get(),
+                tachiyomi.domain.chapter.service.ChapterTombstones { },
+            )
+        }
+        // SY <--
         addFactory { GetAvailableScanlators(get()) }
         addFactory { FilterChaptersForDownload(get(), get(), get(), get()) }
 

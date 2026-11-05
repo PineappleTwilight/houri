@@ -6,6 +6,7 @@ import tachiyomi.core.common.util.lang.withNonCancellableContext
 import tachiyomi.core.common.util.system.logcat
 import tachiyomi.domain.category.model.CategoryUpdate
 import tachiyomi.domain.category.repository.CategoryRepository
+import tachiyomi.domain.category.service.CategoryTombstones
 import tachiyomi.domain.download.service.DownloadPreferences
 import tachiyomi.domain.library.service.LibraryPreferences
 
@@ -14,6 +15,9 @@ class DeleteCategory(
     private val categoryRepository: CategoryRepository,
     private val libraryPreferences: LibraryPreferences,
     private val downloadPreferences: DownloadPreferences,
+    // SY -->
+    private val categoryTombstones: CategoryTombstones = CategoryTombstones { },
+    // SY <--
 ) {
 
     suspend fun await(categoryId: Long) = withNonCancellableContext {
@@ -46,6 +50,11 @@ class DeleteCategory(
             depth
         }
         val deleteOrder = toDelete.sortedWith(compareByDescending<Long> { depthById[it] ?: 0 }.thenByDescending { it })
+        // SY --> Remember uids before delete so SyncYomi v2 can tombstone them.
+        val uidsToTombstone = all.filter { it.id in toDelete }.mapNotNull { cat ->
+            cat.uid.takeIf { it != 0L }
+        }
+        // SY <--
         var anyDeleteFailed = false
         for (id in deleteOrder) {
             try {
@@ -55,6 +64,9 @@ class DeleteCategory(
                 logcat(LogPriority.ERROR, e) { "DeleteCategory: failed to delete category $id" }
             }
         }
+        // SY -->
+        uidsToTombstone.forEach { categoryTombstones.remember(it) }
+        // SY <--
         if (anyDeleteFailed) {
             logcat(LogPriority.WARN) { "DeleteCategory: partial delete failure for $categoryId -> $toDelete" }
         }

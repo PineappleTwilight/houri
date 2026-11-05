@@ -17,6 +17,12 @@ object CategoryMapper {
         updateInterval: Long?,
         type: Long?,
         // KMK <--
+        // SY -->
+        uid: Long,
+        version: Long,
+        lastModifiedAt: Long,
+        isSyncing: Long,
+        // SY <--
     ): Category {
         return Category(
             id = id,
@@ -32,6 +38,11 @@ object CategoryMapper {
             updateInterval = updateInterval?.toInt(),
             type = type?.toInt(),
             // KMK <--
+            // SY -->
+            uid = uid,
+            version = version,
+            lastModifiedAt = lastModifiedAt,
+            // SY <--
         )
     }
 }

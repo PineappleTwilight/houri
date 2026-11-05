@@ -22,6 +22,7 @@ import tachiyomi.domain.chapter.model.NoChaptersException
 import tachiyomi.domain.chapter.model.toChapterUpdate
 import tachiyomi.domain.chapter.repository.ChapterRepository
 import tachiyomi.domain.chapter.service.ChapterRecognition
+import tachiyomi.domain.chapter.service.ChapterTombstones
 import tachiyomi.domain.library.service.LibraryPreferences
 import tachiyomi.domain.manga.model.Manga
 import tachiyomi.domain.manga.model.entryType
@@ -41,6 +42,9 @@ class SyncChaptersWithSource(
     private val getChaptersByMangaId: GetChaptersByMangaId,
     private val getExcludedScanlators: GetExcludedScanlators,
     private val libraryPreferences: LibraryPreferences,
+    // SY -->
+    private val chapterTombstones: ChapterTombstones = ChapterTombstones { },
+    // SY <--
 ) {
 
     /**
@@ -249,6 +253,11 @@ class SyncChaptersWithSource(
         // <-- EXH
 
         if (removedChapters.isNotEmpty()) {
+            // SY --> Source-dropped chapters must be tombstoned so they stop reappearing via SyncYomi v2.
+            chapterTombstones.remember(
+                removedChapters.map { ChapterTombstones.key(manga.source, manga.url, it.url) },
+            )
+            // SY <--
             val toDeleteIds = removedChapters.map { it.id }
             chapterRepository.removeChaptersWithIds(toDeleteIds)
         }
